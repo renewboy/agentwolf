@@ -151,6 +151,18 @@ An Agent Tool is a command, arguments, environment allowlist, initial mode, and 
 
 For each seat, the supervisor starts one stdio ACP process, initializes the connection, creates one session with the seat workspace and AgentWolf MCP server, applies advertised model and mode configuration, then retains the returned session ID for the match lifetime. ACP permission requests are approved only when their structured MCP server and tool identity matches one of the five AgentWolf action tools. `session/update` is the streaming source; the final `session/prompt` response closes the turn.
 
+Every built-in player process uses a provider-specific game-only launch policy. Trae receives
+per-process config overrides plus ACP tool allow/deny flags after the `acp serve` subcommand. Codex
+receives an isolated `CODEX_CONFIG`. Claude receives session metadata with an empty built-in tool
+set and no ambient setting sources. These policies remove user memories, global skill catalogs,
+plugins, hooks, repository development instructions, shell/file/browser/search tools, and
+sub-agents. The AgentWolf player contract is the model instruction source, and the only external
+tools are the five actions on `agentwolf-player-actions`.
+
+Prompt contract 16 audits a 12,000-token bootstrap context budget. The budget includes the Agent
+runtime's model instructions and tool schemas as reported by ACP usage, not only the visible judge
+Prompt.
+
 The MCP server is bound to one player token. It exposes speech, vote, night action, sheriff action,
 and skill trigger tools. Normal Match speech is committed from the ACP response; `submit_speech`
 is a compatibility surface that requires an explicit expectation opt-in which the Match runtime

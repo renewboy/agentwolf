@@ -24,6 +24,11 @@ Player identities remain hidden after death and exile. A role-specific public re
 
 The Agent settings screen creates, edits, probes, and deletes Agent Profiles. Selecting an Agent Tool opens a temporary ACP session and reads its advertised model configuration; the model is selected from that returned list. A profile combines the tool, selected model, and non-secret connection settings. Environment-variable references supply credentials.
 
+Match player Sessions run in a game-only configuration. Their model context contains the
+AgentWolf player contract, the selected board and visible Match history, and the five structured
+game actions. User memories, unrelated skills, repository development rules, coding tools,
+browser/search tools, plugins, hooks, and sub-agents are excluded.
+
 The global settings screen stores one speech-length preference shared by every Agent. It defaults
 to 300 Chinese characters. Match creation copies the current value into the Match setup snapshot,
 and each speech Prompt presents it as guidance without truncating or rejecting the final speech.

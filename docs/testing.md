@@ -21,7 +21,8 @@
   manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
   waiting feedback, terminal-state motion cleanup, and missing-Match request settlement.
 - Browser fixtures use a per-run name namespace and remove every created Match, Agent Profile, and custom Agent Tool during suite teardown, including after failed assertions.
-- Optional live ACP smokes verify installed adapters and a real Trae-to-MCP structured action with a one-turn fake match. They never run in keyless CI.
+- Optional live ACP smokes verify installed adapters, game-only tool visibility, bootstrap usage,
+  and a real structured action with a one-turn fake Match. They never run in keyless CI.
 
 ## Required commands
 
@@ -35,7 +36,8 @@ pnpm check:artifacts
 pnpm check:docs
 pnpm check:skills
 pnpm test:e2e
-pnpm smoke:trae-action -- gpt-5.6-luna
+pnpm smoke:player-action -- gpt-5.6-luna --tool=trae-cli
+pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
 ```
 
 `pnpm check` is the deterministic local and CI gate. It excludes live model calls and credentialed adapter smokes.

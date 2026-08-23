@@ -89,18 +89,24 @@ const app = agent({ name: 'AgentWolf mock agent' })
       },
     })
     if (promptText.includes('permission-check')) {
+      const opaqueCodex = promptText.includes('permission-check-codex')
       const permission = await client.request(methods.client.session.requestPermission, {
         sessionId: params.sessionId,
         toolCall: {
           toolCallId: 'permission-tool',
-          title: 'Approve 提交投票',
-          kind: 'other',
+          ...(opaqueCodex ? {} : { title: 'Approve 提交投票' }),
+          kind: opaqueCodex ? 'execute' : 'other',
           status: 'pending',
-          rawInput: {
-            server_name: 'agentwolf-player-actions',
-            request: { _meta: { tool_title: '提交投票' } },
-          },
+          ...(opaqueCodex
+            ? {}
+            : {
+                rawInput: {
+                  server_name: 'agentwolf-player-actions',
+                  request: { _meta: { tool_title: '提交投票' } },
+                },
+              }),
         },
+        ...(opaqueCodex ? { _meta: { is_mcp_tool_approval: true } } : {}),
         options: [
           { kind: 'allow_once', name: 'Allow once', optionId: 'allow' },
           { kind: 'reject_once', name: 'Reject once', optionId: 'reject' },

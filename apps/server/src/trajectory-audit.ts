@@ -8,6 +8,7 @@ import {
 } from '@agentwolf/contracts'
 import { getCopy } from '@agentwolf/assets'
 import { GameEngine, createV1RoleRegistry, replayGame } from '@agentwolf/game-engine'
+import { playerBootstrapContextBudget } from '@agentwolf/acp'
 import type { BoardCatalogService } from './board-catalog.js'
 import { ContextRenderer } from './context-renderer.js'
 import { actionInstructionFor, promptAssetFor } from './match-runtime-helpers.js'
@@ -28,6 +29,10 @@ export async function auditTrajectory(
   const issues: TrajectoryAuditIssue[] = []
 
   for (const turn of turns) {
+    const contextBudgetIssue = bootstrapContextBudgetIssue(turn)
+    if (contextBudgetIssue) {
+      issue(issues, turn.turnId, 'context-budget-exceeded', contextBudgetIssue)
+    }
     const prompts = records.filter(
       (record) => record.turnId === turn.turnId && record.kind === 'prompt',
     )
@@ -136,6 +141,18 @@ export async function auditTrajectory(
     auditedTurns: turns.length,
     issues,
   })
+}
+
+export function bootstrapContextBudgetIssue(turn: TrajectoryTurn): string | null {
+  if (
+    turn.promptVersion < 16 ||
+    turn.kind !== 'bootstrap' ||
+    !turn.usage ||
+    turn.usage.used <= playerBootstrapContextBudget
+  ) {
+    return null
+  }
+  return `Bootstrap context used ${turn.usage.used} tokens; budget is ${playerBootstrapContextBudget}`
 }
 
 async function expectedActionPrompt(

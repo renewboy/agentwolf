@@ -75,6 +75,11 @@ the Sheriff as anchor, and the Sheriff is always the final speaker. Without a Sh
 uses the single death or lowest-seat death as anchor with a replay-stable random direction, or a
 replay-stable random start and direction after a peaceful night.
 
+The player process contributes no ambient user Memory, unrelated Skill catalog, repository
+development instructions, or general-purpose tool schema. Its provider adapter publishes only the
+AgentWolf player contract and five game-action tools. A new Match audit fails when a reported
+bootstrap context exceeds 12,000 tokens.
+
 ## Failure semantics
 
 Each delivery is recorded as in-flight before `session/prompt`. A final ACP response acknowledges its sequence range. A timeout, process exit, or transport error leaves the delivery uncertain. The first failure for one player and phase replaces failed sessions and retries from a visible-history foundation without replaying old prompts to the same Session. A repeated failure pauses for operator action. Manual recovery advances past already delivered uncertain ranges and sends the current structured action contract.

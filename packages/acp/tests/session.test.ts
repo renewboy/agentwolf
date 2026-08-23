@@ -48,7 +48,22 @@ describe('AcpPlayerSession', () => {
       ],
     })
     expect((await session.prompt('permission-check', 5_000)).text).toBe('permission-allow')
+    expect((await session.prompt('permission-check-codex', 5_000)).text).toBe(
+      'permission-cancelled',
+    )
     await session.close()
+
+    const codex = await AcpPlayerSession.start({
+      cwd,
+      launch: { command: process.execPath, args: [fixture], env: { ...process.env } },
+      model: 'mock-model',
+      approvedMcpTools: [
+        { server: 'agentwolf-player-actions', tool: 'submit_vote', title: '提交投票' },
+      ],
+      allowOpaqueMcpPermissions: true,
+    })
+    expect((await codex.prompt('permission-check-codex', 5_000)).text).toBe('permission-allow')
+    await codex.close()
 
     const denied = await AcpPlayerSession.start({
       cwd,
@@ -56,6 +71,7 @@ describe('AcpPlayerSession', () => {
       model: 'mock-model',
     })
     expect((await denied.prompt('permission-check', 5_000)).text).toBe('permission-cancelled')
+    expect((await denied.prompt('permission-check-codex', 5_000)).text).toBe('permission-cancelled')
     await denied.close()
   })
 })

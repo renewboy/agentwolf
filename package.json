@@ -26,7 +26,7 @@
     "typecheck": "tsc -b --pretty false",
     "prepare": "node scripts/harness/install-hooks.mjs",
     "smoke:acp": "tsx scripts/smoke/acp-probe.ts",
-    "smoke:trae-action": "tsx apps/server/tests/live/trae-action.ts"
+    "smoke:player-action": "tsx apps/server/tests/live/player-action.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

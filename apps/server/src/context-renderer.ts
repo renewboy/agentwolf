@@ -22,7 +22,7 @@ export interface ContextEnvelope {
   readonly pausedReason: string | null
 }
 
-export const promptContractVersion = 15
+export const promptContractVersion = 16
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {

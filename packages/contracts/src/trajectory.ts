@@ -142,6 +142,7 @@ export const TrajectoryAuditIssueSchema = z.object({
     'missing-acknowledgement',
     'actor-mismatch',
     'visible-events-mismatch',
+    'context-budget-exceeded',
     'reconstruction-failed',
   ]),
   detail: z.string(),

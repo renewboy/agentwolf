@@ -33,6 +33,7 @@ export interface AcpSessionStartOptions {
     readonly tool: string
     readonly title?: string
   }[]
+  readonly allowOpaqueMcpPermissions?: boolean
   readonly onPermissionRequest?: (request: RequestPermissionRequest) => void
   readonly onPermissionDecision?: (request: RequestPermissionRequest, allowed: boolean) => void
   readonly onStderr?: (chunk: string) => void
@@ -230,8 +231,15 @@ function permissionDecision(request: RequestPermissionRequest, options: AcpSessi
         isRecord(rawInput['request']['_meta']) &&
         rawInput['request']['_meta']['tool_title'] === approved.title),
   )
+  const requestMetadata = request['_meta']
+  const opaqueCodexMcpAllowed =
+    options.allowOpaqueMcpPermissions === true &&
+    (options.approvedMcpTools?.length ?? 0) > 0 &&
+    request.toolCall.kind === 'execute' &&
+    isRecord(requestMetadata) &&
+    requestMetadata['is_mcp_tool_approval'] === true
   const selection = request.options.find((option) => option.kind === 'allow_once')
-  const allowed = Boolean((nameAllowed || mcpAllowed) && selection)
+  const allowed = Boolean((nameAllowed || mcpAllowed || opaqueCodexMcpAllowed) && selection)
   options.onPermissionDecision?.(request, allowed)
   return allowed && selection
     ? { outcome: { outcome: 'selected' as const, optionId: selection.optionId } }

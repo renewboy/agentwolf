@@ -4,7 +4,9 @@ import {
   AcpDeliveryUncertainError,
   AcpPlayerSession,
   DeliveryLedger,
-  resolveLaunchSpec,
+  playerActionToolNames,
+  playerSessionMeta,
+  resolvePlayerLaunchSpec,
   type AcpPromptCallbacks,
   type AcpPromptResult,
 } from '@agentwolf/acp'
@@ -58,21 +60,17 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
   const mode = options.profile.mode ?? options.tool.initialMode
   return AcpPlayerSession.start({
     cwd: options.cwd,
-    launch: resolveLaunchSpec(options.tool),
+    launch: resolvePlayerLaunchSpec(options.tool, options.cwd),
     model: options.profile.model,
     modelConfigKey: options.tool.modelConfigKey,
     ...(mode ? { mode } : {}),
     mcpServers: [options.mcpServer],
     sessionMeta: {
+      ...playerSessionMeta(options.tool.kind),
       agentwolf: { matchId: options.matchId, playerId: options.playerId },
     },
-    approvedToolNames: [
-      'submit_speech',
-      'submit_vote',
-      'submit_night_action',
-      'submit_sheriff_action',
-      'trigger_skill',
-    ],
+    approvedToolNames: playerActionToolNames,
+    allowOpaqueMcpPermissions: options.tool.kind === 'codex',
     approvedMcpTools: [
       {
         server: 'agentwolf-player-actions',

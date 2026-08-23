@@ -8,6 +8,7 @@ import {
   PhaseIdSchema,
   PlayerActionSchema,
   PlayerIdSchema,
+  TrajectoryTurnSchema,
   type GameEventPayload,
   type PlayerId,
 } from '@agentwolf/contracts'
@@ -15,7 +16,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { builtInAgentTools } from '@agentwolf/acp'
 import { getCopy } from '@agentwolf/assets'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
-import { equivalentPrompt } from '../src/trajectory-audit.js'
+import { bootstrapContextBudgetIssue, equivalentPrompt } from '../src/trajectory-audit.js'
 
 const roots: string[] = []
 const servers: AgentWolfServer[] = []
@@ -26,6 +27,41 @@ afterEach(async () => {
 })
 
 describe('trajectory capture', () => {
+  it('audits the game-only bootstrap context budget from prompt contract 16 onward', () => {
+    const turn = TrajectoryTurnSchema.parse({
+      matchId: 'match-context-budget',
+      turnId: 'delivery-context-budget',
+      ownerId: 'player-1',
+      sessionId: 'session-context-budget',
+      sessionGeneration: 1,
+      ordinal: 1,
+      attempt: 1,
+      kind: 'bootstrap',
+      phaseId: null,
+      actionType: 'bootstrap',
+      fromSequence: 1,
+      toSequence: 1,
+      promptVersion: 16,
+      status: 'completed',
+      startedAt: '2026-08-23T00:00:00.000Z',
+      completedAt: '2026-08-23T00:00:01.000Z',
+      durationMs: 1_000,
+      stopReason: 'end_turn',
+      error: null,
+      usage: { used: 12_001, size: 174_800, cost: null },
+      revision: 1,
+    })
+    expect(bootstrapContextBudgetIssue(turn)).toContain('12001')
+    expect(bootstrapContextBudgetIssue({ ...turn, promptVersion: 15 })).toBeNull()
+    expect(bootstrapContextBudgetIssue({ ...turn, kind: 'action' })).toBeNull()
+    expect(
+      bootstrapContextBudgetIssue({
+        ...turn,
+        usage: { ...turn.usage!, used: 12_000 },
+      }),
+    ).toBeNull()
+  })
+
   it('uses explicit turns, merges streams, upserts tools, and redacts secrets before storage', async () => {
     const server = await createServer()
     const tool = builtInAgentTools()[0]!
