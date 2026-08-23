@@ -74,4 +74,22 @@ describe('AcpPlayerSession', () => {
     expect((await denied.prompt('permission-check-codex', 5_000)).text).toBe('permission-cancelled')
     await denied.close()
   })
+
+  it('bounds a protocol close that never settles', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-hung-close-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: {
+        command: process.execPath,
+        args: [fixture],
+        env: { ...process.env, AGENTWOLF_MOCK_CLOSE_HANG: 'true' },
+      },
+    })
+
+    const startedAt = Date.now()
+    await session.close()
+    expect(Date.now() - startedAt).toBeLessThan(3_000)
+  }, 5_000)
 })

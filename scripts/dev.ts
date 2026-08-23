@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { terminateProcessTree } from './process-tree.js'
 
 const children: ChildProcess[] = []
 let closing = false
@@ -6,6 +7,7 @@ const developerMode = process.argv.includes('--developer')
 
 for (const filter of ['@agentwolf/server', '@agentwolf/web']) {
   const child = spawn('pnpm', ['--filter', filter, 'dev'], {
+    detached: process.platform !== 'win32',
     stdio: 'inherit',
     shell: false,
     env:
@@ -31,15 +33,6 @@ await new Promise<void>((resolvePromise) => {
 async function closeChildren(exitCode: number): Promise<void> {
   if (closing) return
   closing = true
-  for (const child of children) child.kill('SIGTERM')
-  await Promise.all(
-    children.map(
-      (child) =>
-        new Promise<void>((resolvePromise) => {
-          if (child.exitCode !== null || child.signalCode !== null) resolvePromise()
-          else child.once('exit', () => resolvePromise())
-        }),
-    ),
-  )
+  await Promise.all(children.map((child) => terminateProcessTree(child)))
   process.exitCode = exitCode
 }

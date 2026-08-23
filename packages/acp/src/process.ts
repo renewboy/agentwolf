@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import type { ProcessLaunchSpec } from './tool-catalog.js'
 
 export interface AgentProcessOptions {
@@ -10,18 +11,33 @@ export interface AgentProcessOptions {
 
 export class AgentProcess {
   readonly #child: ChildProcessWithoutNullStreams
+  readonly #processGroupId: number | null
   readonly #stderrLimit: number
   #stderr = ''
   #closed = false
 
   public constructor(options: AgentProcessOptions) {
     this.#stderrLimit = options.stderrLimit ?? 16_384
-    this.#child = spawn(options.launch.command, [...options.launch.args], {
-      cwd: options.cwd,
-      env: options.launch.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
-    })
+    if (process.platform === 'win32') {
+      this.#child = spawn(options.launch.command, [...options.launch.args], {
+        cwd: options.cwd,
+        env: options.launch.env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: false,
+      })
+      this.#processGroupId = null
+    } else {
+      const guardian = fileURLToPath(new URL('../process-guardian.sh', import.meta.url))
+      const child = spawn('/bin/sh', [guardian, options.launch.command, ...options.launch.args], {
+        cwd: options.cwd,
+        env: options.launch.env,
+        detached: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: false,
+      })
+      this.#child = child
+      this.#processGroupId = child.pid ?? null
+    }
     this.#child.stderr.setEncoding('utf8')
     this.#child.stderr.on('data', (chunk: string) => {
       this.#stderr = `${this.#stderr}${chunk}`.slice(-this.#stderrLimit)
@@ -52,15 +68,31 @@ export class AgentProcess {
     if (this.#closed) return
     this.#closed = true
     if (this.#child.exitCode !== null || this.#child.signalCode !== null) return
-    this.#child.kill('SIGTERM')
+    this.#signal('SIGTERM')
     const exited = this.exited().then(() => true)
     const timedOut = new Promise<false>((resolve) => {
       const timer = setTimeout(() => resolve(false), graceMs)
       timer.unref()
     })
     if (!(await Promise.race([exited, timedOut]))) {
-      this.#child.kill('SIGKILL')
+      this.#signal('SIGKILL')
       await this.exited()
     }
   }
+
+  #signal(signal: NodeJS.Signals): void {
+    if (this.#processGroupId === null) {
+      this.#child.kill(signal)
+      return
+    }
+    try {
+      process.kill(-this.#processGroupId, signal)
+    } catch (error) {
+      if (!isNoSuchProcess(error)) throw error
+    }
+  }
+}
+
+function isNoSuchProcess(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'ESRCH'
 }

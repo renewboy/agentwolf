@@ -19,6 +19,8 @@ import { AcpDeliveryUncertainError, AcpLifecycleError } from './errors.js'
 import { AgentProcess } from './process.js'
 import type { ProcessLaunchSpec } from './tool-catalog.js'
 
+const sessionCloseTimeoutMs = 1_000
+
 export interface AcpSessionStartOptions {
   readonly cwd: string
   readonly launch: ProcessLaunchSpec
@@ -196,9 +198,13 @@ export class AcpPlayerSession {
     if (this.#closed) return
     this.#closed = true
     try {
-      await this.#context.request(methods.agent.session.close, {
-        sessionId: this.#session.sessionId,
-      })
+      await withTimeout(
+        this.#context.request(methods.agent.session.close, {
+          sessionId: this.#session.sessionId,
+        }),
+        sessionCloseTimeoutMs,
+        'ACP session close timed out',
+      )
     } catch (error) {
       if (!this.#connection.signal.aborted) {
         this.#connection.close(error)
@@ -208,6 +214,24 @@ export class AcpPlayerSession {
       this.#connection.close()
       await this.#process.close()
     }
+  }
+}
+
+async function withTimeout<Value>(
+  promise: Promise<Value>,
+  timeoutMs: number,
+  message: string,
+): Promise<Value> {
+  let timer: NodeJS.Timeout | null = null
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+    timer.unref()
+  })
+  void promise.catch(() => undefined)
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 }
 

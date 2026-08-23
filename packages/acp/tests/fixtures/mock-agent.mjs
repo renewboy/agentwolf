@@ -141,7 +141,10 @@ const app = agent({ name: 'AgentWolf mock agent' })
     })
     return { stopReason: 'end_turn' }
   })
-  .onRequest(methods.agent.session.close, ({ params }) => {
+  .onRequest(methods.agent.session.close, async ({ params }) => {
+    if (process.env['AGENTWOLF_MOCK_CLOSE_HANG'] === 'true') {
+      await new Promise(() => undefined)
+    }
     sessions.delete(params.sessionId)
     return {}
   })

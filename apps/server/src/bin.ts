@@ -3,12 +3,20 @@ import { loadServerConfig } from './config.js'
 
 const config = loadServerConfig()
 const server = await buildServer({ config, logger: true })
+let shutdownPromise: Promise<void> | null = null
 
-const shutdown = async (): Promise<void> => {
-  await server.close()
+const shutdown = (): Promise<void> => {
+  shutdownPromise ??= server.close()
+  return shutdownPromise
 }
 
-process.once('SIGINT', () => void shutdown())
-process.once('SIGTERM', () => void shutdown())
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+  process.once(signal, () => {
+    void shutdown().catch((error: unknown) => {
+      process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`)
+      process.exitCode = 1
+    })
+  })
+}
 
 await server.app.listen({ host: config.host, port: config.port })
