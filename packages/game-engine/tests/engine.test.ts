@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   GameEngine,
   guardBoard,
+  sheriffCampaignOrder,
   sixPlayerBoard,
   standardBoard,
   v1AbilityIds,
@@ -213,6 +214,14 @@ describe('GameEngine', () => {
         action: 'decline',
       })
     }
+    expect(engine.expectedActors()).toEqual(
+      sheriffCampaignOrder(
+        engine.state.matchId,
+        engine.state.day,
+        [first, second],
+        engine.state.players,
+      ),
+    )
     while (engine.state.phaseId === 'phase-sheriff-speech') {
       const actorId = engine.activeActor()
       if (!actorId) throw new Error('Expected sheriff speaker')
@@ -247,6 +256,49 @@ describe('GameEngine', () => {
       action: 'speech-clockwise',
     })
     expect(engine.state.phaseId).toBe('phase-day-speech')
+    const speechOrder = engine.events.findLast((event) => event.payload.type === 'speech.order-set')
+    expect(speechOrder?.payload).toMatchObject({
+      type: 'speech.order-set',
+      basis: 'sheriff',
+      anchorPlayerId: first,
+      direction: 'clockwise',
+    })
+    expect(engine.state.speechOrder.at(-1)).toBe(first)
+  })
+
+  it('persists a deterministic death-anchored order without a Sheriff', () => {
+    const engine = createManualEngine(noSheriffBoard)
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+    engine.start()
+    playNight(engine, { wolfTargetId: targetId })
+    while (engine.state.phaseId === 'phase-last-words') {
+      const actorId = engine.activeActor()
+      if (!actorId) throw new Error('Expected last-words speaker')
+      engine.submit({
+        type: 'speech',
+        matchId: engine.state.matchId,
+        actorId,
+        kind: 'last-words',
+        text: '留下最后的公开信息。',
+      })
+    }
+
+    expect(engine.state.phaseId).toBe('phase-day-speech')
+    const orderEvent = engine.events.findLast((event) => event.payload.type === 'speech.order-set')
+    expect(orderEvent?.payload).toMatchObject({
+      type: 'speech.order-set',
+      basis: 'night-death',
+      anchorPlayerId: targetId,
+    })
+    expect(engine.activeActor()).toBe(engine.state.speechOrder[0])
+    const restored = GameEngine.restore({
+      matchId: engine.state.matchId,
+      board: noSheriffBoard,
+      events: engine.events,
+      status: 'running',
+      pausedReason: null,
+    })
+    expect(restored.state.speechOrder).toEqual(engine.state.speechOrder)
   })
 
   it('lets the Idiot survive exile and removes its vote', () => {

@@ -2,6 +2,7 @@ import {
   AgentProfileIdSchema,
   GameEventSchema,
   MatchIdSchema,
+  PhaseIdSchema,
   PlayerIdSchema,
 } from '@agentwolf/contracts'
 import { formatCopy, getCopy } from '@agentwolf/assets'
@@ -29,7 +30,7 @@ describe('ContextRenderer board rules', () => {
 
     const ninePlayerPrompt = await foundationPrompt(renderer, ninePlayerBoard)
     expect(ninePlayerPrompt).toContain(getCopy('promptContext.werewolfVictorySlaughterEdge'))
-    expect(ninePlayerPrompt).toContain(getCopy('promptContext.sheriffEnabled'))
+    expect(ninePlayerPrompt).toContain(getCopy('promptContext.sheriffEnabledSpeechOrder'))
     expect(ninePlayerPrompt).toContain(
       formatCopy(getCopy('promptContext.witchPotionLimit'), { count: 1 }),
     )
@@ -73,6 +74,89 @@ describe('ContextRenderer board rules', () => {
       10,
     )
     expect(legacy.prompt).not.toContain('本局角色介绍')
+  })
+
+  it('states the day and complete publicly living roster in every daytime prompt', async () => {
+    const renderer = new ContextRenderer(createV1RoleRegistry())
+    const { engine, players } = createBoardEngine(sixPlayerBoard)
+    const dead = players[5]!
+    const deadState = engine.state.players.get(dead.id)!
+    const dayStarted = GameEventSchema.parse({
+      matchId: engine.state.matchId,
+      sequence: engine.state.lastSequence + 1,
+      occurredAt: '2026-08-23T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: { type: 'day.started', day: 2 },
+    })
+    const state = {
+      ...engine.state,
+      day: 2,
+      phaseId: PhaseIdSchema.parse('phase-day-speech'),
+      phaseLabelKey: 'phases.daySpeech',
+      lastSequence: dayStarted.sequence,
+      players: new Map(engine.state.players).set(dead.id, { ...deadState, alive: false }),
+    }
+    for (const promptAsset of [
+      'speech-turn',
+      'vote-turn',
+      'sheriff-turn',
+      'speech-order-turn',
+      'skill-turn',
+    ] as const) {
+      const turn = await renderer.turn(state, [dayStarted], players[0]!.id, 0, promptAsset)
+      expect(turn.prompt.match(/当前是第 2 天/gu)).toHaveLength(1)
+      expect(turn.prompt).not.toContain('天亮了，现在是第 2 天')
+      for (const living of players.filter((player) => player.id !== dead.id)) {
+        expect(turn.prompt).toContain(
+          formatCopy(getCopy('promptContext.rosterEntry'), {
+            name: living.name,
+            playerId: living.id,
+            seat: living.seat,
+          }),
+        )
+      }
+      expect(turn.prompt).not.toContain(
+        formatCopy(getCopy('promptContext.rosterEntry'), {
+          name: dead.name,
+          playerId: dead.id,
+          seat: dead.seat,
+        }),
+      )
+    }
+
+    const campaign = await renderer.turn(
+      {
+        ...state,
+        phaseId: PhaseIdSchema.parse('phase-sheriff-signup'),
+        phaseLabelKey: 'phases.sheriffSignup',
+        players: engine.state.players,
+        pendingDeaths: new Map([[dead.id, { playerId: dead.id, causes: ['werewolf'] }]]),
+      },
+      [dayStarted],
+      players[0]!.id,
+      0,
+      'sheriff-turn',
+    )
+    expect(campaign.prompt).toContain(
+      formatCopy(getCopy('promptContext.rosterEntry'), {
+        name: dead.name,
+        playerId: dead.id,
+        seat: dead.seat,
+      }),
+    )
+    expect(campaign.prompt).not.toContain('昨夜死亡')
+
+    const legacy = await renderer.turn(state, [dayStarted], players[0]!.id, 0, 'vote-turn', '', 13)
+    expect(legacy.prompt).not.toContain('当前公开存活玩家')
+    expect(legacy.prompt).toContain('天亮了，现在是第 2 天')
+
+    const replacement = await renderer.foundation(state, sixPlayerBoard, players[0]!.id, [
+      ...engine.events,
+      dayStarted,
+    ])
+    expect(replacement.prompt.match(/当前是第 2 天/gu)).toHaveLength(1)
+    expect(replacement.prompt).toContain('当前公开存活玩家')
+    expect(replacement.prompt).not.toContain('天亮了，现在是第 2 天')
   })
 
   it('delivers exact wolf teammate knowledge in the bootstrap foundation', async () => {
@@ -273,7 +357,7 @@ describe('ContextRenderer board rules', () => {
       'speech-turn',
       instruction,
     )
-    expect(promptContractVersion).toBeGreaterThanOrEqual(13)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(14)
     expect(current.prompt).toContain(instruction)
 
     const legacy = await renderer.turn(

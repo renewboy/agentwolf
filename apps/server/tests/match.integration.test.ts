@@ -407,6 +407,22 @@ describe('match orchestration', () => {
     expect(finalReveals).toHaveLength(12)
     expect(finalReveals.every((event) => event.sequence > (matchEnded?.sequence ?? 0))).toBe(true)
     expect([...prompts.values()].flat().join('\n')).not.toMatch(/新增|补充信息/)
+    const trajectoryTurns = server.repository
+      .listTrajectoryTurns(created.id)
+      .filter((turn) => turn.ownerId !== 'system')
+    const trajectoryRecords = server.repository.listTrajectoryRecords(created.id)
+    for (const turn of trajectoryTurns.filter(
+      (candidate) =>
+        candidate.phaseId !== null &&
+        !candidate.phaseId.startsWith('phase-night-') &&
+        candidate.phaseId !== 'phase-match-ended',
+    )) {
+      const prompt = trajectoryRecords.find(
+        (record) => record.turnId === turn.turnId && record.kind === 'prompt',
+      )?.text
+      expect(prompt).toMatch(/当前是第 \d+ 天/u)
+      expect(prompt).toContain('当前公开存活玩家')
+    }
     expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
       ok: true,
       issues: [],

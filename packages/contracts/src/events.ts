@@ -87,6 +87,9 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     type: z.literal('speech.order-set'),
     kind: z.enum(['day', 'sheriff', 'runoff', 'last-words', 'wolf-council']),
     playerIds: z.array(PlayerIdSchema),
+    basis: z.enum(['night-death', 'sheriff', 'random']).optional(),
+    anchorPlayerId: PlayerIdSchema.nullable().optional(),
+    direction: z.enum(['clockwise', 'counterclockwise']).optional(),
   }),
   z.object({
     type: z.literal('speech.started'),

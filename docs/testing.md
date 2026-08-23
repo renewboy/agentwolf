@@ -94,3 +94,9 @@ pnpm smoke:trae-action -- gpt-5.6-luna
 29. Ordered ACP text deltas preserve repeated fragments and punctuation. A projected speech
     message Record and committed event expose the same normalized canonical text, while historical
     incomplete stream Records project through the same normalization.
+30. Every daytime Prompt states the current day exactly once and lists every publicly living
+    nickname, seat, and Player ID while excluding eliminated players without exposing pending
+    night deaths during the sheriff campaign.
+31. Sheriff campaign speech uses a replay-stable random first candidate. Day speech order covers
+    single-death, multiple-death, and peaceful-night anchors with or without a Sheriff, persists its
+    basis and direction, and always places a living Sheriff last.

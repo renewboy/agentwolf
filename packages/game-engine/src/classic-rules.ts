@@ -9,6 +9,7 @@ import { assertRule } from './errors.js'
 import { effectsForActions, selectPluralityTarget, v1AbilityIds } from './resolution.js'
 import { appendFinalRoleReveals } from './role-reveal.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
+import { resolveDaySpeechOrder, sheriffCampaignOrder } from './speech-order.js'
 import { IdiotRole } from './roles/idiot.js'
 import { evaluateVictory } from './victory.js'
 
@@ -266,31 +267,6 @@ function resolveSheriff(runtime: RuleRuntime): void {
   runtime.append({ type: 'sheriff.badge-lost', reason: 'no-unique-winner' }, visibility.public)
 }
 
-function resolveSpeechOrder(runtime: RuleRuntime): void {
-  const living = [...runtime.state.players.values()]
-    .filter((player) => player.alive)
-    .sort((left, right) => left.seat - right.seat)
-  if (living.length === 0) return
-  const directionAction = runtime.state.phaseActions.find(
-    (action): action is Extract<PlayerAction, { type: 'sheriff-action' }> =>
-      action.type === 'sheriff-action',
-  )
-  const clockwise = directionAction?.action !== 'speech-counterclockwise'
-  const ordered = clockwise ? living : [...living].reverse()
-  const recentDeath = [...runtime.state.recentDeaths.keys()][0]
-  const anchorId = recentDeath ?? runtime.state.sheriff.holderId
-  const anchorIndex = anchorId ? ordered.findIndex((player) => player.id === anchorId) : -1
-  const rotated =
-    anchorIndex >= 0
-      ? [...ordered.slice(anchorIndex + 1), ...ordered.slice(0, anchorIndex + 1)]
-      : ordered
-  runtime.append(
-    { type: 'speech.order-set', kind: 'day', playerIds: rotated.map((player) => player.id) },
-    visibility.public,
-  )
-  runtime.append({ type: 'death.window-closed' }, visibility.god)
-}
-
 function resolveExile(runtime: RuleRuntime): void {
   runtime.append({ type: 'day.completed' }, visibility.god)
   const targetId = runtime.state.lastVote?.selectedPlayerId
@@ -334,7 +310,12 @@ export function registerClassicRules(registry: RuleRegistry): void {
     ),
   )
   registry.registerActorSelector('standing-sheriff-candidates', (runtime) =>
-    bySeat(runtime, runtime.state.sheriff.standingCandidates),
+    sheriffCampaignOrder(
+      runtime.state.matchId,
+      runtime.state.day,
+      [...runtime.state.sheriff.standingCandidates],
+      runtime.state.players,
+    ),
   )
   registry.registerActorSelector('original-sheriff-noncandidates', (runtime) =>
     bySeat(
@@ -466,7 +447,7 @@ export function registerClassicRules(registry: RuleRegistry): void {
   registry.registerPhaseHandler(phase('phase-sheriff-resolve'), resolveSheriff)
   registry.registerPhaseHandler(phase('phase-day-announcement'), finalizeNightDeaths)
   registry.registerPhaseHandler(phase('phase-death-triggers'), resolveDeathTriggers)
-  registry.registerPhaseHandler(phase('phase-day-speech-order'), resolveSpeechOrder)
+  registry.registerPhaseHandler(phase('phase-day-speech-order'), resolveDaySpeechOrder)
   registry.registerPhaseHandler(phase('phase-day-vote'), (runtime) =>
     emitVoteResolution(runtime, 'exile', true),
   )

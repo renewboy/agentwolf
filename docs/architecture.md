@@ -92,6 +92,13 @@ history. Vote prompts are created from one barrier snapshot after all speeches a
 every eligible voter receives every other player's speech before any vote is accepted. The same
 barrier rule applies to sheriff voting and phase transitions.
 
+Every daytime Prompt renders one current-state line containing the day and the complete publicly
+living roster. The current `day.started` event remains acknowledged but is not narrated a second
+time in that Prompt. Day speech order is emitted as one `speech.order-set` event containing the
+resolved players, anchor basis, anchor player, and direction. Random campaign starts and
+no-sheriff directions use a stable hash of Match ID, day, and the relevant player sets; the event
+log therefore replays the chosen order without runtime randomness.
+
 The complete phase matrix is defined in [Information synchronization](information-sync.md).
 
 ## Developer trajectory

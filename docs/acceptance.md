@@ -4,7 +4,7 @@ Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.
 
 ## Deterministic application checks
 
-- 75 unit and integration scenarios across 24 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, terminal Session projection, and 6/9/12-player board validation.
+- 83 unit and integration scenarios across 25 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
 - Coverage passed at 86.82% lines, 83.52% statements, 87.31% functions, and 72.50% branches over rule, ACP, asset, and server production sources.
 - Eleven Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile controls, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, full/reduced/off role effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
@@ -119,6 +119,37 @@ The trajectory pages grouped calls under `开局`, `第1夜`, `上警`, and numb
 player-local Turn headings. Both pages filled the 720-pixel browser viewport with document
 `scrollY = 0`, and each Match record remained the only entry point to its own trajectory. The final
 Chromium suite passed all 11 scenarios.
+
+## Day state and speech-order acceptance
+
+Two retained browser-visible six-player Matches used real Trae ACP Sessions with Prompt contract
+14:
+
+| Mode       | Match ID                                      | Result           | Events | Player Turns | Player Records |
+| ---------- | --------------------------------------------- | ---------------- | -----: | -----------: | -------------: |
+| No sheriff | `match-board-phase2-real-6-no-s-4e513a8d0346` | Wolves, day four |    368 |           49 |            328 |
+| Sheriff    | `match-board-phase2-real-6-sher-95726af57785` | Wolves, day one  |    259 |           41 |            277 |
+
+Both Matches ended with a zero-issue trajectory audit. Every player Turn completed; failed tools,
+error Records, error diagnostics, and daytime-state Prompt failures were all zero. Every daytime
+Prompt contained exactly one current-day statement plus the complete publicly living
+nickname-seat-Player-ID roster.
+
+The no-sheriff Match exercised both random and death-anchored mornings. Its peaceful first morning
+started at Player 5 and proceeded counterclockwise `5 → 4 → 3 → 2 → 1 → 6`.
+Later single-death mornings used Player 6 and Player 2 as their respective anchors and began from
+the first living neighbor in the persisted counterclockwise direction. A separate real
+no-sheriff Match exercised the opposite direction: after Player 2 died, the order was
+`1 → 6 → 5 → 4 → 3`.
+
+The sheriff Match placed all six candidates into the persisted campaign order
+`6 → 1 → 2 → 3 → 4 → 5`, confirming a random first candidate followed by seat-order
+rotation. All players remained original candidates, so no player was eligible to cast the sheriff
+vote and the badge correctly became lost; daytime order then followed the no-sheriff fallback.
+Deterministic engine coverage separately verified every living-Sheriff branch: single death uses
+dead-left/dead-right, peaceful and multiple-death mornings use Sheriff-left/Sheriff-right, and the
+Sheriff is appended as the final summary speaker in both directions. Multiple deaths without a
+Sheriff use the lowest-seat death as anchor. Replay restored the emitted order exactly.
 
 ## Vote collection and result presentation
 

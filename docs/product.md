@@ -34,6 +34,14 @@ Every player's initial Match prompt includes one detailed public introduction fo
 selected board. Each entry states the role's faction, skill timing, legal targets, usage limits,
 key board-policy interactions, and public outcome without revealing which seat owns that role.
 
+Every daytime Prompt begins with the current day and the complete publicly living roster, including
+each nickname, seat, and Player ID. During the first-day election, the first campaign speaker is
+chosen randomly. A living Sheriff chooses dead-left or dead-right after one night death, and
+Sheriff-left or Sheriff-right after a peaceful night or multiple deaths; the Sheriff always speaks
+last. Without a Sheriff, the judge uses a replay-stable random direction around a night-death
+anchor, or a replay-stable random start and direction after a peaceful night. Multiple deaths use
+the lowest-seat death as the no-sheriff anchor.
+
 ## Match experience
 
 The spectator screen is a fixed-height live match stage. Player rosters run down the left and right edges, while the center presents streamed speech, public events, night information allowed by the selected view, voting results, and audio playback through the browser Speech Synthesis API. Resolved votes group voter seat numbers under each target seat number. The central history scrolls independently and can be folded by match day.

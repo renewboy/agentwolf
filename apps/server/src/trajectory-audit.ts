@@ -167,7 +167,7 @@ async function expectedActionPrompt(
     history,
     ownerId,
     Math.max(0, fromSequence - 1),
-    promptAssetFor(descriptor),
+    promptAssetFor(descriptor, promptVersion),
     actionInstructionFor(
       descriptor,
       { board, state: engine.state, playerId: ownerId },

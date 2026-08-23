@@ -22,7 +22,7 @@ export interface ContextEnvelope {
   readonly pausedReason: string | null
 }
 
-export const promptContractVersion = 13
+export const promptContractVersion = 14
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {
@@ -71,6 +71,29 @@ function publicRoleRules(board: BoardManifest, roles: RoleRegistry): string {
   return formatCopy(getAssetCopy('promptContext.roleRulesIntro'), {
     roles: entries.join('\n'),
   })
+}
+
+function daytimeState(state: GameState): string | null {
+  if (
+    state.day < 1 ||
+    !state.phaseId ||
+    state.phaseId.startsWith('phase-night-') ||
+    state.phaseId === 'phase-match-ended'
+  ) {
+    return null
+  }
+  const players = [...state.players.values()]
+    .filter((player) => player.alive)
+    .sort((left, right) => left.seat - right.seat)
+    .map((player) =>
+      formatCopy(getAssetCopy('promptContext.rosterEntry'), {
+        name: player.name,
+        playerId: player.id,
+        seat: player.seat,
+      }),
+    )
+    .join(getAssetCopy('narration.listJoiner'))
+  return formatCopy(getAssetCopy('promptContext.dayState'), { day: state.day, players })
 }
 
 export class ContextRenderer {
@@ -147,7 +170,13 @@ export class ContextRenderer {
           : 'promptContext.werewolfVictorySlaughterAll',
       ),
       getAssetCopy(
-        board.sheriff ? 'promptContext.sheriffEnabled' : 'promptContext.sheriffDisabled',
+        board.sheriff
+          ? promptVersion >= 14
+            ? 'promptContext.sheriffEnabledSpeechOrder'
+            : 'promptContext.sheriffEnabled'
+          : promptVersion >= 14
+            ? 'promptContext.sheriffDisabledSpeechOrder'
+            : 'promptContext.sheriffDisabled',
       ),
       ...(promptVersion < 11 && board.roles.some((slot) => slot.roleId === 'role-witch')
         ? [
@@ -186,10 +215,20 @@ export class ContextRenderer {
       ),
     ].join('\n')
     const projectedHistory = visibleEvents(historyEvents, { kind: 'player', playerId }, state)
+    const currentDayState = promptVersion >= 14 ? daytimeState(state) : null
     const historyLines = projectedHistory
-      .filter((event) => event.payload.type !== 'role.assigned')
+      .filter(
+        (event) =>
+          event.payload.type !== 'role.assigned' &&
+          !(
+            currentDayState &&
+            event.payload.type === 'day.started' &&
+            event.payload.day === state.day
+          ),
+      )
       .map((event) => narrate(event, narrationCatalog(state, this.#roles, playerId)))
       .filter((line): line is string => Boolean(line))
+    if (currentDayState) historyLines.unshift(currentDayState)
     if (
       state.status === 'paused' &&
       state.pausedReason &&
@@ -226,17 +265,30 @@ export class ContextRenderer {
   ): Promise<ContextEnvelope> {
     const projected = visibleEvents(events, { kind: 'player', playerId }, state, afterSequence)
     const catalog = narrationCatalog(state, this.#roles, playerId)
-    const narrationEvents =
-      promptVersion >= 10
-        ? projected.filter(
-            (event) =>
-              event.payload.type !== 'speech.committed' || event.payload.playerId !== playerId,
-          )
-        : projected
-    const narration = narrationEvents
-      .map((event) => narrate(event, catalog))
-      .filter((line): line is string => Boolean(line))
-      .join('\n')
+    const currentDayState = promptVersion >= 14 ? daytimeState(state) : null
+    const narrationEvents = projected.filter((event) => {
+      if (
+        promptVersion >= 10 &&
+        event.payload.type === 'speech.committed' &&
+        event.payload.playerId === playerId
+      ) {
+        return false
+      }
+      if (
+        currentDayState &&
+        event.payload.type === 'day.started' &&
+        event.payload.day === state.day
+      ) {
+        return false
+      }
+      return true
+    })
+    const narration = [
+      ...(currentDayState ? [currentDayState] : []),
+      ...narrationEvents
+        .map((event) => narrate(event, catalog))
+        .filter((line): line is string => Boolean(line)),
+    ].join('\n')
     const template = await loadPromptAsset(promptAsset)
     return {
       prompt: renderPrompt(template, {

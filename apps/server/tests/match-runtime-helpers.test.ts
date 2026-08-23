@@ -16,7 +16,11 @@ import {
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
 import { promptContractVersion } from '../src/context-renderer.js'
-import { actionInstructionFor, interruptAbilityExpectation } from '../src/match-runtime-helpers.js'
+import {
+  actionInstructionFor,
+  interruptAbilityExpectation,
+  promptAssetFor,
+} from '../src/match-runtime-helpers.js'
 
 describe('model action instructions', () => {
   it('binds campaign privacy and live skill targets to the current prompt contract', () => {
@@ -71,7 +75,7 @@ describe('model action instructions', () => {
       state,
       playerId: actorId,
     })
-    expect(promptContractVersion).toBeGreaterThanOrEqual(13)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(14)
     expect(instruction).toContain('`player-2`')
     expect(instruction).not.toContain('`player-6`')
 
@@ -184,5 +188,90 @@ describe('model action instructions', () => {
       10,
     )
     expect(legacy).toContain(`\`${target.id}\``)
+  })
+
+  it('explains dead-side and Sheriff-side speech choices from the current morning state', () => {
+    const roles = standardBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId: MatchIdSchema.parse('match-speech-order-instructions'),
+      board: standardBoard,
+      roleAssignment: 'manual',
+      seed: 3,
+      roles: createV1RoleRegistry(),
+      players: roles.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `Speech order player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-speech-order-${index + 1}`),
+        roleId,
+      })),
+    })
+    const sheriff = engine.state.players.get(PlayerIdSchema.parse('player-1'))!
+    const firstDeath = engine.state.players.get(PlayerIdSchema.parse('player-4'))!
+    const secondDeath = engine.state.players.get(PlayerIdSchema.parse('player-5'))!
+    const turn: TurnDescriptor = {
+      phaseId: PhaseIdSchema.parse('phase-day-speech-order'),
+      labelKey: 'phases.daySpeechOrder',
+      mode: 'parallel',
+      actionType: 'sheriff-action',
+      actors: [sheriff.id],
+    }
+    expect(promptAssetFor(turn)).toBe('speech-order-turn')
+    expect(promptAssetFor(turn, 13)).toBe('sheriff-turn')
+    const singleDeathState = {
+      ...engine.state,
+      day: 1,
+      sheriff: { ...engine.state.sheriff, holderId: sheriff.id },
+      players: new Map(engine.state.players).set(firstDeath.id, {
+        ...firstDeath,
+        alive: false,
+      }),
+      recentDeaths: new Map([[firstDeath.id, { playerId: firstDeath.id, causes: ['werewolf'] }]]),
+    }
+    const single = actionInstructionFor(turn, {
+      board: standardBoard,
+      state: singleDeathState,
+      playerId: sheriff.id,
+    })
+    expect(single).toContain('死左')
+    expect(single).toContain('死右')
+    expect(single).toContain('speech-counterclockwise')
+    expect(single).toContain('speech-clockwise')
+    expect(single).toContain('警长最后总结归票')
+    expect(single).toContain(firstDeath.name)
+
+    const peaceful = actionInstructionFor(turn, {
+      board: standardBoard,
+      state: {
+        ...singleDeathState,
+        players: engine.state.players,
+        recentDeaths: new Map(),
+      },
+      playerId: sheriff.id,
+    })
+    expect(peaceful).toContain('平安夜')
+    expect(peaceful).toContain('警左')
+    expect(peaceful).toContain('警右')
+
+    const multiple = actionInstructionFor(turn, {
+      board: standardBoard,
+      state: {
+        ...singleDeathState,
+        players: new Map(singleDeathState.players).set(secondDeath.id, {
+          ...secondDeath,
+          alive: false,
+        }),
+        recentDeaths: new Map([
+          [firstDeath.id, { playerId: firstDeath.id, causes: ['werewolf'] }],
+          [secondDeath.id, { playerId: secondDeath.id, causes: ['poison'] }],
+        ]),
+      },
+      playerId: sheriff.id,
+    })
+    expect(multiple).toContain('有 2 名玩家死亡')
+    expect(multiple).toContain('警左')
+    expect(actionInstructionFor(turn, undefined, 13)).toBe('')
   })
 })

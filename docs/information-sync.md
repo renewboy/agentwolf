@@ -30,7 +30,7 @@ than replaying historical effects.
 | Seer action        | living Seer                                  | public events and own prior inspections                                                                      | private redirected inspection result                                                                                  |
 | Night resolution   | no Agent                                     | collected night intents                                                                                      | pending deaths to god view; day-start event public                                                                    |
 | Sheriff signup     | every publicly alive seat                    | all visible first-night events; first-night death identities remain unannounced                              | candidate decisions public                                                                                            |
-| Sheriff speech     | standing candidates, sequential              | all earlier candidate speeches                                                                               | each speech public                                                                                                    |
+| Sheriff speech     | standing candidates, sequential              | all earlier candidate speeches; the first candidate is selected by replay-stable random rotation             | each speech public                                                                                                    |
 | Withdrawal         | standing candidates, parallel barrier        | complete candidate speech round                                                                              | withdrawal state public                                                                                               |
 | Sheriff vote       | original non-candidates, parallel barrier    | complete campaign and withdrawal state                                                                       | individual ballots, totals, tie or elected sheriff public                                                             |
 | Sheriff runoff     | tied candidates then original non-candidates | complete prior ballot and runoff speech                                                                      | runoff ballots and badge result public                                                                                |
@@ -38,8 +38,8 @@ than replaying historical effects.
 | Badge transfer     | dead sheriff                                 | public death information and private action instruction                                                      | new sheriff or destroyed badge public                                                                                 |
 | Death trigger      | eligible dead role owner                     | public death state and private trigger eligibility                                                           | resolved skill and resulting deaths public                                                                            |
 | Last words         | eligible dead players, sequential            | all visible events through prior death triggers                                                              | each last-words speech public                                                                                         |
-| Speech direction   | living sheriff                               | complete death, trigger, and last-words state                                                                | chosen order public                                                                                                   |
-| Day speech         | living seats, sequential                     | every earlier speech in the same round                                                                       | committed speech public and streamed while generated                                                                  |
+| Speech direction   | living sheriff                               | current day, complete publicly living roster, and dead-left/dead-right or Sheriff-left/Sheriff-right choices | chosen anchor, direction, and order public                                                                            |
+| Day speech         | living seats, sequential                     | current day, complete publicly living roster, and every earlier speech in the same round                     | committed speech public and streamed while generated                                                                  |
 | Exile vote         | eligible voters, parallel barrier            | complete day speech round for every voter                                                                    | individual ballots and totals public                                                                                  |
 | Exile runoff       | tied speakers then non-tied voters           | prior ballot plus all runoff speeches                                                                        | runoff ballots and exile result public                                                                                |
 | Day resolution     | no Agent                                     | not applicable                                                                                               | exile, Idiot reveal, death chain, winner, or next night public                                                        |
@@ -65,6 +65,12 @@ Natural speech uses the ACP reply stream rather than an action tool. Every speec
 announced deaths, living state, vote results, and phase results as fixed public facts while still
 allowing strategic claims about identity, private information, and judgment. Wolf council prompts
 accept discussion only; the attack target is requested later through the parallel vote barrier.
+
+Every daytime action Prompt states the current day and complete publicly living roster. A single
+night death anchors a living Sheriff's left/right choice; peaceful and multiple-death mornings use
+the Sheriff as anchor, and the Sheriff is always the final speaker. Without a Sheriff, the judge
+uses the single death or lowest-seat death as anchor with a replay-stable random direction, or a
+replay-stable random start and direction after a peaceful night.
 
 ## Failure semantics
 

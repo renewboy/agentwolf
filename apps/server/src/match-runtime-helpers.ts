@@ -77,7 +77,7 @@ export async function settleActions(
     .map((result) => result.value)
 }
 
-export function promptAssetFor(turn: TurnDescriptor) {
+export function promptAssetFor(turn: TurnDescriptor, promptVersion = promptContractVersion) {
   switch (turn.actionType) {
     case 'speech':
       return 'speech-turn' as const
@@ -86,7 +86,9 @@ export function promptAssetFor(turn: TurnDescriptor) {
     case 'night-action':
       return 'night-turn' as const
     case 'sheriff-action':
-      return 'sheriff-turn' as const
+      return promptVersion >= 14 && turn.phaseId === 'phase-day-speech-order'
+        ? ('speech-order-turn' as const)
+        : ('sheriff-turn' as const)
     case 'skill-trigger':
       return 'skill-turn' as const
     default: {
@@ -120,6 +122,21 @@ export function actionInstructionFor(
       promptVersion >= 6 &&
       context?.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
       (promptVersion < 9 || supportsWerewolfSelfDestruct(turn))
+    ) {
+      instructions.push(getCopy('promptActions.werewolfSpeechSelfDestruct'))
+    }
+    return instructions.join('\n')
+  }
+  if (
+    promptVersion >= 14 &&
+    turn.actionType === 'sheriff-action' &&
+    turn.phaseId === 'phase-day-speech-order' &&
+    context
+  ) {
+    const instructions = [daySpeechOrderInstruction(context.state)]
+    if (
+      context.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
+      supportsWerewolfSelfDestruct(turn)
     ) {
       instructions.push(getCopy('promptActions.werewolfSpeechSelfDestruct'))
     }
@@ -187,6 +204,29 @@ export function actionInstructionFor(
     return base
   }
   return ''
+}
+
+function daySpeechOrderInstruction(state: GameState): string {
+  const deaths = [...state.recentDeaths.keys()].sort(
+    (left, right) =>
+      (state.players.get(left)?.seat ?? Number.MAX_SAFE_INTEGER) -
+      (state.players.get(right)?.seat ?? Number.MAX_SAFE_INTEGER),
+  )
+  if (deaths.length === 1) {
+    const player = state.players.get(deaths[0]!)
+    if (!player) throw new Error(`Unknown speech-order death ${deaths[0]}`)
+    return formatCopy(getCopy('promptActions.daySpeechOrderSingleDeath'), {
+      player: formatCopy(getCopy('narration.playerLabel'), {
+        seat: player.seat,
+        name: player.name,
+      }),
+    })
+  }
+  return deaths.length === 0
+    ? getCopy('promptActions.daySpeechOrderPeacefulNight')
+    : formatCopy(getCopy('promptActions.daySpeechOrderMultipleDeaths'), {
+        count: deaths.length,
+      })
 }
 
 export async function mapWithConcurrency<Value>(

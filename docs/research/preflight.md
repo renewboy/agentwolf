@@ -8,6 +8,14 @@ The 6-player preset uses two Werewolves, two Villagers, Seer, and Hunter. It has
 
 The sheriff election runs after first-night actions and before first-night deaths are announced. Candidates speak, may withdraw, and original non-candidates vote. A tie creates one runoff speech and vote; a second tie loses the badge. V1 uses the single-explosion badge-loss policy.
 
+The first sheriff-campaign speaker is selected randomly, then candidates continue in seat order.
+For daytime speech, a living Sheriff chooses the direction and speaks last: a single night death is
+the anchor for dead-left or dead-right, while a peaceful night or multiple deaths uses the Sheriff
+as the anchor for Sheriff-left or Sheriff-right. Without a Sheriff, a single death remains the
+anchor with a random direction; multiple deaths use the lowest-seat death with a random direction;
+a peaceful night uses a random start and direction. Random choices are deterministic per Match and
+persist through the emitted actor/order events.
+
 Night interaction prompts follow `Guard -> Werewolves -> Witch -> Seer`. The board manifest owns this order. Resolution is effect-based and does not depend on a core switch statement. The default Guard board applies guard-and-antidote collision as a death and keeps Witch self-save disabled.
 
 Sources:
