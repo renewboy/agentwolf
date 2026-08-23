@@ -1,8 +1,14 @@
 import { AcpDeliveryUncertainError } from '@agentwolf/acp'
 import { formatCopy, getCopy } from '@agentwolf/assets'
-import type { GameEvent, PlayerAction } from '@agentwolf/contracts'
-import type { TurnDescriptor } from '@agentwolf/game-engine'
+import type { GameEvent, PlayerAction, PlayerId } from '@agentwolf/contracts'
+import {
+  v1AbilityIds,
+  type BoardManifest,
+  type GameState,
+  type TurnDescriptor,
+} from '@agentwolf/game-engine'
 import type { SpeechCommittedEvent } from './speech-playback-coordinator.js'
+import { promptContractVersion } from './context-renderer.js'
 
 export function findCommittedSpeech(events: readonly GameEvent[]): SpeechCommittedEvent | null {
   return (
@@ -30,6 +36,30 @@ export function hasUncertainDelivery(error: unknown): boolean {
   }
   if (error instanceof AggregateError) return [...error.errors].some(hasUncertainDelivery)
   return error instanceof Error && error.cause ? hasUncertainDelivery(error.cause) : false
+}
+
+export function interruptAbilityExpectation(
+  state: GameState,
+  playerId: PlayerId,
+  turn: Pick<TurnDescriptor, 'actionType' | 'phaseId'>,
+) {
+  return state.players.get(playerId)?.roleId === 'role-werewolf' &&
+    supportsWerewolfSelfDestruct(turn)
+    ? { interruptAbilityIds: [v1AbilityIds.werewolfSelfDestruct] }
+    : {}
+}
+
+function supportsWerewolfSelfDestruct(
+  turn: Pick<TurnDescriptor, 'actionType' | 'phaseId'>,
+): boolean {
+  if (!['speech', 'vote', 'sheriff-action'].includes(turn.actionType)) return false
+  return (
+    turn.phaseId.startsWith('phase-sheriff-') ||
+    turn.phaseId === 'phase-day-speech' ||
+    turn.phaseId === 'phase-day-runoff-speech' ||
+    turn.phaseId === 'phase-day-vote' ||
+    turn.phaseId === 'phase-day-runoff-vote'
+  )
 }
 
 export async function settleActions(
@@ -66,25 +96,84 @@ export function promptAssetFor(turn: TurnDescriptor) {
   }
 }
 
-export function actionInstructionFor(turn: TurnDescriptor): string {
+export function actionInstructionFor(
+  turn: TurnDescriptor,
+  context?: {
+    readonly board: BoardManifest
+    readonly state: GameState
+    readonly playerId: PlayerId
+  },
+  promptVersion = promptContractVersion,
+): string {
+  if (turn.actionType === 'speech') {
+    const instructions: string[] = []
+    if (promptVersion >= 8) {
+      instructions.push(getCopy('promptActions.publicFactsImmutable'))
+    }
+    if (promptVersion >= 9 && turn.phaseId === 'phase-night-wolf-council') {
+      instructions.push(getCopy('promptActions.wolfCouncilSpeech'))
+    }
+    if (promptVersion >= 3 && turn.speechKind === 'sheriff') {
+      instructions.push(getCopy('promptActions.sheriffCampaignPrivacy'))
+    }
+    if (
+      promptVersion >= 6 &&
+      context?.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
+      (promptVersion < 9 || supportsWerewolfSelfDestruct(turn))
+    ) {
+      instructions.push(getCopy('promptActions.werewolfSpeechSelfDestruct'))
+    }
+    return instructions.join('\n')
+  }
+  if (
+    promptVersion >= 9 &&
+    (turn.actionType === 'vote' || turn.actionType === 'sheriff-action') &&
+    context?.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
+    supportsWerewolfSelfDestruct(turn)
+  ) {
+    return getCopy('promptActions.werewolfSpeechSelfDestruct')
+  }
   if (turn.actionType === 'night-action') {
     if (turn.allowedAbilityIds?.length === 1) {
       return formatCopy(getCopy('promptActions.nightFixedAbility'), {
         abilityId: turn.allowedAbilityIds[0]!,
       })
     }
-    return getCopy(
+    const base = getCopy(
       turn.phaseId === 'phase-night-witch'
         ? 'promptActions.nightWitch'
         : 'promptActions.nightGeneric',
     )
+    if (promptVersion === 1 || turn.phaseId !== 'phase-night-witch' || !context) return base
+    const attackedId = context.state.nightAttackTargetId
+    const blockedSelfSave =
+      attackedId === context.playerId && context.board.policies.witchSelfSave === 'never'
+    const currentConstraint = blockedSelfSave
+      ? formatCopy(getCopy('promptActions.nightWitchSelfSaveBlocked'), {
+          playerId: context.playerId,
+        })
+      : attackedId
+        ? formatCopy(getCopy('promptActions.nightWitchTarget'), { playerId: attackedId })
+        : getCopy('promptActions.nightWitchNoTarget')
+    return `${base}\n${currentConstraint}\n${getCopy('promptActions.nightWitchLimit')}`
   }
   if (turn.actionType === 'skill-trigger') {
-    return turn.allowedAbilityIds?.length
+    const base = turn.allowedAbilityIds?.length
       ? formatCopy(getCopy('promptActions.skillAbilities'), {
           abilityIds: turn.allowedAbilityIds.map((id) => `\`${id}\``).join(' / '),
         })
       : getCopy('promptActions.skillGeneric')
+    if (promptVersion >= 4 && turn.phaseId === 'phase-sheriff-transfer' && context) {
+      const targets = [...context.state.players.values()]
+        .filter((player) => player.alive && player.id !== context.playerId)
+        .sort((left, right) => left.seat - right.seat)
+        .map((player) => `\`${player.id}\``)
+        .join(' / ')
+      return `${base}\n${formatCopy(getCopy('promptActions.sheriffTransferTargets'), {
+        playerIds: targets || getCopy('common.none'),
+      })}`
+    }
+    return base
   }
   return ''
 }

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import type { McpServer } from '@agentclientprotocol/sdk'
+import type { McpServer, RequestPermissionRequest } from '@agentclientprotocol/sdk'
 import {
   AcpDeliveryUncertainError,
   AcpPlayerSession,
@@ -15,11 +15,13 @@ import {
   type MatchId,
   type PlayerAction,
   type PlayerId,
+  type PhaseId,
 } from '@agentwolf/contracts'
 import { getCopy } from '@agentwolf/assets'
 import type { ActionExpectation, ActionMailbox } from './action-mailbox.js'
 import type { ContextEnvelope } from './context-renderer.js'
 import type { SqliteRepository } from './repository.js'
+import type { MatchTrajectoryRecorder, TrajectoryTurnRecorder } from './trajectory.js'
 
 export type PlayerRuntimeStatus =
   | 'idle'
@@ -49,6 +51,7 @@ export type PlayerSessionFactory = (options: {
   readonly matchId: MatchId
   readonly playerId: PlayerId
   readonly onStderr?: (chunk: string) => void
+  readonly onPermissionDecision?: (request: RequestPermissionRequest, allowed: boolean) => void
 }) => Promise<PlayerSession>
 
 export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
@@ -98,6 +101,7 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
       },
     ],
     ...(options.onStderr ? { onStderr: options.onStderr } : {}),
+    ...(options.onPermissionDecision ? { onPermissionDecision: options.onPermissionDecision } : {}),
   })
 }
 
@@ -117,6 +121,7 @@ export interface PlayerRuntimeOptions {
   readonly mailbox: ActionMailbox
   readonly repository: SqliteRepository
   readonly deliveryEvents: DeliveryEvents
+  readonly trajectory: MatchTrajectoryRecorder
   readonly resetDeliveryLedger?: boolean
   readonly sessionFactory?: PlayerSessionFactory
   readonly onStderr?: (chunk: string) => void
@@ -128,9 +133,12 @@ export class PlayerRuntime {
   readonly #ledger: DeliveryLedger
   #session: PlayerSession | null = null
   #status: PlayerRuntimeStatus = 'idle'
+  #activeTrajectory: TrajectoryTurnRecorder | null = null
+  readonly #sessionGeneration: number
 
   public constructor(options: PlayerRuntimeOptions) {
     this.#options = options
+    this.#sessionGeneration = options.trajectory.nextSessionGeneration(options.playerId)
     this.#ledger = new DeliveryLedger(
       options.resetDeliveryLedger
         ? undefined
@@ -163,7 +171,12 @@ export class PlayerRuntime {
           url: this.#options.mcpUrl,
           headers: [{ name: 'Authorization', value: `Bearer ${this.#options.token}` }],
         },
-        ...(this.#options.onStderr ? { onStderr: this.#options.onStderr } : {}),
+        onStderr: (chunk) => {
+          this.#activeTrajectory?.diagnostic(chunk)
+          this.#options.onStderr?.(chunk)
+        },
+        onPermissionDecision: (request, allowed) =>
+          this.#activeTrajectory?.permission(request, allowed),
       })
       this.#setStatus('ready')
     } catch (error) {
@@ -173,32 +186,47 @@ export class PlayerRuntime {
   }
 
   public async bootstrap(envelope: ContextEnvelope): Promise<void> {
-    await this.#deliver(envelope, undefined, 'syncing')
+    await this.#deliver(
+      envelope,
+      undefined,
+      { kind: 'bootstrap', phaseId: null, actionType: 'bootstrap' },
+      'syncing',
+    )
   }
 
   public async takeTurn(
     envelope: ContextEnvelope,
     expectation: ActionExpectation,
+    phaseId: PhaseId,
     callbacks: AcpPromptCallbacks = {},
   ): Promise<PlayerAction> {
     this.#options.mailbox.expect({
       ...expectation,
-      onAccepted: () => this.#setStatus('submitted'),
+      onAccepted: (action) => {
+        this.#activeTrajectory?.action(action)
+        this.#setStatus('submitted')
+      },
     })
     try {
-      const result = await this.#deliver(envelope, callbacks)
+      const { result, trajectory } = await this.#deliver(envelope, callbacks, {
+        kind: 'action',
+        phaseId,
+        actionType: expectation.actionType,
+      })
       const submitted = this.#options.mailbox.take(this.#options.matchId, this.#options.playerId)
       if (submitted) return submitted
       if (expectation.actionType !== 'speech' || !expectation.speechKind) {
         throw new Error(`Agent did not submit the expected ${expectation.actionType} action`)
       }
-      return PlayerActionSchema.parse({
+      const action = PlayerActionSchema.parse({
         type: 'speech',
         matchId: this.#options.matchId,
         actorId: this.#options.playerId,
         kind: expectation.speechKind,
         text: result.text,
       })
+      trajectory.action(action)
+      return action
     } finally {
       this.#options.mailbox.clear(this.#options.matchId, this.#options.playerId)
     }
@@ -229,8 +257,13 @@ export class PlayerRuntime {
   async #deliver(
     envelope: ContextEnvelope,
     callbacks: AcpPromptCallbacks | undefined,
+    traceContext: {
+      readonly kind: 'bootstrap' | 'action'
+      readonly phaseId: PhaseId | null
+      readonly actionType: string
+    },
     workingStatus: 'syncing' | 'thinking' = 'thinking',
-  ): Promise<AcpPromptResult> {
+  ): Promise<{ result: AcpPromptResult; trajectory: TrajectoryTurnRecorder }> {
     if (!this.#session) throw new Error('Player ACP session is not started')
     if (this.#ledger.activeAttempt) {
       throw new AcpDeliveryUncertainError(
@@ -247,11 +280,34 @@ export class PlayerRuntime {
     )
     this.#persistLedger()
     this.#setStatus(workingStatus)
+    const trajectory = this.#options.trajectory.beginTurn({
+      turnId: deliveryId,
+      ownerId: this.#options.playerId,
+      sessionId: this.#session.sessionId,
+      sessionGeneration: this.#sessionGeneration,
+      kind: traceContext.kind,
+      phaseId: traceContext.phaseId,
+      actionType: traceContext.actionType,
+      fromSequence: attempt.fromSequence,
+      toSequence: attempt.toSequence,
+      prompt: envelope.prompt,
+      promptVersion: envelope.promptVersion,
+      visibleEventSequences: envelope.visibleEvents.map((event) => event.sequence),
+      gameStatus: envelope.gameStatus,
+      pausedReasonAtRender: envelope.pausedReason,
+    })
+    this.#activeTrajectory = trajectory
     try {
       const result = await this.#session.prompt(
         envelope.prompt,
         this.#options.profile.promptTimeoutMs,
-        callbacks,
+        {
+          ...(callbacks?.onTextChunk ? { onTextChunk: callbacks.onTextChunk } : {}),
+          onUpdate: (update) => {
+            trajectory.update(update)
+            callbacks?.onUpdate?.(update)
+          },
+        },
       )
       this.#ledger.acknowledge(deliveryId)
       this.#options.deliveryEvents.acknowledged(
@@ -264,7 +320,8 @@ export class PlayerRuntime {
       if (result.stopReason !== 'end_turn') {
         throw new Error(`ACP turn stopped with ${result.stopReason}`)
       }
-      return result
+      trajectory.complete(result.stopReason)
+      return { result, trajectory }
     } catch (error) {
       const activeAttempt = this.#ledger.snapshot().activeAttempt
       if (activeAttempt?.state === 'in-flight') {
@@ -274,8 +331,17 @@ export class PlayerRuntime {
         )
         this.#persistLedger()
       }
+      trajectory.fail(
+        error,
+        error instanceof AcpDeliveryUncertainError ||
+          (error instanceof Error && error.name === 'AcpDeliveryUncertainError')
+          ? 'uncertain'
+          : 'failed',
+      )
       this.#setStatus('failed')
       throw error
+    } finally {
+      if (this.#activeTrajectory === trajectory) this.#activeTrajectory = null
     }
   }
 

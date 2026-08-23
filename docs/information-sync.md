@@ -13,6 +13,11 @@ Every match event has one immutable visibility descriptor and one monotonic sequ
 
 The server filters events before serialization. Closed-eye and player clients never receive hidden payload fields.
 
+Role-effect cues are derived only after this filtering step. A cue carries no additional game
+state: its role, source, target, result variant, and sequence must all be reconstructable from the
+visible event that produced it. Initial loads and view switches establish a cue watermark rather
+than replaying historical effects.
+
 ## Phase matrix
 
 | Phase              | Prompted sessions                            | Information delivered before action                                                                         | Published after completion                                                 |
@@ -47,6 +52,11 @@ Parallel stages freeze one event sequence before prompting any actor. Every prom
 The action gateway marks a player Session as submitted immediately after accepting a valid structured action. God view and that player's own view can display the submitted state while the ACP turn closes; other projections receive no completion-order signal. A submitted action remains sealed inside the barrier until every eligible turn settles.
 
 Sequential speech stages commit each speech immediately. The next speaker's prompt includes that speech once. A controlling spectator's visible speeches enter its browser playback queue without delaying later speakers in the same stage. The final speech holds the following phase until that queue reaches the final event sequence or the spectator skips it. Speech hidden from the controlling view does not create a playback hold, and controller disconnect releases the boundary. After release, the vote barrier renders every remaining speech to all voters before accepting ballots.
+
+Natural speech uses the ACP reply stream rather than an action tool. Every speech prompt marks
+announced deaths, living state, vote results, and phase results as fixed public facts while still
+allowing strategic claims about identity, private information, and judgment. Wolf council prompts
+accept discussion only; the attack target is requested later through the parallel vote barrier.
 
 ## Failure semantics
 

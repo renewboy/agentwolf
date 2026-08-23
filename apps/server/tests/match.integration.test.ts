@@ -22,6 +22,7 @@ import type { ActionMailbox } from '../src/action-mailbox.js'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
+import { auditTrajectory } from '../src/trajectory-audit.js'
 
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
@@ -54,6 +55,7 @@ describe('match orchestration', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -163,6 +165,7 @@ describe('match orchestration', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -225,6 +228,7 @@ describe('match orchestration', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -392,6 +396,10 @@ describe('match orchestration', () => {
     expect(finalReveals).toHaveLength(12)
     expect(finalReveals.every((event) => event.sequence > (matchEnded?.sequence ?? 0))).toBe(true)
     expect([...prompts.values()].flat().join('\n')).not.toMatch(/新增|补充信息/)
+    expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
+      ok: true,
+      issues: [],
+    })
   }, 15_000)
 
   it('recovers a rejected six-player Seer action without replaying prior context', async () => {
@@ -418,6 +426,7 @@ describe('match orchestration', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -456,7 +465,11 @@ describe('match orchestration', () => {
     expect(paused.pausedReason).toContain('phase-night-seer requires ability-seer-inspect')
     const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
     expect(
-      prompts.get(seerId)?.find((prompt) => prompt.includes('ability-seer-inspect')),
+      prompts
+        .get(seerId)
+        ?.find(
+          (prompt) => prompt.includes('ability-seer-inspect') && prompt.includes('targetPlayerIds'),
+        ),
     ).toBeDefined()
 
     await server.matches.resumeMatch(created.id)
@@ -466,7 +479,11 @@ describe('match orchestration', () => {
     expect(resumed.day).toBeGreaterThanOrEqual(1)
     expect(resumed.phaseId).not.toBe('phase-night-seer')
     const seerTurns =
-      prompts.get(seerId)?.filter((prompt) => prompt.includes('ability-seer-inspect')) ?? []
+      prompts
+        .get(seerId)
+        ?.filter(
+          (prompt) => prompt.includes('ability-seer-inspect') && prompt.includes('targetPlayerIds'),
+        ) ?? []
     expect(seerTurns).toHaveLength(2)
     expect(seerTurns[1]).toContain(getCopy('narration.matchResumed'))
     expect(seerTurns[1]).not.toContain(getCopy('phases.nightWolfCouncil'))
@@ -515,6 +532,7 @@ describe('match orchestration', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -554,6 +572,11 @@ describe('match orchestration', () => {
 
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
+    const recoveredLiveMessages: LiveMessage[] = []
+    const recoveredConnection = server.matches.connect(created.id, {
+      view: { kind: 'god' },
+      send: (message) => recoveredLiveMessages.push(message),
+    })
     await server.matches.resumeMatch(created.id)
     const resumed = await waitForMatchState(server, created.id, (match) =>
       match.timeline.some((item) => item.kind === 'seer.inspected'),
@@ -565,6 +588,15 @@ describe('match orchestration', () => {
       ?.findLast((prompt) => prompt.includes('phase-night-seer requires ability-seer-inspect'))
     expect(recoveryFoundation).toContain(getCopy('phases.nightWolfCouncil'))
     expect(recoveryFoundation).toContain(getCopy('promptContext.villageVictory'))
+    expect(
+      recoveredLiveMessages.some(
+        (message) =>
+          message.type === 'snapshot' &&
+          message.data.status === 'running' &&
+          message.data.timeline.some((item) => item.kind === 'seer.inspected'),
+      ),
+    ).toBe(true)
+    recoveredConnection.close()
     await waitForMatch(server, created.id)
   })
 
@@ -585,6 +617,7 @@ describe('match orchestration', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
     }
     const server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -839,6 +872,7 @@ async function waitForMatchState(
 
 function latestPhase(prompt: string): string | null {
   if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
+  if (prompt.includes('ability-witch-antidote')) return 'nightWitch'
   const phases = ['sheriffSignup', 'nightWolfVote', 'dayVote', 'nightWitch', 'nightSeer'] as const
   const ranked = phases
     .map((phase) => ({ phase, index: prompt.lastIndexOf(getCopy(`phases.${phase}`)) }))

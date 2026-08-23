@@ -4,9 +4,9 @@ Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.
 
 ## Deterministic application checks
 
-- 61 unit and integration scenarios across 20 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, Hunter pass resolution, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, daytime-to-night flow, terminal Session projection, 404 Match handling, and 6/9/12-player board validation.
-- Coverage passed at 87.82% lines, 84.51% statements, 87.19% functions, and 73.37% branches over rule, ACP, asset, and server production sources.
-- Eight Chromium acceptance scenarios passed: Agent Profile create/update/delete through styled controls, 6/9/12-player setup, spectator projections, fixed-height live match motion, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, sequence-keyed speech playback and manual controls, terminal animation and connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
+- 70 unit and integration scenarios across 24 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, terminal Session projection, and 6/9/12-player board validation.
+- Coverage passed at 86.82% lines, 83.55% statements, 87.31% functions, and 72.61% branches over rule, ACP, asset, and server production sources.
+- Eleven Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile controls, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, full/reduced/off role effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
 
 ## Live ACP adapters
@@ -46,6 +46,41 @@ All six foundation prompts contained the exact public composition and complete r
 The Hunter received the `ability-hunter-shot` death-skill contract and explicitly submitted `option: pass` with a null target. The engine recorded the ability use and no `hunter.shot`, confirming a player decision rather than an omitted trigger. `match.ended` was event 223; the six public final identities were events 224 through 229. No identity event occurred while the Match was running.
 
 The production-entry terminal page exposed all six identities and six `已结束` Session labels. Its presence state was `ended`, connection state was `settled`, all six player-ring transforms remained stationary across two samples, document height equaled viewport height, page scroll stayed at zero, and the browser emitted no warning or error. The audit Match, Profiles, Tool, and all browser-test records were removed after verification.
+
+## Phase-two browser and trajectory acceptance
+
+Two retained browser-visible Matches used the saved six-player Seer/Witch boards and six real Trae
+ACP Sessions backed by Doubao-Seed-2.1-Turbo:
+
+| Mode       | Match ID                                      | Result             | Events | Player Turns | Tool calls |
+| ---------- | --------------------------------------------- | ------------------ | -----: | -----------: | ---------: |
+| No sheriff | `match-board-phase2-real-6-no-s-fa7680aa3e23` | Village, day three |    297 |           41 |         19 |
+| Sheriff    | `match-board-phase2-real-6-sher-9583f8d865e2` | Wolves, day two    |    297 |           45 |         24 |
+
+Both pages reached `对局结束` and `对局记录已完整同步` in the in-app browser. All 86 player
+Turns completed, every structured tool record completed, both context audits returned no issue,
+every Turn had exactly one Prompt, and no duplicate trajectory Record ID existed. Neither Match
+recorded `submit_speech`, a failed tool, an error Record, or an error diagnostic. The browser
+reported no warning or error for either page.
+
+The stored Prompt contract preserved the exact visible event range for every Turn. Sheriff
+campaign Prompts contained the pre-announcement privacy rule and no death announcement; public
+speech Prompts fixed announced deaths, living state, votes, and phase results as shared table
+facts. The current wolf-council Prompt delivered the discussion-only contract, omitted the
+self-destruct interrupt, and deferred its target to the structured attack vote. Sheriff and public
+daytime Werewolves received the formal `ability-werewolf-self-destruct` ID. The compatibility
+speech tool remained unused, so streamed and committed speech shared the ACP response source.
+
+Each real Match retained 20 Trae stderr warning diagnostics for provider Skill-budget,
+submission-inbox, or shell-snapshot startup notices. They were inspected in the trajectory panel;
+no warning represented a failed delivery, rejected game action, missing context, or browser error.
+
+The developer page rendered the active Match as owner swimlanes, a live virtualized ledger, and a
+detail inspector, and displayed `上下文审计通过`. Normal startup retained the same trajectory
+records while returning 404 for developer reads. The custom-board browser flow saved, edited,
+selected, started, and deleted a Seer/Witch board without changing built-ins or an existing Match
+snapshot. Role-effect browser coverage observed sequence-keyed cues in full mode and verified the
+reduced and off modes without residual transforms.
 
 ## Vote collection and result presentation
 

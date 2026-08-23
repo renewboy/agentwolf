@@ -1,11 +1,7 @@
-import { useGSAP } from '@gsap/react'
-import { Flip } from 'gsap/Flip'
-import { gsap } from 'gsap'
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import type { MatchView } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
-
-gsap.registerPlugin(useGSAP, Flip)
+import { Flip, gsap, useGSAP } from '../../motion/gsap.js'
 
 export type MatchPresenceState =
   | 'initial-loading'

@@ -11,7 +11,12 @@ The role catalog contains Villager, Werewolf, Seer, Witch, Hunter, Idiot, and Gu
 - 12-player Standard: four Werewolves, four Villagers, Seer, Witch, Hunter, Idiot.
 - 12-player Guard: four Werewolves, four Villagers, Seer, Witch, Hunter, Guard.
 
-The 6-player board has no sheriff and uses slaughter-all victory. The 9-player and 12-player boards use sheriff election and slaughter-edge victory. Custom board manifests can compose the V1 roles and policies.
+The 6-player board has no sheriff and uses slaughter-all victory. The 9-player and 12-player
+boards use sheriff election and slaughter-edge victory. Custom boards compose the role catalog
+for any total from 6 through 24 players. Users configure role counts, sheriff election, and
+slaughter-all or slaughter-edge victory, then save, edit, or delete the board. Built-in boards are
+read-only and can be copied into a new custom board. Every Match stores its selected board as an
+immutable snapshot, so catalog edits do not change existing Matches.
 
 Player identities remain hidden after death and exile. A role-specific public reveal, such as the Idiot surviving exile, remains part of that role's behavior. After the match ends, the server publishes every player's final identity.
 
@@ -19,7 +24,11 @@ Player identities remain hidden after death and exile. A role-specific public re
 
 The Agent settings screen creates, edits, probes, and deletes Agent Profiles. Selecting an Agent Tool opens a temporary ACP session and reads its advertised model configuration; the model is selected from that returned list. A profile combines the tool, selected model, and non-secret connection settings. Environment-variable references supply credentials.
 
-The new-match screen selects a player count and then a compatible board, assigns an Agent Profile to each seat, and edits or rerolls player names. The nickname generator composes curated word lists and guarantees uniqueness inside a match. Starting a match assigns `player-1` through `player-N` by seat order.
+The board-management screen creates and maintains custom boards. The new-match screen selects any
+available player count and compatible built-in or custom board, assigns an Agent Profile to each
+seat, and edits or rerolls player names. The nickname generator composes curated word lists and
+guarantees uniqueness inside a match. Starting a match assigns `player-1` through `player-N` by
+seat order.
 
 ## Match experience
 
@@ -33,13 +42,28 @@ View projections are server-owned:
 - Closed-eye view includes only information publicly announced by the judge.
 - Player view includes the selected player's public information, private role knowledge, faction knowledge, and private results.
 
-Developer mode appears as a reserved settings entry. Runtime trajectory inspection is outside V1.
+Role abilities produce view-safe visual effect cues. The match screen plays Werewolf attack and
+self-destruct, Seer inspection, Witch antidote and poison, Hunter shot, Idiot reveal, and Guard
+protection effects through full, reduced, or off presentation modes. Effects never delay the rule
+engine and a projection receives only cues derived from events visible to that view.
+
+Every ACP turn records one normalized trajectory with its exact Prompt, event range, reasoning,
+message stream, tool calls, permission decisions, accepted game action, context usage, duration,
+session generation, recovery attempt, diagnostics, and result. Capture-time filtering removes
+secret-bearing metadata and bounds large fields. Starting with developer mode exposes a
+loopback-only per-Match timeline, owner ledger, detail inspector, and context audit; ordinary
+startup exposes none of these routes or controls while continuing to retain the records locally.
 
 ## Player identity
 
 Every player has a readable `player-N` ID, a numbered seat, and a nickname. Prompts bind all three. Structured actions use Player IDs. Public speech and last words use nicknames or seat labels.
 
 Speech is checked before it enters the public event log. Known Player IDs are rewritten to nicknames; an unknown `player-N` token rejects the speech and pauses the turn for correction.
+
+Speech and last words come from the ACP response stream and final response, so the live text and
+committed text share one source. The compatibility `submit_speech` tool is unavailable to normal
+Match turns. Public judge results remain fixed table facts; players may bluff about identity,
+private information, and judgment without rewriting announced deaths, votes, or phase results.
 
 ## Match failure behavior
 

@@ -12,6 +12,7 @@
     "check:docs": "tsx scripts/harness/check-docs.ts",
     "check:skills": "tsx scripts/harness/check-skills.ts",
     "dev": "tsx scripts/dev.ts",
+    "dev:developer": "tsx scripts/dev.ts --developer",
     "dev:server": "pnpm --filter @agentwolf/server dev",
     "dev:web": "pnpm --filter @agentwolf/web dev",
     "duplication": "jscpd apps packages scripts",

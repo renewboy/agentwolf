@@ -144,7 +144,169 @@ describe('Fastify API', () => {
       type: 'vote',
       targetId: 'player-2',
     })
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'speech',
+      speechKind: 'day',
+    })
+    const rejectedSpeech = await client.callTool({
+      name: 'submit_speech',
+      arguments: { text: '不应由工具提交的发言。' },
+    })
+    expect(rejectedSpeech.isError).toBe(true)
+    expect(rejectedSpeech.content).toContainEqual(
+      expect.objectContaining({ text: expect.stringContaining('直接将完整发言正文') }),
+    )
+    expect(server.matches.mailbox.take(matchId, playerId)).toBeNull()
     await client.close()
+  })
+
+  it('creates editable custom boards while keeping presets and match snapshots immutable', async () => {
+    const server = await createTestServer()
+    const tools = (await server.app.inject({ method: 'GET', url: '/api/agent-tools' })).json()
+    const profile = (
+      await server.app.inject({
+        method: 'POST',
+        url: '/api/agent-profiles',
+        payload: {
+          name: 'Custom-board player',
+          toolId: tools[0].id,
+          model: 'test-model',
+          promptTimeoutMs: 5_000,
+          connection: {},
+        },
+      })
+    ).json()
+    const createdResponse = await server.app.inject({
+      method: 'POST',
+      url: '/api/boards',
+      payload: {
+        name: '六人预女场',
+        description: '两狼两民预言家女巫',
+        roles: [
+          { roleId: 'role-werewolf', count: 2 },
+          { roleId: 'role-villager', count: 2 },
+          { roleId: 'role-seer', count: 1 },
+          { roleId: 'role-witch', count: 1 },
+        ],
+        sheriff: false,
+        victory: 'slaughter-all',
+      },
+    })
+    expect(createdResponse.statusCode).toBe(201)
+    const board = createdResponse.json()
+    expect(board).toMatchObject({ playerCount: 6, source: 'custom', editable: true, revision: 1 })
+
+    const matchResponse = await server.app.inject({
+      method: 'POST',
+      url: '/api/matches',
+      payload: {
+        boardId: board.id,
+        roleAssignment: 'random',
+        seats: Array.from({ length: 6 }, (_, index) => ({
+          seat: index + 1,
+          name: `Custom board seat ${index + 1}`,
+          profileId: profile.id,
+        })),
+      },
+    })
+    expect(matchResponse.statusCode).toBe(201)
+    const match = matchResponse.json()
+    expect(match.boardName).toBe('六人预女场')
+
+    const updatedResponse = await server.app.inject({
+      method: 'PUT',
+      url: `/api/boards/${board.id}`,
+      payload: {
+        name: '六人预女上警场',
+        description: '两狼两民预言家女巫',
+        roles: board.roles.map(({ roleId, count }: { roleId: string; count: number }) => ({
+          roleId,
+          count,
+        })),
+        sheriff: true,
+        victory: 'slaughter-edge',
+      },
+    })
+    expect(updatedResponse.json()).toMatchObject({ revision: 2, sheriff: true })
+    expect(
+      (await server.app.inject({ method: 'DELETE', url: `/api/boards/${board.id}` })).statusCode,
+    ).toBe(204)
+
+    const historical = await server.app.inject({
+      method: 'GET',
+      url: `/api/matches/${match.id}?view=god`,
+    })
+    expect(historical.json()).toMatchObject({ boardName: '六人预女场', boardId: board.id })
+    expect(
+      (await server.app.inject({ method: 'DELETE', url: '/api/boards/board-quick-6' })).statusCode,
+    ).toBe(400)
+  })
+
+  it('records trajectories in normal mode and exposes them only after developer restart', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-developer-mode-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const baseConfig: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath,
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing'),
+      developerMode: false,
+    }
+    const normal = await buildServer({ config: baseConfig })
+    servers.push(normal)
+    const tools = (await normal.app.inject({ method: 'GET', url: '/api/agent-tools' })).json()
+    const profile = (
+      await normal.app.inject({
+        method: 'POST',
+        url: '/api/agent-profiles',
+        payload: {
+          name: 'Trajectory player',
+          toolId: tools[0].id,
+          model: 'test-model',
+          promptTimeoutMs: 5_000,
+          connection: {},
+        },
+      })
+    ).json()
+    const match = (
+      await normal.app.inject({
+        method: 'POST',
+        url: '/api/matches',
+        payload: {
+          boardId: 'board-quick-6',
+          seats: Array.from({ length: 6 }, (_, index) => ({
+            seat: index + 1,
+            name: `Trajectory seat ${index + 1}`,
+            profileId: profile.id,
+          })),
+        },
+      })
+    ).json()
+    expect(normal.repository.listTrajectoryTurns(match.id, 'system')).not.toHaveLength(0)
+    expect(
+      (
+        await normal.app.inject({
+          method: 'GET',
+          url: `/api/developer/matches/${match.id}/trajectory/summary`,
+        })
+      ).statusCode,
+    ).toBe(404)
+    await normal.close()
+
+    const developer = await buildServer({ config: { ...baseConfig, developerMode: true } })
+    servers.push(developer)
+    const summary = await developer.app.inject({
+      method: 'GET',
+      url: `/api/developer/matches/${match.id}/trajectory/summary`,
+    })
+    expect(summary.statusCode).toBe(200)
+    expect(summary.json().owners[0]).toMatchObject({ ownerId: 'system' })
   })
 })
 
@@ -159,6 +321,7 @@ async function createTestServer(): Promise<AgentWolfServer> {
     publicBaseUrl: 'http://127.0.0.1:4310',
     projectRoot: process.cwd(),
     webDistPath: resolve(root, 'missing'),
+    developerMode: false,
   }
   const server = await buildServer({ config })
   servers.push(server)

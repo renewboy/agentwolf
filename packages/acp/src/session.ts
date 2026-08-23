@@ -34,6 +34,7 @@ export interface AcpSessionStartOptions {
     readonly title?: string
   }[]
   readonly onPermissionRequest?: (request: RequestPermissionRequest) => void
+  readonly onPermissionDecision?: (request: RequestPermissionRequest, allowed: boolean) => void
   readonly onStderr?: (chunk: string) => void
 }
 
@@ -230,10 +231,10 @@ function permissionDecision(request: RequestPermissionRequest, options: AcpSessi
         rawInput['request']['_meta']['tool_title'] === approved.title),
   )
   const selection = request.options.find((option) => option.kind === 'allow_once')
-  return nameAllowed || mcpAllowed
-    ? selection
-      ? { outcome: { outcome: 'selected' as const, optionId: selection.optionId } }
-      : { outcome: { outcome: 'cancelled' as const } }
+  const allowed = Boolean((nameAllowed || mcpAllowed) && selection)
+  options.onPermissionDecision?.(request, allowed)
+  return allowed && selection
+    ? { outcome: { outcome: 'selected' as const, optionId: selection.optionId } }
     : { outcome: { outcome: 'cancelled' as const } }
 }
 

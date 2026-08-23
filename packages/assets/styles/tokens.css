@@ -10,11 +10,18 @@
   --aw-color-text-muted: #9ca8ae;
   --aw-color-amber: #d8a95b;
   --aw-color-amber-soft: #8c6b37;
+  --aw-color-amber-faint: rgb(216 169 91 / 10%);
   --aw-color-crimson: #9c352f;
   --aw-color-crimson-bright: #d05a4e;
   --aw-color-success: #6fa884;
   --aw-color-warning: #d8a95b;
   --aw-color-danger: #d05a4e;
+  --aw-color-danger-soft: rgb(208 90 78 / 22%);
+  --aw-effect-crimson: #d75b52;
+  --aw-effect-silver: #c8d9e5;
+  --aw-effect-emerald: #72c6a0;
+  --aw-effect-violet: #ad78cf;
+  --aw-effect-cyan: #6ebbd2;
   --aw-radius-panel: 12px;
   --aw-radius-control: 8px;
   --aw-radius-pill: 999px;

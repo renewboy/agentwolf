@@ -6,11 +6,13 @@
 Web spectator and setup UI
           |
           v
-Fastify API and view projector ---- SQLite event/profile repository
+Fastify API and view projector ---- SQLite event/profile/board/trajectory repository
           |
           +---- Match orchestrator ---- Action gateway ---- Player MCP tools
           |             |
           |             +---- ACP session supervisor ---- ACP agent processes
+          |
+          +---- Board catalog ---- immutable Match board snapshots
           |
           +---- Rule engine ---- role registry / phase graph / resolution agenda
 ```
@@ -33,7 +35,13 @@ contracts  <- game-engine
 
 ## Rules and roles
 
-A board manifest selects a phase graph, role IDs, and policy modules. A role is a concrete class implementing role metadata plus event handlers and action providers. Rule modules register phase transitions, action validators, resolution handlers, visibility rules, and victory evaluators.
+A board manifest selects a phase graph, role IDs, and policy modules. The server Board Catalog
+combines read-only built-ins with persisted custom definitions and compiles both into the same
+classic manifest. Match creation stores the resolved name, composition, sheriff setting, victory
+policy, revision, and ruleset ID as an immutable snapshot; replay and recovery compile that
+snapshot rather than consulting the mutable catalog. A role is a concrete class implementing role
+metadata plus event handlers and action providers. Rule modules register phase transitions, action
+validators, resolution handlers, visibility rules, and victory evaluators.
 
 Submitted actions become immutable intents. The resolution agenda orders effects by named priority and stable sequence:
 
@@ -70,10 +78,45 @@ Speech turns deliver preceding visible speech to the active player. Vote prompts
 
 The complete phase matrix is defined in [Information synchronization](information-sync.md).
 
+## Developer trajectory
+
+The server records trajectory Turn and Record entities independently from the game event log. A
+Turn begins at the delivery attempt and owns its Player, ACP Session generation, phase, action
+type, acknowledged event range, attempt number, timing, final status, and context usage. Stable
+records inside it represent Prompt, reasoning, message, tool, permission, accepted action, usage,
+diagnostic, lifecycle, and error data. Stream records merge by message channel and ID; tool state
+merges by tool-call ID.
+
+Secret-key fields, HTTP credentials, ACP metadata, and environment material are removed before
+SQLite receives a record. Content fields retain an explicit truncation marker. A monotonic
+trajectory revision supports catch-up and live WebSocket upserts. The audit service reconstructs
+the engine at every Turn's `toSequence`, renders the expected foundation or incremental Prompt,
+and compares it with the persisted Prompt while checking delivery ownership, ranges, and final
+acknowledgement.
+
+Trajectory collection is always active. Developer HTTP, WebSocket, configuration, and navigation
+surfaces require startup developer mode, which is valid only on a loopback listener.
+
+## Role-effect projection
+
+Domain events contain game semantics only. After visibility filtering, the server projects
+recognized role events into `RoleEffectCue` DTOs. The browser consumes each sequence once through
+the role-effect catalog and GSAP adapter. A view change establishes a new sequence baseline, so a
+newly selected projection cannot replay historical private cues. The effect overlay is
+pointer-transparent and cannot alter rule timing or state.
+
 ## ACP and action transport
 
 An Agent Tool is a command, arguments, environment allowlist, initial mode, and capability hints. The settings API discovers its current models and modes from the ACP `session/new` response before an Agent Profile binds the tool to one advertised model and its connection options.
 
 For each seat, the supervisor starts one stdio ACP process, initializes the connection, creates one session with the seat workspace and AgentWolf MCP server, applies advertised model and mode configuration, then retains the returned session ID for the match lifetime. ACP permission requests are approved only when their structured MCP server and tool identity matches one of the five AgentWolf action tools. `session/update` is the streaming source; the final `session/prompt` response closes the turn.
 
-The MCP server is bound to one player token. It exposes speech, vote, night action, sheriff action, and skill trigger tools. The action gateway validates actor, phase, ability, target Player IDs, cardinality, and single-submission rules. Acceptance stores the action inside the current phase barrier and broadcasts a private submitted Session status. The engine appends immutable action events in seat order after every eligible ACP turn settles.
+The MCP server is bound to one player token. It exposes speech, vote, night action, sheriff action,
+and skill trigger tools. Normal Match speech is committed from the ACP response; `submit_speech`
+is a compatibility surface that requires an explicit expectation opt-in which the Match runtime
+does not grant. The action gateway validates actor, phase, ability, target Player IDs,
+cardinality, and single-submission rules. Werewolf self-destruct is offered only in the sheriff
+and daytime phases accepted by the rule engine. Wolf council accepts natural discussion only and
+opens its structured attack vote in the following phase. Acceptance stores the action inside the
+current phase barrier and broadcasts a private submitted Session status. The engine appends
+immutable action events in seat order after every eligible ACP turn settles.

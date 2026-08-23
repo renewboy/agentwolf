@@ -14,6 +14,9 @@ function slug(value: string): string {
   return normalized || 'item'
 }
 
-export function createReadableId(prefix: 'profile' | 'tool' | 'match', label: string): string {
+export function createReadableId(
+  prefix: 'profile' | 'tool' | 'match' | 'board',
+  label: string,
+): string {
   return `${prefix}-${slug(label)}-${suffix()}`
 }

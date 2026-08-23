@@ -6,26 +6,37 @@ import {
   AgentToolSchema,
   BoardIdSchema,
   CreateMatchRequestSchema,
+  CustomBoardSchema,
   GameEventSchema,
+  MatchBoardSnapshotSchema,
   MatchIdSchema,
+  TrajectoryRecordSchema,
+  TrajectoryTurnSchema,
   type AgentProfile,
   type AgentProfileId,
   type AgentTool,
   type AgentToolId,
   type BoardId,
   type CreateMatchRequest,
+  type CustomBoard,
   type GameEvent,
   type MatchId,
+  type MatchBoardSnapshot,
   type MatchStatus,
   type PlayerId,
+  type TrajectoryOwnerId,
+  type TrajectoryRecord,
+  type TrajectoryTurn,
 } from '@agentwolf/contracts'
 import type { DeliveryLedgerSnapshot } from '@agentwolf/acp'
+import { migrateDatabase } from './database-schema.js'
 
 export interface MatchRecord {
   readonly id: MatchId
   readonly boardId: BoardId
   readonly status: MatchStatus
   readonly setup: CreateMatchRequest
+  readonly boardSnapshot: MatchBoardSnapshot | null
   readonly createdAt: string
   readonly updatedAt: string
   readonly pausedReason: string | null
@@ -40,9 +51,15 @@ interface MatchRow {
   readonly board_id: string
   readonly status: MatchStatus
   readonly setup_json: string
+  readonly board_snapshot_json: string | null
   readonly created_at: string
   readonly updated_at: string
   readonly paused_reason: string | null
+}
+
+interface TrajectoryRow extends DatabaseRow {
+  readonly ordinal: number
+  readonly revision: number
 }
 
 export class SqliteRepository {
@@ -53,7 +70,7 @@ export class SqliteRepository {
     this.#database = new Database(path)
     this.#database.pragma('journal_mode = WAL')
     this.#database.pragma('foreign_keys = ON')
-    this.#migrate()
+    migrateDatabase(this.#database)
   }
 
   public close(): void {
@@ -88,6 +105,35 @@ export class SqliteRepository {
 
   public deleteCustomTool(id: AgentToolId): boolean {
     return this.#database.prepare('DELETE FROM agent_tools WHERE id = ?').run(id).changes > 0
+  }
+
+  public listCustomBoards(): CustomBoard[] {
+    const rows = this.#database
+      .prepare('SELECT json FROM custom_boards ORDER BY updated_at DESC')
+      .all() as DatabaseRow[]
+    return rows.map((row) => CustomBoardSchema.parse(JSON.parse(row.json)))
+  }
+
+  public getCustomBoard(id: BoardId): CustomBoard | null {
+    const row = this.#database.prepare('SELECT json FROM custom_boards WHERE id = ?').get(id) as
+      | DatabaseRow
+      | undefined
+    return row ? CustomBoardSchema.parse(JSON.parse(row.json)) : null
+  }
+
+  public saveCustomBoard(board: CustomBoard): void {
+    const parsed = CustomBoardSchema.parse(board)
+    this.#database
+      .prepare(
+        `INSERT INTO custom_boards (id, json, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`,
+      )
+      .run(parsed.id, JSON.stringify(parsed), parsed.updatedAt)
+  }
+
+  public deleteCustomBoard(id: BoardId): boolean {
+    return this.#database.prepare('DELETE FROM custom_boards WHERE id = ?').run(id).changes > 0
   }
 
   public listProfiles(): AgentProfile[] {
@@ -127,12 +173,13 @@ export class SqliteRepository {
       this.#database
         .prepare(
           `INSERT INTO matches
-            (id, board_id, status, setup_json, created_at, updated_at, paused_reason)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            (id, board_id, board_snapshot_json, status, setup_json, created_at, updated_at, paused_reason)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           record.id,
           record.boardId,
+          record.boardSnapshot ? JSON.stringify(record.boardSnapshot) : null,
           record.status,
           JSON.stringify(record.setup),
           record.createdAt,
@@ -183,6 +230,13 @@ export class SqliteRepository {
       .run(status, pausedReason, new Date().toISOString(), id)
   }
 
+  public updateMatchBoardSnapshot(id: MatchId, snapshot: MatchBoardSnapshot): void {
+    const parsed = MatchBoardSnapshotSchema.parse(snapshot)
+    this.#database
+      .prepare('UPDATE matches SET board_snapshot_json = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(parsed), new Date().toISOString(), id)
+  }
+
   public saveDeliveryLedger(
     matchId: MatchId,
     playerId: PlayerId,
@@ -206,6 +260,148 @@ export class SqliteRepository {
     return row ? (JSON.parse(row.json) as DeliveryLedgerSnapshot) : null
   }
 
+  public nextTrajectoryTurnOrdinal(matchId: MatchId, ownerId: TrajectoryOwnerId): number {
+    const row = this.#database
+      .prepare(
+        'SELECT COALESCE(MAX(ordinal), 0) AS ordinal FROM trajectory_turns WHERE match_id = ? AND owner_id = ?',
+      )
+      .get(matchId, ownerId) as { ordinal: number }
+    return row.ordinal + 1
+  }
+
+  public nextTrajectoryRecordOrdinal(matchId: MatchId, ownerId: TrajectoryOwnerId): number {
+    const row = this.#database
+      .prepare(
+        'SELECT COALESCE(MAX(ordinal), 0) AS ordinal FROM trajectory_records WHERE match_id = ? AND owner_id = ?',
+      )
+      .get(matchId, ownerId) as { ordinal: number }
+    return row.ordinal + 1
+  }
+
+  public maxTrajectorySessionGeneration(matchId: MatchId, ownerId: TrajectoryOwnerId): number {
+    return this.listTrajectoryTurns(matchId, ownerId).reduce(
+      (maximum, turn) => Math.max(maximum, turn.sessionGeneration),
+      0,
+    )
+  }
+
+  public saveTrajectoryTurn(turn: TrajectoryTurn): TrajectoryTurn {
+    const revision = this.#nextTrajectoryRevision(turn.matchId)
+    const parsed = TrajectoryTurnSchema.parse({ ...turn, revision })
+    this.#database
+      .prepare(
+        `INSERT INTO trajectory_turns
+          (match_id, turn_id, owner_id, ordinal, revision, json, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(match_id, turn_id) DO UPDATE SET
+           owner_id = excluded.owner_id,
+           ordinal = excluded.ordinal,
+           revision = excluded.revision,
+           json = excluded.json,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        parsed.matchId,
+        parsed.turnId,
+        parsed.ownerId,
+        parsed.ordinal,
+        parsed.revision,
+        JSON.stringify(parsed),
+        new Date().toISOString(),
+      )
+    return parsed
+  }
+
+  public saveTrajectoryRecord(record: TrajectoryRecord): TrajectoryRecord {
+    const revision = this.#nextTrajectoryRevision(record.matchId)
+    const parsed = TrajectoryRecordSchema.parse({ ...record, revision })
+    this.#database
+      .prepare(
+        `INSERT INTO trajectory_records
+          (match_id, record_id, turn_id, owner_id, ordinal, revision, json, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(match_id, record_id) DO UPDATE SET
+           turn_id = excluded.turn_id,
+           owner_id = excluded.owner_id,
+           ordinal = excluded.ordinal,
+           revision = excluded.revision,
+           json = excluded.json,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        parsed.matchId,
+        parsed.recordId,
+        parsed.turnId,
+        parsed.ownerId,
+        parsed.ordinal,
+        parsed.revision,
+        JSON.stringify(parsed),
+        new Date().toISOString(),
+      )
+    return parsed
+  }
+
+  public trajectoryRevision(matchId: MatchId): number {
+    const row = this.#database
+      .prepare('SELECT revision FROM trajectory_revisions WHERE match_id = ?')
+      .get(matchId) as { revision: number } | undefined
+    return row?.revision ?? 0
+  }
+
+  public listTrajectoryTurns(matchId: MatchId, ownerId?: TrajectoryOwnerId): TrajectoryTurn[] {
+    const rows = (
+      ownerId
+        ? this.#database
+            .prepare(
+              'SELECT json, ordinal, revision FROM trajectory_turns WHERE match_id = ? AND owner_id = ? ORDER BY ordinal ASC',
+            )
+            .all(matchId, ownerId)
+        : this.#database
+            .prepare(
+              'SELECT json, ordinal, revision FROM trajectory_turns WHERE match_id = ? ORDER BY owner_id ASC, ordinal ASC',
+            )
+            .all(matchId)
+    ) as TrajectoryRow[]
+    return rows.map((row) => TrajectoryTurnSchema.parse(JSON.parse(row.json)))
+  }
+
+  public listTrajectoryRecords(matchId: MatchId, ownerId?: TrajectoryOwnerId): TrajectoryRecord[] {
+    const rows = (
+      ownerId
+        ? this.#database
+            .prepare(
+              'SELECT json, ordinal, revision FROM trajectory_records WHERE match_id = ? AND owner_id = ? ORDER BY ordinal ASC',
+            )
+            .all(matchId, ownerId)
+        : this.#database
+            .prepare(
+              'SELECT json, ordinal, revision FROM trajectory_records WHERE match_id = ? ORDER BY owner_id ASC, ordinal ASC',
+            )
+            .all(matchId)
+    ) as TrajectoryRow[]
+    return rows.map((row) => TrajectoryRecordSchema.parse(JSON.parse(row.json)))
+  }
+
+  public trajectoryChanges(
+    matchId: MatchId,
+    afterRevision: number,
+  ): { turns: TrajectoryTurn[]; records: TrajectoryRecord[] } {
+    const turns = this.#database
+      .prepare(
+        'SELECT json, ordinal, revision FROM trajectory_turns WHERE match_id = ? AND revision > ? ORDER BY revision ASC',
+      )
+      .all(matchId, afterRevision) as TrajectoryRow[]
+    const records = this.#database
+      .prepare(
+        'SELECT json, ordinal, revision FROM trajectory_records WHERE match_id = ? AND revision > ? ORDER BY revision ASC',
+      )
+      .all(matchId, afterRevision) as TrajectoryRow[]
+    return {
+      turns: turns.map((row) => TrajectoryTurnSchema.parse(JSON.parse(row.json))),
+      records: records.map((row) => TrajectoryRecordSchema.parse(JSON.parse(row.json))),
+    }
+  }
+
   public markInterruptedMatchesPaused(): number {
     return this.#database
       .prepare(
@@ -226,59 +422,30 @@ export class SqliteRepository {
     }
   }
 
+  #nextTrajectoryRevision(matchId: MatchId): number {
+    const row = this.#database
+      .prepare(
+        `INSERT INTO trajectory_revisions (match_id, revision)
+         VALUES (?, 1)
+         ON CONFLICT(match_id) DO UPDATE SET revision = trajectory_revisions.revision + 1
+         RETURNING revision`,
+      )
+      .get(matchId) as { revision: number }
+    return row.revision
+  }
+
   #matchRecord(row: MatchRow): MatchRecord {
     return {
       id: MatchIdSchema.parse(row.id),
       boardId: BoardIdSchema.parse(row.board_id),
+      boardSnapshot: row.board_snapshot_json
+        ? MatchBoardSnapshotSchema.parse(JSON.parse(row.board_snapshot_json))
+        : null,
       status: row.status,
       setup: CreateMatchRequestSchema.parse(JSON.parse(row.setup_json)),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       pausedReason: row.paused_reason,
-    }
-  }
-
-  #migrate(): void {
-    const version = this.#database.pragma('user_version', { simple: true }) as number
-    if (version > 1) throw new Error(`Database schema ${version} is newer than this server`)
-    if (version === 0) {
-      this.#database.exec(`
-        CREATE TABLE agent_tools (
-          id TEXT PRIMARY KEY,
-          json TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-        CREATE TABLE agent_profiles (
-          id TEXT PRIMARY KEY,
-          tool_id TEXT NOT NULL,
-          json TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-        CREATE INDEX agent_profiles_tool_id ON agent_profiles(tool_id);
-        CREATE TABLE matches (
-          id TEXT PRIMARY KEY,
-          board_id TEXT NOT NULL,
-          status TEXT NOT NULL,
-          setup_json TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          paused_reason TEXT
-        );
-        CREATE TABLE match_events (
-          match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-          sequence INTEGER NOT NULL,
-          json TEXT NOT NULL,
-          PRIMARY KEY(match_id, sequence)
-        );
-        CREATE TABLE delivery_ledgers (
-          match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-          player_id TEXT NOT NULL,
-          json TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          PRIMARY KEY(match_id, player_id)
-        );
-        PRAGMA user_version = 1;
-      `)
     }
   }
 }

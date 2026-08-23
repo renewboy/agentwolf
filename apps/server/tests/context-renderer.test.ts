@@ -15,7 +15,7 @@ import {
   type EnginePlayerInput,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
-import { ContextRenderer } from '../src/context-renderer.js'
+import { ContextRenderer, promptContractVersion } from '../src/context-renderer.js'
 
 describe('ContextRenderer board rules', () => {
   it('renders the active player-count policies into the foundation prompt', async () => {
@@ -166,6 +166,55 @@ describe('ContextRenderer board rules', () => {
     const turn = await renderer.turn(engine.state, events, voter.id, 0, 'speech-turn')
     expect(turn.prompt).toContain('投票结算')
     expect(turn.prompt).toContain('发动猎人技能')
+  })
+
+  it('injects versioned speech constraints while preserving legacy prompt reconstruction', async () => {
+    const renderer = new ContextRenderer(createV1RoleRegistry())
+    const { engine, players } = createBoardEngine(sixPlayerBoard)
+    const instruction = 'VERSIONED_SPEECH_CONSTRAINT'
+    const current = await renderer.turn(
+      engine.state,
+      engine.events,
+      players[0]!.id,
+      0,
+      'speech-turn',
+      instruction,
+    )
+    expect(promptContractVersion).toBeGreaterThanOrEqual(9)
+    expect(current.prompt).toContain(instruction)
+
+    const legacy = await renderer.turn(
+      engine.state,
+      engine.events,
+      players[0]!.id,
+      0,
+      'speech-turn',
+      instruction,
+      7,
+    )
+    expect(legacy.prompt).not.toContain(instruction)
+
+    for (const promptAsset of ['sheriff-turn', 'vote-turn'] as const) {
+      const currentStructured = await renderer.turn(
+        engine.state,
+        engine.events,
+        players[0]!.id,
+        0,
+        promptAsset,
+        instruction,
+      )
+      expect(currentStructured.prompt).toContain(instruction)
+      const legacyStructured = await renderer.turn(
+        engine.state,
+        engine.events,
+        players[0]!.id,
+        0,
+        promptAsset,
+        instruction,
+        8,
+      )
+      expect(legacyStructured.prompt).not.toContain(instruction)
+    }
   })
 
   it('delivers a final public role reveal as natural game narration', async () => {

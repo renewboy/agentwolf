@@ -6,6 +6,7 @@ import {
   PlayerActionSchema,
   PlayerIdSchema,
   type ActionReceipt,
+  type AbilityId,
   type MatchId,
   type PlayerAction,
   type PlayerId,
@@ -19,6 +20,9 @@ export interface ActionExpectation {
   readonly speechKind?: Extract<PlayerAction, { type: 'speech' }>['kind']
   readonly voteKind?: Extract<PlayerAction, { type: 'vote' }>['kind']
   readonly onAccepted?: (action: PlayerAction) => void
+  readonly allowedAbilityIds?: readonly AbilityId[]
+  readonly interruptAbilityIds?: readonly AbilityId[]
+  readonly allowSpeechTool?: boolean
 }
 
 interface PlayerBinding {
@@ -53,6 +57,9 @@ export class ActionMailbox {
 
   public submitSpeech(token: string, text: string): ActionReceipt {
     const expectation = this.#expectation(token, 'speech')
+    if (!expectation.allowSpeechTool) {
+      throw new Error(getCopy('tools.speechDirectReplyRequired'))
+    }
     if (!expectation.speechKind) throw new Error('Speech kind is missing from the expectation')
     return this.#accept(
       expectation,
@@ -124,13 +131,23 @@ export class ActionMailbox {
     option?: string,
   ): ActionReceipt {
     const expectation = this.#expectation(token, 'skill-trigger')
+    const parsedAbilityId = AbilityIdSchema.parse(abilityId)
+    const allowed =
+      expectation.actionType === 'skill-trigger'
+        ? expectation.allowedAbilityIds
+        : expectation.interruptAbilityIds
+    if (!allowed?.includes(parsedAbilityId)) {
+      throw new Error(
+        `Ability ${parsedAbilityId} is unavailable; allowed abilities: ${allowed?.join(', ') || 'none'}`,
+      )
+    }
     return this.#accept(
       expectation,
       PlayerActionSchema.parse({
         type: 'skill-trigger',
         matchId: expectation.matchId,
         actorId: expectation.playerId,
-        abilityId: AbilityIdSchema.parse(abilityId),
+        abilityId: parsedAbilityId,
         targetId: targetPlayerId === null ? null : PlayerIdSchema.parse(targetPlayerId),
         ...(option ? { option } : {}),
       }),

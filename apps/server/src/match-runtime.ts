@@ -4,6 +4,7 @@ import type {
   LiveClientMessage,
   LiveMessage,
   MatchView,
+  MatchBoardSnapshot,
   PlayerAction,
   PlayerId,
   SpectatorView,
@@ -20,40 +21,38 @@ import {
 import type { AgentCatalogService } from './agent-catalog.js'
 import { ActionMailbox, type ActionExpectation } from './action-mailbox.js'
 import type { ServerConfig } from './config.js'
-import { ContextRenderer, type ContextEnvelope } from './context-renderer.js'
+import { ContextRenderer } from './context-renderer.js'
 import { LiveHub, type LiveConnection, type LiveSubscriber } from './live-hub.js'
 import {
   actionInstructionFor,
   describeError,
   findCommittedSpeech,
   hasUncertainDelivery,
+  interruptAbilityExpectation,
   mapWithConcurrency,
   promptAssetFor,
   settleActions,
 } from './match-runtime-helpers.js'
+import type { PreparedActorTurn } from './match-runtime-types.js'
 import { PlayerRuntime, type PlayerSessionFactory } from './player-runtime.js'
 import { preparePlayerWorkspace } from './player-workspace.js'
 import { projectMatch } from './projector.js'
 import type { MatchRecord, SqliteRepository } from './repository.js'
 import { SpeechPlaybackCoordinator } from './speech-playback-coordinator.js'
+import type { MatchTrajectoryRecorder } from './trajectory.js'
 
 export interface MatchRuntimeOptions {
   readonly record: MatchRecord
   readonly engine: GameEngine
   readonly board: BoardManifest
+  readonly boardSnapshot: MatchBoardSnapshot
   readonly repository: SqliteRepository
   readonly catalog: AgentCatalogService
   readonly config: ServerConfig
   readonly mailbox: ActionMailbox
+  readonly trajectory: MatchTrajectoryRecorder
   readonly sessionFactory?: PlayerSessionFactory
   readonly sessionConcurrency?: number
-}
-
-interface PreparedActorTurn {
-  readonly playerId: PlayerId
-  readonly runtime: PlayerRuntime
-  readonly envelope: ContextEnvelope
-  readonly expectation: ActionExpectation
 }
 
 export class MatchRuntime {
@@ -112,6 +111,7 @@ export class MatchRuntime {
     return projectMatch({
       matchId: this.engine.state.matchId,
       board: this.#options.board,
+      boardName: this.#options.boardSnapshot.name,
       state: this.engine.state,
       events: this.engine.events,
       view,
@@ -199,6 +199,7 @@ export class MatchRuntime {
         token,
         mcpUrl: `${this.#options.config.publicBaseUrl}/mcp`,
         mailbox: this.#options.mailbox,
+        trajectory: this.#options.trajectory,
         repository: this.#options.repository,
         resetDeliveryLedger,
         deliveryEvents: {
@@ -324,6 +325,8 @@ export class MatchRuntime {
       actionType: turn.actionType,
       ...(turn.speechKind ? { speechKind: turn.speechKind } : {}),
       ...(turn.voteKind ? { voteKind: turn.voteKind } : {}),
+      ...(turn.allowedAbilityIds ? { allowedAbilityIds: turn.allowedAbilityIds } : {}),
+      ...interruptAbilityExpectation(this.engine.state, playerId, turn),
     }
     const envelope = await this.#renderer.turn(
       this.engine.state,
@@ -331,7 +334,11 @@ export class MatchRuntime {
       playerId,
       runtime.acknowledgedSequence,
       promptAssetFor(turn),
-      actionInstructionFor(turn),
+      actionInstructionFor(turn, {
+        board: this.#options.board,
+        state: this.engine.state,
+        playerId,
+      }),
     )
     return { playerId, runtime, envelope, expectation }
   }
@@ -350,7 +357,12 @@ export class MatchRuntime {
           }
         : {}
     try {
-      return await actor.runtime.takeTurn(actor.envelope, actor.expectation, callbacks)
+      return await actor.runtime.takeTurn(
+        actor.envelope,
+        actor.expectation,
+        turn.phaseId,
+        callbacks,
+      )
     } catch (error) {
       throw new Error(`Player ${actor.playerId} turn failed: ${describeError(error)}`, {
         cause: error,
@@ -360,6 +372,7 @@ export class MatchRuntime {
 
   #record(events: readonly GameEvent[], broadcast = true): void {
     this.#options.repository.appendEvents(events)
+    this.#options.trajectory.recordSystemEvents(events)
     if (broadcast && events.length > 0) this.#broadcastSnapshot()
   }
 

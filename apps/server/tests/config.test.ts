@@ -32,4 +32,13 @@ describe('server project root', () => {
     await access(resolve(workspace, '.agents/skills/agentwolf-player/SKILL.md'))
     await access(resolve(workspace, '.claude/skills/agentwolf-player/SKILL.md'))
   })
+
+  it('enables developer mode only through an explicit loopback startup setting', () => {
+    expect(loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: 'true' }).developerMode).toBe(true)
+    expect(loadServerConfig({}).developerMode).toBe(false)
+    expect(() =>
+      loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: 'true', AGENTWOLF_HOST: '0.0.0.0' }),
+    ).toThrow(/loopback/)
+    expect(() => loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: '1' })).toThrow(/true or false/)
+  })
 })

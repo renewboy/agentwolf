@@ -50,6 +50,7 @@ describe('AgentProbeService', () => {
       publicBaseUrl: 'http://127.0.0.1:4310',
       projectRoot: process.cwd(),
       webDistPath: resolve(dataDirectory, 'web'),
+      developerMode: false,
     }
     const service = new AgentProbeService(catalog, config)
     const discovery = await service.discoverTool(tool.id)

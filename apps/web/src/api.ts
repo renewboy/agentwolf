@@ -3,7 +3,13 @@ import {
   AgentProfileSchema,
   AgentToolSchema,
   BoardSummarySchema,
+  CustomBoardInputSchema,
   MatchViewSchema,
+  RoleSummarySchema,
+  RuntimeConfigSchema,
+  TrajectoryPageSchema,
+  TrajectoryAuditReportSchema,
+  TrajectorySummarySchema,
   type AgentProfile,
   type AgentProfileId,
   type AgentProfileInput,
@@ -12,10 +18,18 @@ import {
   type AgentToolId,
   type AgentToolInput,
   type BoardSummary,
+  type BoardId,
+  type CustomBoardInput,
   type CreateMatchRequest,
   type MatchId,
   type MatchView,
   type SpectatorView,
+  type RoleSummary,
+  type RuntimeConfig,
+  type TrajectoryOwnerId,
+  type TrajectoryPage,
+  type TrajectoryAuditReport,
+  type TrajectorySummary,
 } from '@agentwolf/contracts'
 
 export class ApiError extends Error {
@@ -44,6 +58,9 @@ async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export const api = {
+  async runtimeConfig(): Promise<RuntimeConfig> {
+    return RuntimeConfigSchema.parse(await requestJson('/api/runtime-config'))
+  },
   async listTools(): Promise<AgentTool[]> {
     return AgentToolSchema.array().parse(await requestJson('/api/agent-tools'))
   },
@@ -94,6 +111,49 @@ export const api = {
   },
   async listBoards(): Promise<BoardSummary[]> {
     return BoardSummarySchema.array().parse(await requestJson('/api/boards'))
+  },
+  async listRoles(): Promise<RoleSummary[]> {
+    return RoleSummarySchema.array().parse(await requestJson('/api/roles'))
+  },
+  async createBoard(input: CustomBoardInput): Promise<BoardSummary> {
+    return BoardSummarySchema.parse(
+      await requestJson('/api/boards', {
+        method: 'POST',
+        body: JSON.stringify(CustomBoardInputSchema.parse(input)),
+      }),
+    )
+  },
+  async updateBoard(id: BoardId, input: CustomBoardInput): Promise<BoardSummary> {
+    return BoardSummarySchema.parse(
+      await requestJson(`/api/boards/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(CustomBoardInputSchema.parse(input)),
+      }),
+    )
+  },
+  async deleteBoard(id: BoardId): Promise<void> {
+    await requestJson(`/api/boards/${id}`, { method: 'DELETE' })
+  },
+  async trajectorySummary(id: MatchId): Promise<TrajectorySummary> {
+    return TrajectorySummarySchema.parse(
+      await requestJson(`/api/developer/matches/${id}/trajectory/summary`),
+    )
+  },
+  async trajectoryAudit(id: MatchId): Promise<TrajectoryAuditReport> {
+    return TrajectoryAuditReportSchema.parse(
+      await requestJson(`/api/developer/matches/${id}/trajectory/audit`),
+    )
+  },
+  async trajectoryPage(
+    id: MatchId,
+    ownerId: TrajectoryOwnerId,
+    beforeTurn: number | null = null,
+  ): Promise<TrajectoryPage> {
+    const query = new URLSearchParams({ ownerId })
+    if (beforeTurn !== null) query.set('beforeTurn', String(beforeTurn))
+    return TrajectoryPageSchema.parse(
+      await requestJson(`/api/developer/matches/${id}/trajectory?${query}`),
+    )
   },
   async listMatches(): Promise<MatchView[]> {
     return MatchViewSchema.array().parse(await requestJson('/api/matches'))

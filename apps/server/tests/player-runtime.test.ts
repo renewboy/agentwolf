@@ -2,6 +2,7 @@ import {
   AgentProfileSchema,
   AgentToolSchema,
   MatchIdSchema,
+  PhaseIdSchema,
   PlayerIdSchema,
 } from '@agentwolf/contracts'
 import type { AcpPromptResult } from '@agentwolf/acp'
@@ -9,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { ActionMailbox } from '../src/action-mailbox.js'
 import { PlayerRuntime, type PlayerRuntimeStatus } from '../src/player-runtime.js'
 import type { SqliteRepository } from '../src/repository.js'
+import type { MatchTrajectoryRecorder } from '../src/trajectory.js'
 
 describe('PlayerRuntime action status', () => {
   it('publishes submitted as soon as a structured action is accepted', async () => {
@@ -49,6 +51,17 @@ describe('PlayerRuntime action status', () => {
       getDeliveryLedger: () => null,
       saveDeliveryLedger: () => undefined,
     } as unknown as SqliteRepository
+    const trajectory = {
+      nextSessionGeneration: () => 1,
+      beginTurn: () => ({
+        update: () => undefined,
+        permission: () => undefined,
+        diagnostic: () => undefined,
+        action: () => undefined,
+        complete: () => undefined,
+        fail: () => undefined,
+      }),
+    } as unknown as MatchTrajectoryRecorder
     const runtime = new PlayerRuntime({
       matchId,
       playerId,
@@ -59,6 +72,7 @@ describe('PlayerRuntime action status', () => {
       mcpUrl: 'http://127.0.0.1:4310/mcp',
       mailbox,
       repository,
+      trajectory,
       deliveryEvents: {
         started: () => undefined,
         acknowledged: () => undefined,
@@ -79,6 +93,7 @@ describe('PlayerRuntime action status', () => {
     const turn = runtime.takeTurn(
       { prompt: '提交投票。', toSequence: 1, visibleEvents: [] },
       { matchId, playerId, actionType: 'vote', voteKind: 'exile' },
+      PhaseIdSchema.parse('phase-day-vote'),
     )
     await submission
     expect(runtime.status).toBe('submitted')

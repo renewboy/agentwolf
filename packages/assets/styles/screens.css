@@ -251,6 +251,433 @@
   gap: 10px;
 }
 
+.aw-board-management__item small {
+  line-height: 1.45;
+}
+
+.aw-board-role-editor,
+.aw-board-rules {
+  display: grid;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid var(--aw-color-line);
+}
+
+.aw-board-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aw-board-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 66px;
+  padding: 11px 12px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-board-role-row > span {
+  display: grid;
+  gap: 3px;
+}
+
+.aw-board-role-row small,
+.aw-board-rules small {
+  color: var(--aw-color-text-muted);
+  line-height: 1.45;
+}
+
+.aw-counter {
+  display: grid;
+  grid-template-columns: 34px 34px 34px;
+  align-items: center;
+  gap: 4px;
+}
+
+.aw-counter output {
+  color: var(--aw-color-amber);
+  font-weight: 750;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.aw-rule-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text);
+  text-align: left;
+  background: var(--aw-color-surface-raised);
+  cursor: pointer;
+}
+
+.aw-rule-toggle > span {
+  display: grid;
+  gap: 5px;
+}
+
+.aw-rule-toggle > i {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  flex: none;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: var(--aw-radius-pill);
+  background: var(--aw-color-surface);
+}
+
+.aw-rule-toggle > i::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--aw-color-text-muted);
+  transition: transform var(--aw-duration-fast) var(--aw-ease-out);
+}
+
+.aw-rule-toggle[aria-checked='true'] {
+  border-color: var(--aw-color-amber-soft);
+}
+
+.aw-rule-toggle[aria-checked='true'] > i::after {
+  background: var(--aw-color-amber);
+  transform: translateX(19px);
+}
+
+.aw-board-victory {
+  width: min(420px, 100%);
+  margin: 10px 0 7px;
+}
+
+.aw-board-victory .aw-segmented__item {
+  flex: 1;
+}
+
+.aw-board-custom-badge {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--aw-color-amber-soft);
+  border-radius: var(--aw-radius-pill);
+  color: var(--aw-color-amber);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 650;
+  vertical-align: middle;
+}
+
+.aw-developer-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.aw-developer-heading > div:first-child {
+  display: grid;
+  gap: 8px;
+}
+
+.aw-developer-match-select {
+  width: min(460px, 100%);
+}
+
+.aw-trajectory-overview {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.aw-trajectory-audit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -8px 0 18px;
+  padding: 12px 16px;
+  border-color: var(--aw-color-danger);
+}
+
+.aw-trajectory-audit[data-ok='true'] {
+  border-color: var(--aw-color-success);
+}
+
+.aw-trajectory-audit span {
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+
+.aw-trajectory-overview .aw-panel-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--aw-color-success);
+  font-size: 12px;
+}
+
+.aw-trajectory-overview svg {
+  width: 100%;
+  min-width: 720px;
+  overflow: visible;
+}
+
+.aw-trajectory-overview g {
+  cursor: pointer;
+  outline: none;
+}
+
+.aw-trajectory-overview text {
+  fill: var(--aw-color-text-muted);
+  font-size: 11px;
+}
+
+.aw-trajectory-overview line {
+  stroke: var(--aw-color-line);
+  stroke-width: 1;
+}
+
+.aw-trajectory-overview rect {
+  fill: var(--aw-color-amber-soft);
+  stroke: var(--aw-color-amber);
+  stroke-width: 1;
+}
+
+.aw-trajectory-overview rect[data-status='failed'],
+.aw-trajectory-overview rect[data-status='uncertain'] {
+  fill: var(--aw-color-danger-soft);
+  stroke: var(--aw-color-danger);
+}
+
+.aw-trajectory-overview g[data-selected='true'] text,
+.aw-trajectory-overview g:focus-visible text {
+  fill: var(--aw-color-amber);
+}
+
+.aw-trajectory-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.48fr) minmax(420px, 1.25fr) minmax(300px, 0.8fr);
+  gap: 18px;
+  min-height: 650px;
+}
+
+.aw-trajectory-owners,
+.aw-trajectory-ledger,
+.aw-trajectory-inspector {
+  min-width: 0;
+  padding: 18px;
+}
+
+.aw-trajectory-owners,
+.aw-trajectory-inspector {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.aw-trajectory-owners h2,
+.aw-trajectory-inspector h2 {
+  margin: 0 0 8px;
+}
+
+.aw-trajectory-owner {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.aw-trajectory-owner small {
+  color: var(--aw-color-text-muted);
+}
+
+.aw-trajectory-owner[aria-pressed='true'] {
+  border-color: var(--aw-color-amber-soft);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-trajectory-ledger {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  height: 650px;
+}
+
+.aw-trajectory-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.aw-trajectory-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.aw-trajectory-toolbar .aw-input {
+  min-width: 0;
+}
+
+.aw-trajectory-scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.aw-trajectory-virtual {
+  position: relative;
+  width: 100%;
+}
+
+.aw-trajectory-virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-bottom: 5px;
+  will-change: transform;
+}
+
+.aw-trajectory-turn,
+.aw-trajectory-record {
+  display: grid;
+  align-items: center;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.aw-trajectory-turn {
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  min-height: 48px;
+  padding: 9px 11px;
+  border-color: var(--aw-color-line);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-trajectory-turn small,
+.aw-trajectory-record small,
+.aw-trajectory-record em {
+  overflow: hidden;
+  color: var(--aw-color-text-muted);
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-trajectory-record {
+  grid-template-columns: 44px minmax(76px, auto) minmax(0, 1fr) 58px;
+  gap: 8px;
+  min-height: 40px;
+  padding: 7px 9px;
+}
+
+.aw-trajectory-record > span {
+  color: var(--aw-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.aw-trajectory-record > strong {
+  font-size: 12px;
+}
+
+.aw-trajectory-record[data-selected='true'],
+.aw-trajectory-turn[data-selected='true'] {
+  border-color: var(--aw-color-amber-soft);
+  background: var(--aw-color-amber-faint);
+}
+
+.aw-trajectory-record[data-kind='error'],
+.aw-trajectory-record[data-kind='diagnostic'][data-status='error'] {
+  color: var(--aw-color-danger);
+}
+
+.aw-trajectory-record[data-kind='diagnostic'][data-status='warning'] {
+  color: var(--aw-color-warning);
+}
+
+.aw-trajectory-inspector {
+  max-height: 650px;
+  overflow: auto;
+}
+
+.aw-trajectory-inspector > p {
+  color: var(--aw-color-text-muted);
+  line-height: 1.6;
+}
+
+.aw-trajectory-detail-row {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--aw-color-line);
+  font-size: 12px;
+}
+
+.aw-trajectory-detail-row span {
+  color: var(--aw-color-text-muted);
+}
+
+.aw-trajectory-detail-row strong {
+  overflow-wrap: anywhere;
+}
+
+.aw-trajectory-detail-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.aw-trajectory-detail-block h3 {
+  margin: 0;
+  color: var(--aw-color-text-muted);
+  font: 600 12px var(--aw-font-ui);
+}
+
+.aw-trajectory-detail-block pre {
+  max-height: 300px;
+  margin: 0;
+  padding: 11px;
+  overflow: auto;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  background: var(--aw-color-surface);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .aw-form-message {
   margin: 0;
   padding: 11px 13px;
@@ -426,6 +853,106 @@
   background:
     radial-gradient(circle at 50% -18%, rgb(101 125 145 / 24%), transparent 40%),
     linear-gradient(180deg, #08131d, #050d15 64%, #071019);
+}
+
+.aw-role-effect-overlay {
+  display: grid;
+  position: fixed;
+  z-index: var(--aw-layer-drawer);
+  inset: 0;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  --aw-role-effect-color: var(--aw-color-amber);
+}
+
+.aw-role-effect-overlay[data-effect='werewolf-attack'],
+.aw-role-effect-overlay[data-effect='werewolf-self-destruct'],
+.aw-role-effect-overlay[data-effect='hunter-shot'] {
+  --aw-role-effect-color: var(--aw-effect-crimson);
+}
+
+.aw-role-effect-overlay[data-effect='seer-inspect'] {
+  --aw-role-effect-color: var(--aw-effect-silver);
+}
+
+.aw-role-effect-overlay[data-effect='witch-antidote'] {
+  --aw-role-effect-color: var(--aw-effect-emerald);
+}
+
+.aw-role-effect-overlay[data-effect='witch-poison'] {
+  --aw-role-effect-color: var(--aw-effect-violet);
+}
+
+.aw-role-effect-overlay[data-effect='guard-protect'] {
+  --aw-role-effect-color: var(--aw-effect-cyan);
+}
+
+.aw-role-effect-card {
+  display: grid;
+  position: relative;
+  place-items: center;
+  gap: 8px;
+  min-width: 180px;
+  padding: 24px 30px;
+  border: 1px solid var(--aw-role-effect-color);
+  border-radius: var(--aw-radius-panel);
+  color: var(--aw-role-effect-color);
+  background: var(--aw-color-night);
+  box-shadow:
+    0 0 0 4px var(--aw-color-ink),
+    0 0 44px var(--aw-role-effect-color);
+}
+
+.aw-role-effect-card::before,
+.aw-role-effect-card::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid var(--aw-role-effect-color);
+  border-radius: calc(var(--aw-radius-panel) - 3px);
+  opacity: 0.28;
+}
+
+.aw-role-effect-card::after {
+  inset: -12px;
+  border-style: dashed;
+  border-radius: 50%;
+}
+
+.aw-role-effect-card strong {
+  color: var(--aw-color-text);
+  font-family: var(--aw-font-display);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+}
+
+.aw-role-effect-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.aw-role-effect-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--aw-role-effect-color);
+  box-shadow: 0 0 12px var(--aw-role-effect-color);
+}
+
+.aw-player-card[data-role-effect] {
+  z-index: 2;
+  border-color: var(--aw-color-amber);
+  box-shadow:
+    inset 0 1px 0 var(--aw-color-text),
+    0 0 22px var(--aw-color-amber-soft);
+}
+
+.aw-effect-mode-select {
+  width: 92px;
+  flex: none;
 }
 
 .aw-lunar-field {

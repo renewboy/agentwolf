@@ -1,15 +1,21 @@
 import {
-  BoardSummarySchema,
   MatchViewSchema,
-  type BoardSummary,
+  RoleEffectCueSchema,
   type GameEvent,
   type MatchId,
   type MatchView,
   type TimelineItem,
   type PlayerId,
+  type RoleEffectCue,
   type SpectatorView,
 } from '@agentwolf/contracts'
-import { formatCopy, getCopy, renderEventNarration, type NarrationCatalog } from '@agentwolf/assets'
+import {
+  formatCopy,
+  getCopy,
+  renderEventNarration,
+  roleEffectCatalog,
+  type NarrationCatalog,
+} from '@agentwolf/assets'
 import {
   publiclyEliminatedPlayerIds,
   visibleEvents,
@@ -24,6 +30,7 @@ export type SessionStatus = MatchView['seats'][number]['sessionStatus']
 export interface ProjectMatchOptions {
   readonly matchId: MatchId
   readonly board: BoardManifest
+  readonly boardName: string
   readonly state: GameState
   readonly events: readonly GameEvent[]
   readonly view: SpectatorView
@@ -36,21 +43,6 @@ function localizePausedReason(reason: string | null): string | null {
     return getCopy('errors.serverRestartedSessionNotReplayable')
   }
   return reason
-}
-
-export function projectBoard(board: BoardManifest, roles: RoleRegistry): BoardSummary {
-  return BoardSummarySchema.parse({
-    id: board.id,
-    name: getCopy(board.nameKey),
-    description: getCopy(board.descriptionKey),
-    playerCount: board.playerCount,
-    roles: board.roles.map((slot) => ({
-      roleId: slot.roleId,
-      count: slot.count,
-      name: getCopy(roles.role(slot.roleId).displayNameKey),
-    })),
-    sheriff: board.sheriff,
-  })
 }
 
 export function projectMatch(options: ProjectMatchOptions): MatchView {
@@ -88,11 +80,12 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
   return MatchViewSchema.parse({
     id: options.matchId,
     boardId: options.board.id,
-    boardName: getCopy(options.board.nameKey),
+    boardName: options.boardName,
     status: options.state.status,
     day: options.state.day,
     phaseId: options.state.phaseId ?? '',
     phaseLabel: options.state.phaseLabelKey ? getCopy(options.state.phaseLabelKey) : '',
+    lastSequence: options.state.lastSequence,
     seats: [...options.state.players.values()]
       .sort((left, right) => left.seat - right.seat)
       .map((player) => {
@@ -120,10 +113,73 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
         }
       }),
     timeline: projectTimeline(projectedEvents, catalog),
+    effectCues: projectRoleEffectCues(projectedEvents),
     activeSpeech,
     winner: winnerEvent?.payload.type === 'match.ended' ? winnerEvent.payload.winner : null,
     pausedReason: localizePausedReason(options.state.pausedReason),
   })
+}
+
+export function projectRoleEffectCues(events: readonly GameEvent[]): RoleEffectCue[] {
+  const cues: RoleEffectCue[] = []
+  for (const event of events) {
+    const payload = event.payload
+    const append = (
+      effectId: keyof typeof roleEffectCatalog,
+      sourcePlayerIds: readonly PlayerId[],
+      targetPlayerIds: readonly PlayerId[],
+      variant: string | null = null,
+    ): void => {
+      const definition = roleEffectCatalog[effectId]
+      cues.push(
+        RoleEffectCueSchema.parse({
+          cueId: `${event.sequence}:${effectId}`,
+          sequence: event.sequence,
+          effectId,
+          roleId: definition.roleId,
+          abilityId: definition.abilityId,
+          sourcePlayerIds,
+          targetPlayerIds,
+          variant,
+          tier: definition.tier,
+          occurredAt: event.occurredAt,
+        }),
+      )
+    }
+    switch (payload.type) {
+      case 'night.attack-selected':
+        if (payload.targetId) append('werewolf-attack', [], [payload.targetId])
+        break
+      case 'player.died':
+        if (payload.causes.includes('self-destruct')) {
+          append('werewolf-self-destruct', [payload.playerId], [payload.playerId])
+        }
+        break
+      case 'seer.inspected':
+        append('seer-inspect', [payload.actorId], [payload.targetId], payload.result)
+        break
+      case 'witch.potion-used':
+        append(
+          payload.potion === 'antidote' ? 'witch-antidote' : 'witch-poison',
+          [payload.actorId],
+          [payload.targetId],
+          payload.potion,
+        )
+        break
+      case 'hunter.shot':
+        append('hunter-shot', [payload.playerId], [payload.targetId])
+        break
+      case 'idiot.revealed':
+        append('idiot-reveal', [payload.playerId], [payload.playerId])
+        break
+      case 'guard.protected':
+        if (payload.targetId) append('guard-protect', [payload.actorId], [payload.targetId])
+        break
+      default:
+        break
+    }
+  }
+  return cues
 }
 
 function visibleSessionStatus(

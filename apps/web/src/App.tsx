@@ -3,9 +3,12 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { getCopy } from '@agentwolf/assets'
 import { AppShell } from './components/AppShell.js'
 import { AgentsPage } from './pages/AgentsPage.js'
+import { BoardsPage } from './pages/BoardsPage.js'
 import { LobbyPage } from './pages/LobbyPage.js'
 import { NewMatchPage } from './pages/NewMatchPage.js'
 import { LoadingState } from './components/AsyncState.js'
+import { RuntimeConfigProvider, useRuntimeConfig } from './hooks/useRuntimeConfig.js'
+import { DeveloperPage } from './pages/DeveloperPage.js'
 
 const MatchPage = lazy(async () => {
   const module = await import('./pages/MatchPage.js')
@@ -17,10 +20,24 @@ export function App() {
     document.title = getCopy('brand')
   }, [])
   return (
+    <RuntimeConfigProvider>
+      <AppRoutes />
+    </RuntimeConfigProvider>
+  )
+}
+
+function AppRoutes() {
+  const { developerMode } = useRuntimeConfig()
+  return (
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<LobbyPage />} />
         <Route path="agents" element={<AgentsPage />} />
+        <Route path="boards" element={<BoardsPage />} />
+        <Route
+          path="developer"
+          element={developerMode ? <DeveloperPage /> : <Navigate to="/" replace />}
+        />
         <Route path="matches/new" element={<NewMatchPage />} />
       </Route>
       <Route

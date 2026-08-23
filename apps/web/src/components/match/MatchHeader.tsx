@@ -16,6 +16,7 @@ import {
   PlayerIdSchema,
   type MatchView,
   type PlayerId,
+  type RoleEffectMode,
   type SpectatorView,
 } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
@@ -33,6 +34,8 @@ export function MatchHeader({
   audioBusyElsewhere,
   audioSupported,
   onToggleAudio,
+  effectMode,
+  setEffectMode,
 }: {
   readonly match: MatchView
   readonly viewKind: SpectatorView['kind']
@@ -44,6 +47,8 @@ export function MatchHeader({
   readonly audioBusyElsewhere: boolean
   readonly audioSupported: boolean
   readonly onToggleAudio: () => void
+  readonly effectMode: RoleEffectMode
+  readonly setEffectMode: (mode: RoleEffectMode) => void
 }) {
   const playerOptions = useMemo(
     () =>
@@ -67,6 +72,14 @@ export function MatchHeader({
   )
   const audioDisabled =
     !audioSupported || audioBusyElsewhere || connectionState !== 'live' || match.status === 'ended'
+  const effectOptions = useMemo(
+    () =>
+      (['full', 'reduced', 'off'] as const).map((mode) => ({
+        value: mode,
+        label: getCopy(`effects.${mode}`),
+      })),
+    [],
+  )
   return (
     <header className="aw-match-hud">
       <div className="aw-match-hud__inner">
@@ -124,6 +137,14 @@ export function MatchHeader({
           ) : null}
 
           <ConnectionIndicator state={connectionState} />
+          <div className="aw-effect-mode-select">
+            <GameSelect
+              ariaLabel={getCopy('effects.mode')}
+              value={effectMode}
+              options={effectOptions}
+              onChange={(mode) => setEffectMode(mode)}
+            />
+          </div>
           <button
             className="aw-button aw-button--square aw-audio-toggle"
             aria-label={audioLabel}

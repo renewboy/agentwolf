@@ -210,7 +210,12 @@ export function NewMatchPage() {
             </div>
           </div>
           <div className="aw-picker-block">
-            <h2>{getCopy('setup.board')}</h2>
+            <div className="aw-panel-heading">
+              <h2>{getCopy('setup.board')}</h2>
+              <Link className="aw-button aw-button--icon" to="/boards">
+                {getCopy('setup.manageBoards')}
+              </Link>
+            </div>
             <div className="aw-board-list">
               {visibleBoards.map((entry) => (
                 <button
@@ -220,7 +225,12 @@ export function NewMatchPage() {
                   type="button"
                   onClick={() => setBoardId(entry.id)}
                 >
-                  <strong>{entry.name}</strong>
+                  <strong>
+                    {entry.name}
+                    {entry.source === 'custom' ? (
+                      <em className="aw-board-custom-badge">{getCopy('setup.customBoard')}</em>
+                    ) : null}
+                  </strong>
                   <span>{entry.description}</span>
                   <small>
                     {formatCopy(getCopy('setup.boardHint'), {

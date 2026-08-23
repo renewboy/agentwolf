@@ -2,11 +2,22 @@
 
 ## Test layers
 
-- Unit tests cover role classes, effect priorities, phase transitions, speech sanitization, nickname uniqueness, event reduction, and visibility projection.
+- Unit tests cover role classes, resolution priorities, role-effect catalog coverage, custom-board
+  validation, phase transitions, speech sanitization, nickname uniqueness, event reduction, and
+  visibility projection.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
-- Integration tests run the API with an in-memory repository and fake ACP processes. They cover one session per seat, cursor advancement, submitted-action status, uncertain-delivery pauses, MCP action authorization, sync barriers, and streamed speech.
+- Integration tests run the API with an in-memory repository and fake ACP processes. They cover
+  custom-board CRUD and immutable Match snapshots, schema-one migration, one session per seat,
+  cursor advancement, submitted-action status, normalized and redacted trajectories, exact Prompt
+  reconstruction, uncertain-delivery recovery, MCP action authorization, sync barriers, and
+  streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
-- Browser tests cover Agent Profile management, styled listbox behavior, confirmation-dialog focus and deletion, match setup, rerolls, game start, view switching, live speech, target-grouped vote results, non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech manual play and stop, playback skip and synthesis failure, fixed-height match layout, active waiting feedback, terminal-state motion cleanup, missing-Match request settlement, and the reserved developer-mode entry.
+- Browser tests cover Agent Profile and custom-board management, styled listbox behavior,
+  confirmation-dialog focus and deletion, Match setup, developer trajectory detail, context-audit
+  status, role-effect modes, rerolls, game start, view switching, live speech, target-grouped vote
+  results, non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
+  manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
+  waiting feedback, terminal-state motion cleanup, and missing-Match request settlement.
 - Browser fixtures use a per-run name namespace and remove every created Match, Agent Profile, and custom Agent Tool during suite teardown, including after failed assertions.
 - Optional live ACP smokes verify installed adapters and a real Trae-to-MCP structured action with a one-turn fake match. They never run in keyless CI.
 
@@ -52,3 +63,17 @@ pnpm smoke:trae-action -- gpt-5.6-luna
 19. A valid structured action immediately projects `submitted` to god and actor views while remaining hidden from other player and closed-eye views.
 20. Vote collection uses phase-specific copy and a pulsing signal rail without circular rotation; resolved vote cards group voter seats by target seat and preserve weighted votes and abstentions.
 21. A speech stage may generate every speaker in sequence, but its following phase receives no Agent prompt until the controlling browser completes or skips the visible playback queue through the final speech sequence. Closed-eye playback does not hold private wolf-council speech.
+22. A saved six-player Seer/Witch board can switch sheriff and victory policies; editing or
+    deleting it does not change a Match created from an earlier revision.
+23. Normal startup captures trajectory data while returning 404 for every developer route; a
+    developer restart reads the same records and streams later logical updates by revision.
+24. Every completed deterministic Turn has one exact Prompt, a matching delivery range and
+    acknowledgement, no duplicate stream records, and a successful reconstruction audit.
+25. Private Seer, Witch, Guard, and night-attack cues appear only in permitted projections; full,
+    reduced, and off effect modes play each newly visible cue at most once and leave no residual
+    transform.
+26. Normal speech rejects the compatibility `submit_speech` tool and commits the ACP response;
+    rendered speech prompts contain their versioned public-fact and phase-specific constraints.
+27. Wolf council exposes no self-destruct interrupt or premature night-action contract, while
+    sheriff and daytime Werewolves receive the exact self-destruct ability ID accepted by the
+    engine.

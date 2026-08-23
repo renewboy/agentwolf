@@ -1,9 +1,17 @@
-import { BoardIdSchema, RoleIdSchema } from '@agentwolf/contracts'
+import {
+  BoardIdSchema,
+  MatchBoardSnapshotSchema,
+  RoleIdSchema,
+  type BoardId,
+  type BoardRoleSlot,
+  type BoardVictory,
+  type MatchBoardSnapshot,
+} from '@agentwolf/contracts'
 import { assertRule } from './errors.js'
 import { classicPhaseGraph } from './phase-graph.js'
 import type { BoardManifest } from './types.js'
 
-const defaultPolicies = {
+export const classicBoardPolicyDefaults = {
   witchSelfSave: 'never',
   witchPotionsPerNight: 1,
   guardAntidoteCollision: 'death',
@@ -15,8 +23,6 @@ const defaultPolicies = {
 
 export const sixPlayerBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-quick-6'),
-  nameKey: 'boards.quick6.name',
-  descriptionKey: 'boards.quick6.description',
   playerCount: 6,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 2 },
@@ -26,7 +32,7 @@ export const sixPlayerBoard: BoardManifest = {
   ],
   sheriff: false,
   policies: {
-    ...defaultPolicies,
+    ...classicBoardPolicyDefaults,
     victory: 'slaughter-all',
   },
   phases: classicPhaseGraph,
@@ -34,8 +40,6 @@ export const sixPlayerBoard: BoardManifest = {
 
 export const ninePlayerBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-standard-9'),
-  nameKey: 'boards.standard9.name',
-  descriptionKey: 'boards.standard9.description',
   playerCount: 9,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 3 },
@@ -45,14 +49,12 @@ export const ninePlayerBoard: BoardManifest = {
     { roleId: RoleIdSchema.parse('role-hunter'), count: 1 },
   ],
   sheriff: true,
-  policies: defaultPolicies,
+  policies: classicBoardPolicyDefaults,
   phases: classicPhaseGraph,
 }
 
 export const standardBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-standard-12'),
-  nameKey: 'boards.standard12.name',
-  descriptionKey: 'boards.standard12.description',
   playerCount: 12,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 4 },
@@ -63,14 +65,12 @@ export const standardBoard: BoardManifest = {
     { roleId: RoleIdSchema.parse('role-idiot'), count: 1 },
   ],
   sheriff: true,
-  policies: defaultPolicies,
+  policies: classicBoardPolicyDefaults,
   phases: classicPhaseGraph,
 }
 
 export const guardBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-guard-12'),
-  nameKey: 'boards.guard12.name',
-  descriptionKey: 'boards.guard12.description',
   playerCount: 12,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 4 },
@@ -81,7 +81,7 @@ export const guardBoard: BoardManifest = {
     { roleId: RoleIdSchema.parse('role-guard'), count: 1 },
   ],
   sheriff: true,
-  policies: defaultPolicies,
+  policies: classicBoardPolicyDefaults,
   phases: classicPhaseGraph,
 }
 
@@ -97,4 +97,32 @@ export function getBoard(id: BoardManifest['id']): BoardManifest {
 
 export function listBoards(): readonly BoardManifest[] {
   return [...boards.values()]
+}
+
+export function createClassicBoardManifest(input: {
+  readonly id: BoardId
+  readonly roles: readonly BoardRoleSlot[]
+  readonly sheriff: boolean
+  readonly victory: BoardVictory
+}): BoardManifest {
+  const playerCount = input.roles.reduce((total, role) => total + role.count, 0)
+  assertRule(playerCount >= 6 && playerCount <= 24, 'Board requires between 6 and 24 players')
+  return {
+    id: input.id,
+    playerCount,
+    roles: input.roles.map((role) => ({ ...role })),
+    sheriff: input.sheriff,
+    policies: { ...classicBoardPolicyDefaults, victory: input.victory },
+    phases: classicPhaseGraph,
+  }
+}
+
+export function boardManifestFromSnapshot(snapshot: MatchBoardSnapshot): BoardManifest {
+  const parsed = MatchBoardSnapshotSchema.parse(snapshot)
+  return createClassicBoardManifest({
+    id: parsed.id,
+    roles: parsed.roles,
+    sheriff: parsed.sheriff,
+    victory: parsed.victory,
+  })
 }

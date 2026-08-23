@@ -1,7 +1,13 @@
-import { GameEventSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import {
+  AgentProfileIdSchema,
+  GameEventSchema,
+  MatchIdSchema,
+  PlayerIdSchema,
+} from '@agentwolf/contracts'
 import type { NarrationCatalog } from '@agentwolf/assets'
+import { GameEngine, createV1RoleRegistry, sixPlayerBoard } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
-import { projectTimeline } from '../src/projector.js'
+import { projectMatch, projectRoleEffectCues, projectTimeline } from '../src/projector.js'
 
 describe('vote timeline projection', () => {
   it('groups ballots by target using seat numbers without player names', () => {
@@ -123,5 +129,59 @@ describe('vote timeline projection', () => {
     const result = projectTimeline(events, catalog)
     expect(result[0]?.title).toBe('投票结算：3号以1.5票获得最高票。')
     expect(result[0]?.detail).toBe('投3号：1号（1.5票）\n弃票：2号')
+  })
+
+  it('projects role-effect cues only after event visibility has been filtered', () => {
+    const matchId = MatchIdSchema.parse('match-effect-visibility')
+    const roleIds = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId,
+      board: sixPlayerBoard,
+      roleAssignment: 'manual',
+      seed: 1,
+      roles: createV1RoleRegistry(),
+      players: roleIds.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `Effect player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-effect-${index + 1}`),
+        roleId,
+      })),
+    })
+    const seer = [...engine.state.players.values()].find((player) => player.roleId === 'role-seer')!
+    const target = [...engine.state.players.values()].find((player) => player.id !== seer.id)!
+    const privateEvent = GameEventSchema.parse({
+      matchId,
+      sequence: engine.events.at(-1)!.sequence + 1,
+      occurredAt: '2026-08-23T00:00:01.000Z',
+      visibility: { kind: 'players', playerIds: [seer.id] },
+      payload: {
+        type: 'seer.inspected',
+        actorId: seer.id,
+        targetId: target.id,
+        result: 'village',
+      },
+    })
+    const events = [...engine.events, privateEvent]
+    const options = {
+      matchId,
+      board: sixPlayerBoard,
+      boardName: 'Effect visibility board',
+      state: engine.state,
+      events,
+      roles: createV1RoleRegistry(),
+    }
+    expect(projectMatch({ ...options, view: { kind: 'closed-eye' } }).effectCues).toHaveLength(0)
+    expect(
+      projectMatch({ ...options, view: { kind: 'player', playerId: seer.id } }).effectCues,
+    ).toMatchObject([{ effectId: 'seer-inspect', targetPlayerIds: [target.id] }])
+    expect(projectMatch({ ...options, view: { kind: 'god' } }).effectCues).toMatchObject([
+      { effectId: 'seer-inspect', variant: 'village' },
+    ])
+    expect(projectRoleEffectCues([privateEvent])).toMatchObject([
+      { effectId: 'seer-inspect', roleId: 'role-seer' },
+    ])
   })
 })

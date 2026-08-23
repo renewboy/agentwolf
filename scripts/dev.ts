@@ -2,11 +2,16 @@ import { spawn, type ChildProcess } from 'node:child_process'
 
 const children: ChildProcess[] = []
 let closing = false
+const developerMode = process.argv.includes('--developer')
 
 for (const filter of ['@agentwolf/server', '@agentwolf/web']) {
   const child = spawn('pnpm', ['--filter', filter, 'dev'], {
     stdio: 'inherit',
     shell: false,
+    env:
+      developerMode && filter === '@agentwolf/server'
+        ? { ...process.env, AGENTWOLF_DEVELOPER_MODE: 'true' }
+        : process.env,
   })
   children.push(child)
   child.once('exit', (code) => {

@@ -14,7 +14,9 @@ import {
   type MatchPresenceState,
 } from '../components/match/MatchMotionController.js'
 import { PlayerRail } from '../components/match/PlayerRail.js'
+import { RoleEffectController } from '../components/match/RoleEffectController.js'
 import { useLiveMatch, type LiveConnectionState } from '../hooks/useLiveMatch.js'
+import { useRoleEffectMode } from '../hooks/useRoleEffectMode.js'
 import { useSpeechPlayback } from '../hooks/useSpeechPlayback.js'
 
 export function MatchPage() {
@@ -26,6 +28,7 @@ export function MatchPage() {
   const [actionBusy, setActionBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [effectMode, setEffectMode] = useRoleEffectMode()
   const view: SpectatorView =
     viewKind === 'player' ? { kind: 'player', playerId } : { kind: viewKind }
   const {
@@ -105,7 +108,7 @@ export function MatchPage() {
   )
   const narratingPlayer = match.seats.find((seat) => seat.playerId === narratingItem?.playerIds[0])
   const thinkingCount = match.seats.filter((seat) => seat.sessionStatus === 'thinking').length
-  const lastSequence = match.timeline.at(-1)?.sequence ?? 0
+  const lastSequence = match.lastSequence
   const sheriffId = match.seats.find((seat) => seat.sheriff)?.playerId ?? null
   const sessionStateKey = match.seats
     .map((seat) => `${seat.playerId}:${seat.sessionStatus}`)
@@ -125,12 +128,20 @@ export function MatchPage() {
         sheriffId={sheriffId}
         sessionStateKey={sessionStateKey}
       />
+      <RoleEffectController
+        cues={match.effectCues}
+        lastSequence={match.lastSequence}
+        mode={effectMode}
+        projectionKey={projectionKey}
+        scope={stageRef}
+      />
       <AmbientField />
       <MatchHeader
         audioBusyElsewhere={playbackState.enabled && !playbackState.controlledByThisClient}
         audioEnabled={playbackState.controlledByThisClient}
         audioSupported={speechPlayback.supported}
         connectionState={connectionState}
+        effectMode={effectMode}
         match={match}
         onToggleAudio={() => {
           speechPlayback.cancelAll()
@@ -138,6 +149,7 @@ export function MatchPage() {
         }}
         playerId={playerId}
         setPlayerId={setPlayerId}
+        setEffectMode={setEffectMode}
         setViewKind={setViewKind}
         viewKind={viewKind}
       />

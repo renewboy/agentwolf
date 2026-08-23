@@ -6,6 +6,7 @@ import {
   PlayerIdSchema,
   RoleIdSchema,
 } from './ids.js'
+import { RoleEffectCueSchema } from './effects.js'
 
 export const MatchStatusSchema = z.enum(['draft', 'starting', 'running', 'paused', 'ended'])
 export type MatchStatus = z.infer<typeof MatchStatusSchema>
@@ -32,6 +33,32 @@ export const CreateMatchRequestSchema = z.object({
 })
 export type CreateMatchRequest = z.infer<typeof CreateMatchRequestSchema>
 
+export const BoardVictorySchema = z.enum(['slaughter-edge', 'slaughter-all'])
+export type BoardVictory = z.infer<typeof BoardVictorySchema>
+
+export const BoardRoleSlotSchema = z.object({
+  roleId: RoleIdSchema,
+  count: z.number().int().positive().max(24),
+})
+export type BoardRoleSlot = z.infer<typeof BoardRoleSlotSchema>
+
+export const CustomBoardInputSchema = z.object({
+  name: z.string().trim().min(1).max(48),
+  description: z.string().trim().max(240).default(''),
+  roles: z.array(BoardRoleSlotSchema).min(2).max(7),
+  sheriff: z.boolean(),
+  victory: BoardVictorySchema,
+})
+export type CustomBoardInput = z.infer<typeof CustomBoardInputSchema>
+
+export const CustomBoardSchema = CustomBoardInputSchema.extend({
+  id: BoardIdSchema,
+  revision: z.number().int().positive(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+export type CustomBoard = z.infer<typeof CustomBoardSchema>
+
 export const BoardSummarySchema = z.object({
   id: BoardIdSchema,
   name: z.string(),
@@ -45,8 +72,35 @@ export const BoardSummarySchema = z.object({
     }),
   ),
   sheriff: z.boolean(),
+  victory: BoardVictorySchema,
+  source: z.enum(['built-in', 'custom']),
+  editable: z.boolean(),
+  revision: z.number().int().positive(),
 })
 export type BoardSummary = z.infer<typeof BoardSummarySchema>
+
+export const MatchBoardSnapshotSchema = z.object({
+  schemaVersion: z.literal(1),
+  rulesetId: z.literal('classic-v1'),
+  id: BoardIdSchema,
+  name: z.string().min(1),
+  description: z.string(),
+  roles: z.array(BoardRoleSlotSchema).min(2).max(7),
+  playerCount: z.number().int().min(6).max(24),
+  sheriff: z.boolean(),
+  victory: BoardVictorySchema,
+  source: z.enum(['built-in', 'custom']),
+  revision: z.number().int().positive(),
+})
+export type MatchBoardSnapshot = z.infer<typeof MatchBoardSnapshotSchema>
+
+export const RoleSummarySchema = z.object({
+  id: RoleIdSchema,
+  name: z.string(),
+  faction: z.enum(['village', 'werewolf', 'independent']),
+  kind: z.enum(['villager', 'god', 'werewolf', 'independent']),
+})
+export type RoleSummary = z.infer<typeof RoleSummarySchema>
 
 export const SeatViewSchema = z.object({
   playerId: PlayerIdSchema,
@@ -90,8 +144,10 @@ export const MatchViewSchema = z.object({
   day: z.number().int().nonnegative(),
   phaseId: z.string(),
   phaseLabel: z.string(),
+  lastSequence: z.number().int().nonnegative().default(0),
   seats: z.array(SeatViewSchema),
   timeline: z.array(TimelineItemSchema),
+  effectCues: z.array(RoleEffectCueSchema).default([]),
   activeSpeech: z
     .object({
       playerId: PlayerIdSchema,

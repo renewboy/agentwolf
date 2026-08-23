@@ -1,4 +1,5 @@
 import {
+  AbilityIdSchema,
   AgentProfileInputSchema,
   AgentToolInputSchema,
   MatchIdSchema,
@@ -75,7 +76,32 @@ describe('Agent catalog and repository', () => {
     })
     expect(mailbox.take(matchId, playerId)).toBeNull()
 
+    mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'speech',
+      speechKind: 'day',
+      interruptAbilityIds: [AbilityIdSchema.parse('ability-werewolf-self-destruct')],
+    })
+    expect(() => mailbox.submitSkillTrigger(token, 'ability-detonate', null)).toThrow(/unavailable/)
+    expect(mailbox.submitSkillTrigger(token, 'ability-werewolf-self-destruct', null).accepted).toBe(
+      true,
+    )
+    expect(mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'skill-trigger',
+      abilityId: 'ability-werewolf-self-destruct',
+    })
+
     mailbox.expect({ matchId, playerId, actionType: 'speech', speechKind: 'day' })
+    expect(() => mailbox.submitSpeech(token, '保持观察。')).toThrow(/直接将完整发言正文/)
+
+    mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'speech',
+      speechKind: 'day',
+      allowSpeechTool: true,
+    })
     mailbox.submitSpeech(token, '保持观察。')
     expect(mailbox.take(matchId, playerId)?.type).toBe('speech')
     mailbox.revokeToken(token)

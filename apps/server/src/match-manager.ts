@@ -13,18 +13,18 @@ import {
 import {
   GameEngine,
   createV1RoleRegistry,
-  getBoard,
-  listBoards,
   replayGame,
   type GameState,
 } from '@agentwolf/game-engine'
 import type { AgentCatalogService } from './agent-catalog.js'
 import { ActionMailbox } from './action-mailbox.js'
+import type { BoardCatalogService } from './board-catalog.js'
 import type { ServerConfig } from './config.js'
 import { createReadableId } from './ids.js'
 import type { LiveConnection, LiveSubscriber } from './live-hub.js'
 import { MatchRuntime } from './match-runtime.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
+import type { TrajectoryService } from './trajectory-service.js'
 
 export class MatchNotFoundError extends Error {
   public constructor(id: MatchId) {
@@ -32,12 +32,14 @@ export class MatchNotFoundError extends Error {
     this.name = 'MatchNotFoundError'
   }
 }
-import { projectBoard, projectMatch } from './projector.js'
+import { projectMatch } from './projector.js'
 import type { MatchRecord, SqliteRepository } from './repository.js'
 
 export interface MatchManagerOptions {
   readonly repository: SqliteRepository
   readonly catalog: AgentCatalogService
+  readonly boards: BoardCatalogService
+  readonly trajectories: TrajectoryService
   readonly config: ServerConfig
   readonly mailbox?: ActionMailbox
   readonly sessionFactory?: PlayerSessionFactory
@@ -47,6 +49,7 @@ export class MatchManager {
   readonly #options: MatchManagerOptions
   readonly #mailbox: ActionMailbox
   readonly #active = new Map<MatchId, MatchRuntime>()
+  readonly #inactiveConnections = new Map<MatchId, Set<PendingLiveConnection>>()
 
   public constructor(options: MatchManagerOptions) {
     this.#options = options
@@ -59,13 +62,13 @@ export class MatchManager {
   }
 
   public listBoards(): readonly BoardSummary[] {
-    const roles = createV1RoleRegistry()
-    return listBoards().map((board) => projectBoard(board, roles))
+    return this.#options.boards.listBoards()
   }
 
   public createMatch(input: CreateMatchRequest): MatchView {
     const request = CreateMatchRequestSchema.parse(input)
-    const board = getBoard(request.boardId)
+    const resolvedBoard = this.#options.boards.resolve(request.boardId)
+    const board = resolvedBoard.manifest
     if (request.seats.length !== board.playerCount) {
       throw new Error(`Board ${board.id} requires ${board.playerCount} seats`)
     }
@@ -99,6 +102,7 @@ export class MatchManager {
     const record: MatchRecord = {
       id: matchId,
       boardId: board.id,
+      boardSnapshot: resolvedBoard.snapshot,
       status: 'draft',
       setup: request,
       createdAt: timestamp,
@@ -106,14 +110,18 @@ export class MatchManager {
       pausedReason: null,
     }
     this.#options.repository.createMatch(record, engine.events)
+    const trajectory = this.#options.trajectories.recorder(matchId)
+    trajectory.recordSystemEvents(engine.events)
     const runtime = new MatchRuntime({
       record,
       engine,
       board,
+      boardSnapshot: resolvedBoard.snapshot,
       repository: this.#options.repository,
       catalog: this.#options.catalog,
       config: this.#options.config,
       mailbox: this.#mailbox,
+      trajectory,
       ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
     })
     this.#active.set(matchId, runtime)
@@ -132,7 +140,8 @@ export class MatchManager {
     if (!runtime) {
       const record = this.#options.repository.getMatch(id)
       if (!record) throw new MatchNotFoundError(id)
-      const board = getBoard(record.boardId)
+      const resolvedBoard = this.#resolvedRecordBoard(record)
+      const board = resolvedBoard.manifest
       const engine = GameEngine.restore({
         matchId: id,
         board,
@@ -144,13 +153,16 @@ export class MatchManager {
         record,
         engine,
         board,
+        boardSnapshot: resolvedBoard.snapshot,
         repository: this.#options.repository,
         catalog: this.#options.catalog,
         config: this.#options.config,
         mailbox: this.#mailbox,
+        trajectory: this.#options.trajectories.recorder(id),
         ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
       })
       this.#active.set(id, runtime)
+      this.#activateInactiveConnections(id, runtime)
     }
     await runtime.resume()
     return runtime.project({ kind: 'god' })
@@ -162,6 +174,8 @@ export class MatchManager {
       await runtime.close()
       this.#active.delete(id)
     }
+    for (const connection of this.#inactiveConnections.get(id) ?? []) connection.close()
+    this.#inactiveConnections.delete(id)
     if (!this.#options.repository.deleteMatch(id)) throw new MatchNotFoundError(id)
   }
 
@@ -171,7 +185,8 @@ export class MatchManager {
     if (runtime) return runtime.project(parsedView)
     const record = this.#options.repository.getMatch(id)
     if (!record) throw new MatchNotFoundError(id)
-    const board = getBoard(record.boardId)
+    const resolvedBoard = this.#resolvedRecordBoard(record)
+    const board = resolvedBoard.manifest
     const events = this.#options.repository.listMatchEvents(id)
     const replayed = replayGame(id, board, events)
     const state: GameState = {
@@ -182,6 +197,7 @@ export class MatchManager {
     return projectMatch({
       matchId: id,
       board,
+      boardName: resolvedBoard.snapshot.name,
       state,
       events,
       view: parsedView,
@@ -210,8 +226,23 @@ export class MatchManager {
         type: 'speech-playback.state',
         state: { enabled: false, controlledByThisClient: false, pendingSequence: null },
       })
-      return {
+      let delegate: LiveConnection | null = null
+      let closed = false
+      const pending: PendingLiveConnection = {
+        subscriber,
+        activate: (connection) => {
+          if (closed) {
+            connection.close()
+            return
+          }
+          delegate = connection
+          this.#inactiveConnections.get(id)?.delete(pending)
+        },
         receive: (message: LiveClientMessage) => {
+          if (delegate) {
+            delegate.receive(message)
+            return
+          }
           if (message.type === 'view.set') {
             subscriber.view = message.view
             sendSnapshot()
@@ -223,8 +254,17 @@ export class MatchManager {
             message: `Live controls are unavailable for inactive match ${id}`,
           })
         },
-        close: () => undefined,
+        close: () => {
+          if (closed) return
+          closed = true
+          if (delegate) delegate.close()
+          this.#inactiveConnections.get(id)?.delete(pending)
+        },
       }
+      const connections = this.#inactiveConnections.get(id) ?? new Set<PendingLiveConnection>()
+      connections.add(pending)
+      this.#inactiveConnections.set(id, connections)
+      return pending
     }
     return runtime.connect(subscriber)
   }
@@ -237,5 +277,28 @@ export class MatchManager {
   public async close(): Promise<void> {
     await Promise.allSettled([...this.#active.values()].map((runtime) => runtime.close()))
     this.#active.clear()
+    for (const connections of this.#inactiveConnections.values()) {
+      for (const connection of connections) connection.close()
+    }
+    this.#inactiveConnections.clear()
   }
+
+  #activateInactiveConnections(id: MatchId, runtime: MatchRuntime): void {
+    for (const pending of [...(this.#inactiveConnections.get(id) ?? [])]) {
+      pending.activate(runtime.connect(pending.subscriber))
+    }
+    this.#inactiveConnections.delete(id)
+  }
+
+  #resolvedRecordBoard(record: MatchRecord) {
+    if (!record.boardSnapshot) {
+      throw new Error(`Match ${record.id} has no board snapshot after catalog backfill`)
+    }
+    return this.#options.boards.resolveSnapshot(record.boardSnapshot)
+  }
+}
+
+interface PendingLiveConnection extends LiveConnection {
+  readonly subscriber: LiveSubscriber
+  activate(connection: LiveConnection): void
 }

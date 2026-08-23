@@ -53,8 +53,6 @@ export interface PhaseGraph {
 
 export interface BoardManifest {
   readonly id: BoardId
-  readonly nameKey: string
-  readonly descriptionKey: string
   readonly playerCount: number
   readonly roles: readonly RoleSlot[]
   readonly sheriff: boolean

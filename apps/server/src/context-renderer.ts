@@ -14,9 +14,14 @@ import {
 
 export interface ContextEnvelope {
   readonly prompt: string
+  readonly promptVersion: number
   readonly toSequence: number
   readonly visibleEvents: readonly GameEvent[]
+  readonly gameStatus: GameState['status']
+  readonly pausedReason: string | null
 }
+
+export const promptContractVersion = 9
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {
@@ -43,6 +48,7 @@ export class ContextRenderer {
     board: BoardManifest,
     playerId: PlayerId,
     historyEvents: readonly GameEvent[],
+    promptVersion = promptContractVersion,
   ): Promise<ContextEnvelope> {
     const historySequence = historyEvents.at(-1)?.sequence ?? 0
     if (historySequence !== state.lastSequence) {
@@ -62,7 +68,14 @@ export class ContextRenderer {
         ? getAssetCopy('promptContext.noAbilities')
         : formatCopy(getAssetCopy('promptContext.abilities'), {
             abilities: role.abilities
-              .map((ability) => getAssetCopy(ability.labelKey))
+              .map((ability) =>
+                promptVersion >= 6
+                  ? formatCopy(getAssetCopy('promptContext.abilityEntry'), {
+                      label: getAssetCopy(ability.labelKey),
+                      abilityId: ability.id,
+                    })
+                  : getAssetCopy(ability.labelKey),
+              )
               .join(getAssetCopy('narration.listJoiner')),
           })
     const roster = [...state.players.values()]
@@ -153,8 +166,11 @@ export class ContextRenderer {
         BOARD_RULES: rules,
         MATCH_HISTORY: historyLines.join('\n') || getAssetCopy('promptContext.matchNotStarted'),
       }),
+      promptVersion: promptContractVersion,
       toSequence: state.lastSequence,
       visibleEvents: projectedHistory,
+      gameStatus: state.status,
+      pausedReason: state.pausedReason,
     }
   }
 
@@ -165,6 +181,7 @@ export class ContextRenderer {
     afterSequence: number,
     promptAsset: Exclude<PromptAssetId, 'player-foundation'>,
     actionInstruction = '',
+    promptVersion = promptContractVersion,
   ): Promise<ContextEnvelope> {
     const projected = visibleEvents(events, { kind: 'player', playerId }, state, afterSequence)
     const catalog = narrationCatalog(state, this.#roles, playerId)
@@ -176,10 +193,29 @@ export class ContextRenderer {
     return {
       prompt: renderPrompt(template, {
         GAME_NARRATION: narration,
-        ACTION_INSTRUCTION: actionInstruction,
+        ACTION_INSTRUCTION: versionedActionInstruction(
+          promptAsset,
+          actionInstruction,
+          promptVersion,
+        ),
       }),
+      promptVersion,
       toSequence: state.lastSequence,
       visibleEvents: projected,
+      gameStatus: state.status,
+      pausedReason: state.pausedReason,
     }
   }
+}
+
+function versionedActionInstruction(
+  promptAsset: Exclude<PromptAssetId, 'player-foundation'>,
+  actionInstruction: string,
+  promptVersion: number,
+): string {
+  if (promptAsset === 'speech-turn' && promptVersion < 8) return ''
+  if ((promptAsset === 'sheriff-turn' || promptAsset === 'vote-turn') && promptVersion < 9) {
+    return ''
+  }
+  return actionInstruction
 }

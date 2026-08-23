@@ -22,6 +22,7 @@ const server = await buildServer({
     publicBaseUrl: 'http://127.0.0.1:4310',
     projectRoot: process.cwd(),
     webDistPath: resolve(root, 'missing-web'),
+    developerMode: false,
   },
 })
 let session: AcpPlayerSession | null = null

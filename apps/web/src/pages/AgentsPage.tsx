@@ -406,15 +406,6 @@ export function AgentsPage() {
               {getCopy('agents.delete')}
             </button>
           </div>
-          <div className="aw-reserved-mode">
-            <div>
-              <strong>{getCopy('agents.developerMode')}</strong>
-              <p>{getCopy('agents.developerModeHint')}</p>
-            </div>
-            <button className="aw-button" disabled type="button">
-              {getCopy('common.notAvailable')}
-            </button>
-          </div>
         </section>
       </div>
 

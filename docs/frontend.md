@@ -20,10 +20,15 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 ## Layouts
 
 - Settings: agent list and focused editor with explicit empty, probe, saving, and error states.
-- New match: 6/9/12-player selection, compatible board summary, ordered seat assignment, per-seat Agent Profile selector, name edit, per-seat reroll, and reroll-all.
+- Board management: built-in and custom board list, role-count steppers, derived 6-24 player total,
+  sheriff switch, victory selector, copy, save, edit, and confirmed deletion.
+- New match: available-player-count selection, compatible built-in or custom board summary, ordered
+  seat assignment, per-seat Agent Profile selector, name edit, per-seat reroll, and reroll-all.
 - Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
+- Developer: Match selector, absolute-time owner swimlanes, virtualized Turn/Step ledger, full
+  record inspector, live revision updates, older-page loading, search, and context-audit status.
 
 ## Live-state rules
 
@@ -36,9 +41,22 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - An ended snapshot closes live reconnection, publishes a settled connection label, exposes final identities, marks every Session as ended, and clears all presence, waveform, and player-ring loops.
 - A missing or deleted Match replaces retained content with the unavailable state and performs no further retry.
 - Waiting feedback never invents percentages, model reasoning, or completion estimates.
+- Role effects use one pointer-transparent overlay and player-card anchors. Full mode adds bounded
+  particles and stage-only impact movement; reduced mode keeps a static emblem and target pulse;
+  off mode consumes cues without drawing them. The system reduced-motion preference defaults to
+  reduced mode.
 - Automatic speech playback is owned by one live spectator connection and follows its current server projection. The feed keys playback by committed event sequence, shows only skip on the active automatic item, and disables manual history playback until the automatic queue is idle. Each committed speech otherwise exposes manual play and stop controls. Speech synthesis errors skip the current item and report the outcome without blocking the Match.
 - Vote result cards use target-grouped seat labels such as `投1号：2号、3号、4号`; player nicknames are omitted from the result title and ballot rows.
 
 ## Frontend gates
 
-Visible copy comes from `packages/assets/copy`. CSS and tokens come from `packages/assets/styles`. Components contain no inline style objects, utility-class design strings, emoji icons, raw color literals, native select elements, browser prompt calls, or unregistered user-facing text. Browser Speech Synthesis access is centralized in the speech playback hook. Browser tests cover all three view projections, streaming speech, sequence-keyed automatic and manual audio controls, fixed-height overflow, waiting-state movement and cleanup, terminal connection settlement, missing-Match retry shutdown, listbox interaction, confirmation-dialog focus behavior, reduced motion, and responsive layout.
+Visible copy comes from `packages/assets/copy`. CSS and tokens come from `packages/assets/styles`.
+Components contain no inline style props, utility-class design strings, emoji icons, raw color
+literals, native select elements, browser prompt calls, or unregistered user-facing text. GSAP
+and its React binding enter the browser only through the registered animation adapter. Browser
+Speech Synthesis access is centralized in the speech playback hook. Browser tests cover board
+management, developer gating and trajectory details, all three view projections, role-effect modes
+and cleanup, streaming speech, sequence-keyed automatic and manual audio controls, fixed-height
+overflow, waiting-state movement and cleanup, terminal connection settlement, missing-Match retry
+shutdown, listbox interaction, confirmation-dialog focus behavior, reduced motion, and responsive
+layout.

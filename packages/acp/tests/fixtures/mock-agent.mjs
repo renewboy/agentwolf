@@ -14,6 +14,7 @@ const modelOption = (currentValue = 'mock-default') => ({
 })
 
 const sessions = new Set()
+let promptIndex = 0
 const promptDelayMs = Math.max(
   0,
   Number.parseInt(process.env['AGENTWOLF_MOCK_PROMPT_DELAY_MS'] ?? '0', 10) || 0,
@@ -49,6 +50,44 @@ const app = agent({ name: 'AgentWolf mock agent' })
       .filter((content) => content.type === 'text')
       .map((content) => content.text)
       .join('')
+    promptIndex += 1
+    const traceToolCallId = `mock-trace-${promptIndex}`
+    await client.notify(methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'agent_thought_chunk',
+        messageId: `thought-${promptIndex}`,
+        content: { type: 'text', text: '检查上下文' },
+      },
+    })
+    await client.notify(methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: traceToolCallId,
+        title: '读取局面摘要',
+        kind: 'read',
+        status: 'pending',
+        rawInput: { promptCharacters: promptText.length },
+      },
+    })
+    await client.notify(methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: traceToolCallId,
+        status: 'completed',
+        rawOutput: { checked: true },
+      },
+    })
+    await client.notify(methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'usage_update',
+        used: Math.min(promptText.length, 4096),
+        size: 32768,
+      },
+    })
     if (promptText.includes('permission-check')) {
       const permission = await client.request(methods.client.session.requestPermission, {
         sessionId: params.sessionId,

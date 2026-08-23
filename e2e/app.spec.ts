@@ -44,6 +44,16 @@ test.afterAll(async ({ request }) => {
   )) {
     await request.delete(`/api/matches/${match.id}`)
   }
+  const boards = (await (await request.get('/api/boards')).json()) as Array<{
+    id: string
+    name: string
+    source: string
+  }>
+  for (const board of boards.filter(
+    (entry) => entry.source === 'custom' && entry.name.includes(testRunId),
+  )) {
+    await request.delete(`/api/boards/${board.id}`)
+  }
   const profiles = (await (await request.get('/api/agent-profiles')).json()) as Array<{
     id: string
     name: string
@@ -59,6 +69,42 @@ test.afterAll(async ({ request }) => {
   for (const tool of tools.filter((entry) => !entry.builtIn && entry.name.includes(testRunId))) {
     await request.delete(`/api/agent-tools/${tool.id}`)
   }
+})
+
+test('creates, edits, selects, and deletes a custom six-player board', async ({ page }) => {
+  const boardName = `E2E Board ${testRunId}`
+  await page.goto('/boards')
+  await page.getByRole('button', { name: '新建板子' }).click()
+  await page.getByLabel('板子名称').fill(boardName)
+  await page.getByLabel('板子说明').fill('E2E six-player Seer and Witch board')
+  for (const role of ['狼人', '狼人', '平民', '平民', '预言家', '女巫']) {
+    await page.getByRole('button', { name: `增加${role}` }).click()
+  }
+  await expect(page.getByText('共 6 人', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '保存板子' }).click()
+  await expect(page.getByText('板子已保存')).toBeVisible()
+  await expect(page.getByRole('button', { name: new RegExp(boardName) })).toBeVisible()
+
+  const sheriff = page.getByRole('switch', { name: /开启警长竞选/ })
+  await sheriff.click()
+  await expect(sheriff).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('button', { name: '屠边' }).click()
+  await page.getByRole('button', { name: '保存板子' }).click()
+  await expect(page.getByText('板子已保存')).toBeVisible()
+
+  await page.goto('/matches/new')
+  await page.getByRole('button', { name: '6 人', exact: true }).click()
+  const boardOption = page.getByRole('button', { name: new RegExp(boardName) })
+  await expect(boardOption).toBeVisible()
+  await boardOption.click()
+  await expect(page.getByLabel('玩家昵称')).toHaveCount(6)
+
+  await page.goto('/boards')
+  await page.getByRole('button', { name: new RegExp(boardName) }).click()
+  await page.getByRole('button', { name: '删除板子' }).click()
+  const dialog = page.getByRole('alertdialog', { name: '确认删除板子' })
+  await dialog.getByRole('button', { name: '删除板子' }).click()
+  await expect(page.getByRole('button', { name: new RegExp(boardName) })).toBeHidden()
 })
 
 test('creates, edits, and deletes an Agent Profile through styled controls', async ({ page }) => {
@@ -87,7 +133,7 @@ test('creates, edits, and deletes an Agent Profile through styled controls', asy
   await expect(
     page.getByRole('button', { name: new RegExp(`${updatedName}mock-model`) }),
   ).toBeVisible()
-  await expect(page.getByRole('button', { name: '暂不可用' })).toBeDisabled()
+  await expect(page.getByRole('link', { name: '开发者' })).toBeVisible()
   await expect(page.locator('select')).toHaveCount(0)
 
   const deleteButton = page.getByRole('button', { name: '删除配置' })
@@ -195,6 +241,56 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   expect(visibleRoles.length).toBeLessThanOrEqual(4)
 })
 
+test('streams a normalized developer trajectory with prompt, reasoning, tool, and usage details', async ({
+  page,
+  request,
+}) => {
+  const createdResponse = await request.post('/api/matches', {
+    data: {
+      boardId: 'board-quick-6',
+      roleAssignment: 'random',
+      seats: Array.from({ length: 6 }, (_, index) => ({
+        seat: index + 1,
+        name: `${testRunId}-trajectory-${index + 1}`,
+        profileId: sharedProfileId,
+      })),
+    },
+  })
+  expect(createdResponse.ok()).toBe(true)
+  const match = (await createdResponse.json()) as { id: string }
+  expect((await request.post(`/api/matches/${match.id}/start`)).ok()).toBe(true)
+  await expect
+    .poll(async () => {
+      const response = await request.get(`/api/developer/matches/${match.id}/trajectory/summary`)
+      if (!response.ok()) return 0
+      const summary = (await response.json()) as {
+        owners: Array<{ ownerId: string; turnCount: number }>
+      }
+      return summary.owners.find((owner) => owner.ownerId === 'player-1')?.turnCount ?? 0
+    })
+    .toBeGreaterThan(0)
+
+  await page.goto('/developer')
+  const matchSelect = page.getByRole('combobox', { name: '选择对局' })
+  await matchSelect.click()
+  await page.getByRole('option').filter({ hasText: match.id }).click()
+  await expect(page.getByText('上下文审计通过')).toBeVisible()
+  await page
+    .locator('.aw-trajectory-owner')
+    .filter({ hasText: `${testRunId}-trajectory-1` })
+    .click()
+  await expect(page.getByRole('button', { name: /提示词/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /推理/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /工具/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /上下文用量/ }).first()).toBeVisible()
+  await page
+    .getByRole('button', { name: /提示词/ })
+    .first()
+    .click()
+  await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('当前身份')
+  await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('Player ID')
+})
+
 test('keeps the match viewport fixed and animates a real thinking state', async ({ page }) => {
   const match = thinkingMatchFixture()
   const closedEyeMatch = closedEyeFixture(match)
@@ -292,6 +388,81 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
   const reducedAfter = await reducedRing.evaluate((element) => getComputedStyle(element).transform)
   expect(reducedAfter).toBe(reducedBefore)
   await expect(page.getByText('测试玩家6正在思考')).toBeVisible()
+})
+
+test('plays visible role-effect cues once and respects reduced and off modes', async ({ page }) => {
+  const base = {
+    ...thinkingMatchFixture(),
+    id: 'match-role-effect-test',
+    lastSequence: 30,
+    effectCues: [],
+  } as MatchView
+  let sendSnapshot: ((match: MatchView) => void) | null = null
+  await page.route(`**/api/matches/${base.id}?*`, async (route) => route.fulfill({ json: base }))
+  await page.routeWebSocket('**/live?*', (socket) => {
+    if (!socket.url().includes(base.id)) return
+    sendSnapshot = (match) =>
+      socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: match }))
+    sendSnapshot(base)
+  })
+  await page.goto(`/matches/${base.id}`)
+  const effectSelect = page.getByRole('combobox', { name: '技能特效' })
+  await effectSelect.click()
+  await page.getByRole('option', { name: '完整', exact: true }).click()
+
+  const cue = {
+    cueId: '31:hunter-shot',
+    sequence: 31,
+    effectId: 'hunter-shot',
+    roleId: 'role-hunter',
+    abilityId: 'ability-hunter-shot',
+    sourcePlayerIds: ['player-1'],
+    targetPlayerIds: ['player-2'],
+    variant: null,
+    tier: 'large',
+    occurredAt: '2026-08-23T00:00:02.000Z',
+  } as const
+  sendSnapshot?.({ ...base, lastSequence: 31, effectCues: [cue] } as MatchView)
+  const overlay = page.locator('.aw-role-effect-overlay')
+  await expect(overlay).toHaveAttribute('data-effect', 'hunter-shot')
+  await expect(
+    page.locator('.aw-stage-grid .aw-player-card[data-player-id="player-2"]').first(),
+  ).toHaveAttribute('data-role-effect', 'hunter-shot')
+  await expect(overlay).toBeHidden({ timeout: 2_000 })
+
+  await effectSelect.click()
+  await page.getByRole('option', { name: '精简', exact: true }).click()
+  const stage = page.locator('.aw-stage-grid')
+  const before = await stage.evaluate((element) => getComputedStyle(element).transform)
+  sendSnapshot?.({
+    ...base,
+    lastSequence: 32,
+    effectCues: [
+      {
+        ...cue,
+        cueId: '32:guard-protect',
+        sequence: 32,
+        effectId: 'guard-protect',
+        roleId: 'role-guard',
+        abilityId: 'ability-guard-protect',
+        tier: 'medium',
+      },
+    ],
+  } as MatchView)
+  await expect(overlay).toHaveAttribute('data-effect', 'guard-protect')
+  await page.waitForTimeout(180)
+  expect(await stage.evaluate((element) => getComputedStyle(element).transform)).toBe(before)
+  await expect(overlay).toBeHidden({ timeout: 2_000 })
+
+  await effectSelect.click()
+  await page.getByRole('option', { name: '关闭', exact: true }).click()
+  sendSnapshot?.({
+    ...base,
+    lastSequence: 33,
+    effectCues: [{ ...cue, cueId: '33:hunter-shot', sequence: 33 }],
+  } as MatchView)
+  await page.waitForTimeout(250)
+  await expect(overlay).toHaveCount(0)
 })
 
 test('shows sealed vote progress without a thinking spinner and groups ballots by seat', async ({

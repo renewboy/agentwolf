@@ -1,4 +1,5 @@
-import { sourceFiles, text, localPath, failIfErrors } from './files.js'
+import { resolve } from 'node:path'
+import { sourceFiles, text, localPath, failIfErrors, projectRoot } from './files.js'
 
 const roots = [
   'packages/contracts/src',
@@ -53,6 +54,31 @@ for (const path of roleFiles) {
   const content = await text(path)
   if (!/export class \w+Role extends Role/.test(content)) {
     errors.push(`${localPath(path)} must export a concrete Role class`)
+  }
+}
+
+const webPackage = JSON.parse(await text(resolve(projectRoot, 'apps/web/package.json'))) as {
+  dependencies?: Record<string, string>
+}
+const webDependencies = webPackage.dependencies ?? {}
+for (const [name, expected] of [
+  ['gsap', '3.15.0'],
+  ['@gsap/react', '2.1.2'],
+] as const) {
+  if (webDependencies[name] !== expected) {
+    errors.push(`apps/web must pin ${name} to ${expected}`)
+  }
+}
+for (const forbidden of ['motion', 'framer-motion', 'animejs', 'lottie-web']) {
+  if (webDependencies[forbidden])
+    errors.push(`apps/web must not add animation runtime ${forbidden}`)
+}
+for (const path of files.filter((candidate) => localPath(candidate).startsWith('apps/web/src/'))) {
+  const relativePath = localPath(path)
+  if (relativePath === 'apps/web/src/motion/gsap.ts') continue
+  const content = await text(path)
+  if (/from ['"](?:gsap|gsap\/|@gsap\/react)/.test(content)) {
+    errors.push(`${relativePath} must import the frozen animation runtime through motion/gsap.ts`)
   }
 }
 
