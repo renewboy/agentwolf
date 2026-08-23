@@ -1,13 +1,45 @@
 # Acceptance evidence
 
-Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.0.
+Evidence date: 2026-08-24. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.0.
 
 ## Deterministic application checks
 
-- 92 unit and integration scenarios across 26 test files passed, including exact bootstrap teammate knowledge, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 88.03% lines, 84.99% statements, 89.15% functions, and 74.71% branches over rule, ACP, asset, and server production sources.
-- Thirteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile metadata layout, whole-row drag image, lifted source and insertion feedback, keyboard ordering, reload persistence and new-Match defaults, global speech settings, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
+- 102 unit and integration scenarios across 28 test files passed, including exact bootstrap teammate knowledge, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, deterministic simulation, browser review and approval, orchestration project-root validation, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
+- Coverage passed at 88.90% lines, 85.95% statements, 90.50% functions, and 75.42% branches over rule, ACP, asset, and server production sources.
+- Fourteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile metadata layout and ordering, global speech settings, 6/9/12-player setup, spectator projections, Match-row simulation workflow, developer trajectory inspection, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
+
+## Deterministic simulation corpus
+
+The approved corpus contains two ended Matches with 125/35 recorded Agent Turns and 506/180
+canonical domain events, plus a paused six-player Match with two consecutive uncertain deliveries
+at the first wolf-council action boundary. The complete fixture runs recorded, forward and reverse
+parallel completion order, transient delivery, engine restart reconstruction, playback completion,
+playback skip, and playback disconnect variants.
+
+Each of the fourteen fixture variants ran twice through a fresh rule engine and twice through the
+production Match runtime with in-memory persistence and deterministic fake Sessions. All 56 runs
+produced identical reviewed event digests and checkpoints. Orchestration runs also passed exact
+Prompt reconstruction, delivery acknowledgement, full parallel actor-snapshot, visibility, vote
+total, terminal reveal, and bounded recovery checks.
+
+Developer-route integration returned 404 outside developer mode, rejected unsettled sources,
+reviewed both runners, required warning acknowledgement, approved without overwriting an existing
+fixture, and left the source Match unchanged. Chromium completed preparation, validation, warning
+confirmation, approval, and completion from the Match row while the trajectory page exposed no
+simulation controls.
+
+Schema-one compatibility was exercised with `simulation-ended-6feafc84a08f2b49`, a 35-Turn,
+180-event candidate whose stored `action.submitted` payloads retained the source Match ID. Review
+normalized those nested actions to the fixture Match ID without rewriting the candidate; engine and
+orchestration replay, repeated-run determinism, warnings, and secret checks all passed.
+
+Candidate `simulation-ended-fdcbb2961d962824` exercised developer-server review from the
+`apps/server` package working directory. The configured project root supplied the player runtime
+Skill to both orchestration runs; package-directory CLI review and the running developer HTTP route
+both returned 35 Turns, 180 events, four passing replay checks, runner agreement, and no failure,
+warning, or secret warning. An invalid project-root test exposed the runtime initialization cause
+directly instead of presenting only the resulting checkpoint difference.
 
 ## Live ACP adapters
 
@@ -67,6 +99,14 @@ first profile to all 12 seat selectors and reported no browser warning or error.
 coverage started a drag from the right side of a profile row, observed the lifted source and target
 insertion line, completed the reorder, repeated it with Arrow/Home keys, reloaded the page, verified
 the persisted order, and then verified all 12 setup defaults before deleting the test profile.
+
+The simulation dialog retained the current ink, graphite, amber, and crimson visual language at
+desktop and 390×844 mobile sizes. Its mobile bounds were `x=8`, `y=8`, `374×828` inside a 390×844
+viewport, document width remained 390, the body scrolled independently, and browser warning/error
+logs were empty. Busy work blocked Escape dismissal; cancellation and completion restored focus to
+the originating Match-row action. Browser review of `simulation-ended-fdcbb2961d962824` displayed
+35 Turns, 180 events, all four checks as passed, and an enabled approval action; the review was
+cancelled without writing a fixture or changing the source Match.
 
 ## Speech playback pacing
 

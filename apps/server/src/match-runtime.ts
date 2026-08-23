@@ -75,6 +75,7 @@ export class MatchRuntime {
     this.#renderer = new ContextRenderer(this.#roles)
     this.#playback = new SpeechPlaybackCoordinator({
       isVisible: (event, view) => canViewEvent(event, view, this.engine.state),
+      onControl: (title, input) => this.#options.trajectory.recordRuntimeControl(title, input),
       onStateChange: () => this.#broadcastPlaybackState(),
     })
   }

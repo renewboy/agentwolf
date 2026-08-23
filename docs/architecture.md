@@ -141,6 +141,37 @@ Trajectory collection is always active. Developer HTTP, WebSocket, configuration
 record actions require startup developer mode, which is valid only on a loopback listener. The Web
 route carries one Match ID and does not provide a cross-Match selector.
 
+## Deterministic simulation
+
+Simulation capture reads the immutable Match board, per-Match speech character limit, append-only
+event log, normalized player Turns, accepted actions, and minimal playback-control records. Its
+replay payload replaces Match, Profile, board, Session, delivery, name, time, and path identifiers;
+local candidate provenance retains only the source Match ID and capture time. Schema-one payloads
+default an omitted speech character limit to 300. Raw Prompts, reasoning, tool output, credentials,
+diagnostics, and runtime paths do not enter simulation fixtures.
+
+Candidate captures retain their complete canonical event trace for local review and live under
+`.agentwolf/simulations/inbox`. Approval writes a versioned fixture under the server test corpus
+with player decisions, structural context metadata, reviewed event count, event-type order,
+semantic digest, and terminal checkpoint. The original Match is never changed by capture.
+
+The simulation workflow service owns candidate loading, schema-one normalization, repeated engine
+and orchestration review, runner agreement, warning and secret gates, compact fixture creation, and
+non-overwriting approval. CLI commands and loopback developer HTTP routes call this same service.
+The browser receives summary counts, check states, diagnostics, and repository-relative paths; it
+does not receive unrestricted path input or full runner output.
+
+Sequential replay asks the current engine for the active player and supplies that player's recorded
+action; reviewed event order and digest remain the truth for sequence behavior. Parallel replay
+requires the complete recorded actor barrier and validates it against production orchestration.
+
+The engine runner creates a fresh rule engine with fixed roles and resubmits the captured decisions.
+The orchestration runner uses in-memory persistence and deterministic fake Player Sessions through
+the production Match runtime and Action Mailbox. Both runners validate event invariants and the
+reviewed expectation; the orchestration runner also reconstructs every Prompt, checks delivery
+acknowledgements and parallel barriers, and exercises bounded delivery recovery and playback
+outcomes. A stable fixture-and-variant seed identifies every run.
+
 ## Role-effect projection
 
 Domain events contain game semantics only. After visibility filtering, the server projects

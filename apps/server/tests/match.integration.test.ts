@@ -1,7 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
-import type { McpServer } from '@agentclientprotocol/sdk'
 import {
   AgentProfileInputSchema,
   AgentToolInputSchema,
@@ -10,19 +9,15 @@ import {
   type MatchView,
   type PlayerId,
 } from '@agentwolf/contracts'
-import {
-  AcpDeliveryUncertainError,
-  type AcpPromptCallbacks,
-  type AcpPromptResult,
-} from '@agentwolf/acp'
+import { type AcpPromptResult } from '@agentwolf/acp'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import { sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ActionMailbox } from '../src/action-mailbox.js'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
 import { auditTrajectory } from '../src/trajectory-audit.js'
+import { scriptedSessionFactory } from './fixtures/scripted-session.js'
 
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
@@ -40,13 +35,10 @@ describe('match orchestration', () => {
     temporaryDirectories.push(root)
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
-    const sessionFactory: PlayerSessionFactory = async (options) =>
-      new ScriptedSession(
-        options.playerId,
-        extractToken(options.mcpServer),
-        () => server.matches.mailbox,
-        prompts,
-      )
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+    })
     const config: ServerConfig = {
       host: '127.0.0.1',
       port: 4310,
@@ -150,13 +142,10 @@ describe('match orchestration', () => {
     temporaryDirectories.push(root)
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
-    const sessionFactory: PlayerSessionFactory = async (options) =>
-      new ScriptedSession(
-        options.playerId,
-        extractToken(options.mcpServer),
-        () => server.matches.mailbox,
-        prompts,
-      )
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+    })
     const config: ServerConfig = {
       host: '127.0.0.1',
       port: 4310,
@@ -213,13 +202,10 @@ describe('match orchestration', () => {
     temporaryDirectories.push(root)
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
-    const sessionFactory: PlayerSessionFactory = async (options) =>
-      new ScriptedSession(
-        options.playerId,
-        extractToken(options.mcpServer),
-        () => server.matches.mailbox,
-        prompts,
-      )
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+    })
     const config: ServerConfig = {
       host: '127.0.0.1',
       port: 4310,
@@ -436,15 +422,12 @@ describe('match orchestration', () => {
     const prompts = new Map<PlayerId, string[]>()
     const invalidSeerOnce = { value: true }
     const uncertainSpeechOnce = { playerId: 'player-3' as PlayerId, value: true }
-    const sessionFactory: PlayerSessionFactory = async (options) =>
-      new ScriptedSession(
-        options.playerId,
-        extractToken(options.mcpServer),
-        () => server.matches.mailbox,
-        prompts,
-        invalidSeerOnce,
-        uncertainSpeechOnce,
-      )
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+      invalidSeerOnce,
+      uncertainSpeechOnce,
+    })
     const config: ServerConfig = {
       host: '127.0.0.1',
       port: 4310,
@@ -543,14 +526,11 @@ describe('match orchestration', () => {
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
     const invalidSeerOnce = { value: true }
-    const sessionFactory: PlayerSessionFactory = async (options) =>
-      new ScriptedSession(
-        options.playerId,
-        extractToken(options.mcpServer),
-        () => server.matches.mailbox,
-        prompts,
-        invalidSeerOnce,
-      )
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+      invalidSeerOnce,
+    })
     const config: ServerConfig = {
       host: '127.0.0.1',
       port: 4310,
@@ -733,85 +713,6 @@ describe('match orchestration', () => {
   })
 })
 
-class ScriptedSession implements PlayerSession {
-  public readonly sessionId: string
-  readonly #playerId: PlayerId
-  readonly #token: string
-  readonly #mailbox: () => ActionMailbox
-  readonly #prompts: Map<PlayerId, string[]>
-  readonly #invalidSeerOnce?: { value: boolean }
-  readonly #uncertainSpeechOnce?: { playerId: PlayerId; value: boolean }
-  #night = 1
-
-  public constructor(
-    playerId: PlayerId,
-    token: string,
-    mailbox: () => ActionMailbox,
-    prompts: Map<PlayerId, string[]>,
-    invalidSeerOnce?: { value: boolean },
-    uncertainSpeechOnce?: { playerId: PlayerId; value: boolean },
-  ) {
-    this.#playerId = playerId
-    this.#token = token
-    this.#mailbox = mailbox
-    this.#prompts = prompts
-    this.#invalidSeerOnce = invalidSeerOnce
-    this.#uncertainSpeechOnce = uncertainSpeechOnce
-    this.sessionId = `scripted-${playerId}`
-  }
-
-  public async prompt(
-    prompt: string,
-    _timeoutMs: number,
-    callbacks: AcpPromptCallbacks = {},
-  ): Promise<AcpPromptResult> {
-    const history = this.#prompts.get(this.#playerId) ?? []
-    history.push(prompt)
-    this.#prompts.set(this.#playerId, history)
-    this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
-    if (prompt.includes('现在轮到你发言')) {
-      if (
-        this.#uncertainSpeechOnce?.value &&
-        this.#uncertainSpeechOnce.playerId === this.#playerId
-      ) {
-        this.#uncertainSpeechOnce.value = false
-        const error = new Error('simulated ACP disconnect')
-        error.name = AcpDeliveryUncertainError.name
-        throw error
-      }
-      const text = `我是 ${this.#playerId.replace('player-', '')} 号玩家，这一轮选择弃票。`
-      const onTextChunk = callbacks.onTextChunk
-      onTextChunk?.(text.slice(0, 8))
-      onTextChunk?.(text.slice(8))
-      return { text, stopReason: 'end_turn' as const, updates: [] }
-    }
-    if (prompt.includes('准备就绪')) {
-      return { text: '准备就绪', stopReason: 'end_turn' as const, updates: [] }
-    }
-    const phase = latestPhase(prompt)
-    if (phase === 'sheriffSignup') this.#mailbox().submitSheriffAction(this.#token, 'decline')
-    else if (phase === 'nightWolfVote') {
-      this.#mailbox().submitVote(this.#token, `player-${4 + this.#night}`)
-    } else if (phase === 'dayVote') this.#mailbox().submitVote(this.#token, null)
-    else if (phase === 'nightWitch') {
-      this.#mailbox().submitNightAction(this.#token, 'ability-witch-antidote', [], 'pass')
-    } else if (phase === 'nightSeer') {
-      if (this.#invalidSeerOnce?.value) {
-        this.#invalidSeerOnce.value = false
-        this.#mailbox().submitNightAction(this.#token, 'ability-guard-protect', ['player-1'])
-      } else {
-        this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', ['player-1'])
-      }
-    }
-    if (phase) return { text: '', stopReason: 'end_turn' as const, updates: [] }
-    throw new Error(`Unhandled scripted prompt for ${this.#playerId}: ${prompt}`)
-  }
-
-  public close(): Promise<void> {
-    return Promise.resolve()
-  }
-}
-
 class BlockingSession implements PlayerSession {
   public readonly sessionId: string
   readonly #turnStarted: () => void
@@ -837,19 +738,6 @@ class BlockingSession implements PlayerSession {
     this.#rejectPrompt = null
     return Promise.resolve()
   }
-}
-
-function extractToken(server: McpServer): string {
-  if (!('headers' in server)) throw new Error('Expected HTTP MCP server')
-  const header = server.headers.find((entry) => entry.name === 'Authorization')
-  if (!header?.value.startsWith('Bearer ')) throw new Error('Missing bearer token')
-  return header.value.slice('Bearer '.length)
-}
-
-function lastNumber(text: string, pattern: RegExp): number | null {
-  const matches = [...text.matchAll(pattern)]
-  const value = matches.at(-1)?.[1]
-  return value ? Number(value) : null
 }
 
 async function waitForMatch(server: AgentWolfServer, matchId: MatchId): Promise<MatchView> {
@@ -895,15 +783,4 @@ async function waitForMatchState(
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
   }
   throw new Error('Match did not reach the expected recovery state')
-}
-
-function latestPhase(prompt: string): string | null {
-  if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
-  if (prompt.includes('ability-witch-antidote')) return 'nightWitch'
-  const phases = ['sheriffSignup', 'nightWolfVote', 'dayVote', 'nightWitch', 'nightSeer'] as const
-  const ranked = phases
-    .map((phase) => ({ phase, index: prompt.lastIndexOf(getCopy(`phases.${phase}`)) }))
-    .filter((entry) => entry.index >= 0)
-    .sort((left, right) => right.index - left.index)
-  return ranked[0]?.phase ?? null
 }

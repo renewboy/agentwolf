@@ -1,4 +1,4 @@
-import { ArrowClockwise, ArrowRight, Plus, Pulse, Trash } from '@phosphor-icons/react'
+import { ArrowClockwise, ArrowRight, Flask, Plus, Pulse, Trash } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
@@ -7,6 +7,7 @@ import { api } from '../api.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { StatusBadge } from '../components/StatusBadge.js'
+import { SimulationWizardDialog } from '../components/SimulationWizardDialog.js'
 import { useRuntimeConfig } from '../hooks/useRuntimeConfig.js'
 
 export function LobbyPage() {
@@ -15,6 +16,7 @@ export function LobbyPage() {
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<MatchView['id'] | null>(null)
   const [pendingDelete, setPendingDelete] = useState<MatchView | null>(null)
+  const [pendingSimulation, setPendingSimulation] = useState<MatchView | null>(null)
   const load = useCallback(async () => {
     setError(null)
     try {
@@ -91,13 +93,29 @@ export function LobbyPage() {
                     <ArrowRight size={18} aria-hidden />
                   </Link>
                   {developerMode ? (
-                    <Link
-                      className="aw-button aw-button--icon"
-                      to={`/matches/${match.id}/trajectory`}
-                    >
-                      <Pulse size={18} aria-hidden />
-                      {getCopy('lobby.trajectory')}
-                    </Link>
+                    <>
+                      <Link
+                        className="aw-button aw-button--icon"
+                        to={`/matches/${match.id}/trajectory`}
+                      >
+                        <Pulse size={18} aria-hidden />
+                        {getCopy('lobby.trajectory')}
+                      </Link>
+                      <button
+                        className="aw-button aw-button--icon"
+                        disabled={match.status !== 'ended' && match.status !== 'paused'}
+                        title={
+                          match.status === 'ended' || match.status === 'paused'
+                            ? getCopy('simulationWizard.open')
+                            : getCopy('simulationWizard.unavailable')
+                        }
+                        type="button"
+                        onClick={() => setPendingSimulation(match)}
+                      >
+                        <Flask size={18} aria-hidden />
+                        {getCopy('simulationWizard.open')}
+                      </button>
+                    </>
                   ) : null}
                   <button
                     className="aw-button aw-button--danger aw-button--square"
@@ -122,6 +140,10 @@ export function LobbyPage() {
         title={getCopy('match.deleteTitle')}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && void deleteMatch(pendingDelete)}
+      />
+      <SimulationWizardDialog
+        match={pendingSimulation}
+        onClose={() => setPendingSimulation(null)}
       />
     </main>
   )

@@ -86,6 +86,67 @@
     flex-wrap: wrap;
   }
 
+  .aw-dialog-layer {
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .aw-simulation-wizard {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .aw-simulation-wizard__header {
+    padding: 17px 16px 14px;
+  }
+
+  .aw-simulation-wizard__header h2 {
+    font-size: 19px;
+  }
+
+  .aw-simulation-wizard__progress {
+    padding: 8px;
+  }
+
+  .aw-simulation-wizard__progress li {
+    gap: 5px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .aw-simulation-wizard__body {
+    min-height: 300px;
+    padding: 18px 16px;
+  }
+
+  .aw-simulation-wizard__summary,
+  .aw-simulation-wizard__checks {
+    grid-template-columns: 1fr;
+  }
+
+  .aw-simulation-wizard__summary > div {
+    min-height: 62px;
+    border-right: 0;
+    border-bottom: 1px solid var(--aw-color-line);
+  }
+
+  .aw-simulation-wizard__summary > div:last-child {
+    border-bottom: 0;
+  }
+
+  .aw-simulation-wizard__review-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .aw-simulation-wizard__actions {
+    flex-wrap: wrap;
+    padding: 12px 16px 14px;
+  }
+
+  .aw-simulation-wizard__actions .aw-button {
+    flex: 1 1 132px;
+  }
+
   .aw-editor-grid {
     grid-template-columns: 1fr;
   }
