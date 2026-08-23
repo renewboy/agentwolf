@@ -9,6 +9,7 @@ const inspectAbilityId = AbilityIdSchema.parse('ability-seer-inspect')
 export class SeerRole extends Role {
   public readonly id = RoleIdSchema.parse('role-seer')
   public readonly displayNameKey = 'roles.seer'
+  public readonly publicRulesKey = 'promptContext.roleRules.seer'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public readonly abilities: readonly AbilityDefinition[] = [

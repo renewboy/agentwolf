@@ -6,6 +6,7 @@ import {
 } from '@agentwolf/assets'
 import { loadPromptAsset, renderPrompt, type PromptAssetId } from '@agentwolf/assets/prompts'
 import {
+  v1AbilityIds,
   visibleEvents,
   type BoardManifest,
   type GameState,
@@ -21,7 +22,7 @@ export interface ContextEnvelope {
   readonly pausedReason: string | null
 }
 
-export const promptContractVersion = 9
+export const promptContractVersion = 13
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {
@@ -34,6 +35,42 @@ function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?
     roleName: (roleId: RoleId) => getAssetCopy(roles.role(roleId).displayNameKey),
     ...(viewerPlayerId ? { viewerPlayerId } : {}),
   }
+}
+
+function publicRoleRules(board: BoardManifest, roles: RoleRegistry): string {
+  const policyValues = {
+    witchPotionLimit: formatCopy(getAssetCopy('promptContext.witchPotionLimit'), {
+      count: board.policies.witchPotionsPerNight,
+    }),
+    witchSelfSave: getAssetCopy(
+      board.policies.witchSelfSave === 'never'
+        ? 'promptContext.witchSelfSaveNever'
+        : board.policies.witchSelfSave === 'first-night'
+          ? 'promptContext.witchSelfSaveFirstNight'
+          : 'promptContext.witchSelfSaveAlways',
+    ),
+    guardSelfProtect: getAssetCopy(
+      board.policies.guardCanSelfProtect
+        ? 'promptContext.guardSelfProtectAllowed'
+        : 'promptContext.guardSelfProtectForbidden',
+    ),
+    guardCollision: getAssetCopy(
+      board.policies.guardAntidoteCollision === 'death'
+        ? 'promptContext.guardAntidoteCollisionDeath'
+        : 'promptContext.guardAntidoteCollisionSurvive',
+    ),
+  }
+  const entries = board.roles.map((slot) => {
+    const role = roles.role(slot.roleId)
+    return formatCopy(getAssetCopy('promptContext.roleRuleEntry'), {
+      role: getAssetCopy(role.displayNameKey),
+      faction: getAssetCopy(`factions.${role.faction}`),
+      description: formatCopy(getAssetCopy(role.publicRulesKey), policyValues),
+    })
+  })
+  return formatCopy(getAssetCopy('promptContext.roleRulesIntro'), {
+    roles: entries.join('\n'),
+  })
 }
 
 export class ContextRenderer {
@@ -63,11 +100,14 @@ export class ContextRenderer {
       role: getAssetCopy(role.displayNameKey),
       faction: getAssetCopy(`factions.${player.faction}`),
     })
+    const activeAbilities = role.abilities.filter(
+      (ability) => promptVersion < 12 || ability.id !== v1AbilityIds.werewolfKill,
+    )
     const abilityLine =
-      role.abilities.length === 0
+      activeAbilities.length === 0
         ? getAssetCopy('promptContext.noAbilities')
         : formatCopy(getAssetCopy('promptContext.abilities'), {
-            abilities: role.abilities
+            abilities: activeAbilities
               .map((ability) =>
                 promptVersion >= 6
                   ? formatCopy(getAssetCopy('promptContext.abilityEntry'), {
@@ -99,6 +139,7 @@ export class ContextRenderer {
           )
           .join(getAssetCopy('narration.listJoiner')),
       }),
+      ...(promptVersion >= 11 ? [publicRoleRules(board, this.#roles)] : []),
       getAssetCopy('promptContext.villageVictory'),
       getAssetCopy(
         board.policies.victory === 'slaughter-edge'
@@ -108,7 +149,7 @@ export class ContextRenderer {
       getAssetCopy(
         board.sheriff ? 'promptContext.sheriffEnabled' : 'promptContext.sheriffDisabled',
       ),
-      ...(board.roles.some((slot) => slot.roleId === 'role-witch')
+      ...(promptVersion < 11 && board.roles.some((slot) => slot.roleId === 'role-witch')
         ? [
             formatCopy(getAssetCopy('promptContext.witchPotionLimit'), {
               count: board.policies.witchPotionsPerNight,
@@ -122,7 +163,7 @@ export class ContextRenderer {
             ),
           ]
         : []),
-      ...(board.roles.some((slot) => slot.roleId === 'role-guard')
+      ...(promptVersion < 11 && board.roles.some((slot) => slot.roleId === 'role-guard')
         ? [
             getAssetCopy(
               board.policies.guardCanSelfProtect
@@ -166,7 +207,7 @@ export class ContextRenderer {
         BOARD_RULES: rules,
         MATCH_HISTORY: historyLines.join('\n') || getAssetCopy('promptContext.matchNotStarted'),
       }),
-      promptVersion: promptContractVersion,
+      promptVersion,
       toSequence: state.lastSequence,
       visibleEvents: projectedHistory,
       gameStatus: state.status,
@@ -185,7 +226,14 @@ export class ContextRenderer {
   ): Promise<ContextEnvelope> {
     const projected = visibleEvents(events, { kind: 'player', playerId }, state, afterSequence)
     const catalog = narrationCatalog(state, this.#roles, playerId)
-    const narration = projected
+    const narrationEvents =
+      promptVersion >= 10
+        ? projected.filter(
+            (event) =>
+              event.payload.type !== 'speech.committed' || event.payload.playerId !== playerId,
+          )
+        : projected
+    const narration = narrationEvents
       .map((event) => narrate(event, catalog))
       .filter((line): line is string => Boolean(line))
       .join('\n')
@@ -217,5 +265,6 @@ function versionedActionInstruction(
   if ((promptAsset === 'sheriff-turn' || promptAsset === 'vote-turn') && promptVersion < 9) {
     return ''
   }
+  if (promptAsset === 'wolf-vote-turn' && promptVersion < 13) return ''
   return actionInstruction
 }

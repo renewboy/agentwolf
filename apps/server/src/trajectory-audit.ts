@@ -193,8 +193,18 @@ function firstDifference(expected: string, actual: string): string {
   return `Prompt differs at character ${index}; expected length ${expected.length}, actual length ${actual.length}`
 }
 
-function equivalentPrompt(turn: TrajectoryTurn, expected: string, actual: string): boolean {
+export function equivalentPrompt(turn: TrajectoryTurn, expected: string, actual: string): boolean {
   if (expected === actual) return true
+  if (turn.promptVersion === 12 && turn.phaseId === 'phase-night-wolf-vote') {
+    const optionalConstraint = getCopy('promptActions.wolfKillVoteOnly')
+    const withoutOptionalConstraint = (value: string) =>
+      value
+        .split('\n')
+        .filter((line) => line !== optionalConstraint)
+        .join('\n')
+        .trim()
+    if (withoutOptionalConstraint(expected) === withoutOptionalConstraint(actual)) return true
+  }
   if (turn.kind !== 'bootstrap' || turn.promptVersion >= 5) return false
   const pausedPrefix = getCopy('narration.matchPaused').split('{{')[0]!
   const withoutSyntheticPause = actual

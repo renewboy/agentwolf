@@ -11,6 +11,7 @@ import {
   guardBoard,
   ninePlayerBoard,
   sixPlayerBoard,
+  v1AbilityIds,
   type BoardManifest,
   type EnginePlayerInput,
 } from '@agentwolf/game-engine'
@@ -32,6 +33,46 @@ describe('ContextRenderer board rules', () => {
     expect(ninePlayerPrompt).toContain(
       formatCopy(getCopy('promptContext.witchPotionLimit'), { count: 1 }),
     )
+  })
+
+  it('gives every player one detailed public introduction for each role on the board', async () => {
+    const roles = createV1RoleRegistry()
+    const renderer = new ContextRenderer(roles)
+    const { engine, players } = createBoardEngine(ninePlayerBoard)
+    const sections = new Set<string>()
+    for (const player of players) {
+      const foundation = await renderer.foundation(
+        engine.state,
+        ninePlayerBoard,
+        player.id,
+        engine.events,
+      )
+      const section = foundation.prompt
+        .split(getCopy('promptContext.roleRulesIntro').split('{{roles}}')[0]!)[1]
+        ?.split(getCopy('promptContext.villageVictory'))[0]
+        ?.trim()
+      expect(section).toBeTruthy()
+      expect(section).not.toMatch(/player-\d+/u)
+      expect(section).not.toContain('号玩家')
+      sections.add(section!)
+    }
+    expect(sections.size).toBe(1)
+    const section = [...sections][0]!
+    expect(section.split('\n')).toHaveLength(ninePlayerBoard.roles.length)
+    for (const slot of ninePlayerBoard.roles) {
+      expect(section).toContain(getCopy(roles.role(slot.roleId).publicRulesKey).split('。')[0]!)
+    }
+    const guardRole = roles.list().find((role) => role.id === 'role-guard')!
+    expect(section).not.toContain(getCopy(guardRole.publicRulesKey).split('。')[0]!)
+
+    const legacy = await renderer.foundation(
+      engine.state,
+      ninePlayerBoard,
+      players[0]!.id,
+      engine.events,
+      10,
+    )
+    expect(legacy.prompt).not.toContain('本局角色介绍')
   })
 
   it('delivers exact wolf teammate knowledge in the bootstrap foundation', async () => {
@@ -57,6 +98,16 @@ describe('ContextRenderer board rules', () => {
     expect(wolfFoundation.prompt).not.toContain(
       formatCopy(getCopy('narration.roleAssigned'), { role: getCopy('roles.werewolf') }),
     )
+    expect(wolfFoundation.prompt).not.toContain(v1AbilityIds.werewolfKill)
+    expect(wolfFoundation.prompt).toContain(v1AbilityIds.werewolfSelfDestruct)
+    const legacyWolfFoundation = await renderer.foundation(
+      engine.state,
+      sixPlayerBoard,
+      firstWolf.id,
+      engine.events,
+      11,
+    )
+    expect(legacyWolfFoundation.prompt).toContain(v1AbilityIds.werewolfKill)
 
     const villagerFoundation = await renderer.foundation(
       engine.state,
@@ -75,7 +126,7 @@ describe('ContextRenderer board rules', () => {
     ).rejects.toThrow(`Foundation history ends at 0, expected ${engine.state.lastSequence}`)
   })
 
-  it('delivers private night facts only to the players who require them', async () => {
+  it('delivers the regular wolf target only to wolves and a Witch with an antidote', async () => {
     const renderer = new ContextRenderer(createV1RoleRegistry())
     const { engine, players } = createBoardEngine(ninePlayerBoard)
     const wolves = players.filter((player) => player.roleId === 'role-werewolf')
@@ -168,6 +219,48 @@ describe('ContextRenderer board rules', () => {
     expect(turn.prompt).toContain('发动猎人技能')
   })
 
+  it('does not send a player their own already-known speech again', async () => {
+    const renderer = new ContextRenderer(createV1RoleRegistry())
+    const { engine, players } = createBoardEngine(sixPlayerBoard)
+    const viewer = players[0]!
+    const other = players[1]!
+    const events = [
+      GameEventSchema.parse({
+        matchId: engine.state.matchId,
+        sequence: engine.state.lastSequence + 1,
+        occurredAt: '2026-08-22T00:00:00.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'speech.committed',
+          playerId: viewer.id,
+          kind: 'day',
+          text: '自己的已知发言。',
+          sanitized: false,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: engine.state.matchId,
+        sequence: engine.state.lastSequence + 2,
+        occurredAt: '2026-08-22T00:00:01.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'speech.committed',
+          playerId: other.id,
+          kind: 'day',
+          text: '其他玩家的发言。',
+          sanitized: false,
+        },
+      }),
+    ]
+    const current = await renderer.turn(engine.state, events, viewer.id, 0, 'vote-turn')
+    expect(current.prompt).not.toContain('自己的已知发言。')
+    expect(current.prompt).toContain('其他玩家的发言。')
+    expect(current.visibleEvents).toHaveLength(2)
+
+    const legacy = await renderer.turn(engine.state, events, viewer.id, 0, 'vote-turn', '', 9)
+    expect(legacy.prompt).toContain('自己的已知发言。')
+  })
+
   it('injects versioned speech constraints while preserving legacy prompt reconstruction', async () => {
     const renderer = new ContextRenderer(createV1RoleRegistry())
     const { engine, players } = createBoardEngine(sixPlayerBoard)
@@ -180,7 +273,7 @@ describe('ContextRenderer board rules', () => {
       'speech-turn',
       instruction,
     )
-    expect(promptContractVersion).toBeGreaterThanOrEqual(9)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(13)
     expect(current.prompt).toContain(instruction)
 
     const legacy = await renderer.turn(
@@ -215,6 +308,26 @@ describe('ContextRenderer board rules', () => {
       )
       expect(legacyStructured.prompt).not.toContain(instruction)
     }
+
+    const currentWolfVote = await renderer.turn(
+      engine.state,
+      engine.events,
+      players[0]!.id,
+      0,
+      'wolf-vote-turn',
+      instruction,
+    )
+    expect(currentWolfVote.prompt).toContain(instruction)
+    const legacyWolfVote = await renderer.turn(
+      engine.state,
+      engine.events,
+      players[0]!.id,
+      0,
+      'wolf-vote-turn',
+      instruction,
+      12,
+    )
+    expect(legacyWolfVote.prompt).not.toContain(instruction)
   })
 
   it('delivers a final public role reveal as natural game narration', async () => {

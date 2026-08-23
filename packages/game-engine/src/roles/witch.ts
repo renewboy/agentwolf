@@ -10,6 +10,7 @@ const poisonAbilityId = AbilityIdSchema.parse('ability-witch-poison')
 export class WitchRole extends Role {
   public readonly id = RoleIdSchema.parse('role-witch')
   public readonly displayNameKey = 'roles.witch'
+  public readonly publicRulesKey = 'promptContext.roleRules.witch'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public readonly abilities: readonly AbilityDefinition[] = [

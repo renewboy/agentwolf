@@ -9,6 +9,7 @@ const protectAbilityId = AbilityIdSchema.parse('ability-guard-protect')
 export class GuardRole extends Role {
   public readonly id = RoleIdSchema.parse('role-guard')
   public readonly displayNameKey = 'roles.guard'
+  public readonly publicRulesKey = 'promptContext.roleRules.guard'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public readonly abilities: readonly AbilityDefinition[] = [

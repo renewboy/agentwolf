@@ -448,7 +448,10 @@ export function registerClassicRules(registry: RuleRegistry): void {
     const recipients = [...runtime.state.players.values()]
       .filter(
         (player) =>
-          player.alive && (player.faction === 'werewolf' || player.roleId === witchRoleId),
+          player.alive &&
+          (player.faction === 'werewolf' ||
+            (player.roleId === witchRoleId &&
+              (player.roleState.abilityUses[v1AbilityIds.witchAntidote] ?? 0) === 0)),
       )
       .map((player) => player.id)
     runtime.append({ type: 'night.attack-selected', targetId }, visibility.players(recipients))

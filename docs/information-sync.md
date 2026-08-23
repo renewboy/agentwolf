@@ -4,12 +4,12 @@ Every match event has one immutable visibility descriptor and one monotonic sequ
 
 ## Visibility classes
 
-| Visibility | Recipients                                  | Typical events                                                                                                   |
-| ---------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Public     | Every living or observing participant       | phase, speeches, sheriff state, resolved ballots, death announcements, exile, winner, final role reveals         |
-| Player set | Named Player IDs and god view               | role assignment, inspection result, potion use, selected wolf target for living wolves and Witch, delivery state |
-| Faction    | Current members of one faction and god view | wolf roster, wolf council speech                                                                                 |
-| God        | God view only                               | pending deaths, raw structured actions, delivery diagnostics                                                     |
+| Visibility | Recipients                                  | Typical events                                                                                                                    |
+| ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Public     | Every living or observing participant       | phase, speeches, sheriff state, resolved ballots, death announcements, exile, winner, final role reveals                          |
+| Player set | Named Player IDs and god view               | role assignment, inspection result, potion use, regular attack target for living Wolves and a Witch with antidote, delivery state |
+| Faction    | Current members of one faction and god view | wolf roster, wolf council speech                                                                                                  |
+| God        | God view only                               | pending deaths, raw structured actions, delivery diagnostics                                                                      |
 
 The server filters events before serialization. Closed-eye and player clients never receive hidden payload fields.
 
@@ -20,30 +20,30 @@ than replaying historical effects.
 
 ## Phase matrix
 
-| Phase              | Prompted sessions                            | Information delivered before action                                                                         | Published after completion                                                 |
-| ------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Match bootstrap    | Every seat                                   | own role, faction knowledge, complete name-seat-ID roster, public board composition, actionable board rules | no public output                                                           |
-| Guard action       | living Guard                                 | public events since cursor, own ability state                                                               | private guard intent; protection remains hidden                            |
-| Wolf council       | living Werewolves, sequential                | public events plus prior wolf-only council speech                                                           | council speech to wolf faction and god view                                |
-| Wolf kill vote     | living Werewolves, parallel barrier          | complete wolf council for every wolf                                                                        | resolved target to living Werewolves, living Witch, and god view           |
-| Witch action       | living Witch                                 | public events and private current wolf target                                                               | private potion use                                                         |
-| Seer action        | living Seer                                  | public events and own prior inspections                                                                     | private redirected inspection result                                       |
-| Night resolution   | no Agent                                     | collected night intents                                                                                     | pending deaths to god view; day-start event public                         |
-| Sheriff signup     | every publicly alive seat                    | all visible first-night events; first-night death identities remain unannounced                             | candidate decisions public                                                 |
-| Sheriff speech     | standing candidates, sequential              | all earlier candidate speeches                                                                              | each speech public                                                         |
-| Withdrawal         | standing candidates, parallel barrier        | complete candidate speech round                                                                             | withdrawal state public                                                    |
-| Sheriff vote       | original non-candidates, parallel barrier    | complete campaign and withdrawal state                                                                      | individual ballots, totals, tie or elected sheriff public                  |
-| Sheriff runoff     | tied candidates then original non-candidates | complete prior ballot and runoff speech                                                                     | runoff ballots and badge result public                                     |
-| Death announcement | no Agent                                     | not applicable                                                                                              | night deaths or peaceful night public; identities and causes remain hidden |
-| Badge transfer     | dead sheriff                                 | public death information and private action instruction                                                     | new sheriff or destroyed badge public                                      |
-| Death trigger      | eligible dead role owner                     | public death state and private trigger eligibility                                                          | resolved skill and resulting deaths public                                 |
-| Last words         | eligible dead players, sequential            | all visible events through prior death triggers                                                             | each last-words speech public                                              |
-| Speech direction   | living sheriff                               | complete death, trigger, and last-words state                                                               | chosen order public                                                        |
-| Day speech         | living seats, sequential                     | every earlier speech in the same round                                                                      | committed speech public and streamed while generated                       |
-| Exile vote         | eligible voters, parallel barrier            | complete day speech round for every voter                                                                   | individual ballots and totals public                                       |
-| Exile runoff       | tied speakers then non-tied voters           | prior ballot plus all runoff speeches                                                                       | runoff ballots and exile result public                                     |
-| Day resolution     | no Agent                                     | not applicable                                                                                              | exile, Idiot reveal, death chain, winner, or next night public             |
-| Match end          | no Agent                                     | settled victory state                                                                                       | winner first, followed by every player's final identity                    |
+| Phase              | Prompted sessions                            | Information delivered before action                                                                          | Published after completion                                                                                            |
+| ------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Match bootstrap    | Every seat                                   | own role, faction knowledge, complete name-seat-ID roster, detailed public rules for every role on the board | no public output                                                                                                      |
+| Guard action       | living Guard                                 | public events since cursor, own ability state                                                                | private guard intent; protection remains hidden                                                                       |
+| Wolf council       | living Werewolves, sequential                | public events plus prior wolf-only council speech                                                            | council speech to wolf faction and god view                                                                           |
+| Wolf kill vote     | living Werewolves, parallel barrier          | complete wolf council for every wolf                                                                         | regular attack target to living Werewolves and a living Witch whose antidote remains available; god view also sees it |
+| Witch action       | living Witch                                 | public events; regular attack target only while the antidote remains available; no death target afterward    | private potion use                                                                                                    |
+| Seer action        | living Seer                                  | public events and own prior inspections                                                                      | private redirected inspection result                                                                                  |
+| Night resolution   | no Agent                                     | collected night intents                                                                                      | pending deaths to god view; day-start event public                                                                    |
+| Sheriff signup     | every publicly alive seat                    | all visible first-night events; first-night death identities remain unannounced                              | candidate decisions public                                                                                            |
+| Sheriff speech     | standing candidates, sequential              | all earlier candidate speeches                                                                               | each speech public                                                                                                    |
+| Withdrawal         | standing candidates, parallel barrier        | complete candidate speech round                                                                              | withdrawal state public                                                                                               |
+| Sheriff vote       | original non-candidates, parallel barrier    | complete campaign and withdrawal state                                                                       | individual ballots, totals, tie or elected sheriff public                                                             |
+| Sheriff runoff     | tied candidates then original non-candidates | complete prior ballot and runoff speech                                                                      | runoff ballots and badge result public                                                                                |
+| Death announcement | no Agent                                     | not applicable                                                                                               | night deaths or peaceful night public; identities and causes remain hidden                                            |
+| Badge transfer     | dead sheriff                                 | public death information and private action instruction                                                      | new sheriff or destroyed badge public                                                                                 |
+| Death trigger      | eligible dead role owner                     | public death state and private trigger eligibility                                                           | resolved skill and resulting deaths public                                                                            |
+| Last words         | eligible dead players, sequential            | all visible events through prior death triggers                                                              | each last-words speech public                                                                                         |
+| Speech direction   | living sheriff                               | complete death, trigger, and last-words state                                                                | chosen order public                                                                                                   |
+| Day speech         | living seats, sequential                     | every earlier speech in the same round                                                                       | committed speech public and streamed while generated                                                                  |
+| Exile vote         | eligible voters, parallel barrier            | complete day speech round for every voter                                                                    | individual ballots and totals public                                                                                  |
+| Exile runoff       | tied speakers then non-tied voters           | prior ballot plus all runoff speeches                                                                        | runoff ballots and exile result public                                                                                |
+| Day resolution     | no Agent                                     | not applicable                                                                                               | exile, Idiot reveal, death chain, winner, or next night public                                                        |
+| Match end          | no Agent                                     | settled victory state                                                                                        | winner first, followed by every player's final identity                                                               |
 
 ## Barrier semantics
 
@@ -51,7 +51,15 @@ Parallel stages freeze one event sequence before prompting any actor. Every prom
 
 The action gateway marks a player Session as submitted immediately after accepting a valid structured action. God view and that player's own view can display the submitted state while the ACP turn closes; other projections receive no completion-order signal. A submitted action remains sealed inside the barrier until every eligible turn settles.
 
-Sequential speech stages commit each speech immediately. The next speaker's prompt includes that speech once. A controlling spectator's visible speeches enter its browser playback queue without delaying later speakers in the same stage. The final speech holds the following phase until that queue reaches the final event sequence or the spectator skips it. Speech hidden from the controlling view does not create a playback hold, and controller disconnect releases the boundary. After release, the vote barrier renders every remaining speech to all voters before accepting ballots.
+Sequential speech stages commit each speech immediately. The next speaker's prompt includes that
+speech once. A player's own committed speech remains in its long-lived Session and is omitted from
+later incremental prompts; every other required speech is delivered once. A replacement Session's
+foundation restores the complete visible history, including its own speech. A controlling
+spectator's visible speeches enter its browser playback queue without delaying later speakers in
+the same stage. The final speech holds the following phase until that queue reaches the final event
+sequence or the spectator skips it. Speech hidden from the controlling view does not create a
+playback hold, and controller disconnect releases the boundary. After release, the vote barrier
+renders the remaining required speeches to all voters before accepting ballots.
 
 Natural speech uses the ACP reply stream rather than an action tool. Every speech prompt marks
 announced deaths, living state, vote results, and phase results as fixed public facts while still
@@ -62,7 +70,13 @@ accept discussion only; the attack target is requested later through the paralle
 
 Each delivery is recorded as in-flight before `session/prompt`. A final ACP response acknowledges its sequence range. A timeout, process exit, or transport error leaves the delivery uncertain. The first failure for one player and phase replaces failed sessions and retries from a visible-history foundation without replaying old prompts to the same Session. A repeated failure pauses for operator action. Manual recovery advances past already delivered uncertain ranges and sends the current structured action contract.
 
-Every foundation source history ends at the same sequence as its delivery cursor. The foundation renders each visible bootstrap fact exactly once: own role and abilities, complete roster, public role composition, actionable board rules, and private faction membership where applicable. A Werewolf receives the other current Werewolves and never receives itself as a teammate; a non-Werewolf receives no faction roster. Invisible events may occupy sequence numbers but never contribute hidden payloads.
+Every foundation source history ends at the same sequence as its delivery cursor. The foundation
+renders each visible bootstrap fact exactly once: own role and abilities, complete roster, one
+detailed public rules entry for every role present on the selected board, global board policies,
+and private faction membership where applicable. Public role rules contain no seat assignments. A
+Werewolf receives the other current Werewolves and never receives itself as a teammate; a
+non-Werewolf receives no faction roster. Invisible events may occupy sequence numbers but never
+contribute hidden payloads.
 
 ## Terminal synchronization
 

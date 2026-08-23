@@ -460,9 +460,6 @@ function truncate(value: string, limit: number): SanitizedValue {
 }
 
 function mergeText(current: string, incoming: string): string {
-  if (!incoming) return current
-  if (incoming.startsWith(current)) return incoming
-  if (current.endsWith(incoming) || current.includes(incoming)) return current
   return `${current}${incoming}`
 }
 

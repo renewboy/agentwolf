@@ -66,15 +66,31 @@ Future roles use these extension points:
 
 Every event receives a match-local monotonic sequence and a visibility descriptor: public, god-only, player set, or faction. State is reduced from the event log. View projectors filter before serialization.
 
+The regular Werewolf attack selection is visible to living Werewolves and to a living Witch only
+while her antidote remains available. The Witch's antidote can target only that regular attack
+target. Once the antidote is unavailable, neither incremental events nor the Witch action
+instruction disclose a death target to her.
+
 Each player session stores a delivery cursor. A prompt envelope contains only visible events after that cursor. The envelope is marked in-flight before `session/prompt`; the cursor advances only after a final ACP response. Failure after dispatch produces an uncertain-delivery pause with no automatic retry.
 
 The live WebSocket accepts view changes and speech-playback controls as validated client messages. One connection may own automatic playback for a Match. Visible committed speeches continue through a sequence-ordered browser queue; the final speech in a sequential speech stage leaves the engine at an explicit action boundary until that connection reports completion or skip. The playback coordinator is runtime-only presentation state and uses the committed event sequence as its idempotency key. Hidden events never create a hold for the controlling view, and owner disconnect releases any pending boundary.
 
-Operator recovery keeps a live ACP session when available. The uncertain attempt is abandoned at its delivered sequence so previous context is not resent, then the current action is prompted again. After process restart, the rule engine is restored from the event log and replacement ACP sessions receive one foundation containing their own role, the public board composition, the complete roster, their permitted faction knowledge, and their visible match history before incremental delivery resumes. A foundation's source history must cover its acknowledged cursor.
+Operator recovery keeps a live ACP session when available. The uncertain attempt is abandoned at
+its delivered sequence so previous context is not resent, then the current action is prompted
+again. After process restart, the rule engine is restored from the event log and replacement ACP
+sessions receive one foundation containing their own role, one detailed public rules entry for
+every role on the selected board, the complete roster, their permitted faction knowledge, and
+their visible match history before incremental delivery resumes. A foundation's source history
+must cover its acknowledged cursor.
 
 An uncertain ACP transport failure receives one automatic recovery attempt per player and phase. The engine remains running while failed sessions are replaced; a second failure pauses for operator action. The web client preserves its current snapshot across transient WebSocket closure, refreshes over HTTP, and reconnects with bounded backoff. Ended snapshots close the live channel and settle locally. Unknown or deleted Match IDs return 404 and enter a non-retrying unavailable state.
 
-Speech turns deliver preceding visible speech to the active player. Vote prompts are created from one barrier snapshot after all speeches are committed, so every eligible voter receives the complete speech round before any vote is accepted. The same barrier rule applies to sheriff voting and phase transitions.
+Speech turns deliver preceding visible speech to the active player. Incremental delivery omits the
+active player's own previously committed speech because that speech already exists in its
+long-lived ACP Session; replacement foundations still contain the player's complete visible
+history. Vote prompts are created from one barrier snapshot after all speeches are committed, so
+every eligible voter receives every other player's speech before any vote is accepted. The same
+barrier rule applies to sheriff voting and phase transitions.
 
 The complete phase matrix is defined in [Information synchronization](information-sync.md).
 
@@ -85,7 +101,9 @@ Turn begins at the delivery attempt and owns its Player, ACP Session generation,
 type, acknowledged event range, attempt number, timing, final status, and context usage. Stable
 records inside it represent Prompt, reasoning, message, tool, permission, accepted action, usage,
 diagnostic, lifecycle, and error data. Stream records merge by message channel and ID; tool state
-merges by tool-call ID.
+merges by tool-call ID. Text chunks append in protocol order without content-based deduplication.
+For a speech Turn, the same speech normalization used by the engine provides the canonical text
+projected for its final message Record, including when older captured stream text was incomplete.
 
 Secret-key fields, HTTP credentials, ACP metadata, and environment material are removed before
 SQLite receives a record. Content fields retain an explicit truncation marker. A monotonic
@@ -93,6 +111,10 @@ trajectory revision supports catch-up and live WebSocket upserts. The audit serv
 the engine at every Turn's `toSequence`, renders the expected foundation or incremental Prompt,
 and compares it with the persisted Prompt while checking delivery ownership, ranges, and final
 acknowledgement.
+
+The developer ledger derives `开局`, `第 N 夜`, `上警`, `第 N 天`, and `对局结束` from
+the game event sequence at each delivery boundary. These shared periods group every player's
+records; player-local delivery ordinals remain diagnostic metadata rather than timeline headings.
 
 Trajectory collection is always active. Developer HTTP, WebSocket, configuration, and per-Match
 record actions require startup developer mode, which is valid only on a loopback listener. The Web
@@ -118,6 +140,8 @@ is a compatibility surface that requires an explicit expectation opt-in which th
 does not grant. The action gateway validates actor, phase, ability, target Player IDs,
 cardinality, and single-submission rules. Werewolf self-destruct is offered only in the sheriff
 and daytime phases accepted by the rule engine. Wolf council accepts natural discussion only and
-opens its structured attack vote in the following phase. Acceptance stores the action inside the
-current phase barrier and broadcasts a private submitted Session status. The engine appends
+opens its structured `submit_vote` attack action in the following phase. The regular attack is not
+advertised as a callable night-action ability, and that vote phase explicitly rejects
+`submit_night_action`. Acceptance stores the action inside the current phase barrier and broadcasts
+a private submitted Session status. The engine appends
 immutable action events in seat order after every eligible ACP turn settles.

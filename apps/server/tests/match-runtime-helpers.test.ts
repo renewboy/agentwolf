@@ -5,10 +5,13 @@ import {
   PhaseIdSchema,
   PlayerIdSchema,
 } from '@agentwolf/contracts'
+import { getCopy } from '@agentwolf/assets'
 import {
   GameEngine,
   createV1RoleRegistry,
   sixPlayerBoard,
+  standardBoard,
+  v1AbilityIds,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
@@ -68,7 +71,7 @@ describe('model action instructions', () => {
       state,
       playerId: actorId,
     })
-    expect(promptContractVersion).toBeGreaterThanOrEqual(9)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(13)
     expect(instruction).toContain('`player-2`')
     expect(instruction).not.toContain('`player-6`')
 
@@ -90,6 +93,22 @@ describe('model action instructions', () => {
     })
     expect(councilInstruction).toContain('不调用任何行动工具')
     expect(councilInstruction).not.toContain('ability-werewolf-self-destruct')
+    const wolfKill: TurnDescriptor = {
+      phaseId: PhaseIdSchema.parse('phase-night-wolf-vote'),
+      labelKey: 'phases.nightWolfVote',
+      mode: 'parallel',
+      actionType: 'vote',
+      actors: [actorId],
+      voteKind: 'wolf-kill',
+    }
+    const wolfKillInstruction = actionInstructionFor(wolfKill, {
+      board: sixPlayerBoard,
+      state: engine.state,
+      playerId: actorId,
+    })
+    expect(wolfKillInstruction).toContain('submit_night_action')
+    expect(wolfKillInstruction).toContain('不得')
+    expect(actionInstructionFor(wolfKill, undefined, 12)).toBe('')
     expect(interruptAbilityExpectation(engine.state, actorId, wolfCouncil)).toEqual({})
     expect(
       interruptAbilityExpectation(engine.state, actorId, {
@@ -97,5 +116,73 @@ describe('model action instructions', () => {
         phaseId: PhaseIdSchema.parse('phase-day-speech'),
       }),
     ).toEqual({ interruptAbilityIds: ['ability-werewolf-self-destruct'] })
+  })
+
+  it('hides every death target from a Witch after the antidote is unavailable', () => {
+    const roles = standardBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId: MatchIdSchema.parse('match-witch-information'),
+      board: standardBoard,
+      roleAssignment: 'manual',
+      seed: 2,
+      roles: createV1RoleRegistry(),
+      players: roles.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `Witch information player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-witch-information-${index + 1}`),
+        roleId,
+      })),
+    })
+    const witch = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-witch',
+    )!
+    const target = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-villager',
+    )!
+    const turn: TurnDescriptor = {
+      phaseId: PhaseIdSchema.parse('phase-night-witch'),
+      labelKey: 'phases.nightWitch',
+      mode: 'parallel',
+      actionType: 'night-action',
+      actors: [witch.id],
+      allowedAbilityIds: [v1AbilityIds.witchAntidote, v1AbilityIds.witchPoison],
+    }
+    const availableState = { ...engine.state, nightAttackTargetId: target.id }
+    expect(
+      actionInstructionFor(turn, {
+        board: standardBoard,
+        state: availableState,
+        playerId: witch.id,
+      }),
+    ).toContain(`\`${target.id}\``)
+
+    const unavailableState = {
+      ...availableState,
+      players: new Map(availableState.players).set(witch.id, {
+        ...witch,
+        roleState: {
+          ...witch.roleState,
+          abilityUses: { ...witch.roleState.abilityUses, [v1AbilityIds.witchAntidote]: 1 },
+        },
+      }),
+    }
+    const instruction = actionInstructionFor(turn, {
+      board: standardBoard,
+      state: unavailableState,
+      playerId: witch.id,
+    })
+    expect(instruction).toContain(getCopy('promptActions.nightWitchAntidoteUnavailable'))
+    expect(instruction).not.toContain(target.id)
+    expect(instruction).not.toContain('当前狼人袭击目标')
+
+    const legacy = actionInstructionFor(
+      turn,
+      { board: standardBoard, state: unavailableState, playerId: witch.id },
+      10,
+    )
+    expect(legacy).toContain(`\`${target.id}\``)
   })
 })

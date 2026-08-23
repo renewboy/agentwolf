@@ -307,6 +307,8 @@ describe('match orchestration', () => {
     for (const wolfId of wolfIds) {
       const foundation = prompts.get(wolfId)?.[0]
       expect(foundation).toBeDefined()
+      expect(foundation).not.toContain('ability-werewolf-kill')
+      expect(foundation).toContain('ability-werewolf-self-destruct')
       const teammateLine = foundation?.split('\n').find((line) => line.includes('你的狼人队友'))
       expect(teammateLine).toBeDefined()
       for (const teammateId of wolfIds.filter((playerId) => playerId !== wolfId)) {
@@ -325,6 +327,15 @@ describe('match orchestration', () => {
     }
     const villagerFoundation = prompts.get('player-5' as PlayerId)?.[0]
     expect(villagerFoundation).not.toContain('你的狼人队友')
+    const publicRoleRuleStarts = ['werewolf', 'villager', 'seer', 'witch', 'hunter'].map(
+      (role) => getCopy(`promptContext.roleRules.${role}`).split('。')[0]!,
+    )
+    for (const playerPrompts of prompts.values()) {
+      const foundation = playerPrompts[0]
+      expect(foundation).toContain('本局角色介绍')
+      for (const ruleStart of publicRoleRuleStarts) expect(foundation).toContain(ruleStart)
+      expect(foundation).not.toContain(getCopy('promptContext.roleRules.guard').split('。')[0]!)
+    }
 
     const firstAttack = server.repository
       .listMatchEvents(created.id)
@@ -344,11 +355,11 @@ describe('match orchestration', () => {
     })
     const witchId = final.seats.find((seat) => seat.roleId === 'role-witch')?.playerId
     const seerId = final.seats.find((seat) => seat.roleId === 'role-seer')?.playerId
-    expect(
-      witchId
-        ? prompts.get(witchId)?.find((prompt) => prompt.includes(getCopy('phases.nightWitch')))
-        : undefined,
-    ).toContain(attackNarration)
+    const witchPrompt = witchId
+      ? prompts.get(witchId)?.find((prompt) => prompt.includes(getCopy('phases.nightWitch')))
+      : undefined
+    expect(witchPrompt).toContain(attackNarration)
+    expect(witchPrompt).toContain('当前狼人袭击目标')
     expect(
       seerId
         ? prompts.get(seerId)?.find((prompt) => prompt.includes(getCopy('phases.nightSeer')))

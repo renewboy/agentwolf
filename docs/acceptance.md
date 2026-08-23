@@ -4,7 +4,7 @@ Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.
 
 ## Deterministic application checks
 
-- 70 unit and integration scenarios across 24 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, terminal Session projection, and 6/9/12-player board validation.
+- 75 unit and integration scenarios across 24 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, terminal Session projection, and 6/9/12-player board validation.
 - Coverage passed at 86.82% lines, 83.52% statements, 87.31% functions, and 72.50% branches over rule, ACP, asset, and server production sources.
 - Eleven Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile controls, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, full/reduced/off role effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
@@ -77,14 +77,48 @@ no warning represented a failed delivery, rejected game action, missing context,
 
 Each developer-mode Match record exposed `查看轨迹` and opened only that Match. The page rendered
 players by seat with explicit nickname context, semantic Prompt/thought/speech/tool/action tags,
-collapsible Turns, a four-lane clickable Record minimap, a viewport-filling virtualized ledger, and
-a full detail inspector, and displayed `上下文审计通过`. Owner switching kept the page at
+collapsible shared game periods, a four-lane clickable Record minimap, a viewport-filling
+virtualized ledger, and a full detail inspector, and displayed `上下文审计通过`. Owner switching kept the page at
 `scrollY = 0`, retained the full-height shell during loading, and restored per-owner ledger scroll.
 Normal startup retained the same trajectory records while
 returning 404 for developer reads. The custom-board browser flow saved, edited,
 selected, started, and deleted a Seer/Witch board without changing built-ins or an existing Match
 snapshot. Role-effect browser coverage observed sequence-keyed cues in full mode and verified the
 reduced and off modes without residual transforms.
+
+## Trajectory semantic integrity acceptance
+
+Two retained browser-visible six-player Matches used real Trae ACP Sessions after the shared game
+period and Prompt-integrity changes:
+
+| Mode       | Match ID                                      | Result            | Events | Player Turns | Player Records |
+| ---------- | --------------------------------------------- | ----------------- | -----: | -----------: | -------------: |
+| No sheriff | `match-board-phase2-real-6-no-s-d6f0b8874e89` | Wolves, day three |    282 |           39 |            255 |
+| Sheriff    | `match-board-phase2-real-6-sher-68d5cfbb9b3b` | Village, day two  |    248 |           40 |            280 |
+
+Both Matches reached `对局结束` and `对局记录已完整同步` in the browser. Their final
+context audits covered all 79 player Turns and reported no issue. Every Turn completed with one
+Prompt; duplicate Record IDs, failed tools, error Records, error diagnostics, role-primer
+failures, own-speech reinjections, and streamed/committed speech mismatches were all zero.
+
+Every player foundation contained exactly the four roles on the selected board—Villager,
+Werewolf, Seer, and Witch—with faction, timing, target, usage, and policy details and no seat
+assignment inside the public role-primer section. Werewolf foundations exposed self-destruct as a
+callable ability and omitted the regular attack ability ID. The wolf attack stages completed with
+`submit_vote`; the explicit night-action prohibition is version-gated and reconstructs earlier
+stored Prompts exactly.
+
+In the no-sheriff Match, Player 1 was the Witch and used the antidote on night one. Event 48 exposed
+the regular attack target to Player 1 and the two living Werewolves. Events 182 and 268 excluded
+Player 1 after the antidote was consumed, and the second-night Witch Prompt skipped the hidden
+attack sequence while stating that no death target information was available. The Witch retained
+the poison action. The sheriff Match completed signup, campaign speech, withdrawal, sheriff vote,
+badge resolution, daytime play, and a second night.
+
+The trajectory pages grouped calls under `开局`, `第1夜`, `上警`, and numbered days instead of
+player-local Turn headings. Both pages filled the 720-pixel browser viewport with document
+`scrollY = 0`, and each Match record remained the only entry point to its own trajectory. The final
+Chromium suite passed all 11 scenarios.
 
 ## Vote collection and result presentation
 

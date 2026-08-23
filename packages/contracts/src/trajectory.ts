@@ -16,6 +16,12 @@ export const TrajectoryTurnStatusSchema = z.enum([
 ])
 export type TrajectoryTurnStatus = z.infer<typeof TrajectoryTurnStatusSchema>
 
+export const TrajectoryTimelineGroupSchema = z.object({
+  kind: z.enum(['setup', 'night', 'sheriff', 'day', 'end']),
+  index: z.number().int().positive().nullable(),
+})
+export type TrajectoryTimelineGroup = z.infer<typeof TrajectoryTimelineGroupSchema>
+
 export const TrajectoryUsageSchema = z.object({
   used: z.number().int().nonnegative(),
   size: z.number().int().nonnegative(),
@@ -37,6 +43,7 @@ export const TrajectoryTurnSchema = z.object({
   kind: z.enum(['bootstrap', 'action']),
   phaseId: PhaseIdSchema.nullable(),
   actionType: z.string().min(1).max(80),
+  timelineGroup: TrajectoryTimelineGroupSchema.default({ kind: 'setup', index: null }),
   fromSequence: z.number().int().nonnegative(),
   toSequence: z.number().int().nonnegative(),
   promptVersion: z.number().int().positive().default(1),

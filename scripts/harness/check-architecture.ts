@@ -50,10 +50,19 @@ if (/switch\s*\([^)]*roleId/.test(engine)) {
 const roleFiles = files.filter((path) =>
   /packages\/game-engine\/src\/roles\/(?!base|helpers|registry)[^/]+\.ts$/.test(localPath(path)),
 )
+const copyCatalog = JSON.parse(
+  await text(resolve(projectRoot, 'packages/assets/copy/zh-CN.json')),
+) as Record<string, unknown>
 for (const path of roleFiles) {
   const content = await text(path)
   if (!/export class \w+Role extends Role/.test(content)) {
     errors.push(`${localPath(path)} must export a concrete Role class`)
+  }
+  const publicRulesKey = content.match(/public readonly publicRulesKey = '([^']+)'/)?.[1]
+  if (!publicRulesKey) {
+    errors.push(`${localPath(path)} must declare a publicRulesKey`)
+  } else if (typeof copyValue(copyCatalog, publicRulesKey) !== 'string') {
+    errors.push(`${localPath(path)} references non-string public rules copy ${publicRulesKey}`)
   }
 }
 
@@ -88,4 +97,13 @@ function packageOwner(path: string): string {
   const match = path.match(/^(?:packages|apps)\/([^/]+)\/src\//)
   if (!match?.[1]) throw new Error(`Cannot determine package owner for ${path}`)
   return match[1]
+}
+
+function copyValue(catalog: Record<string, unknown>, key: string): unknown {
+  let value: unknown = catalog
+  for (const segment of key.split('.')) {
+    if (typeof value !== 'object' || value === null || !(segment in value)) return undefined
+    value = (value as Record<string, unknown>)[segment]
+  }
+  return value
 }

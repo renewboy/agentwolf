@@ -1,5 +1,13 @@
+import { GameEventSchema } from '@agentwolf/contracts'
 import { describe, expect, it } from 'vitest'
-import { canViewEvent, sixPlayerBoard, standardBoard, visibleRoleId } from '../src/index.js'
+import {
+  GameEngine,
+  canViewEvent,
+  sixPlayerBoard,
+  standardBoard,
+  v1AbilityIds,
+  visibleRoleId,
+} from '../src/index.js'
 import { actorsWithRole, createManualEngine, playNight, submitExpected } from './helpers.js'
 
 describe('event visibility', () => {
@@ -45,7 +53,7 @@ describe('event visibility', () => {
     ).toBeNull()
   })
 
-  it('shows the selected wolf target only to living wolves and the living Witch', () => {
+  it('shows the selected wolf target only to living wolves and a living Witch with antidote', () => {
     const engine = createManualEngine(standardBoard)
     const wolves = actorsWithRole(engine, 'role-werewolf')
     const witchId = actorsWithRole(engine, 'role-witch')[0]!
@@ -72,7 +80,6 @@ describe('event visibility', () => {
     const selected = engine.events.findLast(
       (event) => event.payload.type === 'night.attack-selected',
     )!
-
     expect(selected.visibility.kind).toBe('players')
     expect(canViewEvent(selected, { kind: 'player', playerId: witchId }, engine.state)).toBe(true)
     for (const wolfId of wolves) {
@@ -83,6 +90,59 @@ describe('event visibility', () => {
       false,
     )
     expect(canViewEvent(selected, { kind: 'closed-eye' }, engine.state)).toBe(false)
+  })
+
+  it('hides the selected wolf target from a Witch whose antidote is unavailable', () => {
+    const initial = createManualEngine(standardBoard)
+    const witchId = actorsWithRole(initial, 'role-witch')[0]!
+    const usedAntidote = GameEventSchema.parse({
+      matchId: initial.state.matchId,
+      sequence: initial.state.lastSequence + 1,
+      occurredAt: '2026-08-22T00:00:30.000Z',
+      visibility: { kind: 'players', playerIds: [witchId] },
+      payload: {
+        type: 'ability.used',
+        playerId: witchId,
+        abilityId: v1AbilityIds.witchAntidote,
+        count: 1,
+      },
+    })
+    const engine = GameEngine.restore({
+      matchId: initial.state.matchId,
+      board: standardBoard,
+      events: [...initial.events, usedAntidote],
+      status: 'draft',
+      pausedReason: null,
+    })
+    const wolves = actorsWithRole(engine, 'role-werewolf')
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+    engine.start()
+    while (engine.state.phaseId === 'phase-night-wolf-council') {
+      const actorId = engine.activeActor()
+      if (!actorId) throw new Error('Expected wolf speaker')
+      engine.submit({
+        type: 'speech',
+        matchId: engine.state.matchId,
+        actorId,
+        kind: 'wolf-council',
+        text: '确认常规袭击目标。',
+      })
+    }
+    submitExpected(engine, (actorId) => ({
+      type: 'vote',
+      matchId: engine.state.matchId,
+      actorId,
+      targetId,
+      kind: 'wolf-kill',
+    }))
+    const selected = engine.events.findLast(
+      (event) => event.payload.type === 'night.attack-selected',
+    )!
+
+    expect(canViewEvent(selected, { kind: 'player', playerId: witchId }, engine.state)).toBe(false)
+    for (const wolfId of wolves) {
+      expect(canViewEvent(selected, { kind: 'player', playerId: wolfId }, engine.state)).toBe(true)
+    }
   })
 
   it('keeps eliminated roles hidden while the match is running', () => {

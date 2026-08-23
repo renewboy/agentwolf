@@ -10,6 +10,7 @@ const selfDestructAbilityId = AbilityIdSchema.parse('ability-werewolf-self-destr
 export class WerewolfRole extends Role {
   public readonly id = RoleIdSchema.parse('role-werewolf')
   public readonly displayNameKey = 'roles.werewolf'
+  public readonly publicRulesKey = 'promptContext.roleRules.werewolf'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
   public readonly abilities: readonly AbilityDefinition[] = [

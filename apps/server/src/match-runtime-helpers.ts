@@ -133,6 +133,9 @@ export function actionInstructionFor(
   ) {
     return getCopy('promptActions.werewolfSpeechSelfDestruct')
   }
+  if (promptVersion >= 13 && turn.actionType === 'vote' && turn.voteKind === 'wolf-kill') {
+    return getCopy('promptActions.wolfKillVoteOnly')
+  }
   if (turn.actionType === 'night-action') {
     if (turn.allowedAbilityIds?.length === 1) {
       return formatCopy(getCopy('promptActions.nightFixedAbility'), {
@@ -145,16 +148,24 @@ export function actionInstructionFor(
         : 'promptActions.nightGeneric',
     )
     if (promptVersion === 1 || turn.phaseId !== 'phase-night-witch' || !context) return base
-    const attackedId = context.state.nightAttackTargetId
+    const antidoteAvailable =
+      (context.state.players.get(context.playerId)?.roleState.abilityUses[
+        v1AbilityIds.witchAntidote
+      ] ?? 0) === 0
+    const attackedId =
+      promptVersion >= 11 && !antidoteAvailable ? null : context.state.nightAttackTargetId
     const blockedSelfSave =
       attackedId === context.playerId && context.board.policies.witchSelfSave === 'never'
-    const currentConstraint = blockedSelfSave
-      ? formatCopy(getCopy('promptActions.nightWitchSelfSaveBlocked'), {
-          playerId: context.playerId,
-        })
-      : attackedId
-        ? formatCopy(getCopy('promptActions.nightWitchTarget'), { playerId: attackedId })
-        : getCopy('promptActions.nightWitchNoTarget')
+    const currentConstraint =
+      promptVersion >= 11 && !antidoteAvailable
+        ? getCopy('promptActions.nightWitchAntidoteUnavailable')
+        : blockedSelfSave
+          ? formatCopy(getCopy('promptActions.nightWitchSelfSaveBlocked'), {
+              playerId: context.playerId,
+            })
+          : attackedId
+            ? formatCopy(getCopy('promptActions.nightWitchTarget'), { playerId: attackedId })
+            : getCopy('promptActions.nightWitchNoTarget')
     return `${base}\n${currentConstraint}\n${getCopy('promptActions.nightWitchLimit')}`
   }
   if (turn.actionType === 'skill-trigger') {

@@ -9,6 +9,7 @@ const shotAbilityId = AbilityIdSchema.parse('ability-hunter-shot')
 export class HunterRole extends Role {
   public readonly id = RoleIdSchema.parse('role-hunter')
   public readonly displayNameKey = 'roles.hunter'
+  public readonly publicRulesKey = 'promptContext.roleRules.hunter'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public readonly abilities: readonly AbilityDefinition[] = [

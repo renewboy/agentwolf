@@ -30,6 +30,10 @@ seat, and edits or rerolls player names. The nickname generator composes curated
 guarantees uniqueness inside a match. Starting a match assigns `player-1` through `player-N` by
 seat order.
 
+Every player's initial Match prompt includes one detailed public introduction for each role on the
+selected board. Each entry states the role's faction, skill timing, legal targets, usage limits,
+key board-policy interactions, and public outcome without revealing which seat owns that role.
+
 ## Match experience
 
 The spectator screen is a fixed-height live match stage. Player rosters run down the left and right edges, while the center presents streamed speech, public events, night information allowed by the selected view, voting results, and audio playback through the browser Speech Synthesis API. Resolved votes group voter seat numbers under each target seat number. The central history scrolls independently and can be folded by match day.
@@ -52,8 +56,8 @@ message stream, tool calls, permission decisions, accepted game action, context 
 session generation, recovery attempt, diagnostics, and result. Capture-time filtering removes
 secret-bearing metadata and bounds large fields. Starting with developer mode adds a trajectory
 action to every Match record. That action opens the selected Match's loopback-only timeline,
-seat-first ledger, detail inspector, and context audit; ordinary startup exposes none of these
-routes or controls while continuing to retain the records locally.
+seat-first ledger grouped by shared game periods, detail inspector, and context audit; ordinary
+startup exposes none of these routes or controls while continuing to retain the records locally.
 
 ## Player identity
 
@@ -62,9 +66,19 @@ Every player has a readable `player-N` ID, a numbered seat, and a nickname. Prom
 Speech is checked before it enters the public event log. Known Player IDs are rewritten to nicknames; an unknown `player-N` token rejects the speech and pauses the turn for correction.
 
 Speech and last words come from the ACP response stream and final response, so the live text and
-committed text share one source. The compatibility `submit_speech` tool is unavailable to normal
-Match turns. Public judge results remain fixed table facts; players may bluff about identity,
-private information, and judgment without rewriting announced deaths, votes, or phase results.
+committed text share one source and retain repeated words, punctuation, and whitespace exactly.
+Incremental prompts do not send a player its own committed speech back to the same long-lived
+Session. The compatibility `submit_speech` tool is unavailable to normal Match turns. Public judge
+results remain fixed table facts; players may bluff about identity, private information, and
+judgment without rewriting announced deaths, votes, or phase results.
+
+A Witch receives the regular Werewolf attack target only while her antidote remains available.
+That target is the only legal antidote target. Once the antidote is unavailable, the Witch receives
+no death target information while retaining any remaining poison action.
+
+Werewolves choose the regular night attack through the dedicated wolf vote stage. Their initial
+callable ability list contains self-destruct but does not present the regular attack as a
+`submit_night_action` ability.
 
 ## Match failure behavior
 

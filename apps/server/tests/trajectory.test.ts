@@ -3,14 +3,19 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import type { RequestPermissionRequest, SessionUpdate } from '@agentclientprotocol/sdk'
 import {
+  GameEventSchema,
   MatchIdSchema,
   PhaseIdSchema,
   PlayerActionSchema,
   PlayerIdSchema,
+  type GameEventPayload,
+  type PlayerId,
 } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { builtInAgentTools } from '@agentwolf/acp'
+import { getCopy } from '@agentwolf/assets'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
+import { equivalentPrompt } from '../src/trajectory-audit.js'
 
 const roots: string[] = []
 const servers: AgentWolfServer[] = []
@@ -54,7 +59,7 @@ describe('trajectory capture', () => {
       toSequence: 9,
       prompt: '完整提示词与事件 4 至 9。',
     })
-    for (const text of ['分析', '分析目标', '目标']) {
+    for (const text of ['分析', '目标', '目标', '，', '完成。']) {
       turn.update({
         sessionUpdate: 'agent_thought_chunk',
         messageId: 'reasoning-1',
@@ -118,7 +123,7 @@ describe('trajectory capture', () => {
     })
     const reasoning = page.records.filter((record) => record.kind === 'reasoning')
     expect(reasoning).toHaveLength(1)
-    expect(reasoning[0]?.text).toBe('分析目标')
+    expect(reasoning[0]?.text).toBe('分析目标目标，完成。')
     const toolRecord = page.records.find((record) => record.kind === 'tool')
     expect(toolRecord).toMatchObject({ status: 'completed' })
     expect(toolRecord?.input).toContain('[REDACTED]')
@@ -128,6 +133,28 @@ describe('trajectory capture', () => {
     expect(page.records.some((record) => record.kind === 'prompt')).toBe(true)
     expect(page.records.some((record) => record.kind === 'permission')).toBe(true)
     expect(page.records.some((record) => record.kind === 'action')).toBe(true)
+
+    const versionTwelveWolfVote = {
+      ...page.turns[0]!,
+      phaseId: PhaseIdSchema.parse('phase-night-wolf-vote'),
+      promptVersion: 12,
+    }
+    const wolfVotePrompt = '裁判：进入狼人袭击。\n\n狼队商议结束。'
+    const optionalConstraint = getCopy('promptActions.wolfKillVoteOnly')
+    expect(
+      equivalentPrompt(
+        versionTwelveWolfVote,
+        wolfVotePrompt,
+        `${wolfVotePrompt}\n\n${optionalConstraint}`,
+      ),
+    ).toBe(true)
+    expect(
+      equivalentPrompt(
+        { ...versionTwelveWolfVote, promptVersion: 13 },
+        wolfVotePrompt,
+        `${wolfVotePrompt}\n\n${optionalConstraint}`,
+      ),
+    ).toBe(false)
 
     const retry = recorder.beginTurn({
       turnId: 'delivery-trace-2',
@@ -151,6 +178,183 @@ describe('trajectory capture', () => {
     await server.matches.deleteMatch(MatchIdSchema.parse(match.id))
     expect(server.repository.listTrajectoryTurns(match.id)).toHaveLength(0)
     expect(server.repository.listTrajectoryRecords(match.id)).toHaveLength(0)
+  })
+
+  it('projects shared game periods and canonical committed speech', async () => {
+    const server = await createServer()
+    const tool = builtInAgentTools()[0]!
+    const profile = server.catalog.createProfile({
+      name: 'Trajectory semantics fixture',
+      toolId: tool.id,
+      model: 'fixture-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const match = server.matches.createMatch({
+      boardId: 'board-quick-6',
+      roleAssignment: 'random',
+      seats: Array.from({ length: 6 }, (_, index) => ({
+        seat: index + 1,
+        name: `Timeline player ${index + 1}`,
+        profileId: profile.id,
+      })),
+    })
+    const initialSequence = server.repository.listMatchEvents(match.id).at(-1)?.sequence ?? 0
+    const event = (offset: number, payload: GameEventPayload) =>
+      GameEventSchema.parse({
+        matchId: match.id,
+        sequence: initialSequence + offset,
+        occurredAt: `2026-08-23T00:00:0${offset}.000Z`,
+        visibility: { kind: 'public' },
+        payload,
+      })
+    server.repository.appendEvents([
+      event(1, { type: 'night.started', night: 1 }),
+      event(2, {
+        type: 'phase.changed',
+        phaseId: 'phase-night-witch',
+        day: 0,
+        labelKey: 'phases.nightWitch',
+      }),
+      event(3, { type: 'day.started', day: 1 }),
+      event(4, {
+        type: 'phase.changed',
+        phaseId: 'phase-sheriff-signup',
+        day: 1,
+        labelKey: 'phases.sheriffSignup',
+      }),
+      event(5, {
+        type: 'phase.changed',
+        phaseId: 'phase-day-speech',
+        day: 1,
+        labelKey: 'phases.daySpeech',
+      }),
+      event(6, { type: 'night.started', night: 2 }),
+      event(7, {
+        type: 'phase.changed',
+        phaseId: 'phase-night-seer',
+        day: 1,
+        labelKey: 'phases.nightSeer',
+      }),
+    ])
+
+    const recorder = server.trajectories.recorder(match.id)
+    const ownerId = PlayerIdSchema.parse('player-1')
+    const otherOwnerId = PlayerIdSchema.parse('player-2')
+    const recordTurn = (
+      turnId: string,
+      playerId: PlayerId,
+      kind: 'bootstrap' | 'action',
+      phaseId: string | null,
+      actionType: string,
+      toSequence: number,
+    ) => {
+      const turn = recorder.beginTurn({
+        turnId,
+        ownerId: playerId,
+        sessionId: `session-${turnId}`,
+        sessionGeneration: 1,
+        kind,
+        phaseId: phaseId ? PhaseIdSchema.parse(phaseId) : null,
+        actionType,
+        fromSequence: 0,
+        toSequence,
+        prompt: `Prompt ${turnId}`,
+        promptVersion: 10,
+        visibleEventSequences: [],
+        gameStatus: 'running',
+        pausedReasonAtRender: null,
+      })
+      turn.complete('end_turn')
+      return turn
+    }
+    recordTurn('setup', ownerId, 'bootstrap', null, 'bootstrap', initialSequence)
+    recordTurn(
+      'night-one',
+      ownerId,
+      'action',
+      'phase-night-witch',
+      'night-action',
+      initialSequence + 2,
+    )
+    recordTurn(
+      'sheriff',
+      ownerId,
+      'action',
+      'phase-sheriff-signup',
+      'sheriff-action',
+      initialSequence + 4,
+    )
+
+    const speech = recorder.beginTurn({
+      turnId: 'day-speech',
+      ownerId,
+      sessionId: 'session-day-speech',
+      sessionGeneration: 1,
+      kind: 'action',
+      phaseId: PhaseIdSchema.parse('phase-day-speech'),
+      actionType: 'speech',
+      fromSequence: 0,
+      toSequence: initialSequence + 5,
+      prompt: 'Day speech prompt',
+      promptVersion: 10,
+      visibleEventSequences: [],
+      gameStatus: 'running',
+      pausedReasonAtRender: null,
+    })
+    speech.update({
+      sessionUpdate: 'agent_message_chunk',
+      messageId: 'speech-1',
+      content: { type: 'text', text: '昨夜平安，先听发言' },
+    } as SessionUpdate)
+    const beforeActionRevision = server.repository.trajectoryRevision(match.id)
+    const submittedSpeech = 'player-2 昨夜平安夜，先听发言。'
+    const canonicalSpeech = 'Timeline player 2 昨夜平安夜，先听发言。'
+    speech.action(
+      PlayerActionSchema.parse({
+        type: 'speech',
+        matchId: match.id,
+        actorId: ownerId,
+        kind: 'day',
+        text: submittedSpeech,
+      }),
+    )
+    speech.complete('end_turn')
+    recordTurn(
+      'replacement-bootstrap',
+      ownerId,
+      'bootstrap',
+      null,
+      'bootstrap',
+      initialSequence + 7,
+    )
+    recordTurn(
+      'other-night-one',
+      otherOwnerId,
+      'action',
+      'phase-night-witch',
+      'night-action',
+      initialSequence + 2,
+    )
+
+    const page = server.trajectories.page(match.id, ownerId, null, 50)
+    expect(page.turns.map((turn) => turn.timelineGroup)).toEqual([
+      { kind: 'setup', index: null },
+      { kind: 'night', index: 1 },
+      { kind: 'sheriff', index: 1 },
+      { kind: 'day', index: 1 },
+      { kind: 'night', index: 2 },
+    ])
+    expect(server.trajectories.page(match.id, otherOwnerId, null).turns[0]?.timelineGroup).toEqual({
+      kind: 'night',
+      index: 1,
+    })
+    expect(page.records.find((record) => record.kind === 'message')?.text).toBe(canonicalSpeech)
+
+    const actionDelta = server.trajectories.changes(match.id, beforeActionRevision)
+    expect(actionDelta.records.find((record) => record.kind === 'message')?.text).toBe(
+      canonicalSpeech,
+    )
   })
 })
 

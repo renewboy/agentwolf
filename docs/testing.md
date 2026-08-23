@@ -15,7 +15,7 @@
 - Browser tests cover Agent Profile and custom-board management, styled listbox behavior,
   confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
   nickname labels, semantic record tags, minimap-to-Record navigation, stable player switching,
-  Turn collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
+  shared-period collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
   view switching, live speech, target-grouped vote
   results, non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
   manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
@@ -46,10 +46,13 @@ pnpm smoke:trae-action -- gpt-5.6-luna
 
 1. Twelve fake agents complete a Standard match from first night through a winner with deterministic replay.
 2. The first-day sheriff flow supports join, decline, withdrawal, tie speech, revote, badge loss, 1.5 vote weight, and badge transfer.
-3. Every voter receives all speeches exactly once before its vote is accepted.
+3. Every voter receives every other player's speech exactly once before its vote is accepted, and
+   does not receive its own already-known speech again in an incremental Prompt.
 4. God, closed-eye, and player projections return distinct allowed fields from the server.
 5. Speech chunks appear live, while committed text contains no Player IDs.
-6. Guard, Witch, Hunter, and Idiot interactions match the selected board policies.
+6. Guard, Witch, Hunter, and Idiot interactions match the selected board policies. A Witch with an
+   available antidote sees only the regular Werewolf attack target; after losing the antidote she
+   receives no death target through either events or action instructions.
 7. A killed or timed-out ACP process pauses the match without resending an in-flight envelope.
 8. Selecting 6, 9, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
 9. Agent Tool selection discovers its ACP model list, and only an advertised model can be selected in the settings UI.
@@ -59,7 +62,9 @@ pnpm smoke:trae-action -- gpt-5.6-luna
 13. A simulated uncertain ACP speech delivery replaces failed sessions once, commits the retried speech, and does not emit a transient pause event.
 14. A transient spectator WebSocket closure keeps the last snapshot, refreshes over HTTP, and reconnects instead of replacing the page with an error.
 15. A daytime exile with last words completes the day and enters the next night before another day speech can begin.
-16. Every bootstrap prompt covers its delivery cursor, includes the public board composition, gives each Werewolf exactly its other teammates, and gives non-Werewolves no faction roster.
+16. Every bootstrap prompt covers its delivery cursor, includes one detailed public rules entry for
+    each role on the selected board without seat assignments, gives each Werewolf exactly its other
+    teammates, and gives non-Werewolves no faction roster.
 17. Death and exile keep identities hidden in running closed-eye and player projections; `match.ended` precedes one final public identity event per seat, and every terminal projection exposes all roles.
 18. An ended page closes continuous presence motion and live reconnection, while a 404 Match page stops further GET and WebSocket attempts.
 19. A valid structured action immediately projects `submitted` to god and actor views while remaining hidden from other player and closed-eye views.
@@ -78,9 +83,14 @@ pnpm smoke:trae-action -- gpt-5.6-luna
     rendered speech prompts contain their versioned public-fact and phase-specific constraints.
 27. Wolf council exposes no self-destruct interrupt or premature night-action contract, while
     sheriff and daytime Werewolves receive the exact self-destruct ability ID accepted by the
-    engine.
+    engine. The following wolf attack stage accepts only `submit_vote`, explicitly forbids
+    `submit_night_action`, and the bootstrap callable-ability list omits the regular attack ID.
 28. Developer mode places `查看轨迹` on each Match record, routes by that Match ID, shows players by
     seat with nicknames as secondary context, fills the available viewport, and presents labeled
     semantic colors without a global developer navigation item or Match selector. Minimap nodes
     center the selected Record, and an owner change keeps the page mounted while restoring that
-    owner's ledger position.
+    owner's ledger position. Every owner is grouped by the same setup/night/sheriff/day/end game
+    periods rather than player-local Turn numbers.
+29. Ordered ACP text deltas preserve repeated fragments and punctuation. A projected speech
+    message Record and committed event expose the same normalized canonical text, while historical
+    incomplete stream Records project through the same normalization.

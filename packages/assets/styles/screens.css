@@ -692,7 +692,7 @@
   will-change: transform;
 }
 
-.aw-trajectory-turn,
+.aw-trajectory-group,
 .aw-trajectory-record {
   display: grid;
   align-items: center;
@@ -705,7 +705,7 @@
   cursor: pointer;
 }
 
-.aw-trajectory-turn {
+.aw-trajectory-group {
   grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 7px;
   min-height: 36px;
@@ -724,25 +724,17 @@
   white-space: nowrap;
 }
 
-.aw-trajectory-turn__caret {
+.aw-trajectory-group__caret {
   display: grid;
   place-items: center;
   color: var(--aw-color-text-muted);
 }
 
-.aw-trajectory-turn__title {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  gap: 9px;
-}
-
-.aw-trajectory-turn__title strong {
+.aw-trajectory-group > strong {
   font-size: 12px;
 }
 
-.aw-trajectory-turn__title small,
-.aw-trajectory-turn__count {
+.aw-trajectory-group__count {
   overflow: hidden;
   color: var(--aw-color-text-muted);
   font-size: 10px;
@@ -766,14 +758,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-.aw-trajectory-record[data-selected='true'],
-.aw-trajectory-turn[data-selected='true'] {
+.aw-trajectory-record[data-selected='true'] {
   border-color: var(--aw-color-amber);
   background: var(--aw-color-amber-faint);
 }
 
 .aw-trajectory-record:hover,
-.aw-trajectory-turn:hover {
+.aw-trajectory-group:hover {
   background: var(--aw-color-surface-raised);
 }
 

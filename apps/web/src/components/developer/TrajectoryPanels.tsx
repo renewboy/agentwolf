@@ -7,11 +7,19 @@ import type {
   TrajectoryPage,
   TrajectoryRecord,
   TrajectoryRecordKind,
+  TrajectoryTimelineGroup,
   TrajectoryTurn,
 } from '@agentwolf/contracts'
+import { timelineGroupId, timelineGroupLabel } from './trajectory-timeline.js'
 
 type LedgerRow =
-  | { readonly kind: 'turn'; readonly key: string; readonly turn: TrajectoryTurn }
+  | {
+      readonly kind: 'group'
+      readonly key: string
+      readonly groupId: string
+      readonly timelineGroup: TrajectoryTimelineGroup
+      readonly recordCount: number
+    }
   | { readonly kind: 'record'; readonly key: string; readonly record: TrajectoryRecord }
 
 type MinimapLane = 'context' | 'model' | 'tools' | 'runtime'
@@ -83,20 +91,27 @@ export function TrajectoryLedger({
   const followTail = useRef(followLatest)
   const previousOwner = useRef<TrajectoryOwnerId | null>(null)
   const scrollByOwner = useRef(new Map<TrajectoryOwnerId, number>())
-  const [collapsedTurns, setCollapsedTurns] = useState<ReadonlySet<string>>(new Set())
-  const selectedTurnId =
-    page.records.find((record) => record.recordId === selectedId)?.turnId ?? null
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
+  const selectedRecord = page.records.find((record) => record.recordId === selectedId)
+  const selectedTurn = selectedRecord
+    ? page.turns.find((turn) => turn.turnId === selectedRecord.turnId)
+    : null
+  const selectedGroupId = selectedTurn ? timelineGroupId(selectedTurn.timelineGroup) : null
   const rows = useMemo(
-    () => buildRows(page, query, collapsedTurns, selectedTurnId),
-    [collapsedTurns, page, query, selectedTurnId],
+    () => buildRows(page, query, collapsedGroups, selectedGroupId),
+    [collapsedGroups, page, query, selectedGroupId],
+  )
+  const groupIds = useMemo(
+    () => [...new Set(page.turns.map((turn) => timelineGroupId(turn.timelineGroup)))],
+    [page.turns],
   )
   const allCollapsed =
-    page.turns.length > 0 && page.turns.every((turn) => collapsedTurns.has(turn.turnId))
+    groupIds.length > 0 && groupIds.every((groupId) => collapsedGroups.has(groupId))
   // oxlint-disable-next-line react/incompatible-library -- the maintained virtualizer owns scroll state outside React by design.
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => (rows[index]?.kind === 'turn' ? 54 : 46),
+    estimateSize: (index) => (rows[index]?.kind === 'group' ? 42 : 38),
     getItemKey: (index) => rows[index]?.key ?? index,
     overscan: 8,
     useFlushSync: false,
@@ -148,11 +163,7 @@ export function TrajectoryLedger({
           <button
             className="aw-button"
             type="button"
-            onClick={() =>
-              setCollapsedTurns(
-                allCollapsed ? new Set() : new Set(page.turns.map((turn) => turn.turnId)),
-              )
-            }
+            onClick={() => setCollapsedGroups(allCollapsed ? new Set() : new Set(groupIds))}
           >
             {getCopy(allCollapsed ? 'trajectory.expandTurns' : 'trajectory.collapseTurns')}
           </button>
@@ -171,10 +182,10 @@ export function TrajectoryLedger({
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index]
             if (!row) return null
-            const turnIsCollapsed =
-              row.kind === 'turn' &&
-              collapsedTurns.has(row.turn.turnId) &&
-              selectedTurnId !== row.turn.turnId
+            const groupIsCollapsed =
+              row.kind === 'group' &&
+              collapsedGroups.has(row.groupId) &&
+              selectedGroupId !== row.groupId
             return (
               <div
                 className="aw-trajectory-virtual-row"
@@ -185,42 +196,32 @@ export function TrajectoryLedger({
                   if (element) element.style.transform = `translateY(${virtualRow.start}px)`
                 }}
               >
-                {row.kind === 'turn' ? (
+                {row.kind === 'group' ? (
                   <button
-                    className="aw-trajectory-turn"
-                    aria-expanded={!turnIsCollapsed}
-                    data-collapsed={turnIsCollapsed}
-                    data-selected={selectedId === row.turn.turnId}
+                    className="aw-trajectory-group"
+                    aria-expanded={!groupIsCollapsed}
+                    data-collapsed={groupIsCollapsed}
                     type="button"
                     onClick={() => {
-                      setCollapsedTurns((current) => {
+                      setCollapsedGroups((current) => {
                         const next = new Set(current)
-                        if (next.has(row.turn.turnId)) next.delete(row.turn.turnId)
-                        else next.add(row.turn.turnId)
+                        if (next.has(row.groupId)) next.delete(row.groupId)
+                        else next.add(row.groupId)
                         return next
                       })
-                      onSelect(row.turn.turnId)
                     }}
                   >
-                    <span className="aw-trajectory-turn__caret">
-                      {turnIsCollapsed ? (
+                    <span className="aw-trajectory-group__caret">
+                      {groupIsCollapsed ? (
                         <CaretRight size={15} aria-hidden />
                       ) : (
                         <CaretDown size={15} aria-hidden />
                       )}
                     </span>
-                    <span className="aw-trajectory-turn__title">
-                      <strong>
-                        {formatCopy(getCopy('trajectory.turnLabel'), {
-                          index: row.turn.ordinal,
-                        })}
-                      </strong>
-                      <small>{actionLabel(row.turn.actionType)}</small>
-                    </span>
-                    <small className="aw-trajectory-turn__count">
-                      {formatCopy(getCopy('trajectory.turnRecords'), {
-                        count: page.records.filter((record) => record.turnId === row.turn.turnId)
-                          .length,
+                    <strong>{timelineGroupLabel(row.timelineGroup)}</strong>
+                    <small className="aw-trajectory-group__count">
+                      {formatCopy(getCopy('trajectory.groupRecords'), {
+                        count: row.recordCount,
                       })}
                     </small>
                   </button>
@@ -269,7 +270,7 @@ export function TrajectoryInspector({
       ) : turn ? (
         <>
           <div className="aw-trajectory-inspector-head">
-            <strong>{formatCopy(getCopy('trajectory.turnLabel'), { index: turn.ordinal })}</strong>
+            <strong>{formatCopy(getCopy('trajectory.callLabel'), { index: turn.ordinal })}</strong>
             <span>{actionLabel(turn.actionType)}</span>
           </div>
           <Detail
@@ -347,24 +348,43 @@ function Block({ label, value }: { readonly label: string; readonly value: strin
 function buildRows(
   page: TrajectoryPage,
   query: string,
-  collapsedTurns: ReadonlySet<string>,
-  selectedTurnId: string | null,
+  collapsedGroups: ReadonlySet<string>,
+  selectedGroupId: string | null,
 ): LedgerRow[] {
   const needle = query.trim().toLocaleLowerCase()
-  return page.turns.flatMap((turn) => {
-    const records = page.records.filter(
+  const groups = new Map<
+    string,
+    { readonly timelineGroup: TrajectoryTimelineGroup; readonly turnIds: Set<string> }
+  >()
+  for (const turn of [...page.turns].sort((left, right) => left.ordinal - right.ordinal)) {
+    const groupId = timelineGroupId(turn.timelineGroup)
+    const current = groups.get(groupId) ?? {
+      timelineGroup: turn.timelineGroup,
+      turnIds: new Set<string>(),
+    }
+    current.turnIds.add(turn.turnId)
+    groups.set(groupId, current)
+  }
+  return [...groups].flatMap(([groupId, group]) => {
+    const groupRecords = page.records.filter((record) => group.turnIds.has(record.turnId))
+    const records = groupRecords.filter(
       (record) =>
-        record.turnId === turn.turnId &&
-        (!needle ||
-          `${record.title} ${record.text ?? ''} ${record.input ?? ''} ${record.output ?? ''}`
-            .toLocaleLowerCase()
-            .includes(needle)),
+        !needle ||
+        `${record.title} ${record.text ?? ''} ${record.input ?? ''} ${record.output ?? ''}`
+          .toLocaleLowerCase()
+          .includes(needle),
     )
     if (needle && records.length === 0) return []
     const visibleRecords =
-      !needle && collapsedTurns.has(turn.turnId) && selectedTurnId !== turn.turnId ? [] : records
+      !needle && collapsedGroups.has(groupId) && selectedGroupId !== groupId ? [] : records
     return [
-      { kind: 'turn' as const, key: `turn:${turn.turnId}`, turn },
+      {
+        kind: 'group' as const,
+        key: `group:${groupId}`,
+        groupId,
+        timelineGroup: group.timelineGroup,
+        recordCount: groupRecords.length,
+      },
       ...visibleRecords.map((record) => ({
         kind: 'record' as const,
         key: record.recordId,

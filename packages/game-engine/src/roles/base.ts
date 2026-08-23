@@ -12,6 +12,7 @@ export interface AbilityDefinition {
 export abstract class Role {
   public abstract readonly id: RoleId
   public abstract readonly displayNameKey: string
+  public abstract readonly publicRulesKey: string
   public abstract readonly faction: Faction
   public abstract readonly kind: 'villager' | 'god' | 'werewolf' | 'independent'
   public abstract readonly abilities: readonly AbilityDefinition[]
