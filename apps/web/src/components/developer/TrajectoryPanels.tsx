@@ -1,12 +1,12 @@
-import { MagnifyingGlass, Pulse } from '@phosphor-icons/react'
+import { CaretDown, CaretRight, MagnifyingGlass } from '@phosphor-icons/react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
   TrajectoryOwnerId,
   TrajectoryPage,
   TrajectoryRecord,
-  TrajectorySummary,
+  TrajectoryRecordKind,
   TrajectoryTurn,
 } from '@agentwolf/contracts'
 
@@ -14,83 +14,47 @@ type LedgerRow =
   | { readonly kind: 'turn'; readonly key: string; readonly turn: TrajectoryTurn }
   | { readonly kind: 'record'; readonly key: string; readonly record: TrajectoryRecord }
 
-export function TrajectoryOverview({
-  summary,
-  selectedOwner,
+type MinimapLane = 'context' | 'model' | 'tools' | 'runtime'
+
+const minimapLanes: readonly MinimapLane[] = ['context', 'model', 'tools', 'runtime']
+
+export function TrajectoryMinimap({
+  page,
+  selectedId,
   onSelect,
 }: {
-  readonly summary: TrajectorySummary
-  readonly selectedOwner: TrajectoryOwnerId
-  readonly onSelect: (owner: TrajectoryOwnerId) => void
+  readonly page: TrajectoryPage
+  readonly selectedId: string | null
+  readonly onSelect: (recordId: string) => void
 }) {
-  const turns = summary.turns.filter((turn) => turn.durationMs !== null)
-  const starts = turns.map((turn) => Date.parse(turn.startedAt))
-  const start = starts.length > 0 ? Math.min(...starts) : 0
-  const end = Math.max(
-    ...turns.map((turn) => Date.parse(turn.completedAt ?? turn.startedAt)),
-    start + 1,
-  )
-  const width = 1000
-  const laneHeight = 34
+  const records = [...page.records].sort((left, right) => left.ordinal - right.ordinal)
   return (
-    <section className="aw-trajectory-overview aw-panel">
-      <div className="aw-panel-heading">
-        <h2>{getCopy('trajectory.overview')}</h2>
-        <span>
-          <Pulse size={16} aria-hidden /> {getCopy('trajectory.live')}
-        </span>
-      </div>
-      <svg
-        aria-label={getCopy('trajectory.overview')}
-        role="img"
-        viewBox={`0 0 ${width} ${Math.max(1, summary.owners.length) * laneHeight}`}
-      >
-        {summary.owners.map((owner, lane) => {
-          const ownerTurns = turns.filter((turn) => turn.ownerId === owner.ownerId)
-          return (
-            <g
-              data-selected={owner.ownerId === selectedOwner}
-              key={owner.ownerId}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelect(owner.ownerId)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') onSelect(owner.ownerId)
-              }}
-            >
-              <text x="4" y={lane * laneHeight + 21}>
-                {owner.label}
-              </text>
-              <line
-                x1="148"
-                x2={width - 4}
-                y1={lane * laneHeight + 17}
-                y2={lane * laneHeight + 17}
-              />
-              {ownerTurns.map((turn) => {
-                const x =
-                  148 + ((Date.parse(turn.startedAt) - start) / (end - start)) * (width - 160)
-                const turnEnd = Date.parse(turn.completedAt ?? turn.startedAt)
-                const span = Math.max(
-                  4,
-                  ((turnEnd - Date.parse(turn.startedAt)) / (end - start)) * (width - 160),
-                )
-                return (
-                  <rect
-                    data-status={turn.status}
-                    key={turn.turnId}
-                    x={x}
-                    y={lane * laneHeight + 9}
-                    width={span}
-                    height="16"
-                    rx="5"
-                  />
-                )
-              })}
-            </g>
-          )
-        })}
-      </svg>
+    <section className="aw-trajectory-minimap" aria-label={getCopy('trajectory.minimap')}>
+      <h2 className="aw-visually-hidden">{getCopy('trajectory.minimap')}</h2>
+      {minimapLanes.map((lane) => (
+        <div className="aw-trajectory-minimap__lane" key={lane}>
+          <span>{getCopy(`trajectory.minimapLanes.${lane}`)}</span>
+          <div className="aw-trajectory-minimap__track">
+            {records.map((record) =>
+              minimapLane(record.kind) === lane ? (
+                <button
+                  className="aw-trajectory-minimap__node"
+                  aria-label={`#${record.ordinal} ${recordLabel(record)}`}
+                  data-kind={record.kind}
+                  data-selected={record.recordId === selectedId}
+                  data-status={record.status}
+                  key={record.recordId}
+                  title={`#${record.ordinal} ${recordLabel(record)}`}
+                  type="button"
+                  onClick={() => onSelect(record.recordId)}
+                />
+              ) : (
+                <span className="aw-trajectory-minimap__gap" key={record.recordId} />
+              ),
+            )}
+          </div>
+        </div>
+      ))}
     </section>
   )
 }
@@ -102,6 +66,8 @@ export function TrajectoryLedger({
   onLoadOlder,
   onQuery,
   onSelect,
+  followLatest,
+  loading,
 }: {
   readonly page: TrajectoryPage
   readonly query: string
@@ -109,12 +75,23 @@ export function TrajectoryLedger({
   readonly onLoadOlder: () => void
   readonly onQuery: (value: string) => void
   readonly onSelect: (value: string) => void
+  readonly followLatest: boolean
+  readonly loading: boolean
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualRef = useRef<HTMLDivElement>(null)
-  const followTail = useRef(true)
+  const followTail = useRef(followLatest)
   const previousOwner = useRef<TrajectoryOwnerId | null>(null)
-  const rows = useMemo(() => buildRows(page, query), [page, query])
+  const scrollByOwner = useRef(new Map<TrajectoryOwnerId, number>())
+  const [collapsedTurns, setCollapsedTurns] = useState<ReadonlySet<string>>(new Set())
+  const selectedTurnId =
+    page.records.find((record) => record.recordId === selectedId)?.turnId ?? null
+  const rows = useMemo(
+    () => buildRows(page, query, collapsedTurns, selectedTurnId),
+    [collapsedTurns, page, query, selectedTurnId],
+  )
+  const allCollapsed =
+    page.turns.length > 0 && page.turns.every((turn) => collapsedTurns.has(turn.turnId))
   // oxlint-disable-next-line react/incompatible-library -- the maintained virtualizer owns scroll state outside React by design.
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -131,12 +108,26 @@ export function TrajectoryLedger({
   useLayoutEffect(() => {
     const ownerChanged = previousOwner.current !== page.ownerId
     previousOwner.current = page.ownerId
-    if (rows.length > 0 && (ownerChanged || followTail.current)) {
+    if (rows.length > 0 && ownerChanged) {
+      const savedPosition = scrollByOwner.current.get(page.ownerId)
+      if (savedPosition !== undefined && scrollRef.current) {
+        scrollRef.current.scrollTop = savedPosition
+      } else {
+        virtualizer.scrollToIndex(followLatest ? rows.length - 1 : 0, {
+          align: followLatest ? 'end' : 'start',
+        })
+      }
+    } else if (rows.length > 0 && followLatest && followTail.current) {
       virtualizer.scrollToIndex(rows.length - 1, { align: 'end' })
     }
-  }, [page.ownerId, rows.length, virtualizer])
+  }, [followLatest, page.ownerId, rows.length, virtualizer])
+  useLayoutEffect(() => {
+    if (!selectedId) return
+    const index = rows.findIndex((row) => row.key === selectedId)
+    if (index >= 0) virtualizer.scrollToIndex(index, { align: 'center' })
+  }, [rows, selectedId, virtualizer])
   return (
-    <section className="aw-trajectory-ledger aw-panel">
+    <section className="aw-trajectory-ledger" aria-busy={loading} data-loading={loading}>
       <div className="aw-trajectory-toolbar">
         <label>
           <MagnifyingGlass size={16} aria-hidden />
@@ -148,17 +139,31 @@ export function TrajectoryLedger({
             onChange={(event) => onQuery(event.target.value)}
           />
         </label>
-        {page.nextBeforeTurn ? (
-          <button className="aw-button" type="button" onClick={onLoadOlder}>
-            {getCopy('trajectory.loadOlder')}
+        <div className="aw-trajectory-toolbar__actions">
+          {page.nextBeforeTurn ? (
+            <button className="aw-button" type="button" onClick={onLoadOlder}>
+              {getCopy('trajectory.loadOlder')}
+            </button>
+          ) : null}
+          <button
+            className="aw-button"
+            type="button"
+            onClick={() =>
+              setCollapsedTurns(
+                allCollapsed ? new Set() : new Set(page.turns.map((turn) => turn.turnId)),
+              )
+            }
+          >
+            {getCopy(allCollapsed ? 'trajectory.expandTurns' : 'trajectory.collapseTurns')}
           </button>
-        ) : null}
+        </div>
       </div>
       <div
         className="aw-trajectory-scroll"
         ref={scrollRef}
         onScroll={(event) => {
           const target = event.currentTarget
+          scrollByOwner.current.set(page.ownerId, target.scrollTop)
           followTail.current = target.scrollHeight - target.scrollTop - target.clientHeight < 80
         }}
       >
@@ -166,6 +171,10 @@ export function TrajectoryLedger({
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index]
             if (!row) return null
+            const turnIsCollapsed =
+              row.kind === 'turn' &&
+              collapsedTurns.has(row.turn.turnId) &&
+              selectedTurnId !== row.turn.turnId
             return (
               <div
                 className="aw-trajectory-virtual-row"
@@ -179,19 +188,40 @@ export function TrajectoryLedger({
                 {row.kind === 'turn' ? (
                   <button
                     className="aw-trajectory-turn"
+                    aria-expanded={!turnIsCollapsed}
+                    data-collapsed={turnIsCollapsed}
                     data-selected={selectedId === row.turn.turnId}
                     type="button"
-                    onClick={() => onSelect(row.turn.turnId)}
+                    onClick={() => {
+                      setCollapsedTurns((current) => {
+                        const next = new Set(current)
+                        if (next.has(row.turn.turnId)) next.delete(row.turn.turnId)
+                        else next.add(row.turn.turnId)
+                        return next
+                      })
+                      onSelect(row.turn.turnId)
+                    }}
                   >
-                    <span>
-                      {formatCopy(getCopy('trajectory.turnLabel'), {
-                        index: row.turn.ordinal,
-                        action: row.turn.actionType,
-                      })}
+                    <span className="aw-trajectory-turn__caret">
+                      {turnIsCollapsed ? (
+                        <CaretRight size={15} aria-hidden />
+                      ) : (
+                        <CaretDown size={15} aria-hidden />
+                      )}
                     </span>
-                    <small>
-                      {getCopy(`trajectory.statuses.${row.turn.status}`)} ·{' '}
-                      {durationLabel(row.turn.durationMs)}
+                    <span className="aw-trajectory-turn__title">
+                      <strong>
+                        {formatCopy(getCopy('trajectory.turnLabel'), {
+                          index: row.turn.ordinal,
+                        })}
+                      </strong>
+                      <small>{actionLabel(row.turn.actionType)}</small>
+                    </span>
+                    <small className="aw-trajectory-turn__count">
+                      {formatCopy(getCopy('trajectory.turnRecords'), {
+                        count: page.records.filter((record) => record.turnId === row.turn.turnId)
+                          .length,
+                      })}
                     </small>
                   </button>
                 ) : (
@@ -204,7 +234,13 @@ export function TrajectoryLedger({
                     onClick={() => onSelect(row.record.recordId)}
                   >
                     <span>#{row.record.ordinal}</span>
-                    <strong>{recordLabel(row.record)}</strong>
+                    <span
+                      className="aw-trajectory-kind-tag"
+                      data-kind={row.record.kind}
+                      data-status={row.record.status}
+                    >
+                      {recordLabel(row.record)}
+                    </span>
                     <small>{recordPreview(row.record)}</small>
                     <em>{durationLabel(row.record.durationMs)}</em>
                   </button>
@@ -226,12 +262,16 @@ export function TrajectoryInspector({
   readonly turn: TrajectoryTurn | null
 }) {
   return (
-    <aside className="aw-trajectory-inspector aw-panel">
+    <aside className="aw-trajectory-inspector">
       <h2>{getCopy('trajectory.detail')}</h2>
       {!record && !turn ? (
         <p>{getCopy('trajectory.selectRecord')}</p>
       ) : turn ? (
         <>
+          <div className="aw-trajectory-inspector-head">
+            <strong>{formatCopy(getCopy('trajectory.turnLabel'), { index: turn.ordinal })}</strong>
+            <span>{actionLabel(turn.actionType)}</span>
+          </div>
           <Detail
             label={getCopy('trajectory.status')}
             value={getCopy(`trajectory.statuses.${turn.status}`)}
@@ -250,6 +290,16 @@ export function TrajectoryInspector({
         </>
       ) : record ? (
         <>
+          <div className="aw-trajectory-inspector-head">
+            <span
+              className="aw-trajectory-kind-tag"
+              data-kind={record.kind}
+              data-status={record.status}
+            >
+              {recordLabel(record)}
+            </span>
+            <strong>#{record.ordinal}</strong>
+          </div>
           <Detail label={getCopy('trajectory.kind')} value={recordLabel(record)} />
           <Detail
             label={getCopy('trajectory.status')}
@@ -294,7 +344,12 @@ function Block({ label, value }: { readonly label: string; readonly value: strin
   )
 }
 
-function buildRows(page: TrajectoryPage, query: string): LedgerRow[] {
+function buildRows(
+  page: TrajectoryPage,
+  query: string,
+  collapsedTurns: ReadonlySet<string>,
+  selectedTurnId: string | null,
+): LedgerRow[] {
   const needle = query.trim().toLocaleLowerCase()
   return page.turns.flatMap((turn) => {
     const records = page.records.filter(
@@ -306,9 +361,15 @@ function buildRows(page: TrajectoryPage, query: string): LedgerRow[] {
             .includes(needle)),
     )
     if (needle && records.length === 0) return []
+    const visibleRecords =
+      !needle && collapsedTurns.has(turn.turnId) && selectedTurnId !== turn.turnId ? [] : records
     return [
       { kind: 'turn' as const, key: `turn:${turn.turnId}`, turn },
-      ...records.map((record) => ({ kind: 'record' as const, key: record.recordId, record })),
+      ...visibleRecords.map((record) => ({
+        kind: 'record' as const,
+        key: record.recordId,
+        record,
+      })),
     ]
   })
 }
@@ -318,11 +379,90 @@ function recordLabel(record: TrajectoryRecord): string {
 }
 
 function recordPreview(record: TrajectoryRecord): string {
-  const value = record.text ?? record.input ?? record.output ?? record.title
+  let value: string
+  if (record.kind === 'tool') {
+    value = record.title.replace(/^Tool:\s*/u, '')
+  } else if (record.kind === 'permission') {
+    value = `${record.title} · ${getCopy(
+      record.status === 'allowed' ? 'trajectory.permissionAllowed' : 'trajectory.permissionDenied',
+    )}`
+  } else if (record.kind === 'usage' && record.usage) {
+    value = `${record.usage.used} / ${record.usage.size}`
+  } else if (record.kind === 'action') {
+    const actionType = actionTypeFromRecord(record.input)
+    value = actionType
+      ? formatCopy(getCopy('trajectory.actionSubmitted'), { action: actionLabel(actionType) })
+      : record.title
+  } else if (record.kind === 'lifecycle') {
+    value = record.title.replaceAll('_', ' ')
+  } else {
+    value = record.text ?? record.input ?? record.output ?? record.title
+  }
   return value.replace(/\s+/g, ' ').slice(0, 96)
 }
 
+function actionTypeFromRecord(input: string | null): string | null {
+  if (!input) return null
+  try {
+    const parsed = JSON.parse(input) as unknown
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const value = parsed as Record<string, unknown>
+    const nested = value['action']
+    if (typeof nested === 'object' && nested !== null) {
+      const nestedType = (nested as Record<string, unknown>)['type']
+      if (typeof nestedType === 'string') return nestedType
+    }
+    return typeof value['type'] === 'string' ? value['type'] : null
+  } catch {
+    return null
+  }
+}
+
 function durationLabel(durationMs: number | null): string {
-  if (durationMs === null) return '—'
+  if (durationMs === null) return '-'
   return durationMs >= 1000 ? `${(durationMs / 1000).toFixed(1)}s` : `${durationMs}ms`
+}
+
+function actionLabel(actionType: string): string {
+  switch (actionType) {
+    case 'bootstrap':
+      return getCopy('trajectory.actionTypes.bootstrap')
+    case 'speech':
+      return getCopy('trajectory.actionTypes.speech')
+    case 'vote':
+      return getCopy('trajectory.actionTypes.vote')
+    case 'night-action':
+      return getCopy('trajectory.actionTypes.nightAction')
+    case 'sheriff-action':
+      return getCopy('trajectory.actionTypes.sheriffAction')
+    case 'skill-trigger':
+      return getCopy('trajectory.actionTypes.skillTrigger')
+    case 'domain-events':
+      return getCopy('trajectory.actionTypes.domainEvents')
+    default:
+      return actionType
+  }
+}
+
+function minimapLane(kind: TrajectoryRecordKind): MinimapLane {
+  switch (kind) {
+    case 'prompt':
+      return 'context'
+    case 'reasoning':
+    case 'message':
+    case 'usage':
+      return 'model'
+    case 'tool':
+    case 'permission':
+    case 'action':
+      return 'tools'
+    case 'diagnostic':
+    case 'lifecycle':
+    case 'error':
+      return 'runtime'
+    default: {
+      const exhaustive: never = kind
+      return exhaustive
+    }
+  }
 }

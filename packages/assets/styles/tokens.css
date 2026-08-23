@@ -22,6 +22,17 @@
   --aw-effect-emerald: #72c6a0;
   --aw-effect-violet: #ad78cf;
   --aw-effect-cyan: #6ebbd2;
+  --aw-trace-prompt: #79a9dc;
+  --aw-trace-reasoning: #8caee6;
+  --aw-trace-message: #74c69a;
+  --aw-trace-tool: #dfac52;
+  --aw-trace-permission: #a6b0c8;
+  --aw-trace-action: #ead8a0;
+  --aw-trace-usage: #72b8c7;
+  --aw-trace-diagnostic: #909da7;
+  --aw-trace-lifecycle: #818d9e;
+  --aw-trace-error: #d66a5f;
+  --aw-trace-tag-ink: #09131c;
   --aw-radius-panel: 12px;
   --aw-radius-control: 8px;
   --aw-radius-pill: 999px;

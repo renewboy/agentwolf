@@ -35,7 +35,7 @@ function AppRoutes() {
         <Route path="agents" element={<AgentsPage />} />
         <Route path="boards" element={<BoardsPage />} />
         <Route
-          path="developer"
+          path="matches/:matchId/trajectory"
           element={developerMode ? <DeveloperPage /> : <Navigate to="/" replace />}
         />
         <Route path="matches/new" element={<NewMatchPage />} />

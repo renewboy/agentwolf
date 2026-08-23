@@ -133,7 +133,7 @@ test('creates, edits, and deletes an Agent Profile through styled controls', asy
   await expect(
     page.getByRole('button', { name: new RegExp(`${updatedName}mock-model`) }),
   ).toBeVisible()
-  await expect(page.getByRole('link', { name: '开发者' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '开发者' })).toHaveCount(0)
   await expect(page.locator('select')).toHaveCount(0)
 
   const deleteButton = page.getByRole('button', { name: '删除配置' })
@@ -270,19 +270,58 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     })
     .toBeGreaterThan(0)
 
-  await page.goto('/developer')
-  const matchSelect = page.getByRole('combobox', { name: '选择对局' })
-  await matchSelect.click()
-  await page.getByRole('option').filter({ hasText: match.id }).click()
+  await page.goto('/')
+  const matchRow = page.locator(`[data-match-id="${match.id}"]`)
+  await expect(matchRow).toBeVisible()
+  await matchRow.getByRole('link', { name: '查看轨迹' }).click()
+  await expect(page).toHaveURL(new RegExp(`/matches/${match.id}/trajectory$`))
+  await expect(page.getByRole('combobox', { name: '选择对局' })).toHaveCount(0)
   await expect(page.getByText('上下文审计通过')).toBeVisible()
-  await page
-    .locator('.aw-trajectory-owner')
-    .filter({ hasText: `${testRunId}-trajectory-1` })
-    .click()
+  const firstOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '1号玩家' })
+  await expect(firstOwner).toContainText(`${testRunId}-trajectory-1`)
+  await firstOwner.click()
   await expect(page.getByRole('button', { name: /提示词/ }).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /推理/ }).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /工具/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /思考/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /工具调用/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /上下文用量/ }).first()).toBeVisible()
+  await expect(page.locator('.aw-trajectory-kind-tag[data-kind="prompt"]').first()).toHaveCSS(
+    'background-color',
+    'rgb(121, 169, 220)',
+  )
+  const firstPromptNode = page.locator('.aw-trajectory-minimap__node[data-kind="prompt"]').first()
+  await firstPromptNode.click()
+  await expect(page.locator('.aw-trajectory-record[data-selected="true"]')).toContainText(
+    '注入提示词',
+  )
+  const viewportMetrics = await page.evaluate(() => ({
+    bodyHeight: document.body.scrollHeight,
+    viewportHeight: window.innerHeight,
+    scrollY: window.scrollY,
+  }))
+  expect(viewportMetrics.scrollY).toBe(0)
+  expect(viewportMetrics.bodyHeight).toBeLessThanOrEqual(viewportMetrics.viewportHeight + 1)
+
+  await page.route(
+    `**/api/developer/matches/${match.id}/trajectory?ownerId=player-2`,
+    async (route) => {
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 300))
+      await route.continue()
+    },
+  )
+  const secondOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '2号玩家' })
+  await secondOwner.click()
+  await expect(page.locator('.aw-trajectory-layout')).toBeVisible()
+  await expect(page.locator('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'true')
+  await expect(page.locator('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'false')
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  await firstOwner.click()
+  await expect(firstOwner).toHaveAttribute('aria-pressed', 'true')
+  const firstTurn = page.getByRole('button', { name: /第 1 回合/ }).first()
+  await expect(firstTurn).toHaveAttribute('aria-expanded', 'true')
+  await firstTurn.click()
+  await expect(firstTurn).toHaveAttribute('aria-expanded', 'false')
+  await firstTurn.click()
+  await page.getByRole('textbox', { name: '搜索当前轨迹' }).fill('Player ID')
   await page
     .getByRole('button', { name: /提示词/ })
     .first()

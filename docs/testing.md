@@ -13,8 +13,10 @@
   streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
 - Browser tests cover Agent Profile and custom-board management, styled listbox behavior,
-  confirmation-dialog focus and deletion, Match setup, developer trajectory detail, context-audit
-  status, role-effect modes, rerolls, game start, view switching, live speech, target-grouped vote
+  confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
+  nickname labels, semantic record tags, minimap-to-Record navigation, stable player switching,
+  Turn collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
+  view switching, live speech, target-grouped vote
   results, non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
   manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
   waiting feedback, terminal-state motion cleanup, and missing-Match request settlement.
@@ -77,3 +79,8 @@ pnpm smoke:trae-action -- gpt-5.6-luna
 27. Wolf council exposes no self-destruct interrupt or premature night-action contract, while
     sheriff and daytime Werewolves receive the exact self-destruct ability ID accepted by the
     engine.
+28. Developer mode places `查看轨迹` on each Match record, routes by that Match ID, shows players by
+    seat with nicknames as secondary context, fills the available viewport, and presents labeled
+    semantic colors without a global developer navigation item or Match selector. Minimap nodes
+    center the selected Record, and an owner change keeps the page mounted while restoring that
+    owner's ledger position.

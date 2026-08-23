@@ -50,9 +50,10 @@ engine and a projection receives only cues derived from events visible to that v
 Every ACP turn records one normalized trajectory with its exact Prompt, event range, reasoning,
 message stream, tool calls, permission decisions, accepted game action, context usage, duration,
 session generation, recovery attempt, diagnostics, and result. Capture-time filtering removes
-secret-bearing metadata and bounds large fields. Starting with developer mode exposes a
-loopback-only per-Match timeline, owner ledger, detail inspector, and context audit; ordinary
-startup exposes none of these routes or controls while continuing to retain the records locally.
+secret-bearing metadata and bounds large fields. Starting with developer mode adds a trajectory
+action to every Match record. That action opens the selected Match's loopback-only timeline,
+seat-first ledger, detail inspector, and context audit; ordinary startup exposes none of these
+routes or controls while continuing to retain the records locally.
 
 ## Player identity
 

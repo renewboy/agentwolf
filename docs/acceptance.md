@@ -5,7 +5,7 @@ Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.
 ## Deterministic application checks
 
 - 70 unit and integration scenarios across 24 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 86.82% lines, 83.55% statements, 87.31% functions, and 72.61% branches over rule, ACP, asset, and server production sources.
+- Coverage passed at 86.82% lines, 83.52% statements, 87.31% functions, and 72.50% branches over rule, ACP, asset, and server production sources.
 - Eleven Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile controls, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, full/reduced/off role effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
 
@@ -75,9 +75,13 @@ Each real Match retained 20 Trae stderr warning diagnostics for provider Skill-b
 submission-inbox, or shell-snapshot startup notices. They were inspected in the trajectory panel;
 no warning represented a failed delivery, rejected game action, missing context, or browser error.
 
-The developer page rendered the active Match as owner swimlanes, a live virtualized ledger, and a
-detail inspector, and displayed `上下文审计通过`. Normal startup retained the same trajectory
-records while returning 404 for developer reads. The custom-board browser flow saved, edited,
+Each developer-mode Match record exposed `查看轨迹` and opened only that Match. The page rendered
+players by seat with explicit nickname context, semantic Prompt/thought/speech/tool/action tags,
+collapsible Turns, a four-lane clickable Record minimap, a viewport-filling virtualized ledger, and
+a full detail inspector, and displayed `上下文审计通过`. Owner switching kept the page at
+`scrollY = 0`, retained the full-height shell during loading, and restored per-owner ledger scroll.
+Normal startup retained the same trajectory records while
+returning 404 for developer reads. The custom-board browser flow saved, edited,
 selected, started, and deleted a Seer/Witch board without changing built-ins or an existing Match
 snapshot. Role-effect browser coverage observed sequence-keyed cues in full mode and verified the
 reduced and off modes without residual transforms.

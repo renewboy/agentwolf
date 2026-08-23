@@ -1,9 +1,10 @@
-import { Bug } from '@phosphor-icons/react'
+import { ArrowLeft } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
+  MatchIdSchema,
   TrajectoryDeltaSchema,
-  type MatchId,
   type MatchView,
   type TrajectoryOwnerId,
   type TrajectoryAuditReport,
@@ -12,79 +13,69 @@ import {
 } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
-import { GameSelect } from '../components/GameSelect.js'
 import {
   TrajectoryInspector,
   TrajectoryLedger,
-  TrajectoryOverview,
+  TrajectoryMinimap,
 } from '../components/developer/TrajectoryPanels.js'
 
 export function DeveloperPage() {
-  const [matches, setMatches] = useState<MatchView[] | null>(null)
-  const [matchId, setMatchId] = useState<MatchId | ''>('')
+  const { matchId: matchIdParam } = useParams<{ matchId: string }>()
+  const parsedMatchId = useMemo(() => MatchIdSchema.safeParse(matchIdParam), [matchIdParam])
+  const matchId = parsedMatchId.success ? parsedMatchId.data : null
+  const [match, setMatch] = useState<MatchView | null>(null)
   const [summary, setSummary] = useState<TrajectorySummary | null>(null)
   const [audit, setAudit] = useState<TrajectoryAuditReport | null>(null)
   const [ownerId, setOwnerId] = useState<TrajectoryOwnerId>('system')
   const [page, setPage] = useState<TrajectoryPage | null>(null)
+  const [pageLoading, setPageLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
   const revision = useRef(0)
   const summaryLoaded = summary !== null
-  const matchOptions = useMemo(
-    () =>
-      (matches ?? []).map((match) => ({
-        value: match.id,
-        label: `${match.boardName} · ${match.id}`,
-      })),
-    [matches],
-  )
+  const owners = useMemo(() => orderedOwners(summary?.owners ?? []), [summary])
 
-  const loadMatches = useCallback(async () => {
-    setError(null)
-    try {
-      const next = await api.listMatches()
-      setMatches(next)
-      setMatchId((current) => current || next[0]?.id || '')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+  const loadTrajectory = useCallback(async () => {
+    if (!matchId) {
+      setError(getCopy('trajectory.unavailable'))
+      return
     }
-  }, [])
-  useEffect(() => void loadMatches(), [loadMatches])
-
-  useEffect(() => {
-    if (!matchId) return undefined
-    let active = true
+    setError(null)
+    setMatch(null)
     setSummary(null)
     setAudit(null)
     setPage(null)
+    setPageLoading(true)
     setSelectedId(null)
-    const load = async (): Promise<void> => {
-      try {
-        const [next, nextAudit] = await Promise.all([
-          api.trajectorySummary(matchId),
-          api.trajectoryAudit(matchId),
-        ])
-        if (!active) return
-        revision.current = next.revision
-        setSummary(next)
-        setAudit(nextAudit)
-        const firstActive = next.owners.find((owner) => owner.turnCount > 0)
-        setOwnerId(firstActive?.ownerId ?? next.owners[0]?.ownerId ?? 'system')
-      } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : String(cause))
-      }
-    }
-    void load()
-    return () => {
-      active = false
+    try {
+      const [nextMatch, nextSummary, nextAudit] = await Promise.all([
+        api.getMatch(matchId, { kind: 'god' }),
+        api.trajectorySummary(matchId),
+        api.trajectoryAudit(matchId),
+      ])
+      revision.current = nextSummary.revision
+      setMatch(nextMatch)
+      setSummary(nextSummary)
+      setAudit(nextAudit)
+      const firstPlayer = nextSummary.owners.find(
+        (owner) => owner.ownerId !== 'system' && owner.turnCount > 0,
+      )
+      const firstActive = firstPlayer ?? nextSummary.owners.find((owner) => owner.turnCount > 0)
+      setOwnerId(firstActive?.ownerId ?? nextSummary.owners[0]?.ownerId ?? 'system')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setPageLoading(false)
     }
   }, [matchId])
+
+  useEffect(() => void loadTrajectory(), [loadTrajectory])
 
   useEffect(() => {
     if (!matchId || !summaryLoaded) return undefined
     let active = true
-    setPage(null)
+    setPageLoading(true)
     setSelectedId(null)
     const load = async (): Promise<void> => {
       try {
@@ -94,6 +85,8 @@ export function DeveloperPage() {
         setPage(next)
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : String(cause))
+      } finally {
+        if (active) setPageLoading(false)
       }
     }
     void load()
@@ -163,90 +156,129 @@ export function DeveloperPage() {
     }
   }
 
-  if (error && !matches) return <ErrorState message={error} retry={() => void loadMatches()} />
-  if (!matches) return <LoadingState />
-  if (matches.length === 0) {
+  if (!matchId || (error && !match && !summary)) {
     return (
       <main className="aw-page">
-        <div className="aw-empty-state aw-panel">
-          <Bug size={38} aria-hidden />
-          <h1>{getCopy('trajectory.noMatches')}</h1>
-          <p>{getCopy('trajectory.noMatchesHint')}</p>
-        </div>
+        <Link className="aw-back-link" to="/">
+          <ArrowLeft size={17} aria-hidden />
+          {getCopy('trajectory.backToMatches')}
+        </Link>
+        <ErrorState
+          message={error ?? getCopy('trajectory.unavailable')}
+          retry={() => void loadTrajectory()}
+        />
+      </main>
+    )
+  }
+
+  if (!match || !summary || !page) {
+    return (
+      <main className="aw-page">
+        <LoadingState />
       </main>
     )
   }
 
   return (
     <main className="aw-page aw-developer-page">
-      <div className="aw-page-heading aw-developer-heading">
-        <div>
+      <div className="aw-developer-heading">
+        <Link className="aw-back-link" to="/">
+          <ArrowLeft size={17} aria-hidden />
+          {getCopy('trajectory.backToMatches')}
+        </Link>
+        <div className="aw-developer-title">
           <h1>{getCopy('trajectory.title')}</h1>
-          <p>{getCopy('trajectory.subtitle')}</p>
+          <p>
+            {formatCopy(getCopy('trajectory.matchMeta'), {
+              board: match.boardName,
+              count: match.seats.length,
+              day: match.day,
+              phase: match.phaseLabel,
+            })}
+          </p>
         </div>
-        <div className="aw-developer-match-select">
-          <GameSelect
-            ariaLabel={getCopy('trajectory.match')}
-            value={matchId}
-            options={matchOptions}
-            onChange={(value) => setMatchId(value as MatchId)}
-          />
-        </div>
-      </div>
-      {!summary || !page ? (
-        <LoadingState />
-      ) : (
-        <>
-          <TrajectoryOverview summary={summary} selectedOwner={ownerId} onSelect={setOwnerId} />
-          {audit ? (
-            <div className="aw-trajectory-audit aw-panel" data-ok={audit.ok} role="status">
-              <strong>
-                {getCopy(audit.ok ? 'trajectory.auditPassed' : 'trajectory.auditFailed')}
-              </strong>
-              <span>
-                {formatCopy(getCopy('trajectory.auditSummary'), {
-                  turns: audit.auditedTurns,
-                  issues: audit.issues.length,
-                })}
-              </span>
-            </div>
-          ) : null}
-          <div className="aw-trajectory-layout">
-            <aside className="aw-trajectory-owners aw-panel">
-              <h2>{getCopy('trajectory.owners')}</h2>
-              {summary.owners.map((owner) => (
-                <button
-                  className="aw-trajectory-owner"
-                  aria-pressed={owner.ownerId === ownerId}
-                  key={owner.ownerId}
-                  type="button"
-                  onClick={() => setOwnerId(owner.ownerId)}
-                >
-                  <span>{owner.label}</span>
-                  <small>
-                    {owner.turnCount} / {owner.recordCount}
-                  </small>
-                </button>
-              ))}
-            </aside>
-            <TrajectoryLedger
-              page={page}
-              query={query}
-              selectedId={selectedId}
-              onLoadOlder={() => void loadOlder()}
-              onQuery={setQuery}
-              onSelect={setSelectedId}
-            />
-            <TrajectoryInspector
-              record={page.records.find((record) => record.recordId === selectedId) ?? null}
-              turn={page.turns.find((turn) => turn.turnId === selectedId) ?? null}
-            />
+        {audit ? (
+          <div className="aw-trajectory-audit" data-ok={audit.ok} role="status">
+            <strong>
+              {getCopy(audit.ok ? 'trajectory.auditPassed' : 'trajectory.auditFailed')}
+            </strong>
+            <span>
+              {formatCopy(getCopy('trajectory.auditSummary'), {
+                turns: audit.auditedTurns,
+                issues: audit.issues.length,
+              })}
+            </span>
           </div>
-        </>
-      )}
+        ) : null}
+      </div>
+      <div className="aw-trajectory-layout aw-panel">
+        <aside className="aw-trajectory-owners">
+          <h2>{getCopy('trajectory.owners')}</h2>
+          {owners.map((owner) => {
+            const seat = ownerSeat(owner.ownerId)
+            return (
+              <button
+                className="aw-trajectory-owner"
+                aria-pressed={owner.ownerId === ownerId}
+                key={owner.ownerId}
+                type="button"
+                onClick={() => setOwnerId(owner.ownerId)}
+              >
+                <span>
+                  {seat === null
+                    ? getCopy('trajectory.system')
+                    : formatCopy(getCopy('trajectory.seatPlayer'), { seat })}
+                </span>
+                {seat === null ? null : (
+                  <small className="aw-trajectory-owner__nickname">
+                    {formatCopy(getCopy('trajectory.nickname'), { name: owner.label })}
+                  </small>
+                )}
+                <small>
+                  {formatCopy(getCopy('trajectory.ownerCounts'), {
+                    turns: owner.turnCount,
+                    records: owner.recordCount,
+                  })}
+                </small>
+              </button>
+            )
+          })}
+        </aside>
+        <TrajectoryMinimap page={page} selectedId={selectedId} onSelect={setSelectedId} />
+        <TrajectoryLedger
+          followLatest={match.status !== 'ended'}
+          loading={pageLoading}
+          page={page}
+          query={query}
+          selectedId={selectedId}
+          onLoadOlder={() => void loadOlder()}
+          onQuery={setQuery}
+          onSelect={setSelectedId}
+        />
+        <TrajectoryInspector
+          record={page.records.find((record) => record.recordId === selectedId) ?? null}
+          turn={page.turns.find((turn) => turn.turnId === selectedId) ?? null}
+        />
+      </div>
       {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
     </main>
   )
+}
+
+function ownerSeat(ownerId: TrajectoryOwnerId): number | null {
+  if (ownerId === 'system') return null
+  const seat = Number(ownerId.slice('player-'.length))
+  return Number.isInteger(seat) && seat > 0 ? seat : null
+}
+
+function orderedOwners(owners: TrajectorySummary['owners']): TrajectorySummary['owners'] {
+  return [...owners].sort((left, right) => {
+    const leftSeat = ownerSeat(left.ownerId)
+    const rightSeat = ownerSeat(right.ownerId)
+    if (leftSeat === null) return rightSeat === null ? 0 : 1
+    if (rightSeat === null) return -1
+    return leftSeat - rightSeat
+  })
 }
 
 function mergeBy<Value>(

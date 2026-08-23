@@ -215,26 +215,34 @@
     "lobby": "对局大厅",
     "newMatch": "创建对局",
     "boards": "板子管理",
-    "agents": "Agent 设置",
-    "developer": "开发者"
+    "agents": "Agent 设置"
   },
   "trajectory": {
-    "title": "运行轨迹",
-    "subtitle": "检查每名 Agent 收到的上下文、推理、工具调用、动作与恢复过程。",
-    "match": "选择对局",
-    "noMatches": "还没有可检查的对局",
-    "noMatchesHint": "轨迹会随对局运行自动记录。",
+    "title": "玩家行动轨迹",
+    "backToMatches": "返回对局记录",
+    "matchMeta": "{{board}} · {{count}} 人 · 第 {{day}} 天 · {{phase}}",
+    "unavailable": "无法读取本局运行轨迹。",
     "owners": "参与者",
     "system": "裁判与运行时",
-    "overview": "全局时间轴",
-    "live": "实时同步",
+    "seatPlayer": "{{seat}}号玩家",
+    "nickname": "昵称：{{name}}",
+    "ownerCounts": "{{turns}} 回合 · {{records}} 条记录",
+    "minimap": "记录导航",
+    "minimapLanes": {
+      "context": "提示",
+      "model": "模型",
+      "tools": "工具",
+      "runtime": "运行"
+    },
     "auditPassed": "上下文审计通过",
     "auditFailed": "上下文审计发现问题",
     "auditSummary": "已核对 {{turns}} 个回合，发现 {{issues}} 个问题。",
     "search": "搜索当前轨迹",
     "loadOlder": "加载更早回合",
+    "collapseTurns": "折叠全部回合",
+    "expandTurns": "展开全部回合",
     "detail": "记录详情",
-    "selectRecord": "选择一个回合或记录查看完整内容。",
+    "selectRecord": "选择任意一条记录查看完整内容。",
     "status": "状态",
     "duration": "耗时",
     "sequence": "事件范围",
@@ -247,7 +255,20 @@
     "input": "输入",
     "output": "输出",
     "truncated": "内容超过安全上限，当前记录已明确截断。",
-    "turnLabel": "第 {{index}} 回合 · {{action}}",
+    "turnLabel": "第 {{index}} 回合",
+    "turnRecords": "{{count}} 条记录",
+    "permissionAllowed": "已授权",
+    "permissionDenied": "已拒绝",
+    "actionSubmitted": "已提交{{action}}",
+    "actionTypes": {
+      "bootstrap": "身份与规则初始化",
+      "speech": "发言",
+      "vote": "投票",
+      "nightAction": "夜间行动",
+      "sheriffAction": "警长操作",
+      "skillTrigger": "技能触发",
+      "domainEvents": "裁判事件"
+    },
     "statuses": {
       "running": "进行中",
       "completed": "已完成",
@@ -256,16 +277,16 @@
       "cancelled": "已取消"
     },
     "kinds": {
-      "prompt": "提示词",
-      "reasoning": "推理",
-      "message": "回复",
-      "tool": "工具",
-      "permission": "权限",
+      "prompt": "注入提示词",
+      "reasoning": "思考",
+      "message": "发言",
+      "tool": "工具调用",
+      "permission": "权限确认",
       "action": "游戏动作",
       "usage": "上下文用量",
-      "diagnostic": "诊断",
+      "diagnostic": "运行诊断",
       "lifecycle": "会话状态",
-      "error": "错误"
+      "error": "异常"
     }
   },
   "lobby": {
@@ -275,6 +296,7 @@
     "empty": "村庄还没有开局",
     "emptyHint": "配置 Agent 后创建第一场对局。",
     "watch": "进入观战",
+    "trajectory": "查看轨迹",
     "create": "创建新对局",
     "refresh": "刷新列表",
     "matchMeta": "第 {{day}} 天 · {{phase}}"

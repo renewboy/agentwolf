@@ -94,8 +94,9 @@ the engine at every Turn's `toSequence`, renders the expected foundation or incr
 and compares it with the persisted Prompt while checking delivery ownership, ranges, and final
 acknowledgement.
 
-Trajectory collection is always active. Developer HTTP, WebSocket, configuration, and navigation
-surfaces require startup developer mode, which is valid only on a loopback listener.
+Trajectory collection is always active. Developer HTTP, WebSocket, configuration, and per-Match
+record actions require startup developer mode, which is valid only on a loopback listener. The Web
+route carries one Match ID and does not provide a cross-Match selector.
 
 ## Role-effect projection
 

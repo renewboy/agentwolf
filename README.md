@@ -13,8 +13,8 @@ pnpm dev
 ```
 
 Use `pnpm dev:developer` to start the loopback-only developer trajectory inspector. Runtime
-traces are captured in both modes, while developer routes and navigation exist only for that
-explicit startup mode.
+traces are captured in both modes, while developer routes and each Match record's trajectory
+action exist only for that explicit startup mode.
 
 The web app runs on `http://127.0.0.1:5173`; the API runs on `http://127.0.0.1:4310`. Runtime state is stored under `.agentwolf/`.
 

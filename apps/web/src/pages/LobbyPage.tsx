@@ -1,4 +1,4 @@
-import { ArrowClockwise, ArrowRight, Plus, Trash } from '@phosphor-icons/react'
+import { ArrowClockwise, ArrowRight, Plus, Pulse, Trash } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
@@ -7,8 +7,10 @@ import { api } from '../api.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { StatusBadge } from '../components/StatusBadge.js'
+import { useRuntimeConfig } from '../hooks/useRuntimeConfig.js'
 
 export function LobbyPage() {
+  const { developerMode } = useRuntimeConfig()
   const [matches, setMatches] = useState<MatchView[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<MatchView['id'] | null>(null)
@@ -72,7 +74,7 @@ export function LobbyPage() {
         ) : (
           <div className="aw-match-list">
             {matches.map((match) => (
-              <article className="aw-match-row aw-panel" key={match.id}>
+              <article className="aw-match-row aw-panel" data-match-id={match.id} key={match.id}>
                 <div>
                   <StatusBadge status={match.status} />
                   <h3>{match.boardName}</h3>
@@ -88,6 +90,15 @@ export function LobbyPage() {
                     {getCopy('lobby.watch')}
                     <ArrowRight size={18} aria-hidden />
                   </Link>
+                  {developerMode ? (
+                    <Link
+                      className="aw-button aw-button--icon"
+                      to={`/matches/${match.id}/trajectory`}
+                    >
+                      <Pulse size={18} aria-hidden />
+                      {getCopy('lobby.trajectory')}
+                    </Link>
+                  ) : null}
                   <button
                     className="aw-button aw-button--danger aw-button--square"
                     disabled={deletingId === match.id}

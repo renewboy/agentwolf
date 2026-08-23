@@ -27,8 +27,12 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
-- Developer: Match selector, absolute-time owner swimlanes, virtualized Turn/Step ledger, full
-  record inspector, live revision updates, older-page loading, search, and context-audit status.
+- Developer: every Match record exposes its own trajectory action in developer mode. The selected
+  Match fills the viewport below the application bar with a seat-first participant list, a compact
+  Prompt/model/tool/runtime record minimap, a virtualized and collapsible Turn ledger, semantic
+  event-color tags, full record inspector, live revision updates, older-page loading, search, and
+  context-audit status. Minimap nodes select and center their Record. Player switching keeps the
+  shell mounted and restores each player's ledger scroll position.
 
 ## Live-state rules
 
