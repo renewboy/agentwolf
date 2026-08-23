@@ -1,0 +1,55 @@
+{
+  "name": "agentwolf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check": "tsx scripts/harness/run-gates.ts all",
+    "check:static": "tsx scripts/harness/run-gates.ts static",
+    "check:architecture": "tsx scripts/harness/check-architecture.ts",
+    "check:artifacts": "tsx scripts/harness/check-artifacts.ts",
+    "check:docs": "tsx scripts/harness/check-docs.ts",
+    "check:skills": "tsx scripts/harness/check-skills.ts",
+    "dev": "tsx scripts/dev.ts",
+    "dev:server": "pnpm --filter @agentwolf/server dev",
+    "dev:web": "pnpm --filter @agentwolf/web dev",
+    "duplication": "jscpd apps packages scripts",
+    "format:check": "oxfmt --check .",
+    "format": "oxfmt --write .",
+    "lint": "oxlint --type-aware --deny-warnings .",
+    "hygiene": "knip --reporter compact",
+    "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -b --pretty false",
+    "prepare": "node scripts/harness/install-hooks.mjs",
+    "smoke:acp": "tsx scripts/smoke/acp-probe.ts",
+    "smoke:trae-action": "tsx apps/server/tests/live/trae-action.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.10.1",
+    "@vitest/coverage-v8": "4.1.11",
+    "jscpd": "5.0.16",
+    "knip": "6.32.2",
+    "lefthook": "2.1.10",
+    "oxfmt": "0.32.0",
+    "oxlint": "1.79.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "tsx": "4.23.12",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@10.20.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lefthook",
+      "better-sqlite3"
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+# Acceptance evidence
+
+Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.0.
+
+## Deterministic application checks
+
+- 61 unit and integration scenarios across 20 test files passed, including exact bootstrap teammate knowledge, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, Hunter pass resolution, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, daytime-to-night flow, terminal Session projection, 404 Match handling, and 6/9/12-player board validation.
+- Coverage passed at 87.82% lines, 84.51% statements, 87.19% functions, and 73.37% branches over rule, ACP, asset, and server production sources.
+- Eight Chromium acceptance scenarios passed: Agent Profile create/update/delete through styled controls, 6/9/12-player setup, spectator projections, fixed-height live match motion, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, sequence-keyed speech playback and manual controls, terminal animation and connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
+- TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
+
+## Live ACP adapters
+
+| Agent tool                   | Session                                                                          | Prompt turn                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Trae CLI 0.201.1, native ACP | `initialize`, `session/new`, 19 advertised models, close passed                  | streamed speech and accepted `submit_vote`, `submit_night_action` tools |
+| Codex ACP 1.6.2              | `initialize`, `session/new`, model `gpt-5.6-sol`, mode `read-only`, close passed | streamed `准备就绪`, `end_turn`                                         |
+| Claude Agent ACP 0.70.0      | `initialize`, `session/new`, model `sonnet`, close passed                        | blocked by provider response `400 This organization has been disabled`  |
+
+The Claude result confirms the adapter and Session lifecycle while identifying the current external account blocker. The runtime pauses on this failure and does not resend the prompt.
+
+The host has a managed global `core.hooksPath`. AgentWolf preserved that setting and skipped local Lefthook installation. `pnpm check` and GitHub Actions executed the same required gates directly; ordinary clones without a managed hook path install the committed Lefthook configuration during `pnpm install`.
+
+## Visual checks
+
+The match stage stayed exactly equal to the viewport at 3456×1760, 1440×900, 1024×768, and 390×844. The document remained at `scrollY = 0`; the center feed retained its own scroll range, and the mobile player HUD replaced both side rosters below 900px.
+
+A delayed six-player Mock ACP match exposed `reconnecting`, `starting`, `streaming`, and `thinking` in the browser. The visible thinking ring changed transform across a 350ms sample, the center presence stage named the live state, and the browser reported no page or console errors. A 9.72-second browser recording captured startup, streaming, thinking, and paused feedback. Closed-eye projection hid every private seat runtime status while the selected player view retained only its own private status.
+
+The application listbox rendered through its Portal with the dark game-control surface, constrained internal scrolling, selected-state mark, and keyboard navigation. The destructive confirmation layer covered the application, focused cancel first, closed on Escape, restored trigger focus, and completed deletion without browser-native prompts. Suite teardown left zero test Matches, zero test Agent Profiles, and zero custom test Agent Tools in the reusable local server.
+
+## Speech playback pacing
+
+Engine coverage held a final day speech at its explicit action boundary and restored that boundary into the exile-vote phase after a pause. Server integration generated both six-player Werewolf council speeches while retaining `phase-night-wolf-council`; no wolf-vote prompt existed until the exact final speech sequence was completed. A wrong sequence produced `speech-playback-invalid-resolution`, a second controller produced `speech-playback-controller-busy`, and a closed-eye controller advanced through private wolf speech without a playback hold.
+
+Chromium playback coverage used two committed events with identical text and observed two separate utterances. Skipping the first event sent no phase-resolution message, completing the final event sent its exact sequence and changed the visible phase to daytime voting, and a synthesis error resolved the final sequence as skipped. Each committed speech exposed manual play and stop; manual stop emitted no game-progress message, automatic playback exposed only skip, and history controls stayed disabled while the automatic queue was active.
+
+An isolated production build ran against an in-memory database at 1280×720. The real browser exposed the connection-owned audio toggle and per-speech play controls, rendered both Werewolf speeches, advanced from council to wolf attack after browser speech completion, and reported no warning or error. The isolated Match, Profile, Tool, and workspace were separate from user runtime data.
+
+## Six-player context integrity
+
+A real six-player Trae ACP match completed with GPT-5.4 and Gemini 3.1 Pro player Sessions. Its append-only log contained 229 contiguous domain events, 32 prompt deliveries and acknowledgements, 13 accepted structured action calls, and 26 submitted actions.
+
+All six foundation prompts contained the exact public composition and complete roster. Player 1 received only Player 5 as a Werewolf teammate; Player 5 received only Player 1; the Hunter, Seer, and both Villagers received no wolf roster. Only the Seer received the inspection result, only the living Werewolves received the selected attack target, all structured calls used the AgentWolf action server, and committed speech contained no Player IDs. The redacted raw ACP stream contained no credential value.
+
+The Hunter received the `ability-hunter-shot` death-skill contract and explicitly submitted `option: pass` with a null target. The engine recorded the ability use and no `hunter.shot`, confirming a player decision rather than an omitted trigger. `match.ended` was event 223; the six public final identities were events 224 through 229. No identity event occurred while the Match was running.
+
+The production-entry terminal page exposed all six identities and six `已结束` Session labels. Its presence state was `ended`, connection state was `settled`, all six player-ring transforms remained stationary across two samples, document height equaled viewport height, page scroll stayed at zero, and the browser emitted no warning or error. The audit Match, Profiles, Tool, and all browser-test records were removed after verification.
+
+## Vote collection and result presentation
+
+Match `match-board-quick-6-c5b673ee202c` entered its first exile vote at event 114. Four initial deliveries acknowledged by event 124; the remaining delivery entered bounded Session recovery, and the resolved ballots committed at event 162. The live-state contract now distinguishes context synchronization, active vote submission, accepted submission, and Session recovery.
+
+A structured action acceptance emitted `submitted` before the ACP final response in integration coverage. Chromium sampling reported `data-presence-state="awaiting-actions"`, `已提交` for an accepted voter, `投票中` for a pending voter, stable orb and player-ring transforms, and a changing signal-rail transform/opacity sample.
+
+Current API projection of the same Match renders its first result as `投票结算：2号以3票获得最高票。`, followed by `投2号：1号、5号、6号` and `投6号：2号、3号`. The second result renders `投5号：1号、6号` and `投6号：5号`. Neither title nor ballot row contains a player nickname.

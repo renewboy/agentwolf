@@ -1,0 +1,22 @@
+{
+  "name": "@agentwolf/acp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.70.0",
+    "@agentclientprotocol/codex-acp": "1.6.2",
+    "@agentclientprotocol/sdk": "1.4.0",
+    "@agentwolf/contracts": "workspace:*"
+  }
+}

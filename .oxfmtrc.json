@@ -1,0 +1,18 @@
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "semi": false,
+  "trailingComma": "all",
+  "ignorePatterns": [
+    "pnpm-lock.yaml",
+    "artifacts_rules.md",
+    "docs/design/reference/**",
+    "**/dist/**",
+    "**/dist-types/**",
+    "dist-scripts/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".agentwolf/**"
+  ]
+}

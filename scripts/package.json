@@ -1,0 +1,9 @@
+{
+  "name": "@agentwolf/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentwolf/acp": "workspace:*"
+  }
+}

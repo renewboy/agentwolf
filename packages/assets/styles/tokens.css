@@ -1,0 +1,31 @@
+:root {
+  color-scheme: dark;
+  --aw-color-ink: #071019;
+  --aw-color-night: #0b1723;
+  --aw-color-surface: #111d28;
+  --aw-color-surface-raised: #182633;
+  --aw-color-line: #334250;
+  --aw-color-line-bright: #596878;
+  --aw-color-text: #edf1ed;
+  --aw-color-text-muted: #9ca8ae;
+  --aw-color-amber: #d8a95b;
+  --aw-color-amber-soft: #8c6b37;
+  --aw-color-crimson: #9c352f;
+  --aw-color-crimson-bright: #d05a4e;
+  --aw-color-success: #6fa884;
+  --aw-color-warning: #d8a95b;
+  --aw-color-danger: #d05a4e;
+  --aw-radius-panel: 12px;
+  --aw-radius-control: 8px;
+  --aw-radius-pill: 999px;
+  --aw-shadow-panel: 0 24px 70px rgb(0 0 0 / 38%);
+  --aw-font-display: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  --aw-font-ui: 'Geist', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+  --aw-duration-fast: 140ms;
+  --aw-duration-medium: 280ms;
+  --aw-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --aw-layer-base: 0;
+  --aw-layer-sticky: 20;
+  --aw-layer-drawer: 40;
+  --aw-layer-modal: 60;
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": [
+    "@agentclientprotocol/claude-agent-acp",
+    "@agentclientprotocol/codex-acp",
+    "lefthook"
+  ],
+  "ignoreExportsUsedInFile": true
+}

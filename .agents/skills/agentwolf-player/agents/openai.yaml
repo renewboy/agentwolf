@@ -1,0 +1,3 @@
+interface:
+  display_name: 'AgentWolf Player'
+  short_description: 'Play one seat through an AgentWolf match'

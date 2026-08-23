@@ -1,0 +1,23 @@
+import { describe, expect, it } from 'vitest'
+import { listBoards, ninePlayerBoard, sixPlayerBoard } from '../src/index.js'
+
+describe('board catalog', () => {
+  it('offers 6, 9, and 12-player presets with complete role manifests', () => {
+    const boards = listBoards()
+    expect([...new Set(boards.map((board) => board.playerCount))]).toEqual([6, 9, 12])
+    for (const board of boards) {
+      expect(board.roles.reduce((total, slot) => total + slot.count, 0)).toBe(board.playerCount)
+    }
+  })
+
+  it('encodes the player-count-specific sheriff and victory rules', () => {
+    expect(sixPlayerBoard).toMatchObject({
+      sheriff: false,
+      policies: { victory: 'slaughter-all' },
+    })
+    expect(ninePlayerBoard).toMatchObject({
+      sheriff: true,
+      policies: { victory: 'slaughter-edge' },
+    })
+  })
+})
