@@ -1,4 +1,5 @@
 import type { MatchId, PlayerAction, PlayerId } from '@agentwolf/contracts'
+import { deterministicIndex } from './deterministic.js'
 import { assertRule } from './errors.js'
 import { visibility, type RuleRuntime } from './rule-registry.js'
 
@@ -148,14 +149,4 @@ function rotate<Value>(values: readonly Value[], offset: number): Value[] {
 
 function deterministicDirection(key: string): SpeechDirection {
   return deterministicIndex(key, 2) === 0 ? 'clockwise' : 'counterclockwise'
-}
-
-function deterministicIndex(key: string, length: number): number {
-  assertRule(length > 0, 'Deterministic selection requires at least one value')
-  let hash = 0x811c_9dc5
-  for (let index = 0; index < key.length; index += 1) {
-    hash ^= key.charCodeAt(index)
-    hash = Math.imul(hash, 0x0100_0193)
-  }
-  return (hash >>> 0) % length
 }

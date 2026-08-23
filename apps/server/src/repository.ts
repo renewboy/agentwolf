@@ -22,7 +22,6 @@ import {
   type GameEvent,
   type GlobalSettings,
   type MatchId,
-  type MatchSetupSnapshot,
   type MatchBoardSnapshot,
   type MatchStatus,
   type PlayerId,
@@ -32,17 +31,9 @@ import {
 } from '@agentwolf/contracts'
 import type { DeliveryLedgerSnapshot } from '@agentwolf/acp'
 import { migrateDatabase } from './database-schema.js'
-
-export interface MatchRecord {
-  readonly id: MatchId
-  readonly boardId: BoardId
-  readonly status: MatchStatus
-  readonly setup: MatchSetupSnapshot
-  readonly boardSnapshot: MatchBoardSnapshot | null
-  readonly createdAt: string
-  readonly updatedAt: string
-  readonly pausedReason: string | null
-}
+import { CharacterSqliteRepository } from './character-repository.js'
+import type { MatchRecord } from './match-record.js'
+export type { MatchRecord } from './match-record.js'
 
 interface DatabaseRow {
   readonly json: string
@@ -66,6 +57,7 @@ interface TrajectoryRow extends DatabaseRow {
 
 export class SqliteRepository {
   readonly #database: Database.Database
+  public readonly characters: CharacterSqliteRepository
 
   public constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true })
@@ -73,6 +65,7 @@ export class SqliteRepository {
     this.#database.pragma('journal_mode = WAL')
     this.#database.pragma('foreign_keys = ON')
     migrateDatabase(this.#database)
+    this.characters = new CharacterSqliteRepository(this.#database)
   }
 
   public close(): void {

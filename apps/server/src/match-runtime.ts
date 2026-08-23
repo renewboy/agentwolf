@@ -1,5 +1,4 @@
 import type {
-  AgentProfile,
   GameEvent,
   LiveClientMessage,
   LiveMessage,
@@ -21,7 +20,7 @@ import {
 import type { AgentCatalogService } from './agent-catalog.js'
 import { ActionMailbox, type ActionExpectation } from './action-mailbox.js'
 import type { ServerConfig } from './config.js'
-import { ContextRenderer } from './context-renderer.js'
+import { ContextRenderer, promptContractVersion } from './context-renderer.js'
 import { LiveHub, type LiveConnection, type LiveSubscriber } from './live-hub.js'
 import {
   actionInstructionFor,
@@ -119,6 +118,8 @@ export class MatchRuntime {
         this.#options.catalog.getProfile(this.engine.state.players.get(playerId)!.profileId)
           ?.model ??
         null,
+      characterForSeat: (seat) =>
+        this.#options.record.setup.seats.find((entry) => entry.seat === seat)?.character ?? null,
       sessionStatus: (playerId) => this.#players.get(playerId)?.status ?? 'idle',
     })
   }
@@ -182,7 +183,8 @@ export class MatchRuntime {
       this.#assertOpen()
       const setup = setupBySeat.get(player.seat)
       if (!setup) throw new Error(`Missing setup for seat ${player.seat}`)
-      const profile = this.#requireProfile(setup.profileId)
+      const profile = this.#options.catalog.getProfile(setup.profileId)
+      if (!profile) throw new Error(`Unknown Agent Profile ${setup.profileId}`)
       const tool = this.#options.catalog.getTool(profile.toolId)
       if (!tool) throw new Error(`Unknown Agent Tool ${profile.toolId}`)
       const workspace = await preparePlayerWorkspace(
@@ -238,6 +240,8 @@ export class MatchRuntime {
           this.#options.board,
           player.id,
           historyEvents,
+          promptContractVersion,
+          setupBySeat.get(player.seat)?.character ?? null,
         ),
       })),
     )
@@ -454,12 +458,6 @@ export class MatchRuntime {
       this.#snapshotScheduled = false
       if (!this.#disposed) this.#broadcastSnapshot()
     })
-  }
-
-  #requireProfile(id: AgentProfile['id']): AgentProfile {
-    const profile = this.#options.catalog.getProfile(id)
-    if (!profile) throw new Error(`Unknown Agent Profile ${id}`)
-    return profile
   }
 
   async #replacePlayerSessions(): Promise<void> {

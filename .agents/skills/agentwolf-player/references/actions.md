@@ -20,7 +20,9 @@ The platform normally streams direct assistant text on speech turns. Use this to
 { "targetPlayerId": "player-6" }
 ```
 
-Use `null` only to abstain when abstention is allowed. The judge determines whether the vote is for sheriff, exile, runoff, or the wolf kill.
+Use `null` only when the current instruction permits an empty choice. During the wolf kill vote,
+`null` is the explicit no-kill ballot. The judge determines whether the vote is for sheriff, exile,
+runoff, or the wolf kill.
 
 ## Night action
 

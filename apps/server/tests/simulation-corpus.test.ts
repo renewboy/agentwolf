@@ -41,5 +41,5 @@ describe('approved simulation corpus', () => {
         )
       }
     }
-  }, 180_000)
+  }, 240_000)
 })

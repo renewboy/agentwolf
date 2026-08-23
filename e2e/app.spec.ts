@@ -54,6 +54,16 @@ test.afterAll(async ({ request }) => {
   )) {
     await request.delete(`/api/boards/${board.id}`)
   }
+  const characters = (await (await request.get('/api/characters')).json()) as Array<{
+    id: string
+    name: string
+    source: string
+  }>
+  for (const character of characters.filter(
+    (entry) => entry.source === 'custom' && entry.name.includes(testRunId),
+  )) {
+    await request.delete(`/api/characters/${character.id}`)
+  }
   const profiles = (await (await request.get('/api/agent-profiles')).json()) as Array<{
     id: string
     name: string
@@ -116,6 +126,51 @@ test('creates, edits, selects, and deletes a custom six-player board', async ({ 
   const dialog = page.getByRole('alertdialog', { name: '确认删除板子' })
   await dialog.getByRole('button', { name: '删除板子' }).click()
   await expect(page.getByRole('button', { name: new RegExp(boardName) })).toBeHidden()
+})
+
+test('copies a Character, saves board defaults, and blocks duplicate Match nicknames', async ({
+  page,
+}) => {
+  const characterName = `E2E Character ${testRunId}`
+  const boardName = `E2E Character Board ${testRunId}`
+  await page.goto('/collection/characters')
+  await expect(page.locator('.aw-character-card')).toHaveCount(12)
+  await page.getByRole('button', { name: /江户川柯南 名侦探柯南/ }).click()
+  await page.getByRole('button', { name: '复制为自定义角色' }).click()
+  await page.getByLabel('角色姓名', { exact: true }).fill(characterName)
+  await page
+    .locator('.aw-character-upload input[type="file"]')
+    .setInputFiles(resolve('packages/assets/characters/portraits/mouri-ran.png'))
+  await expect(page.locator('.aw-character-editor__portrait > img')).toHaveAttribute(
+    'src',
+    /portrait-[a-f0-9]{64}$/,
+  )
+  await page.getByRole('button', { name: '保存角色' }).click()
+  await expect(page.getByText('角色卡已保存')).toBeVisible()
+
+  await page.goto('/boards')
+  await page.getByRole('button', { name: /6 人快速场/ }).click()
+  await page.getByRole('button', { name: '基于此创建' }).click()
+  await page.getByLabel('板子名称').fill(boardName)
+  const characterSelectors = page.getByRole('combobox', { name: /号座位扮演角色/ })
+  await characterSelectors.nth(0).click()
+  await page.getByRole('option', { name: `${characterName} · 名侦探柯南`, exact: true }).click()
+  await characterSelectors.nth(1).click()
+  await page.getByRole('option', { name: `${characterName} · 名侦探柯南`, exact: true }).click()
+  await page.getByRole('button', { name: '保存板子' }).click()
+  await expect(page.getByText('板子已保存')).toBeVisible()
+
+  await page.goto('/matches/new')
+  await page.getByRole('button', { name: '6 人', exact: true }).click()
+  await page.getByRole('button', { name: new RegExp(boardName) }).click()
+  const seats = page.locator('.aw-seat-config')
+  await expect(seats.nth(0).getByRole('textbox')).toHaveValue(characterName)
+  await expect(seats.nth(1).getByRole('textbox')).toHaveValue(characterName)
+  await expect(page.getByRole('button', { name: '开始对局' })).toBeDisabled()
+  await expect(seats.nth(0)).toHaveAttribute('data-duplicate-name', 'true')
+  await seats.nth(1).getByRole('textbox').fill(`${characterName} B`)
+  await expect(page.getByRole('button', { name: '开始对局' })).toBeEnabled()
+  await expect(page.locator('select')).toHaveCount(0)
 })
 
 test('creates, reorders, defaults, edits, and deletes an Agent Profile', async ({
@@ -285,7 +340,7 @@ test('generates unique seat names and preserves the manual role multiset', async
   expect(new Set(after).size).toBe(12)
 
   await page.getByRole('button', { name: '指定身份' }).click()
-  const roles = page.getByRole('combobox', { name: '身份' })
+  const roles = page.getByRole('combobox', { name: '身份牌' })
   await expect(roles).toHaveCount(12)
   const beforeRoles = await roles.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute('data-value') ?? ''),
@@ -970,6 +1025,91 @@ test('shows sealed vote progress without a thinking spinner and groups ballots b
     '投4号：1号、5号、6号',
   ])
   await expect(voteResult).not.toContainText('测试玩家')
+})
+
+test('shows private wolf ballots in god and Werewolf player views only', async ({ page }) => {
+  const source = thinkingMatchFixture()
+  const wolfVote = {
+    sequence: 31,
+    kind: 'vote.resolved',
+    title: '狼人投票平票：3号、4号、空刀同为1票，随机选择3号作为袭击目标。',
+    detail: '投3号：1号\n投4号：2号\n空刀：3号',
+    playerIds: ['player-1', 'player-2', 'player-4', 'player-3'],
+    occurredAt: '2026-08-23T00:00:01.000Z',
+  } as MatchView['timeline'][number]
+  const base = {
+    ...source,
+    id: 'match-private-wolf-ballot-test',
+    phaseId: 'phase-night-witch',
+    phaseLabel: '女巫行动',
+    timeline: [source.timeline[0]!, wolfVote],
+    seats: source.seats.map((seat, index) => ({
+      ...seat,
+      roleId: index < 2 ? 'role-werewolf' : 'role-villager',
+      roleName: index < 2 ? '狼人' : '平民',
+      faction: index < 2 ? 'werewolf' : 'village',
+      active: false,
+      sessionStatus: 'ready',
+    })),
+  } as MatchView
+  const projection = (view: { kind: string; playerId?: string }): MatchView => ({
+    ...base,
+    timeline:
+      view.kind === 'god' ||
+      (view.kind === 'player' && ['player-1', 'player-2'].includes(view.playerId ?? ''))
+        ? base.timeline
+        : [base.timeline[0]!],
+  })
+  await page.route(`**/api/matches/${base.id}?*`, async (route) => {
+    const url = new URL(route.request().url())
+    await route.fulfill({
+      json: projection({
+        kind: url.searchParams.get('view') ?? 'god',
+        playerId: url.searchParams.get('playerId') ?? undefined,
+      }),
+    })
+  })
+  await page.routeWebSocket('**/live?*', (socket) => {
+    if (!socket.url().includes(base.id)) return
+    const sendSnapshot = (view: { kind: string; playerId?: string }): void => {
+      socket.send(JSON.stringify({ type: 'snapshot', view, data: projection(view) }))
+    }
+    const url = new URL(socket.url())
+    sendSnapshot({
+      kind: url.searchParams.get('view') ?? 'god',
+      playerId: url.searchParams.get('playerId') ?? undefined,
+    })
+    socket.onMessage((value) => {
+      const message = JSON.parse(String(value)) as {
+        type: string
+        view?: { kind: string; playerId?: string }
+      }
+      if (message.type === 'view.set' && message.view) sendSnapshot(message.view)
+    })
+  })
+
+  await page.goto(`/matches/${base.id}`)
+  const privateVote = page.getByText(/狼人投票平票/)
+  await expect(privateVote).toBeVisible()
+  await expect(page.locator('.aw-vote-result__detail > span')).toHaveText([
+    '投3号：1号',
+    '投4号：2号',
+    '空刀：3号',
+  ])
+
+  await page.getByRole('button', { name: '闭眼视角' }).click()
+  await expect(privateVote).toBeHidden()
+  await page.getByRole('button', { name: '玩家视角' }).click()
+  await expect(privateVote).toBeVisible()
+  const playerSelect = page.getByRole('combobox', { name: '选择玩家视角' })
+  await playerSelect.click()
+  await page.getByRole('option', { name: '4 号玩家 测试玩家4', exact: true }).click()
+  await expect(privateVote).toBeHidden()
+  await playerSelect.click()
+  await page.getByRole('option', { name: '2 号玩家 测试玩家2', exact: true }).click()
+  await expect(privateVote).toBeVisible()
+  await page.getByRole('button', { name: '上帝视角' }).click()
+  await expect(privateVote).toBeVisible()
 })
 
 test('plays every speech by sequence and keeps manual controls independent from phase pacing', async ({

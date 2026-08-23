@@ -116,9 +116,14 @@ export function renderEventNarration(event: GameEvent, catalog: NarrationCatalog
             voter: playerLabel(payload.voterId, catalog),
             target: playerLabel(payload.targetId, catalog),
           })
-        : formatCopy(getCopy('narration.abstain'), {
-            voter: playerLabel(payload.voterId, catalog),
-          })
+        : formatCopy(
+            getCopy(
+              payload.kind === 'wolf-kill' ? 'narration.wolfNoKillVote' : 'narration.abstain',
+            ),
+            {
+              voter: playerLabel(payload.voterId, catalog),
+            },
+          )
     case 'vote.resolved': {
       const totals = Object.entries(payload.totals)
         .sort(([, left], [, right]) => right - left)

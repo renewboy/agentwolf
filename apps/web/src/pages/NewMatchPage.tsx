@@ -2,18 +2,27 @@ import { ArrowLeft, DiceFive, Play, Shuffle } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatCopy, getCopy, NicknameGenerator } from '@agentwolf/assets'
-import type { AgentProfile, BoardSummary, RoleId, SeatAssignmentInput } from '@agentwolf/contracts'
+import type {
+  AgentProfile,
+  BoardSummary,
+  CharacterCard,
+  CharacterId,
+  RoleId,
+  SeatAssignmentInput,
+} from '@agentwolf/contracts'
 import { AgentProfileIdSchema } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { GameSelect } from '../components/GameSelect.js'
 import { RoleBadge } from '../components/RoleBadge.js'
+import { characterPortraitUrl } from '../character-portraits.js'
 
 interface SeatDraft {
   readonly seat: number
   readonly name: string
   readonly profileId: AgentProfile['id'] | ''
   readonly roleId: RoleId
+  readonly characterId: CharacterId | null
 }
 
 const nicknameGenerator = new NicknameGenerator()
@@ -23,6 +32,7 @@ export function NewMatchPage() {
   const navigate = useNavigate()
   const [boards, setBoards] = useState<BoardSummary[] | null>(null)
   const [profiles, setProfiles] = useState<AgentProfile[] | null>(null)
+  const [characters, setCharacters] = useState<CharacterCard[] | null>(null)
   const [playerCount, setPlayerCount] = useState(preferredPlayerCount)
   const [boardId, setBoardId] = useState<string>('')
   const [roleAssignment, setRoleAssignment] = useState<'random' | 'manual'>('random')
@@ -33,9 +43,14 @@ export function NewMatchPage() {
   const load = useCallback(async () => {
     setError(null)
     try {
-      const [nextBoards, nextProfiles] = await Promise.all([api.listBoards(), api.listProfiles()])
+      const [nextBoards, nextProfiles, nextCharacters] = await Promise.all([
+        api.listBoards(),
+        api.listProfiles(),
+        api.listCharacters(),
+      ])
       setBoards(nextBoards)
       setProfiles(nextProfiles)
+      setCharacters(nextCharacters)
       setPlayerCount((current) =>
         nextBoards.some((entry) => entry.playerCount === current)
           ? current
@@ -88,21 +103,51 @@ export function NewMatchPage() {
       })) ?? [],
     [board],
   )
+  const characterOptions = useMemo(
+    () => [
+      { value: 'none', label: getCopy('setup.noCharacter') },
+      ...(characters ?? []).map((character) => ({
+        value: character.id,
+        label: `${character.name} · ${character.universe}`,
+      })),
+    ],
+    [characters],
+  )
   useEffect(() => {
-    if (!board || !profiles) return
+    if (!board || !profiles || !characters) return
     const roleIds = board.roles.flatMap(({ roleId, count }) =>
       Array.from({ length: count }, () => roleId),
     )
-    const names = nicknameGenerator.many(board.playerCount)
-    setSeats(
-      names.map((name, index) => ({
-        seat: index + 1,
-        name,
-        profileId: profiles[0]?.id ?? '',
-        roleId: roleIds[index]!,
-      })),
+    const characterById = new Map(characters.map((character) => [character.id, character]))
+    const characterIds = [...board.characters]
+      .sort((left, right) => left.seat - right.seat)
+      .map(({ characterId }) => characterId)
+    const reservedNames = new Set(
+      characterIds.flatMap((characterId) => {
+        const name = characterId ? characterById.get(characterId)?.name : null
+        return name ? [name] : []
+      }),
     )
-  }, [board, profiles])
+    const generatedNames = nicknameGenerator.many(
+      characterIds.filter((characterId) => characterId === null).length,
+      reservedNames,
+    )
+    let generatedIndex = 0
+    setSeats(
+      Array.from({ length: board.playerCount }, (_, index) => {
+        const characterId = characterIds[index] ?? null
+        const character = characterId ? characterById.get(characterId) : null
+        const name = character?.name ?? generatedNames[generatedIndex++]!
+        return {
+          seat: index + 1,
+          name,
+          profileId: profiles[0]?.id ?? '',
+          roleId: roleIds[index]!,
+          characterId,
+        }
+      }),
+    )
+  }, [board, characters, profiles])
 
   const rerollSeat = (seatNumber: number): void => {
     const used = new Set(seats.filter((seat) => seat.seat !== seatNumber).map((seat) => seat.name))
@@ -142,6 +187,10 @@ export function NewMatchPage() {
 
   const startMatch = async (): Promise<void> => {
     if (!board || !profiles || seats.some((seat) => !seat.profileId)) return
+    if (duplicateNames(seats).size > 0) {
+      setError(getCopy('setup.duplicateName'))
+      return
+    }
     setStarting(true)
     setError(null)
     try {
@@ -153,6 +202,7 @@ export function NewMatchPage() {
             seat: seat.seat,
             name: seat.name,
             profileId: AgentProfileIdSchema.parse(seat.profileId),
+            characterId: seat.characterId,
             ...(roleAssignment === 'manual' ? { roleId: seat.roleId } : {}),
           }),
         ),
@@ -165,9 +215,9 @@ export function NewMatchPage() {
     }
   }
 
-  if (error && (!boards || !profiles))
+  if (error && (!boards || !profiles || !characters))
     return <ErrorState message={error} retry={() => void load()} />
-  if (!boards || !profiles || !board) return <LoadingState />
+  if (!boards || !profiles || !characters || !board) return <LoadingState />
   if (profiles.length === 0) {
     return (
       <main className="aw-page">
@@ -286,68 +336,120 @@ export function NewMatchPage() {
             </button>
           </div>
           <div className="aw-seat-config-list">
-            {seats.map((seat) => (
-              <article className="aw-seat-config" key={seat.seat}>
-                <strong>{formatCopy(getCopy('setup.seat'), { seat: seat.seat })}</strong>
-                <label className="aw-field">
-                  <span className="aw-field__label">{getCopy('setup.playerName')}</span>
-                  <div className="aw-inline-field">
-                    <input
-                      className="aw-input"
-                      value={seat.name}
-                      onChange={(event) =>
+            {seats.map((seat) => {
+              const character = characters.find((entry) => entry.id === seat.characterId) ?? null
+              const duplicated = duplicateNames(seats).has(seat.name.trim())
+              return (
+                <article
+                  className="aw-seat-config"
+                  data-duplicate-name={duplicated}
+                  key={seat.seat}
+                >
+                  <strong>{formatCopy(getCopy('setup.seat'), { seat: seat.seat })}</strong>
+                  <label className="aw-field">
+                    <span className="aw-field__label">{getCopy('setup.playerName')}</span>
+                    <div className="aw-inline-field">
+                      <input
+                        className="aw-input"
+                        value={seat.name}
+                        onChange={(event) =>
+                          setSeats((current) =>
+                            current.map((entry) =>
+                              entry.seat === seat.seat
+                                ? { ...entry, name: event.target.value }
+                                : entry,
+                            ),
+                          )
+                        }
+                      />
+                      <button
+                        className="aw-button aw-button--square"
+                        title={getCopy('setup.reroll')}
+                        type="button"
+                        onClick={() => rerollSeat(seat.seat)}
+                      >
+                        <Shuffle size={18} aria-hidden />
+                      </button>
+                    </div>
+                    {duplicated ? (
+                      <small className="aw-field__hint aw-field__hint--error">
+                        {getCopy('setup.duplicateName')}
+                      </small>
+                    ) : null}
+                  </label>
+                  <label className="aw-field aw-character-select-field">
+                    <span className="aw-field__label">{getCopy('setup.character')}</span>
+                    <div className="aw-character-select-row">
+                      {character ? (
+                        <img src={characterPortraitUrl(character.portraitAssetId)} alt="" />
+                      ) : null}
+                      <GameSelect
+                        ariaLabel={getCopy('setup.character')}
+                        options={characterOptions}
+                        value={seat.characterId ?? 'none'}
+                        onChange={(value) => {
+                          const selected =
+                            value === 'none'
+                              ? null
+                              : (characters.find((entry) => entry.id === value) ?? null)
+                          const used = new Set(
+                            seats
+                              .filter((entry) => entry.seat !== seat.seat)
+                              .map((entry) => entry.name),
+                          )
+                          setSeats((current) =>
+                            current.map((entry) =>
+                              entry.seat === seat.seat
+                                ? {
+                                    ...entry,
+                                    characterId: selected?.id ?? null,
+                                    name: selected?.name ?? nicknameGenerator.one(used),
+                                  }
+                                : entry,
+                            ),
+                          )
+                        }}
+                      />
+                    </div>
+                  </label>
+                  <label className="aw-field">
+                    <span className="aw-field__label">{getCopy('setup.agentProfile')}</span>
+                    <GameSelect
+                      ariaLabel={getCopy('setup.agentProfile')}
+                      value={seat.profileId}
+                      options={profileOptions}
+                      onChange={(profileId) =>
                         setSeats((current) =>
                           current.map((entry) =>
-                            entry.seat === seat.seat
-                              ? { ...entry, name: event.target.value }
-                              : entry,
+                            entry.seat === seat.seat ? { ...entry, profileId } : entry,
                           ),
                         )
                       }
                     />
-                    <button
-                      className="aw-button aw-button--square"
-                      title={getCopy('setup.reroll')}
-                      type="button"
-                      onClick={() => rerollSeat(seat.seat)}
-                    >
-                      <Shuffle size={18} aria-hidden />
-                    </button>
-                  </div>
-                </label>
-                <label className="aw-field">
-                  <span className="aw-field__label">{getCopy('setup.agentProfile')}</span>
-                  <GameSelect
-                    ariaLabel={getCopy('setup.agentProfile')}
-                    value={seat.profileId}
-                    options={profileOptions}
-                    onChange={(profileId) =>
-                      setSeats((current) =>
-                        current.map((entry) =>
-                          entry.seat === seat.seat ? { ...entry, profileId } : entry,
-                        ),
-                      )
-                    }
-                  />
-                </label>
-                {roleAssignment === 'manual' ? (
-                  <label className="aw-field">
-                    <span className="aw-field__label">{getCopy('setup.role')}</span>
-                    <GameSelect
-                      ariaLabel={getCopy('setup.role')}
-                      value={seat.roleId}
-                      options={roleOptions}
-                      onChange={(roleId) => swapSeatRole(seat.seat, roleId)}
-                    />
                   </label>
-                ) : null}
-              </article>
-            ))}
+                  {roleAssignment === 'manual' ? (
+                    <label className="aw-field">
+                      <span className="aw-field__label">{getCopy('setup.role')}</span>
+                      <GameSelect
+                        ariaLabel={getCopy('setup.role')}
+                        value={seat.roleId}
+                        options={roleOptions}
+                        onChange={(roleId) => swapSeatRole(seat.seat, roleId)}
+                      />
+                    </label>
+                  ) : null}
+                </article>
+              )
+            })}
           </div>
           {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
           <button
             className="aw-button aw-button--primary aw-start-button"
-            disabled={starting || seats.some((seat) => !seat.name.trim() || !seat.profileId)}
+            disabled={
+              starting ||
+              duplicateNames(seats).size > 0 ||
+              seats.some((seat) => !seat.name.trim() || !seat.profileId)
+            }
             type="button"
             onClick={() => void startMatch()}
           >
@@ -362,4 +464,13 @@ export function NewMatchPage() {
       </div>
     </main>
   )
+}
+
+function duplicateNames(seats: readonly SeatDraft[]): ReadonlySet<string> {
+  const counts = new Map<string, number>()
+  for (const seat of seats) {
+    const name = seat.name.trim()
+    if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+  return new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name))
 }

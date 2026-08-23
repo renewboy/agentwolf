@@ -8,11 +8,35 @@ per-feature run narratives live under `docs/acceptance/archive/`; see the archiv
 
 ## Deterministic application checks
 
-- 107 unit and integration scenarios across 30 test files passed, including exact bootstrap teammate knowledge, guarded ACP process trees, parent-process loss, bounded protocol close, Trae code-mode MCP isolation, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, deterministic simulation, browser review and approval, orchestration project-root validation, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 89.13% lines, 86.24% statements, 90.83% functions, and 75.48% branches over rule, ACP, asset, and server production sources.
-- Fourteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete with complete role colors, Agent Profile metadata layout and ordering, global speech settings, 6/9/12-player setup, spectator model and visibility-safe role projection, Match-row simulation workflow, developer model/role trajectory inspection, right-rail and owner-heading alignment, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
-- Default parallel `pnpm check` completed in 20.7 seconds. TypeScript strict build, Oxlint, Oxfmt,
-  Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
+- 117 unit and integration scenarios across 32 test files passed, including the twelve built-in
+  Character cards and portraits, full-ability Character prompting, Character
+  copy/edit/upload/reference protection, board Character defaults and Match overrides, immutable
+  Character snapshots, exact bootstrap teammate knowledge, guarded ACP process trees,
+  parent-process loss, bounded protocol close, Trae code-mode MCP isolation, game-only player launch
+  policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote
+  projection, explicit wolf no-kill plurality, replay-stable wolf tie selection, private wolf-ballot
+  visibility, public board composition, private night visibility, final-only role publication,
+  custom-board persistence and migration, global-setting persistence and Match snapshots, normalized
+  trajectory capture and audit, deterministic simulation, browser review and approval,
+  orchestration project-root validation, role-effect projection, bounded transport auto-recovery,
+  cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day
+  order, terminal Session projection, and 6/9/12-player board validation.
+- Coverage passed at 89.02% lines, 86.24% statements, 91.00% functions, and 75.41% branches over
+  rule, ACP, asset, and server production sources.
+- Sixteen Chromium acceptance scenarios passed: Character library copy/edit and PNG-to-WebP upload,
+  repeated board Character defaults, duplicate-nickname blocking, custom-board
+  create/edit/select/delete with complete role colors, Agent Profile metadata layout and ordering,
+  global speech settings, 6/9/12-player setup, spectator model and visibility-safe role projection,
+  Match-row simulation workflow, developer model/role trajectory inspection, right-rail and
+  owner-heading alignment, fixed-height live match motion, sheriff-candidate and full/reduced/off
+  semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote
+  cards, private wolf ballots in god and Werewolf player views, streamed sentence playback with
+  committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal
+  connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
+- TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and
+  Skill gates passed.
+- All twelve 1024×1024 generated PNG portraits passed catalog/file validation and are covered by the
+  repository Git LFS portrait pattern.
 
 The simulation corpus contains 3 fixtures and 14 variants. Each variant runs two engine replays and
 two full orchestration replays, for 56 executions; orchestration also rebuilds and audits every
@@ -33,7 +57,7 @@ completed, and the host reported zero orphaned `traecli acp serve` processes aft
 
 ## Deterministic simulation corpus
 
-The approved corpus contains two ended Matches with 125/35 recorded Agent Turns and 506/180
+The approved corpus contains two ended Matches with 125/35 recorded Agent Turns and 526/186
 canonical domain events, plus a paused six-player Match with two consecutive uncertain deliveries
 at the first wolf-council action boundary. The complete fixture runs recorded, forward and reverse
 parallel completion order, transient delivery, engine restart reconstruction, playback completion,
@@ -95,6 +119,7 @@ A retained browser-visible Match used six real isolated Trae Sessions:
 | Match ID                                      | Result                | Events | Player Turns | Game tool records |
 | --------------------------------------------- | --------------------- | -----: | -----------: | ----------------: |
 | `match-board-phase2-real-6-no-s-bdb87ae0b60d` | Werewolves, day three |    369 |           53 |                25 |
+| `match-board-6-20260824-8288022-aabec6768ba1` | Werewolves, day two   |    248 |           34 |                15 |
 
 All six foundation Turns used Prompt contract 16 and reported between 2,578 and 2,604 tokens, a
 maximum reduction of about 92.6% from the prior roughly 35k bootstrap. All Sessions remained at
@@ -106,6 +131,15 @@ Match completed; this was a rejected game target, not a context or transport fai
 Prompt contract 16 enforces a 12,000-token bootstrap budget in the trajectory audit. Deterministic
 coverage verifies the version boundary and exact budget, so a future Agent or adapter that restores
 ambient context makes the audit fail visibly.
+
+The retained Character Match used Conan, Haibara, Kogoro, Heiji, Amuro, and Gin portraits with six
+real Trae Sessions. Every Prompt-contract-18 foundation contained the owning immutable Character
+card and full-reasoning boundary, contained no other seat's Character card, and bound Match identity
+to the nickname. Bootstrap usage ranged from 2,629 to 5,613 tokens across the two configured models.
+All Sessions stayed at generation one; the Match ended without a pause, and exact reconstruction
+audited all 34 player Turns with zero issues and zero error Records. Browser inspection showed the
+six portraits in the live player rails and distinct Character expression during wolf council, last
+words, two day discussions, voting, and the terminal reveal without deliberate low-quality play.
 
 ## Model, role, and Trae code-mode acceptance
 

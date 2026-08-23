@@ -47,6 +47,16 @@ if (/switch\s*\([^)]*roleId/.test(engine)) {
     'game-engine/src/engine.ts must not switch on role IDs; register role behavior instead',
   )
 }
+const gameEngineSource = (
+  await Promise.all(
+    files
+      .filter((path) => localPath(path).startsWith('packages/game-engine/src/'))
+      .map((path) => text(path)),
+  )
+).join('\n')
+if (/\b(?:CharacterId|CharacterCard|CharacterCardSnapshot)\b/.test(gameEngineSource)) {
+  errors.push('game-engine must not depend on Character persona data')
+}
 const roleFiles = files.filter((path) =>
   /packages\/game-engine\/src\/roles\/(?!base|helpers|registry)[^/]+\.ts$/.test(localPath(path)),
 )

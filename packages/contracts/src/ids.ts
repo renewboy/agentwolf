@@ -38,6 +38,18 @@ export const RoleIdSchema = z
   .transform((value) => value as RoleId)
 export type RoleId = Brand<string, 'RoleId'>
 
+export const CharacterIdSchema = z
+  .string()
+  .regex(/^character-[a-z0-9][a-z0-9-]{1,63}$/)
+  .transform((value) => value as CharacterId)
+export type CharacterId = Brand<string, 'CharacterId'>
+
+export const CharacterPortraitAssetIdSchema = z
+  .string()
+  .regex(/^portrait-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as CharacterPortraitAssetId)
+export type CharacterPortraitAssetId = Brand<string, 'CharacterPortraitAssetId'>
+
 export const AbilityIdSchema = z
   .string()
   .regex(/^ability-[a-z0-9][a-z0-9-]{1,63}$/)

@@ -1,5 +1,6 @@
 import copy from '../../packages/assets/copy/zh-CN.json' with { type: 'json' }
 import names from '../../packages/assets/names/zh-CN.json' with { type: 'json' }
+import characters from '../../packages/assets/characters/zh-CN.json' with { type: 'json' }
 import { sourceFiles, text, localPath, failIfErrors, projectRoot } from './files.js'
 import { access } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -84,6 +85,25 @@ if (new Set(names.prefixes).size !== names.prefixes.length || names.prefixes.len
 }
 if (new Set(names.suffixes).size !== names.suffixes.length || names.suffixes.length < 30) {
   errors.push('nickname suffixes must contain at least 30 unique values')
+}
+
+if (characters.length !== 12 || new Set(characters.map(({ id }) => id)).size !== 12) {
+  errors.push('built-in Character catalog must contain exactly 12 unique cards')
+}
+for (const character of characters) {
+  if (character.editable || character.source !== 'built-in') {
+    errors.push(`built-in Character ${character.id} must be read-only`)
+  }
+  if (character.personality.length < 2 || character.boundaries.length < 1) {
+    errors.push(`built-in Character ${character.id} has an incomplete portrayal contract`)
+  }
+  try {
+    await access(
+      resolve(projectRoot, 'packages/assets/characters/portraits', character.portraitFile),
+    )
+  } catch {
+    errors.push(`missing built-in Character portrait ${character.portraitFile}`)
+  }
 }
 
 for (const required of [

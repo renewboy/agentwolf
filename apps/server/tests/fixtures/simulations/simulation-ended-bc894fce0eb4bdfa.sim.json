@@ -3995,8 +3995,8 @@
     "fingerprint": "bc894fce0eb4bdfa9611e8488aefc1b723c665a3389085c6dcdebacd3b29b239"
   },
   "expected": {
-    "eventCount": 506,
-    "eventDigest": "e31c82b99af4c4a51c9f0be6489e7252f2e3185f16c8ff8c0df3d408770e9ac9",
+    "eventCount": 526,
+    "eventDigest": "26872ea2e58033f6b67bdd310717f847b4ed82c4e82e0ec89d1ab0fa3687dc93",
     "eventTypes": [
       "match.created",
       "role.assigned",
@@ -4043,6 +4043,11 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
       "night.attack-selected",
       "phase.changed",
       "phase.actors-set",
@@ -4224,6 +4229,11 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
       "night.attack-selected",
       "phase.changed",
       "phase.actors-set",
@@ -4352,6 +4362,11 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
       "night.attack-selected",
       "phase.changed",
       "phase.actors-set",
@@ -4473,6 +4488,11 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
       "night.attack-selected",
       "phase.changed",
       "phase.actors-set",
@@ -4532,7 +4552,7 @@
         "player-11",
         "player-12"
       ],
-      "lastSequence": 506
+      "lastSequence": 526
     }
   },
   "variants": [

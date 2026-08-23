@@ -400,11 +400,149 @@
 }
 
 .aw-board-role-editor,
+.aw-board-character-editor,
 .aw-board-rules {
   display: grid;
   gap: 14px;
   padding-top: 20px;
   border-top: 1px solid var(--aw-color-line);
+}
+
+.aw-board-character-editor .aw-panel-heading > span {
+  display: grid;
+  gap: 4px;
+}
+
+.aw-board-character-editor .aw-panel-heading small {
+  color: var(--aw-color-text-muted);
+  line-height: 1.45;
+}
+
+.aw-board-character-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aw-board-character-slot {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-board-character-slot img,
+.aw-board-character-slot__empty {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgb(216 169 91 / 34%);
+  border-radius: 50%;
+  background: rgb(7 16 25 / 62%);
+  object-fit: cover;
+}
+
+.aw-character-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aw-character-card {
+  display: grid;
+  min-width: 0;
+  padding: 9px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.aw-character-card:hover,
+.aw-character-card[data-selected='true'] {
+  border-color: var(--aw-color-amber-soft);
+  background: rgb(216 169 91 / 8%);
+}
+
+.aw-character-card img {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.aw-character-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.aw-character-card strong,
+.aw-character-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-character-card small {
+  color: var(--aw-color-text-muted);
+}
+
+.aw-character-ability-note {
+  margin: 0;
+  padding: 11px 13px;
+  border-left: 3px solid var(--aw-color-amber);
+  color: var(--aw-color-text-muted);
+  background: rgb(216 169 91 / 7%);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.aw-character-editor__portrait {
+  display: grid;
+  grid-template-columns: 104px minmax(0, max-content);
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.aw-character-editor__portrait > img,
+.aw-character-editor__portrait > svg {
+  grid-row: 1 / 3;
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgb(216 169 91 / 42%);
+  border-radius: 50%;
+  color: var(--aw-color-text-muted);
+  background: rgb(7 16 25 / 62%);
+  object-fit: cover;
+}
+
+.aw-character-editor__portrait small {
+  max-width: 420px;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.aw-character-upload {
+  position: relative;
+  overflow: hidden;
+}
+
+.aw-character-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 .aw-board-role-grid {
@@ -1177,13 +1315,37 @@
 
 .aw-seat-config {
   display: grid;
-  grid-template-columns: 110px minmax(150px, 1fr) minmax(180px, 1fr) minmax(130px, 0.7fr);
+  grid-template-columns:
+    90px minmax(140px, 1fr) minmax(180px, 1.1fr) minmax(170px, 1fr)
+    minmax(120px, 0.7fr);
   align-items: end;
   gap: 12px;
   padding: 14px;
   border: 1px solid rgb(51 66 80 / 68%);
   border-radius: var(--aw-radius-control);
   background: rgb(7 16 25 / 44%);
+}
+
+.aw-seat-config[data-duplicate-name='true'] {
+  border-color: var(--aw-color-danger);
+}
+
+.aw-field__hint--error {
+  color: var(--aw-color-danger);
+}
+
+.aw-character-select-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.aw-character-select-row > img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .aw-seat-config > strong {
@@ -1739,6 +1901,13 @@
   font-size: 24px;
 }
 
+.aw-player-avatar__core img {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .aw-player-avatar__seat {
   display: grid;
   position: absolute;
@@ -1818,6 +1987,14 @@
   overflow: hidden;
   color: var(--aw-color-text-muted);
   font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-player-card__character {
+  overflow: hidden;
+  color: var(--aw-color-text-muted);
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

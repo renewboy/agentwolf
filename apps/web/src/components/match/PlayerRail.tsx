@@ -2,6 +2,7 @@ import { Crown, HandPalm, Skull } from '@phosphor-icons/react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type { SeatView } from '@agentwolf/contracts'
 import { RoleBadge } from '../RoleBadge.js'
+import { characterPortraitUrl } from '../../character-portraits.js'
 
 export function PlayerRail({
   seats,
@@ -71,7 +72,13 @@ function PlayerCard({
     >
       <div className="aw-player-avatar" aria-hidden>
         <span className="aw-player-avatar__ring" />
-        <span className="aw-player-avatar__core">{initial}</span>
+        <span className="aw-player-avatar__core">
+          {seat.character ? (
+            <img src={characterPortraitUrl(seat.character.portraitAssetId)} alt="" />
+          ) : (
+            initial
+          )}
+        </span>
         <span className="aw-player-avatar__seat">{seat.seat}</span>
       </div>
       <div className="aw-player-card__copy">
@@ -94,6 +101,9 @@ function PlayerCard({
           ) : null}
           {!seat.alive ? <Skull size={15} aria-label={getCopy('match.eliminated')} /> : null}
         </div>
+        {seat.character ? (
+          <span className="aw-player-card__character">{seat.character.name}</span>
+        ) : null}
         <RoleBadge
           className="aw-player-card__role"
           label={seat.roleName ?? getCopy('match.roleHidden')}

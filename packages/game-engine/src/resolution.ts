@@ -126,21 +126,6 @@ export function effectsForActions(
   return { agenda, consumedAbilityIds }
 }
 
-export function selectPluralityTarget(
-  votes: readonly Extract<PlayerAction, { type: 'vote' }>[],
-): PlayerId | null {
-  const totals = new Map<PlayerId, number>()
-  for (const vote of votes) {
-    if (vote.targetId) totals.set(vote.targetId, (totals.get(vote.targetId) ?? 0) + 1)
-  }
-  const ranked = [...totals.entries()].sort(
-    ([leftId, left], [rightId, right]) => right - left || leftId.localeCompare(rightId),
-  )
-  if (ranked.length === 0) return null
-  if (ranked[1]?.[1] === ranked[0]?.[1]) return null
-  return ranked[0]?.[0] ?? null
-}
-
 export const v1AbilityIds = {
   werewolfKill: AbilityIdSchema.parse('ability-werewolf-kill'),
   guardProtect: AbilityIdSchema.parse('ability-guard-protect'),

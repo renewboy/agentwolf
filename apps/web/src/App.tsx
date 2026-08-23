@@ -4,6 +4,7 @@ import { getCopy } from '@agentwolf/assets'
 import { AppShell } from './components/AppShell.js'
 import { AgentsPage } from './pages/AgentsPage.js'
 import { BoardsPage } from './pages/BoardsPage.js'
+import { CollectionPage } from './pages/CollectionPage.js'
 import { LobbyPage } from './pages/LobbyPage.js'
 import { NewMatchPage } from './pages/NewMatchPage.js'
 import { SettingsPage } from './pages/SettingsPage.js'
@@ -35,6 +36,8 @@ function AppRoutes() {
         <Route index element={<LobbyPage />} />
         <Route path="agents" element={<AgentsPage />} />
         <Route path="boards" element={<BoardsPage />} />
+        <Route path="collection" element={<Navigate to="/collection/characters" replace />} />
+        <Route path="collection/characters" element={<CollectionPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route
           path="matches/:matchId/trajectory"

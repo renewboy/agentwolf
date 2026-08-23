@@ -6,13 +6,14 @@
 Web spectator and setup UI
           |
           v
-Fastify API and view projector ---- SQLite event/profile/board/settings/trajectory repository
+Fastify API and view projector ---- SQLite event/profile/board/Character/settings/trajectory repository
           |
           +---- Match orchestrator ---- Action gateway ---- Player MCP tools
           |             |
           |             +---- ACP session supervisor ---- ACP agent processes
           |
           +---- Board catalog ---- immutable Match board snapshots
+          +---- Character catalog ---- built-ins / custom cards / managed portraits
           |
           +---- Rule engine ---- role registry / phase graph / resolution agenda
 ```
@@ -31,7 +32,7 @@ contracts  <- game-engine
              web
 ```
 
-`contracts` owns branded identifiers, API schemas, event envelopes, action schemas, and view DTOs. `game-engine` owns deterministic state transitions and cannot perform IO. `acp` owns process and protocol lifecycle but does not know game rules. `assets` owns prompts, copy, nickname words, design tokens, and CSS. `server` composes the packages, persistence, orchestration, MCP endpoint, REST, and live streams. `web` consumes projected DTOs only.
+`contracts` owns branded identifiers, API schemas, event envelopes, action schemas, Character schemas, and view DTOs. `game-engine` owns deterministic state transitions and cannot perform IO. `acp` owns process and protocol lifecycle but does not know game rules. `assets` owns prompts, copy, Character cards and portraits, nickname words, design tokens, and CSS. `server` composes the packages, persistence, orchestration, MCP endpoint, REST, managed Character media, and live streams. `web` consumes projected DTOs only.
 
 ## Rules and roles
 
@@ -42,6 +43,13 @@ policy, revision, and ruleset ID as an immutable snapshot; replay and recovery c
 snapshot rather than consulting the mutable catalog. A role is a concrete class implementing role
 metadata plus event handlers and action providers. Rule modules register phase transitions, action
 validators, resolution handlers, visibility rules, and victory evaluators.
+
+A Character is public presentation metadata and is distinct from a game role. Custom boards store
+nullable Character IDs by seat; Match creation resolves board defaults and request overrides into
+complete immutable Character snapshots. The Character Catalog combines read-only asset-backed
+built-ins with SQLite custom cards. Uploaded portraits are content-addressed under `.agentwolf/`;
+historical Match snapshots retain their asset IDs. The game engine and domain event log contain no
+Character IDs or card data.
 
 Global Match preferences are persisted separately from Agent Profiles. Match creation reads the
 current global settings and stores the speech-character preference in its setup snapshot; runtime
@@ -74,10 +82,14 @@ Future roles use these extension points:
 
 Every event receives a match-local monotonic sequence and a visibility descriptor: public, god-only, player set, or faction. State is reduced from the event log. View projectors filter before serialization.
 
-The regular Werewolf attack selection is visible to living Werewolves and to a living Witch only
-while her antidote remains available. The Witch's antidote can target only that regular attack
-target. Once the antidote is unavailable, neither incremental events nor the Witch action
-instruction disclose a death target to her.
+Wolf-kill ballots and their grouped resolution use Werewolf-faction visibility, so god and
+Werewolf player projections receive the complete vote while other player and closed-eye
+projections receive none of it. A no-kill ballot is a real choice and wins only by strict
+plurality. A tied highest count selects one replay-stable random player target. The resulting
+regular attack selection is visible to living Werewolves and to a living Witch only while her
+antidote remains available. The Witch's antidote can target only that regular attack target. Once
+the antidote is unavailable, neither incremental events nor the Witch action instruction disclose
+a death target to her.
 
 Each player session stores a delivery cursor. A prompt envelope contains only visible events after that cursor. The envelope is marked in-flight before `session/prompt`; the cursor advances only after a final ACP response. Failure after dispatch marks delivery as uncertain for bounded runtime recovery; a repeated failure for the same player and phase pauses for operator action.
 
@@ -93,7 +105,8 @@ Operator recovery keeps a live ACP session when available. The uncertain attempt
 its delivered sequence so previous context is not resent, then the current action is prompted
 again. After process restart, the rule engine is restored from the event log and replacement ACP
 sessions receive one foundation containing their own role, one detailed public rules entry for
-every role on the selected board, the complete roster, their permitted faction knowledge, and
+every role on the selected board, their own Character card when selected, the complete
+nickname-only roster, their permitted faction knowledge, and
 their visible match history before incremental delivery resumes. A foundation's source history
 must cover its acknowledged cursor.
 

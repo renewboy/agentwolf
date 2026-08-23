@@ -6,12 +6,13 @@ import {
   type PlayerId,
 } from '@agentwolf/contracts'
 import { assertRule } from './errors.js'
-import { effectsForActions, selectPluralityTarget, v1AbilityIds } from './resolution.js'
+import { effectsForActions, v1AbilityIds } from './resolution.js'
 import { appendFinalRoleReveals } from './role-reveal.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
 import { resolveDaySpeechOrder, sheriffCampaignOrder } from './speech-order.js'
 import { IdiotRole } from './roles/idiot.js'
 import { evaluateVictory } from './victory.js'
+import { emitVoteResolution } from './vote-resolution.js'
 
 const hunterRoleId = RoleIdSchema.parse('role-hunter')
 const idiotRoleId = RoleIdSchema.parse('role-idiot')
@@ -28,47 +29,6 @@ function bySeat(runtime: RuleRuntime, ids: Iterable<PlayerId>): PlayerId[] {
     const rightSeat = runtime.state.players.get(right)?.seat ?? Number.MAX_SAFE_INTEGER
     return leftSeat - rightSeat
   })
-}
-
-function phaseVotes(runtime: RuleRuntime): Extract<PlayerAction, { type: 'vote' }>[] {
-  return runtime.state.phaseActions.filter(
-    (action): action is Extract<PlayerAction, { type: 'vote' }> => action.type === 'vote',
-  )
-}
-
-function emitVoteResolution(runtime: RuleRuntime, kind: string, sheriffWeight: boolean): void {
-  const votes = phaseVotes(runtime)
-  const totals: Record<string, number> = {}
-  for (const vote of [...votes].sort((left, right) => {
-    const leftSeat = runtime.state.players.get(left.actorId)?.seat ?? 0
-    const rightSeat = runtime.state.players.get(right.actorId)?.seat ?? 0
-    return leftSeat - rightSeat
-  })) {
-    const weight = sheriffWeight && runtime.state.sheriff.holderId === vote.actorId ? 1.5 : 1
-    runtime.append(
-      {
-        type: 'vote.cast',
-        voterId: vote.actorId,
-        targetId: vote.targetId,
-        kind,
-        weight,
-      },
-      visibility.public,
-    )
-    if (vote.targetId) totals[vote.targetId] = (totals[vote.targetId] ?? 0) + weight
-  }
-  const ranked = Object.entries(totals).sort(
-    ([leftId, left], [rightId, right]) => right - left || leftId.localeCompare(rightId),
-  )
-  const maximum = ranked[0]?.[1] ?? 0
-  const tiedPlayerIds = ranked
-    .filter(([, total]) => total === maximum && maximum > 0)
-    .map(([id]) => id as PlayerId)
-  const selectedPlayerId = tiedPlayerIds.length === 1 ? (tiedPlayerIds[0] ?? null) : null
-  runtime.append(
-    { type: 'vote.resolved', kind, totals, tiedPlayerIds, selectedPlayerId },
-    visibility.public,
-  )
 }
 
 function appendFinalDeath(
@@ -257,9 +217,13 @@ function resolveSheriff(runtime: RuleRuntime): void {
     runtime.append({ type: 'sheriff.elected', playerId: standing[0]! }, visibility.public)
     return
   }
-  if (runtime.state.lastVote?.selectedPlayerId) {
+  const sheriffVote = runtime.state.lastVote
+  if (
+    sheriffVote?.selectedPlayerId &&
+    (sheriffVote.kind === 'sheriff' || sheriffVote.kind === 'sheriff-runoff')
+  ) {
     runtime.append(
-      { type: 'sheriff.elected', playerId: runtime.state.lastVote.selectedPlayerId },
+      { type: 'sheriff.elected', playerId: sheriffVote.selectedPlayerId },
       visibility.public,
     )
     return
@@ -425,7 +389,13 @@ export function registerClassicRules(registry: RuleRegistry): void {
   registry.registerPredicate('interrupted-to-night', (runtime) => runtime.state.interruptToNight)
 
   registry.registerPhaseHandler(phase('phase-night-wolf-vote'), (runtime) => {
-    const targetId = selectPluralityTarget(phaseVotes(runtime))
+    const targetId = emitVoteResolution(
+      runtime,
+      'wolf-kill',
+      false,
+      visibility.faction('werewolf'),
+      `${runtime.state.matchId}:night:${runtime.state.night}:wolf-kill`,
+    )
     const recipients = [...runtime.state.players.values()]
       .filter(
         (player) =>

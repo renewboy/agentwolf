@@ -1,11 +1,12 @@
 import {
   AgentProfileIdSchema,
+  CharacterCardSnapshotSchema,
   GameEventSchema,
   MatchIdSchema,
   PhaseIdSchema,
   PlayerIdSchema,
 } from '@agentwolf/contracts'
-import { formatCopy, getCopy } from '@agentwolf/assets'
+import { builtInCharacterCards, formatCopy, getCopy } from '@agentwolf/assets'
 import {
   GameEngine,
   createV1RoleRegistry,
@@ -357,7 +358,7 @@ describe('ContextRenderer board rules', () => {
       'speech-turn',
       instruction,
     )
-    expect(promptContractVersion).toBeGreaterThanOrEqual(14)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(17)
     expect(current.prompt).toContain(instruction)
 
     const legacy = await renderer.turn(
@@ -402,6 +403,19 @@ describe('ContextRenderer board rules', () => {
       instruction,
     )
     expect(currentWolfVote.prompt).toContain(instruction)
+    expect(currentWolfVote.prompt).toContain('选择空刀')
+    expect(currentWolfVote.prompt).toContain('`null`')
+    const versionSixteenWolfVote = await renderer.turn(
+      engine.state,
+      engine.events,
+      players[0]!.id,
+      0,
+      'wolf-vote-turn',
+      instruction,
+      16,
+    )
+    expect(versionSixteenWolfVote.prompt).toContain('必须使用一名非狼人玩家')
+    expect(versionSixteenWolfVote.prompt).not.toContain('选择空刀')
     const legacyWolfVote = await renderer.turn(
       engine.state,
       engine.events,
@@ -437,6 +451,37 @@ describe('ContextRenderer board rules', () => {
         role: getCopy('roles.villager'),
       }),
     )
+  })
+
+  it('adds only the acting player Character while preserving full game intelligence', async () => {
+    const renderer = new ContextRenderer(createV1RoleRegistry())
+    const { engine, players } = createBoardEngine(sixPlayerBoard)
+    const ran = CharacterCardSnapshotSchema.parse(
+      builtInCharacterCards.find((character) => character.id === 'character-mouri-ran'),
+    )
+    const prompt = (
+      await renderer.foundation(
+        engine.state,
+        sixPlayerBoard,
+        players[0]!.id,
+        engine.events,
+        promptContractVersion,
+        ran,
+      )
+    ).prompt
+    expect(prompt).toContain(ran.name)
+    expect(prompt).toContain(players[0]!.name)
+    expect(prompt).toContain('完整推理能力')
+    expect(prompt).toContain('不得为了符合角色形象而故意漏判')
+    expect(prompt).not.toContain('远山和叶')
+
+    const withoutCharacter = await renderer.foundation(
+      engine.state,
+      sixPlayerBoard,
+      players[0]!.id,
+      engine.events,
+    )
+    expect(withoutCharacter.prompt).not.toContain('## 扮演角色')
   })
 })
 

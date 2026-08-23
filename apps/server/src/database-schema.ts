@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 5) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 6) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -29,6 +29,7 @@ export function migrateDatabase(database: Database.Database): void {
         json TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      ${characterTables()}
       CREATE TABLE matches (
         id TEXT PRIMARY KEY,
         board_id TEXT NOT NULL,
@@ -53,7 +54,7 @@ export function migrateDatabase(database: Database.Database): void {
         PRIMARY KEY(match_id, player_id)
       );
       ${trajectoryTables()}
-      PRAGMA user_version = 5;
+      PRAGMA user_version = 6;
     `)
   }
   if (version === 1) {
@@ -98,7 +99,7 @@ export function migrateDatabase(database: Database.Database): void {
       PRAGMA user_version = 4;
     `)
   }
-  if (version >= 1 && version <= 4) {
+  if (version >= 1 && version <= 5) {
     const trajectoryRecords = database
       .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'trajectory_records'")
       .get()
@@ -107,8 +108,24 @@ export function migrateDatabase(database: Database.Database): void {
         'CREATE INDEX IF NOT EXISTS trajectory_records_turn ON trajectory_records(match_id, turn_id, ordinal)',
       )
     }
-    database.pragma('user_version = 5')
+    database.exec(characterTables())
+    database.pragma('user_version = 6')
   }
+}
+
+function characterTables(): string {
+  return `
+    CREATE TABLE IF NOT EXISTS custom_characters (
+      id TEXT PRIMARY KEY,
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS character_assets (
+      id TEXT PRIMARY KEY,
+      json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `
 }
 
 function trajectoryTables(): string {

@@ -22,10 +22,10 @@ AgentWolf is a TypeScript workspace for running Werewolf matches between long-li
 
 ## Workspace map
 
-- `packages/contracts`: branded IDs, API schemas, event envelopes, action schemas, Agent schemas, and view DTOs.
+- `packages/contracts`: branded IDs, API schemas, event envelopes, action schemas, Agent and Character schemas, and view DTOs.
 - `packages/game-engine`: deterministic boards, phase graph, roles, resolution, victory, replay, and visibility. It performs no IO.
 - `packages/acp`: Agent tool catalog, ACP process/session lifecycle, streamed updates, and delivery ledgers.
-- `packages/assets`: prompts, localized copy, narration, nickname words, design tokens, and all CSS.
+- `packages/assets`: prompts, localized copy, narration, Character cards and portraits, nickname words, design tokens, and all CSS.
 - `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery. See its [local instructions](apps/server/AGENTS.md).
 - `apps/web`: React application, validated API client, setup, settings, lobby, and spectator UI. See its [local instructions](apps/web/AGENTS.md).
 - `scripts`: architecture, artifact, documentation, skill, formatting, coverage, and CI gates.
@@ -81,6 +81,9 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Structured actions enter through the action gateway. Natural speech streams, is sanitized, and commits through the same gateway.
 - Player IDs are valid in prompts and structured actions. Public speech and last words contain nicknames or seats, never `player-N` identifiers.
 - Parallel vote/action stages use one barrier snapshot and publish results only after all eligible turns settle.
+- Character cards are public presentation metadata outside the game engine and domain events. They
+  affect expression only; every player retains full reasoning quality, and nicknames remain the
+  only natural-language Match identity.
 - Trajectory collection is active in every mode; its HTTP and WebSocket read surfaces require loopback developer mode.
 
 ## Test and runtime-data rules

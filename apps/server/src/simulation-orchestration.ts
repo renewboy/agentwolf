@@ -79,6 +79,7 @@ export async function runOrchestrationSimulation(
           name: player.name,
           profileId: player.profileId,
           roleId: player.roleId,
+          character: player.character,
         })),
       },
       createdAt: timestamp,

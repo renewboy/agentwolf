@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { PlayerActionSchema } from './actions.js'
+import { CharacterCardSnapshotSchema } from './characters.js'
 import { EventVisibilitySchema, FactionSchema, GameEventPayloadSchema } from './events.js'
 import { MatchBoardSnapshotSchema } from './game.js'
 import {
@@ -40,6 +41,7 @@ export const SimulationPlayerSchema = z.object({
   name: z.string().min(1).max(80),
   profileId: AgentProfileIdSchema,
   roleId: RoleIdSchema,
+  character: CharacterCardSnapshotSchema.nullable().default(null),
 })
 export type SimulationPlayer = z.infer<typeof SimulationPlayerSchema>
 

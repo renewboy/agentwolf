@@ -2,11 +2,14 @@
 
 ## Test layers
 
-- Unit tests cover role classes, resolution priorities, role-effect catalog coverage, custom-board
-  validation, phase transitions, speech sanitization, nickname uniqueness, event reduction, and
-  visibility projection.
+- Unit tests cover role classes, resolution priorities, wolf no-kill and replay-stable tie
+  selection, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
+  role-effect catalog coverage, custom-board validation, phase transitions, speech
+  sanitization, nickname uniqueness, event reduction, and visibility projection.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
 - Integration tests run the API with an in-memory repository and fake ACP processes. They cover
+  Character upload/copy/CRUD and reference protection, board Character defaults and Match
+  overrides, repeated Characters with unique nicknames, immutable Character snapshots,
   custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
   redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
@@ -19,16 +22,20 @@
   routing, Prompt reconstruction, delivery recovery, restart reconstruction, playback completion,
   skip and disconnect, and repeated-run determinism.
 - Browser tests cover Agent Profile management, profile metadata layout, whole-row drag feedback,
-  keyboard ordering, persisted setup defaults, custom-board management, complete role-palette
-  coverage, styled listbox behavior, confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
-  nickname labels, seat model labels, visibility-safe role badges, cross-screen role-color
-  consistency, semantic record tags, minimap-to-Record navigation, stable player switching,
+  keyboard ordering, persisted setup defaults, Character library editing and portrait upload,
+  custom-board Character defaults, Match overrides and duplicate nickname blocking, custom-board
+  management, complete role-palette coverage, styled listbox behavior, confirmation-dialog focus and
+  deletion, Match setup, per-Match trajectory entry, seat and nickname labels, seat model labels,
+  visibility-safe role badges, cross-screen role-color consistency, semantic record tags,
+  minimap-to-Record navigation, stable player switching,
   shared-period collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
-  view switching, live speech, target-grouped vote
-  results, non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
+  view switching, live speech, target-grouped vote results, private wolf-ballot visibility,
+  non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
   manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
   waiting feedback, terminal-state motion cleanup, and missing-Match request settlement.
-- Browser fixtures use a per-run name namespace and remove every created Match, Agent Profile, and custom Agent Tool during suite teardown, including after failed assertions.
+- Browser fixtures use a per-run name namespace and remove every created Match, custom board,
+  custom Character, Agent Profile, and custom Agent Tool during suite teardown, including after
+  failed assertions.
 - Optional live ACP smokes verify installed adapters, game-only tool visibility, bootstrap usage,
   and a real structured action with a one-turn fake Match. They never run in keyless CI.
 
@@ -84,7 +91,7 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
 17. Death and exile keep identities hidden in running closed-eye and player projections; `match.ended` precedes one final public identity event per seat, and every terminal projection exposes all roles.
 18. An ended page closes continuous presence motion and live reconnection, while a 404 Match page stops further GET and WebSocket attempts.
 19. A valid structured action immediately projects `submitted` to god and actor views while remaining hidden from other player and closed-eye views.
-20. Vote collection uses phase-specific copy and a pulsing signal rail without circular rotation; resolved vote cards group voter seats by target seat and preserve weighted votes and abstentions.
+20. Vote collection uses phase-specific copy and a pulsing signal rail without circular rotation; resolved vote cards group voter seats by target seat and preserve weighted votes, abstentions, and wolf no-kill ballots. God and Werewolf player views receive detailed wolf ballots while closed-eye, non-Werewolf, and Witch views do not.
 21. A speech stage may generate every speaker in sequence, but its following phase receives no Agent prompt until the controlling browser completes or skips the visible playback queue through the final speech sequence. Closed-eye playback does not hold private wolf-council speech.
 22. A saved six-player Seer/Witch board can switch sheriff and victory policies; editing or
     deleting it does not change a Match created from an earlier revision.
@@ -100,7 +107,9 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
 27. Wolf council exposes no self-destruct interrupt or premature night-action contract, while
     sheriff and daytime Werewolves receive the exact self-destruct ability ID accepted by the
     engine. The following wolf attack stage accepts only `submit_vote`, explicitly forbids
-    `submit_night_action`, and the bootstrap callable-ability list omits the regular attack ID.
+    `submit_night_action`, offers `targetPlayerId: null` as no-kill, resolves no-kill only by strict
+    plurality, chooses a replay-stable player target on a highest-vote tie, and keeps the bootstrap
+    callable-ability list free of the regular attack ID.
 28. Developer mode places `查看轨迹` on each Match record, routes by that Match ID, shows players by
     seat with nickname, configured model, and complete color-labeled role identity as secondary
     context, fills the available viewport, and presents labeled semantic colors without a global
@@ -144,3 +153,7 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
 41. The complete 14-variant simulation corpus preserves its reviewed events, checkpoints, audits,
     and repeated-run determinism while default parallel `pnpm check` stays within the existing
     timeout.
+42. A six-player board can assign the same Character to multiple seats. Match setup defaults both
+    nicknames to the Character name, blocks creation until the nicknames are unique, permits
+    per-Match Character overrides, snapshots every selected card, injects only the owning card with
+    the full-ability boundary, and projects Character portraits without changing game-role secrecy.

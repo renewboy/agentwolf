@@ -19,6 +19,7 @@ import {
 import type { AgentCatalogService } from './agent-catalog.js'
 import { ActionMailbox } from './action-mailbox.js'
 import type { BoardCatalogService } from './board-catalog.js'
+import type { CharacterCatalogService } from './character-catalog.js'
 import type { ServerConfig } from './config.js'
 import { createReadableId } from './ids.js'
 import type { LiveConnection, LiveSubscriber } from './live-hub.js'
@@ -39,6 +40,7 @@ export interface MatchManagerOptions {
   readonly repository: SqliteRepository
   readonly catalog: AgentCatalogService
   readonly boards: BoardCatalogService
+  readonly characters: CharacterCatalogService
   readonly trajectories: TrajectoryService
   readonly config: ServerConfig
   readonly mailbox?: ActionMailbox
@@ -82,12 +84,26 @@ export class MatchManager {
     if (new Set(orderedSeats.map((seat) => seat.name)).size !== orderedSeats.length) {
       throw new Error('Player names must be unique inside a match')
     }
+    const boardCharacters = new Map(
+      resolvedBoard.summary.characters.map((slot) => [slot.seat, slot.characterId]),
+    )
+    const snapshotSeats = orderedSeats.map((seat) => {
+      const characterId =
+        seat.characterId === undefined ? (boardCharacters.get(seat.seat) ?? null) : seat.characterId
+      return {
+        seat: seat.seat,
+        name: seat.name,
+        profileId: seat.profileId,
+        ...(seat.roleId ? { roleId: seat.roleId } : {}),
+        character: characterId ? this.#options.characters.snapshot(characterId) : null,
+      }
+    })
     const matchId = MatchIdSchema.parse(createReadableId('match', board.id))
     const roles = createV1RoleRegistry()
     const engine = GameEngine.create({
       matchId,
       board,
-      players: orderedSeats.map((seat) => ({
+      players: snapshotSeats.map((seat) => ({
         id: playerIdForSeat(seat.seat),
         seat: seat.seat,
         name: seat.name,
@@ -105,7 +121,12 @@ export class MatchManager {
       boardId: board.id,
       boardSnapshot: resolvedBoard.snapshot,
       status: 'draft',
-      setup: { ...request, speechCharacterLimit: settings.speechCharacterLimit },
+      setup: {
+        boardId: request.boardId,
+        roleAssignment: request.roleAssignment,
+        seats: snapshotSeats,
+        speechCharacterLimit: settings.speechCharacterLimit,
+      },
       createdAt: timestamp,
       updatedAt: timestamp,
       pausedReason: null,
@@ -207,6 +228,8 @@ export class MatchManager {
         const profileId = state.players.get(playerId)?.profileId
         return profileId ? (this.#options.catalog.getProfile(profileId)?.model ?? null) : null
       },
+      characterForSeat: (seat) =>
+        record.setup.seats.find((entry) => entry.seat === seat)?.character ?? null,
     })
   }
 

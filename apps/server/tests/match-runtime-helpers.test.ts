@@ -75,7 +75,7 @@ describe('model action instructions', () => {
       state,
       playerId: actorId,
     })
-    expect(promptContractVersion).toBeGreaterThanOrEqual(14)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(17)
     expect(instruction).toContain('`player-2`')
     expect(instruction).not.toContain('`player-6`')
 

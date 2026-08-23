@@ -1,7 +1,8 @@
-import type { GameEvent, PlayerId, RoleId } from '@agentwolf/contracts'
+import type { CharacterCardSnapshot, GameEvent, PlayerId, RoleId } from '@agentwolf/contracts'
 import {
   formatCopy,
   getCopy as getAssetCopy,
+  renderCharacterPrompt,
   renderEventNarration as narrate,
 } from '@agentwolf/assets'
 import { loadPromptAsset, renderPrompt, type PromptAssetId } from '@agentwolf/assets/prompts'
@@ -22,7 +23,7 @@ export interface ContextEnvelope {
   readonly pausedReason: string | null
 }
 
-export const promptContractVersion = 16
+export const promptContractVersion = 18
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {
@@ -109,6 +110,7 @@ export class ContextRenderer {
     playerId: PlayerId,
     historyEvents: readonly GameEvent[],
     promptVersion = promptContractVersion,
+    character: CharacterCardSnapshot | null = null,
   ): Promise<ContextEnvelope> {
     const historySequence = historyEvents.at(-1)?.sequence ?? 0
     if (historySequence !== state.lastSequence) {
@@ -241,7 +243,10 @@ export class ContextRenderer {
     const template = await loadPromptAsset('player-foundation')
     return {
       prompt: renderPrompt(template, {
-        ROLE_CONTEXT: `${roleLine}\n${abilityLine}`,
+        ROLE_CONTEXT:
+          character && promptVersion >= 18
+            ? `${renderCharacterPrompt(character, player.name)}\n\n${roleLine}\n${abilityLine}`
+            : `${roleLine}\n${abilityLine}`,
         ROSTER: roster,
         BOARD_RULES: rules,
         MATCH_HISTORY: historyLines.join('\n') || getAssetCopy('promptContext.matchNotStarted'),
@@ -293,6 +298,14 @@ export class ContextRenderer {
     return {
       prompt: renderPrompt(template, {
         GAME_NARRATION: narration,
+        WOLF_VOTE_INSTRUCTION:
+          promptAsset === 'wolf-vote-turn'
+            ? getAssetCopy(
+                promptVersion >= 17
+                  ? 'promptActions.wolfVoteTargetOptions'
+                  : 'promptActions.wolfVoteTargetRequired',
+              )
+            : '',
         ACTION_INSTRUCTION: versionedActionInstruction(
           promptAsset,
           actionInstruction,

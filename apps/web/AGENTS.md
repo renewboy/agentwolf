@@ -8,6 +8,7 @@ Read [the frontend direction](../../docs/frontend.md) before changing layout, in
 
 - The web app is a React/Vite presentation client. It consumes validated API and WebSocket DTOs through `src/api.ts`; game rules, persistence, hidden-field filtering, and server orchestration never move into the browser.
 - Pages compose product flows, components own reusable interaction and presentation, hooks own browser-side lifecycle and external effects, and `src/motion/gsap.ts` is the only GSAP entry point. Keep behavior with the narrowest existing owner.
+- The Collection page owns Character-card browsing and editing. Board and Match setup consume its public catalog, while the spectator treats Character portrait/name as public secondary context and keeps nickname primary.
 - `ModalDialog` owns the shared application-modal layer, focus trap, Escape handling, backdrop
   dismissal, and focus restoration. Guided workflows compose it without duplicating those rules.
 - Visible copy comes from `packages/assets/copy`; CSS, colors, motion values, and design tokens come from `packages/assets/styles`. Components contain no inline style props, raw color literals, emoji icons, utility-class design strings, or unregistered user-facing text.

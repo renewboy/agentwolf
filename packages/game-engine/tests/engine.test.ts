@@ -129,6 +129,138 @@ describe('GameEngine', () => {
     expect(() => engine.submit(invalidAction)).toThrow('Werewolves cannot attack a werewolf')
   })
 
+  it('resolves a strict no-kill plurality as an intentional empty attack', () => {
+    const engine = createManualEngine(standardBoard)
+    const wolves = actorsWithRole(engine, 'role-werewolf')
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+    engine.start()
+    advanceToWolfVote(engine)
+
+    engine.submit({
+      type: 'vote',
+      matchId: engine.state.matchId,
+      actorId: wolves[0]!,
+      targetId,
+      kind: 'wolf-kill',
+    })
+    for (const actorId of wolves.slice(1)) {
+      engine.submit({
+        type: 'vote',
+        matchId: engine.state.matchId,
+        actorId,
+        targetId: null,
+        kind: 'wolf-kill',
+      })
+    }
+
+    const resolved = engine.events.findLast(
+      (event) => event.payload.type === 'vote.resolved' && event.payload.kind === 'wolf-kill',
+    )
+    expect(resolved?.payload).toMatchObject({
+      type: 'vote.resolved',
+      totals: { [targetId]: 1 },
+      tiedPlayerIds: [],
+      selectedPlayerId: null,
+    })
+    expect(
+      engine.events.findLast((event) => event.payload.type === 'night.attack-selected')?.payload,
+    ).toEqual({ type: 'night.attack-selected', targetId: null })
+  })
+
+  it('chooses one replay-stable player target when the highest wolf votes are tied', () => {
+    const run = () => {
+      const engine = createManualEngine(sixPlayerBoard)
+      const wolves = actorsWithRole(engine, 'role-werewolf')
+      const targets = actorsWithRole(engine, 'role-villager')
+      engine.start()
+      advanceToWolfVote(engine)
+      wolves.forEach((actorId, index) => {
+        engine.submit({
+          type: 'vote',
+          matchId: engine.state.matchId,
+          actorId,
+          targetId: targets[index]!,
+          kind: 'wolf-kill',
+        })
+      })
+      const resolved = engine.events.findLast(
+        (event) => event.payload.type === 'vote.resolved' && event.payload.kind === 'wolf-kill',
+      )
+      if (resolved?.payload.type !== 'vote.resolved') throw new Error('Missing wolf vote result')
+      return { engine, resolved, targets, wolves }
+    }
+
+    const first = run()
+    const second = run()
+    expect(first.resolved.payload.tiedPlayerIds).toEqual(first.targets)
+    expect(first.resolved.payload.selectedPlayerId).not.toBeNull()
+    expect(first.targets).toContain(first.resolved.payload.selectedPlayerId)
+    expect(second.resolved.payload.selectedPlayerId).toBe(first.resolved.payload.selectedPlayerId)
+    expect(
+      first.engine.events
+        .filter((event) => event.payload.type === 'vote.cast' && event.payload.kind === 'wolf-kill')
+        .map((event) => (event.payload.type === 'vote.cast' ? event.payload.voterId : undefined)),
+    ).toEqual(first.wolves)
+    expect(
+      first.engine.events.findLast((event) => event.payload.type === 'night.attack-selected')
+        ?.payload,
+    ).toEqual({
+      type: 'night.attack-selected',
+      targetId: first.resolved.payload.selectedPlayerId,
+    })
+  })
+
+  it('selects the player target when no-kill shares the highest wolf vote count', () => {
+    const engine = createManualEngine(sixPlayerBoard)
+    const wolves = actorsWithRole(engine, 'role-werewolf')
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+    engine.start()
+    advanceToWolfVote(engine)
+    engine.submit({
+      type: 'vote',
+      matchId: engine.state.matchId,
+      actorId: wolves[0]!,
+      targetId,
+      kind: 'wolf-kill',
+    })
+    engine.submit({
+      type: 'vote',
+      matchId: engine.state.matchId,
+      actorId: wolves[1]!,
+      targetId: null,
+      kind: 'wolf-kill',
+    })
+
+    expect(
+      engine.events.findLast(
+        (event) => event.payload.type === 'vote.resolved' && event.payload.kind === 'wolf-kill',
+      )?.payload,
+    ).toMatchObject({ selectedPlayerId: targetId, tiedPlayerIds: [targetId] })
+    expect(engine.state.nightAttackTargetId).toBe(targetId)
+  })
+
+  it('does not treat the prior wolf vote winner as Sheriff when every player declines', () => {
+    const engine = createManualEngine(standardBoard)
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+    engine.start()
+    playNight(engine, { wolfTargetId: targetId })
+    expect(engine.state.phaseId).toBe('phase-sheriff-signup')
+    submitExpected(engine, (actorId) => ({
+      type: 'sheriff-action',
+      matchId: engine.state.matchId,
+      actorId,
+      action: 'decline',
+    }))
+
+    expect(engine.state.sheriff.holderId).toBeNull()
+    expect(engine.state.sheriff.badgeLost).toBe(true)
+    expect(
+      engine.events.some(
+        (event) => event.payload.type === 'sheriff.elected' && event.payload.playerId === targetId,
+      ),
+    ).toBe(false)
+  })
+
   it('accepts a Hunter pass as an intentional death-trigger action', () => {
     const engine = createManualEngine(sixPlayerBoard)
     const hunterId = actorsWithRole(engine, 'role-hunter')[0]!
@@ -427,3 +559,18 @@ describe('GameEngine', () => {
     expect(restored.state.phaseId).toBe('phase-night-wolf-council')
   })
 })
+
+function advanceToWolfVote(engine: GameEngine): void {
+  while (engine.state.phaseId === 'phase-night-wolf-council') {
+    const actorId = engine.activeActor()
+    if (!actorId) throw new Error('Expected wolf council actor')
+    engine.submit({
+      type: 'speech',
+      matchId: engine.state.matchId,
+      actorId,
+      kind: 'wolf-council',
+      text: '完成狼队商议。',
+    })
+  }
+  expect(engine.state.phaseId).toBe('phase-night-wolf-vote')
+}

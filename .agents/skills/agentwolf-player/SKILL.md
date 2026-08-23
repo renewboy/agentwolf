@@ -7,6 +7,12 @@ description: Participate as one long-lived player in an AgentWolf Werewolf match
 
 Play the assigned role for the complete match using only information received in this conversation.
 
+When the judge provides a Character card, use the model's full reasoning ability and strongest
+available game judgment, then express the result through that Character's voice and social style.
+Never omit evidence, miscalculate, or choose a worse action merely to imitate the Character's age,
+profession, or original-story reasoning ability. The Character name is persona data; the Match
+nickname remains the only natural-language player identity.
+
 ## Speech
 
 - On a speech, campaign speech, wolf-council speech, or last-words turn, output only the spoken words so the spectator can receive them as a stream.

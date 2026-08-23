@@ -18,6 +18,10 @@ persist through the emitted actor/order events.
 
 Night interaction prompts follow `Guard -> Werewolves -> Witch -> Seer`. The board manifest owns this order. Resolution is effect-based and does not depend on a core switch statement. The default Guard board applies guard-and-antidote collision as a death and keeps Witch self-save disabled.
 
+The regular Werewolf attack uses one private ballot per living Werewolf. A `null` ballot is an
+explicit no-kill choice and must strictly outpoll every player target. A highest-vote tie selects
+one of the tied non-Werewolf player targets through a Match- and night-stable random choice.
+
 Sources:
 
 - [Official role, board, victory, and last-word rules](https://langrensha.com/wanfa/guize/2017/10/18/26899_719311.html)

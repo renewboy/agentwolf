@@ -1,6 +1,8 @@
 import {
   MatchViewSchema,
   RoleEffectCueSchema,
+  CharacterSummarySchema,
+  type CharacterCardSnapshot,
   type GameEvent,
   type MatchId,
   type MatchView,
@@ -44,7 +46,8 @@ export interface ProjectMatchOptions {
   readonly events: readonly GameEvent[]
   readonly view: SpectatorView
   readonly roles: RoleRegistry
-  readonly model: (playerId: PlayerId) => string | null
+  readonly model?: (playerId: PlayerId) => string | null
+  readonly characterForSeat?: (seat: number) => CharacterCardSnapshot | null
   readonly sessionStatus?: (playerId: PlayerId) => SessionStatus
 }
 
@@ -105,7 +108,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
           playerId: player.id,
           seat: player.seat,
           name: player.name,
-          model: options.model(player.id),
+          model: options.model?.(player.id) ?? null,
           alive: visibleAlive,
           canVote:
             options.view.kind === 'god'
@@ -123,6 +126,12 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
                 faction: options.roles.role(roleId).faction,
               }
             : {}),
+          character: options.characterForSeat?.(player.seat)
+            ? CharacterSummarySchema.parse({
+                ...options.characterForSeat(player.seat),
+                editable: false,
+              })
+            : null,
           sessionStatus: visibleSessionStatus(options, player.id, activeSpeech),
         }
       }),
@@ -240,19 +249,42 @@ export function projectTimeline(
           (left, right) => right.total - left.total || left.playerId.localeCompare(right.playerId),
         )
       const maximum = totalEntries[0]?.total ?? 0
-      const title = payload.selectedPlayerId
-        ? formatCopy(getCopy('timeline.voteSelected'), {
-            player: timelineSeatLabel(payload.selectedPlayerId, catalog),
-            count: maximum,
-          })
-        : payload.tiedPlayerIds.length > 1
-          ? formatCopy(getCopy('timeline.voteTied'), {
-              players: payload.tiedPlayerIds
-                .map((playerId) => timelineSeatLabel(playerId, catalog))
-                .join(getCopy('narration.listJoiner')),
+      const noTargetTotal = voteBallots
+        .filter((ballot) => ballot.targetId === null)
+        .reduce((total, ballot) => total + ballot.weight, 0)
+      const wolfKill = payload.kind === 'wolf-kill'
+      const wolfTie =
+        wolfKill &&
+        payload.selectedPlayerId !== null &&
+        (payload.tiedPlayerIds.length > 1 || (maximum > 0 && noTargetTotal === maximum))
+      const wolfTieContenders = [
+        ...payload.tiedPlayerIds.map((playerId) => timelineSeatLabel(playerId, catalog)),
+        ...(maximum > 0 && noTargetTotal === maximum ? [getCopy('timeline.wolfNoKillLabel')] : []),
+      ]
+      const title = wolfKill
+        ? payload.selectedPlayerId
+          ? formatCopy(
+              getCopy(wolfTie ? 'timeline.wolfVoteTiedSelected' : 'timeline.wolfVoteSelected'),
+              {
+                player: timelineSeatLabel(payload.selectedPlayerId, catalog),
+                players: wolfTieContenders.join(getCopy('narration.listJoiner')),
+                count: maximum,
+              },
+            )
+          : formatCopy(getCopy('timeline.wolfVoteNoKill'), { count: noTargetTotal })
+        : payload.selectedPlayerId
+          ? formatCopy(getCopy('timeline.voteSelected'), {
+              player: timelineSeatLabel(payload.selectedPlayerId, catalog),
               count: maximum,
             })
-          : getCopy('timeline.voteNone')
+          : payload.tiedPlayerIds.length > 1
+            ? formatCopy(getCopy('timeline.voteTied'), {
+                players: payload.tiedPlayerIds
+                  .map((playerId) => timelineSeatLabel(playerId, catalog))
+                  .join(getCopy('narration.listJoiner')),
+                count: maximum,
+              })
+            : getCopy('timeline.voteNone')
       const ballotLines = totalEntries
         .map(({ playerId }) => {
           const voters = voteBallots
@@ -278,24 +310,25 @@ export function projectTimeline(
         .map((ballot) => voteVoterLabel(ballot, catalog))
       if (abstainers.length > 0) {
         ballotLines.push(
-          formatCopy(getCopy('timeline.voteAbstainGroup'), {
+          formatCopy(getCopy(wolfKill ? 'timeline.wolfNoKillGroup' : 'timeline.voteAbstainGroup'), {
             voters: abstainers.join(getCopy('narration.listJoiner')),
           }),
         )
       }
+      const votePlayerIds = uniquePlayerIds([
+        ...voteBallots.flatMap((ballot) => [
+          ballot.voterId,
+          ...(ballot.targetId ? [ballot.targetId] : []),
+        ]),
+        ...payload.tiedPlayerIds,
+      ]).filter((playerId) => playerId !== payload.selectedPlayerId)
+      if (payload.selectedPlayerId) votePlayerIds.push(payload.selectedPlayerId)
       items.push({
         sequence: event.sequence,
         kind: payload.type,
         title,
         ...(ballotLines.length > 0 ? { detail: ballotLines.join('\n') } : {}),
-        playerIds: uniquePlayerIds([
-          ...voteBallots.flatMap((ballot) => [
-            ballot.voterId,
-            ...(ballot.targetId ? [ballot.targetId] : []),
-          ]),
-          ...payload.tiedPlayerIds,
-          ...(payload.selectedPlayerId ? [payload.selectedPlayerId] : []),
-        ]),
+        playerIds: votePlayerIds,
         occurredAt: event.occurredAt,
       })
       continue

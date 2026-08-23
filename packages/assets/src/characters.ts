@@ -1,0 +1,44 @@
+import type {
+  CharacterCard,
+  CharacterCardSnapshot,
+  CharacterPortraitAssetId,
+} from '@agentwolf/contracts'
+import { CharacterCardSchema } from '@agentwolf/contracts'
+import rawCharacters from '../characters/zh-CN.json' with { type: 'json' }
+
+interface BuiltInCharacterRecord {
+  readonly card: CharacterCard
+  readonly portraitFile: string
+}
+
+const records: readonly BuiltInCharacterRecord[] = rawCharacters.map((entry) => {
+  if (typeof entry.portraitFile !== 'string' || !/^[a-z0-9-]+\.png$/.test(entry.portraitFile)) {
+    throw new Error(`Invalid built-in Character portrait file for ${entry.id}`)
+  }
+  return { card: CharacterCardSchema.parse(entry), portraitFile: entry.portraitFile }
+})
+
+export const builtInCharacterCards: readonly CharacterCard[] = records.map(({ card }) => card)
+
+export function builtInCharacterPortraitFile(assetId: CharacterPortraitAssetId): string | null {
+  return records.find(({ card }) => card.portraitAssetId === assetId)?.portraitFile ?? null
+}
+
+export function renderCharacterPrompt(
+  character: CharacterCardSnapshot,
+  playerNickname: string,
+): string {
+  return [
+    '## 扮演角色',
+    `你的本局唯一玩家昵称是“${playerNickname}”。你扮演的角色是“${character.name}”，角色姓名只定义人设，不是对局中的玩家标识。`,
+    `作品或世界观：${character.universe}`,
+    `背景：${character.summary}`,
+    `核心性格：${character.personality.join('；')}`,
+    `社交姿态：${character.socialStyle}`,
+    `公开推理呈现：${character.reasoningPresentation}`,
+    `发言风格：${character.speechStyle}`,
+    `扮演边界：${character.boundaries.join('；')}`,
+    '',
+    '先使用完整推理能力分析全部可见信息并选择你认为最强的合法行动，再用角色化语言表达。不得为了符合角色形象而故意漏判、误算、忽略证据、降低策略质量或提交较差行动。角色设定不改变狼人杀身份、阵营、技能、胜负目标、裁判事实、可见信息或工具契约。所有自然语言称呼只使用玩家昵称或座位号。',
+  ].join('\n')
+}

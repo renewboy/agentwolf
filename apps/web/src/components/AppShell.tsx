@@ -1,5 +1,6 @@
 import {
   GearSix,
+  CardsThree,
   MoonStars,
   PlusCircle,
   SlidersHorizontal,
@@ -18,6 +19,11 @@ export function AppShell() {
         <nav className="aw-nav" aria-label={getCopy('navigation.lobby')}>
           <NavItem to="/" label={getCopy('navigation.lobby')} icon={<MoonStars />} end />
           <NavItem to="/matches/new" label={getCopy('navigation.newMatch')} icon={<PlusCircle />} />
+          <NavItem
+            to="/collection/characters"
+            label={getCopy('navigation.collection')}
+            icon={<CardsThree />}
+          />
           <NavItem to="/boards" label={getCopy('navigation.boards')} icon={<SquaresFour />} />
           <NavItem to="/agents" label={getCopy('navigation.agents')} icon={<GearSix />} />
           <NavItem

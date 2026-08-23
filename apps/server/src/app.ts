@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { createReadStream, existsSync } from 'node:fs'
 import Fastify, { type FastifyInstance } from 'fastify'
 import cors from '@fastify/cors'
 import staticPlugin from '@fastify/static'
@@ -10,6 +10,10 @@ import {
   AgentToolIdSchema,
   AgentToolInputSchema,
   BoardIdSchema,
+  CharacterCardInputSchema,
+  CharacterIdSchema,
+  CharacterPortraitAssetIdSchema,
+  CharacterPortraitUploadSchema,
   CreateMatchRequestSchema,
   CustomBoardInputSchema,
   GlobalSettingsSchema,
@@ -26,6 +30,7 @@ import { ZodError } from 'zod'
 import { AgentCatalogService } from './agent-catalog.js'
 import { AgentProbeService } from './agent-probe.js'
 import { BoardCatalogService } from './board-catalog.js'
+import { CharacterCatalogService } from './character-catalog.js'
 import type { ServerConfig } from './config.js'
 import { handleMcpRequest } from './mcp.js'
 import { MatchManager, MatchNotFoundError } from './match-manager.js'
@@ -46,6 +51,7 @@ export interface AgentWolfServer {
   readonly app: FastifyInstance
   readonly repository: SqliteRepository
   readonly catalog: AgentCatalogService
+  readonly characters: CharacterCatalogService
   readonly boards: BoardCatalogService
   readonly trajectories: TrajectoryService
   readonly simulations: SimulationService
@@ -57,7 +63,8 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   const app = Fastify({ logger: options.logger ?? false })
   const repository = options.repository ?? new SqliteRepository(options.config.databasePath)
   const catalog = new AgentCatalogService(repository)
-  const boards = new BoardCatalogService(repository)
+  const characters = new CharacterCatalogService(repository, options.config)
+  const boards = new BoardCatalogService(repository, characters)
   boards.backfillMatchSnapshots()
   const trajectories = new TrajectoryService(repository)
   const simulations = new SimulationService(repository, boards, options.config)
@@ -65,6 +72,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     repository,
     catalog,
     boards,
+    characters,
     trajectories,
     config: options.config,
     ...(options.sessionFactory ? { sessionFactory: options.sessionFactory } : {}),
@@ -83,7 +91,10 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
       normalized instanceof MatchNotFoundError || normalized.name === 'DeveloperModeDisabledError'
     const conflict =
       normalized.name === 'SimulationSourceError' || normalized.name === 'SimulationWorkflowError'
-    const clientError = normalized instanceof ZodError || normalized.name === 'RuleViolation'
+    const clientError =
+      normalized instanceof ZodError ||
+      normalized.name === 'RuleViolation' ||
+      normalized.name === 'CharacterCatalogError'
     await reply.code(notFound ? 404 : conflict ? 409 : clientError ? 400 : 500).send({
       error: notFound
         ? 'not-found'
@@ -142,6 +153,39 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   app.post('/api/agent-profiles/:id/probe', async (request) => {
     const id = AgentProfileIdSchema.parse((request.params as { id: string }).id)
     return probe.probe(id)
+  })
+
+  app.get('/api/characters', async () => characters.list())
+  app.post('/api/characters', async (request, reply) =>
+    reply.code(201).send(characters.create(CharacterCardInputSchema.parse(request.body))),
+  )
+  app.post('/api/characters/:id/copy', async (request, reply) => {
+    const id = CharacterIdSchema.parse((request.params as { id: string }).id)
+    return reply.code(201).send(characters.copy(id))
+  })
+  app.put('/api/characters/:id', async (request) => {
+    const id = CharacterIdSchema.parse((request.params as { id: string }).id)
+    return characters.update(id, CharacterCardInputSchema.parse(request.body))
+  })
+  app.delete('/api/characters/:id', async (request, reply) => {
+    const id = CharacterIdSchema.parse((request.params as { id: string }).id)
+    characters.delete(id)
+    return reply.code(204).send()
+  })
+  app.post('/api/character-assets', { bodyLimit: 7_500_000 }, async (request, reply) =>
+    reply
+      .code(201)
+      .send(await characters.uploadPortrait(CharacterPortraitUploadSchema.parse(request.body))),
+  )
+  app.get('/api/character-assets/:id', async (request, reply) => {
+    const id = CharacterPortraitAssetIdSchema.parse((request.params as { id: string }).id)
+    const portrait = characters.portrait(id)
+    if (!portrait || !existsSync(portrait.path))
+      return reply.code(404).send({ message: 'Not found' })
+    return reply
+      .type(portrait.mediaType)
+      .header('Cache-Control', 'public, max-age=31536000, immutable')
+      .send(createReadStream(portrait.path))
   })
 
   app.get('/api/boards', async () => matches.listBoards())
@@ -299,7 +343,17 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     repository.close()
   }
 
-  return { app, repository, catalog, boards, trajectories, simulations, matches, close }
+  return {
+    app,
+    repository,
+    catalog,
+    characters,
+    boards,
+    trajectories,
+    simulations,
+    matches,
+    close,
+  }
 }
 
 function viewFromQuery(query: Record<string, unknown>): SpectatorView {

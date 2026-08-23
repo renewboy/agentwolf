@@ -950,8 +950,8 @@
     "fingerprint": "6feafc84a08f2b495c1a5d6e59095da46a697a8f931ffb281c75225fd2c160a9"
   },
   "expected": {
-    "eventCount": 180,
-    "eventDigest": "5ae60e26707e541eb8b656b11bfb64db0a1cd221b6f167cf190f66652fb469d6",
+    "eventCount": 186,
+    "eventDigest": "99aa8e9ad95f37e7fa7c7ebfe21fbbbc7630a2dce9e6a67ac252d3332e8dd28b",
     "eventTypes": [
       "match.created",
       "role.assigned",
@@ -980,6 +980,9 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
       "night.attack-selected",
       "phase.changed",
       "phase.actors-set",
@@ -1070,6 +1073,9 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
       "night.attack-selected",
       "phase.changed",
       "phase.actors-set",
@@ -1143,7 +1149,7 @@
       "sheriffId": null,
       "alivePlayerIds": ["player-1"],
       "votingPlayerIds": ["player-1"],
-      "lastSequence": 180
+      "lastSequence": 186
     }
   },
   "variants": [

@@ -4,6 +4,9 @@ import {
   AgentProfileSchema,
   AgentToolSchema,
   BoardSummarySchema,
+  CharacterCardInputSchema,
+  CharacterCardSchema,
+  CharacterPortraitAssetSchema,
   CustomBoardInputSchema,
   GlobalSettingsSchema,
   MatchViewSchema,
@@ -23,6 +26,11 @@ import {
   type AgentToolId,
   type AgentToolInput,
   type BoardSummary,
+  type CharacterCard,
+  type CharacterCardInput,
+  type CharacterId,
+  type CharacterPortraitAsset,
+  type CharacterPortraitUpload,
   type BoardId,
   type CustomBoardInput,
   type CreateMatchRequest,
@@ -137,6 +145,41 @@ export const api = {
   },
   async listBoards(): Promise<BoardSummary[]> {
     return BoardSummarySchema.array().parse(await requestJson('/api/boards'))
+  },
+  async listCharacters(): Promise<CharacterCard[]> {
+    return CharacterCardSchema.array().parse(await requestJson('/api/characters'))
+  },
+  async createCharacter(input: CharacterCardInput): Promise<CharacterCard> {
+    return CharacterCardSchema.parse(
+      await requestJson('/api/characters', {
+        method: 'POST',
+        body: JSON.stringify(CharacterCardInputSchema.parse(input)),
+      }),
+    )
+  },
+  async copyCharacter(id: CharacterId): Promise<CharacterCard> {
+    return CharacterCardSchema.parse(
+      await requestJson(`/api/characters/${id}/copy`, { method: 'POST' }),
+    )
+  },
+  async updateCharacter(id: CharacterId, input: CharacterCardInput): Promise<CharacterCard> {
+    return CharacterCardSchema.parse(
+      await requestJson(`/api/characters/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(CharacterCardInputSchema.parse(input)),
+      }),
+    )
+  },
+  async deleteCharacter(id: CharacterId): Promise<void> {
+    await requestJson(`/api/characters/${id}`, { method: 'DELETE' })
+  },
+  async uploadCharacterPortrait(input: CharacterPortraitUpload): Promise<CharacterPortraitAsset> {
+    return CharacterPortraitAssetSchema.parse(
+      await requestJson('/api/character-assets', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    )
   },
   async listRoles(): Promise<RoleSummary[]> {
     return RoleSummarySchema.array().parse(await requestJson('/api/roles'))

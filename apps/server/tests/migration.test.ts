@@ -96,7 +96,10 @@ describe('database migration', () => {
         name: '6 人快速场',
         playerCount: 6,
       },
-      setup: { speechCharacterLimit: 300 },
+      setup: {
+        speechCharacterLimit: 300,
+        seats: expect.arrayContaining([expect.objectContaining({ character: null })]),
+      },
     })
     expect(server.repository.getGlobalSettings()).toEqual({ speechCharacterLimit: 300 })
   })
@@ -152,7 +155,14 @@ describe('database migration', () => {
     expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
     reopened.close()
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(5)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(6)
+    expect(
+      migrated
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
+        )
+        .all(),
+    ).toEqual([{ name: 'character_assets' }, { name: 'custom_characters' }])
     migrated.close()
   })
 
@@ -187,11 +197,73 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(5)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(6)
     const indexes = migrated
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
       .all('trajectory_records') as Array<{ name: string }>
     expect(indexes.map(({ name }) => name)).toContain('trajectory_records_turn')
+    expect(
+      migrated
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
+        )
+        .all(),
+    ).toEqual([{ name: 'character_assets' }, { name: 'custom_characters' }])
     migrated.close()
+  })
+
+  it('converges both schema-five branches on Character tables and the trajectory index', async () => {
+    for (const state of ['characters-only', 'trajectory-index-only'] as const) {
+      const root = await mkdtemp(resolve(tmpdir(), `agentwolf-schema-five-${state}-`))
+      roots.push(root)
+      const databasePath = resolve(root, 'agentwolf.sqlite')
+      const legacy = new Database(databasePath)
+      legacy.exec(`
+        CREATE TABLE trajectory_records (
+          match_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          turn_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          revision INTEGER NOT NULL,
+          json TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(match_id, record_id)
+        );
+        ${
+          state === 'characters-only'
+            ? `CREATE TABLE custom_characters (
+                 id TEXT PRIMARY KEY,
+                 json TEXT NOT NULL,
+                 updated_at TEXT NOT NULL
+               );
+               CREATE TABLE character_assets (
+                 id TEXT PRIMARY KEY,
+                 json TEXT NOT NULL,
+                 created_at TEXT NOT NULL
+               );`
+            : 'CREATE INDEX trajectory_records_turn ON trajectory_records(match_id, turn_id, ordinal);'
+        }
+        PRAGMA user_version = 5;
+      `)
+      legacy.close()
+
+      const repository = new SqliteRepository(databasePath)
+      repository.close()
+
+      const migrated = new Database(databasePath)
+      expect(migrated.pragma('user_version', { simple: true })).toBe(6)
+      const tables = migrated
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
+        )
+        .all()
+      expect(tables).toEqual([{ name: 'character_assets' }, { name: 'custom_characters' }])
+      const indexes = migrated
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
+        .all('trajectory_records') as Array<{ name: string }>
+      expect(indexes.map(({ name }) => name)).toContain('trajectory_records_turn')
+      migrated.close()
+    }
   })
 })

@@ -25,6 +25,7 @@ import {
 } from '@agentwolf/game-engine'
 import { createReadableId } from './ids.js'
 import type { SqliteRepository } from './repository.js'
+import type { CharacterCatalogService } from './character-catalog.js'
 
 interface BuiltInBoardDefinition {
   readonly manifest: BoardManifest
@@ -64,9 +65,14 @@ export interface ResolvedBoard {
 export class BoardCatalogService {
   readonly #repository: SqliteRepository
   readonly #roles = createV1RoleRegistry()
+  readonly #characters: CharacterCatalogService | null
 
-  public constructor(repository: SqliteRepository) {
+  public constructor(
+    repository: SqliteRepository,
+    characters: CharacterCatalogService | null = null,
+  ) {
     this.#repository = repository
+    this.#characters = characters
   }
 
   public listBoards(): BoardSummary[] {
@@ -163,6 +169,7 @@ export class BoardCatalogService {
     }
     const count = parsed.roles.reduce((total, role) => total + role.count, 0)
     if (count < 6 || count > 24) throw new RuleViolation('Board requires between 6 and 24 players')
+    this.#validateCharacters(parsed.characters, count)
 
     const resolved = parsed.roles.map((slot) => ({
       slot,
@@ -192,6 +199,7 @@ export class BoardCatalogService {
       name: getCopy(definition.nameKey),
       description: getCopy(definition.descriptionKey),
       roles: definition.manifest.roles,
+      characters: [],
       sheriff: definition.manifest.sheriff,
       victory: definition.manifest.policies.victory,
       revision: 1,
@@ -209,6 +217,7 @@ export class BoardCatalogService {
     readonly name: string
     readonly description: string
     readonly roles: readonly CustomBoard['roles'][number][]
+    readonly characters: readonly CustomBoard['characters'][number][]
     readonly sheriff: boolean
     readonly victory: CustomBoard['victory']
     readonly revision: number
@@ -218,6 +227,10 @@ export class BoardCatalogService {
     return BoardSummarySchema.parse({
       ...input,
       playerCount: input.roles.reduce((total, role) => total + role.count, 0),
+      characters: this.#normalizedCharacters(
+        input.characters,
+        input.roles.reduce((total, role) => total + role.count, 0),
+      ),
       roles: input.roles.map((slot) => ({
         ...slot,
         name: getCopy(this.#roles.role(slot.roleId).displayNameKey),
@@ -233,11 +246,42 @@ export class BoardCatalogService {
       name: summary.name,
       description: summary.description,
       roles: summary.roles.map(({ roleId, count }) => ({ roleId, count })),
+      characters: summary.characters,
       playerCount: summary.playerCount,
       sheriff: summary.sheriff,
       victory: summary.victory,
       source: summary.source,
       revision: summary.revision,
     })
+  }
+
+  #validateCharacters(
+    characters: readonly CustomBoard['characters'][number][],
+    playerCount: number,
+  ): void {
+    if (characters.length === 0) return
+    if (characters.length !== playerCount) {
+      throw new RuleViolation('Board Character defaults must contain one slot per seat')
+    }
+    const seats = [...characters].map(({ seat }) => seat).sort((left, right) => left - right)
+    if (seats.some((seat, index) => seat !== index + 1)) {
+      throw new RuleViolation('Board Character default seats must be consecutive')
+    }
+    for (const { characterId } of characters) {
+      if (characterId && !this.#characters?.get(characterId)) {
+        throw new RuleViolation(`Unknown Character ${characterId}`)
+      }
+    }
+  }
+
+  #normalizedCharacters(
+    characters: readonly CustomBoard['characters'][number][],
+    playerCount: number,
+  ): CustomBoard['characters'] {
+    const bySeat = new Map(characters.map((slot) => [slot.seat, slot.characterId]))
+    return Array.from({ length: playerCount }, (_, index) => ({
+      seat: index + 1,
+      characterId: bySeat.get(index + 1) ?? null,
+    }))
   }
 }

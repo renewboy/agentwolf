@@ -6,6 +6,9 @@ import {
   GameEventPayloadSchema,
   MatchBoardSnapshotSchema,
   MatchIdSchema,
+  CharacterCardSnapshotSchema,
+  CharacterIdSchema,
+  CharacterPortraitAssetIdSchema,
   PlayerActionSchema,
   SimulationCheckpointSchema,
   SimulationCaptureSchema,
@@ -39,6 +42,7 @@ export function createSimulationNormalization(
     readonly name: string
     readonly profileId: SimulationPlayer['profileId']
     readonly roleId: SimulationPlayer['roleId']
+    readonly character: SimulationPlayer['character']
   }[],
   speechCharacterLimit: SimulationSetup['speechCharacterLimit'],
 ): SimulationNormalization {
@@ -51,6 +55,7 @@ export function createSimulationNormalization(
     description: '',
     source: 'custom',
     revision: 1,
+    characters: board.characters.map(({ seat }) => ({ seat, characterId: null })),
   })
   const replacements = new Map<string, string>([
     [board.id, canonicalBoard.id],
@@ -63,7 +68,12 @@ export function createSimulationNormalization(
       const profileId = AgentProfileIdSchema.parse(`profile-simulation-${player.seat}`)
       replacements.set(player.name, name)
       replacements.set(player.profileId, profileId)
-      return { ...player, name, profileId }
+      return {
+        ...player,
+        name,
+        profileId,
+        character: player.character ? simulationCharacter(player.seat) : null,
+      }
     })
   return {
     setup: SimulationSetupSchema.parse({
@@ -239,6 +249,23 @@ export function scanSimulationSecrets(value: unknown): string[] {
 export const simulationMatchId = MatchIdSchema.parse('match-simulation-replay')
 
 const fixedTimestamp = '2000-01-01T00:00:00.000Z'
+
+function simulationCharacter(seat: number): SimulationPlayer['character'] {
+  return CharacterCardSnapshotSchema.parse({
+    id: CharacterIdSchema.parse(`character-simulation-seat-${seat}`),
+    name: `Simulation Character ${seat}`,
+    universe: 'Simulation',
+    summary: 'Synthetic Character card used for deterministic simulation.',
+    personality: ['stable', 'cooperative'],
+    socialStyle: 'Use a stable synthetic social style.',
+    reasoningPresentation: 'Present complete evidence without reducing reasoning quality.',
+    speechStyle: 'Use concise synthetic speech.',
+    boundaries: ['Use the player nickname as the only Match identity.'],
+    portraitAssetId: CharacterPortraitAssetIdSchema.parse(`portrait-simulation-seat-${seat}`),
+    revision: 1,
+    source: 'custom',
+  })
+}
 
 function normalizeValue(value: unknown, replacements: ReadonlyMap<string, string>): unknown {
   if (typeof value === 'string') {

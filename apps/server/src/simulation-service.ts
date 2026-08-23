@@ -78,7 +78,14 @@ export class SimulationService {
       const playerId = PlayerIdSchema.parse(`player-${seat.seat}`)
       const roleId = roles.get(playerId)
       if (!roleId) throw new SimulationSourceError(`Missing role assignment for ${playerId}`)
-      return { playerId, seat: seat.seat, name: seat.name, profileId: seat.profileId, roleId }
+      return {
+        playerId,
+        seat: seat.seat,
+        name: seat.name,
+        profileId: seat.profileId,
+        roleId,
+        character: seat.character,
+      }
     })
     const normalization = createSimulationNormalization(
       match.boardSnapshot,

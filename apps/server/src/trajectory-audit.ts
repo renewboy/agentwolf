@@ -94,9 +94,11 @@ export async function auditTrajectory(
           }
         : replayed
       const ownerId = turn.ownerId as PlayerId
+      const ownerSeat = state.players.get(ownerId)?.seat
+      const character = match.setup.seats.find((seat) => seat.seat === ownerSeat)?.character ?? null
       const expected =
         turn.kind === 'bootstrap'
-          ? await renderer.foundation(state, board, ownerId, history, turn.promptVersion)
+          ? await renderer.foundation(state, board, ownerId, history, turn.promptVersion, character)
           : await expectedActionPrompt(
               renderer,
               matchId,

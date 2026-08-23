@@ -6,6 +6,8 @@ import {
   type BoardId,
   type BoardSummary,
   type BoardVictory,
+  type CharacterCard,
+  type CharacterId,
   type RoleId,
   type RoleSummary,
 } from '@agentwolf/contracts'
@@ -14,20 +16,26 @@ import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { FormField } from '../components/FormField.js'
 import { RoleBadge } from '../components/RoleBadge.js'
+import { GameSelect } from '../components/GameSelect.js'
+import { characterPortraitUrl } from '../character-portraits.js'
 
 interface BoardDraft {
   readonly id: BoardId | null
   readonly name: string
   readonly description: string
   readonly roles: Readonly<Record<string, number>>
+  readonly characters: readonly (CharacterId | null)[]
   readonly sheriff: boolean
   readonly victory: BoardVictory
   readonly editable: boolean
 }
 
+const boardSeats = Array.from({ length: 24 }, (_, index) => index + 1)
+
 export function BoardsPage() {
   const [boards, setBoards] = useState<BoardSummary[] | null>(null)
   const [roles, setRoles] = useState<RoleSummary[] | null>(null)
+  const [characters, setCharacters] = useState<CharacterCard[] | null>(null)
   const [draft, setDraft] = useState<BoardDraft | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,9 +45,14 @@ export function BoardsPage() {
   const load = useCallback(async () => {
     setError(null)
     try {
-      const [nextBoards, nextRoles] = await Promise.all([api.listBoards(), api.listRoles()])
+      const [nextBoards, nextRoles, nextCharacters] = await Promise.all([
+        api.listBoards(),
+        api.listRoles(),
+        api.listCharacters(),
+      ])
       setBoards(nextBoards)
       setRoles(nextRoles)
+      setCharacters(nextCharacters)
       setDraft((current) => current ?? boardToDraft(nextBoards[0]!, false))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -50,6 +63,16 @@ export function BoardsPage() {
   const playerCount = useMemo(
     () => Object.values(draft?.roles ?? {}).reduce((total, count) => total + count, 0),
     [draft?.roles],
+  )
+  const characterOptions = useMemo(
+    () => [
+      { value: 'none' as const, label: getCopy('setup.noCharacter') },
+      ...(characters ?? []).map((character) => ({
+        value: character.id,
+        label: `${character.name} · ${character.universe}`,
+      })),
+    ],
+    [characters],
   )
 
   const selectBoard = (board: BoardSummary): void => {
@@ -65,6 +88,7 @@ export function BoardsPage() {
       name: '',
       description: getCopy('boardManagement.emptyDescription'),
       roles: Object.fromEntries(roles.map((role) => [role.id, 0])),
+      characters: [],
       sheriff: false,
       victory: 'slaughter-all',
       editable: true,
@@ -85,7 +109,16 @@ export function BoardsPage() {
   const updateRole = (roleId: RoleId, delta: number): void => {
     if (!draft?.editable) return
     const next = Math.max(0, Math.min(24, (draft.roles[roleId] ?? 0) + delta))
-    setDraft({ ...draft, roles: { ...draft.roles, [roleId]: next } })
+    const nextRoles = { ...draft.roles, [roleId]: next }
+    const nextPlayerCount = Object.values(nextRoles).reduce((total, count) => total + count, 0)
+    setDraft({
+      ...draft,
+      roles: nextRoles,
+      characters: Array.from(
+        { length: nextPlayerCount },
+        (_, index) => draft.characters[index] ?? null,
+      ),
+    })
   }
 
   const save = async (): Promise<void> => {
@@ -99,6 +132,10 @@ export function BoardsPage() {
         roles: Object.entries(draft.roles)
           .filter((entry) => entry[1] > 0)
           .map(([roleId, count]) => ({ roleId, count })),
+        characters: draft.characters.map((characterId, index) => ({
+          seat: index + 1,
+          characterId,
+        })),
         sheriff: draft.sheriff,
         victory: draft.victory,
       })
@@ -130,8 +167,10 @@ export function BoardsPage() {
     }
   }
 
-  if (error && (!boards || !roles)) return <ErrorState message={error} retry={() => void load()} />
-  if (!boards || !roles || !draft) return <LoadingState />
+  if (error && (!boards || !roles || !characters)) {
+    return <ErrorState message={error} retry={() => void load()} />
+  }
+  if (!boards || !roles || !characters || !draft) return <LoadingState />
 
   return (
     <main className="aw-page">
@@ -250,6 +289,46 @@ export function BoardsPage() {
             </div>
           </div>
 
+          <div className="aw-board-character-editor">
+            <div className="aw-panel-heading">
+              <span>
+                <h3>{getCopy('boardManagement.characters')}</h3>
+                <small>{getCopy('boardManagement.charactersHint')}</small>
+              </span>
+            </div>
+            <div className="aw-board-character-grid">
+              {boardSeats.slice(0, draft.characters.length).map((seat) => {
+                const characterId = draft.characters[seat - 1] ?? null
+                const character = characters.find((entry) => entry.id === characterId) ?? null
+                return (
+                  <div className="aw-board-character-slot" key={seat}>
+                    {character ? (
+                      <img src={characterPortraitUrl(character.portraitAssetId)} alt="" />
+                    ) : (
+                      <span className="aw-board-character-slot__empty" aria-hidden />
+                    )}
+                    <GameSelect
+                      ariaLabel={formatCopy(getCopy('boardManagement.characterSeat'), {
+                        seat,
+                      })}
+                      disabled={!draft.editable}
+                      options={characterOptions}
+                      value={characterId ?? 'none'}
+                      onChange={(value) =>
+                        setDraft({
+                          ...draft,
+                          characters: draft.characters.map((entry, seatIndex) =>
+                            seatIndex === seat - 1 ? (value === 'none' ? null : value) : entry,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="aw-board-rules">
             <button
               className="aw-rule-toggle"
@@ -345,6 +424,9 @@ function boardToDraft(board: BoardSummary, editable: boolean): BoardDraft {
     name: board.name,
     description: board.description,
     roles: Object.fromEntries(board.roles.map((role) => [role.roleId, role.count])),
+    characters: [...board.characters]
+      .sort((left, right) => left.seat - right.seat)
+      .map(({ characterId }) => characterId),
     sheriff: board.sheriff,
     victory: board.victory,
     editable,

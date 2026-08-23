@@ -90,6 +90,24 @@ describe('event visibility', () => {
       false,
     )
     expect(canViewEvent(selected, { kind: 'closed-eye' }, engine.state)).toBe(false)
+    const wolfVoteEvents = engine.events.filter(
+      (event) =>
+        (event.payload.type === 'vote.cast' || event.payload.type === 'vote.resolved') &&
+        event.payload.kind === 'wolf-kill',
+    )
+    expect(wolfVoteEvents).toHaveLength(wolves.length + 1)
+    for (const event of wolfVoteEvents) {
+      expect(event.visibility).toEqual({ kind: 'faction', faction: 'werewolf' })
+      expect(canViewEvent(event, { kind: 'god' }, engine.state)).toBe(true)
+      expect(canViewEvent(event, { kind: 'closed-eye' }, engine.state)).toBe(false)
+      expect(canViewEvent(event, { kind: 'player', playerId: witchId }, engine.state)).toBe(false)
+      expect(canViewEvent(event, { kind: 'player', playerId: otherVillager }, engine.state)).toBe(
+        false,
+      )
+      for (const wolfId of wolves) {
+        expect(canViewEvent(event, { kind: 'player', playerId: wolfId }, engine.state)).toBe(true)
+      }
+    }
   })
 
   it('hides the selected wolf target from a Witch whose antidote is unavailable', () => {

@@ -6,7 +6,12 @@ import {
   PlayerIdSchema,
 } from '@agentwolf/contracts'
 import type { NarrationCatalog } from '@agentwolf/assets'
-import { GameEngine, createV1RoleRegistry, sixPlayerBoard } from '@agentwolf/game-engine'
+import {
+  GameEngine,
+  createV1RoleRegistry,
+  ninePlayerBoard,
+  sixPlayerBoard,
+} from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
 import { projectMatch, projectRoleEffectCues, projectTimeline } from '../src/projector.js'
 
@@ -187,6 +192,125 @@ describe('vote timeline projection', () => {
     const result = projectTimeline(events, catalog)
     expect(result[0]?.title).toBe('投票结算：3号以1.5票获得最高票。')
     expect(result[0]?.detail).toBe('投3号：1号（1.5票）\n弃票：2号')
+  })
+
+  it('shows a detailed tied wolf ballot only to god and Werewolf player views', () => {
+    const matchId = MatchIdSchema.parse('match-wolf-vote-projection')
+    const roleIds = ninePlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId,
+      board: ninePlayerBoard,
+      roleAssignment: 'manual',
+      seed: 7,
+      players: roleIds.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `Wolf ballot player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-wolf-ballot-${index + 1}`),
+        roleId,
+      })),
+    })
+    const [firstWolf, secondWolf, thirdWolf] = [...engine.state.players.values()].filter(
+      (player) => player.roleId === 'role-werewolf',
+    )
+    const [firstTarget, secondTarget] = [...engine.state.players.values()].filter(
+      (player) => player.roleId === 'role-villager',
+    )
+    const witch = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-witch',
+    )
+    if (!firstWolf || !secondWolf || !thirdWolf || !firstTarget || !secondTarget || !witch) {
+      throw new Error('Expected wolf vote projection roles')
+    }
+    const sequence = engine.state.lastSequence
+    const events = [
+      ...engine.events,
+      GameEventSchema.parse({
+        matchId,
+        sequence: sequence + 1,
+        occurredAt: '2026-08-23T00:00:00.000Z',
+        visibility: { kind: 'faction', faction: 'werewolf' },
+        payload: {
+          type: 'vote.cast',
+          voterId: firstWolf.id,
+          targetId: firstTarget.id,
+          kind: 'wolf-kill',
+          weight: 1,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId,
+        sequence: sequence + 2,
+        occurredAt: '2026-08-23T00:00:00.000Z',
+        visibility: { kind: 'faction', faction: 'werewolf' },
+        payload: {
+          type: 'vote.cast',
+          voterId: secondWolf.id,
+          targetId: secondTarget.id,
+          kind: 'wolf-kill',
+          weight: 1,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId,
+        sequence: sequence + 3,
+        occurredAt: '2026-08-23T00:00:00.000Z',
+        visibility: { kind: 'faction', faction: 'werewolf' },
+        payload: {
+          type: 'vote.cast',
+          voterId: thirdWolf.id,
+          targetId: null,
+          kind: 'wolf-kill',
+          weight: 1,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId,
+        sequence: sequence + 4,
+        occurredAt: '2026-08-23T00:00:01.000Z',
+        visibility: { kind: 'faction', faction: 'werewolf' },
+        payload: {
+          type: 'vote.resolved',
+          kind: 'wolf-kill',
+          totals: { [firstTarget.id]: 1, [secondTarget.id]: 1 },
+          tiedPlayerIds: [firstTarget.id, secondTarget.id],
+          selectedPlayerId: firstTarget.id,
+        },
+      }),
+    ]
+    const options = {
+      matchId,
+      board: ninePlayerBoard,
+      boardName: 'Wolf vote projection board',
+      state: engine.state,
+      events,
+      roles: createV1RoleRegistry(),
+    }
+    const godVote = projectMatch({ ...options, view: { kind: 'god' } }).timeline.find(
+      (item) => item.kind === 'vote.resolved',
+    )
+    expect(godVote).toMatchObject({
+      title: '狼人投票平票：4号、5号、空刀同为1票，随机选择4号作为袭击目标。',
+      detail: '投4号：1号\n投5号：2号\n空刀：3号',
+    })
+    expect(godVote?.playerIds.at(-1)).toBe(firstTarget.id)
+    expect(
+      projectMatch({
+        ...options,
+        view: { kind: 'player', playerId: firstWolf.id },
+      }).timeline,
+    ).toContainEqual(godVote)
+    for (const view of [
+      { kind: 'closed-eye' } as const,
+      { kind: 'player', playerId: firstTarget.id } as const,
+      { kind: 'player', playerId: witch.id } as const,
+    ]) {
+      expect(projectMatch({ ...options, view }).timeline).not.toContainEqual(
+        expect.objectContaining({ kind: 'vote.resolved' }),
+      )
+    }
   })
 
   it('projects role-effect cues only after event visibility has been filtered', () => {

@@ -200,6 +200,9 @@ describe('Fastify API', () => {
       'submit_sheriff_action',
       'trigger_skill',
     ])
+    const voteTool = tools.tools.find((tool) => tool.name === 'submit_vote')
+    expect(voteTool?.description).toContain('狼人袭击阶段表示空刀')
+    expect(JSON.stringify(voteTool?.inputSchema)).toContain('狼人袭击阶段的 null 表示空刀')
     const rejectedPoison = await client.callTool({
       name: 'submit_night_action',
       arguments: {
@@ -234,6 +237,17 @@ describe('Fastify API', () => {
     expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
       type: 'vote',
       targetId: 'player-2',
+    })
+    server.matches.mailbox.expect({ matchId, playerId, actionType: 'vote', voteKind: 'wolf-kill' })
+    const noKill = await client.callTool({
+      name: 'submit_vote',
+      arguments: { targetPlayerId: null },
+    })
+    expect(noKill.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'vote',
+      kind: 'wolf-kill',
+      targetId: null,
     })
     server.matches.mailbox.expect({
       matchId,

@@ -2,10 +2,12 @@ import { z } from 'zod'
 import {
   AgentProfileIdSchema,
   BoardIdSchema,
+  CharacterIdSchema,
   MatchIdSchema,
   PlayerIdSchema,
   RoleIdSchema,
 } from './ids.js'
+import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
 import { RoleEffectCueSchema } from './effects.js'
 import { SpeechCharacterLimitSchema } from './settings.js'
 
@@ -24,6 +26,7 @@ export const SeatAssignmentInputSchema = z.object({
   name: z.string().trim().min(1).max(24),
   profileId: AgentProfileIdSchema,
   roleId: RoleIdSchema.optional(),
+  characterId: CharacterIdSchema.nullable().optional(),
 })
 export type SeatAssignmentInput = z.infer<typeof SeatAssignmentInputSchema>
 
@@ -34,7 +37,15 @@ export const CreateMatchRequestSchema = z.object({
 })
 export type CreateMatchRequest = z.infer<typeof CreateMatchRequestSchema>
 
-export const MatchSetupSnapshotSchema = CreateMatchRequestSchema.extend({
+export const MatchSeatSnapshotSchema = SeatAssignmentInputSchema.omit({ characterId: true }).extend(
+  {
+    character: CharacterCardSnapshotSchema.nullable().default(null),
+  },
+)
+export type MatchSeatSnapshot = z.infer<typeof MatchSeatSnapshotSchema>
+
+export const MatchSetupSnapshotSchema = CreateMatchRequestSchema.omit({ seats: true }).extend({
+  seats: z.array(MatchSeatSnapshotSchema).min(6).max(24),
   speechCharacterLimit: SpeechCharacterLimitSchema.default(300),
 })
 export type MatchSetupSnapshot = z.infer<typeof MatchSetupSnapshotSchema>
@@ -48,10 +59,17 @@ export const BoardRoleSlotSchema = z.object({
 })
 export type BoardRoleSlot = z.infer<typeof BoardRoleSlotSchema>
 
+export const BoardCharacterSlotSchema = z.object({
+  seat: z.number().int().positive().max(24),
+  characterId: CharacterIdSchema.nullable(),
+})
+export type BoardCharacterSlot = z.infer<typeof BoardCharacterSlotSchema>
+
 export const CustomBoardInputSchema = z.object({
   name: z.string().trim().min(1).max(48),
   description: z.string().trim().max(240).default(''),
   roles: z.array(BoardRoleSlotSchema).min(2).max(7),
+  characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
 })
@@ -77,6 +95,7 @@ export const BoardSummarySchema = z.object({
       name: z.string(),
     }),
   ),
+  characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
   source: z.enum(['built-in', 'custom']),
@@ -92,6 +111,7 @@ export const MatchBoardSnapshotSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
   roles: z.array(BoardRoleSlotSchema).min(2).max(7),
+  characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   playerCount: z.number().int().min(6).max(24),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
@@ -131,6 +151,7 @@ export const SeatViewSchema = z.object({
     'failed',
     'closed',
   ]),
+  character: CharacterSummarySchema.nullable().default(null),
 })
 export type SeatView = z.infer<typeof SeatViewSchema>
 

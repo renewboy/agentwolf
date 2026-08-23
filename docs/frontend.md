@@ -27,13 +27,24 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   lifted source and insertion feedback, keyboard reorder handles, and a focused editor with
   explicit empty, probe, saving, and error states.
 - Global settings: one focused editor for shared Match preferences, with saved and error states.
+- Collection: a responsive Character-card grid and detail editor with generated portraits,
+  built-in copy, custom create/edit/delete, local portrait replacement, and explicit full-ability
+  guidance. The same shell can add a separate game-card catalog without merging its data model.
 - Board management: built-in and custom board list, color-labeled role-count steppers, derived 6-24
-  player total, sheriff switch, victory selector, copy, save, edit, and confirmed deletion.
+  player total, per-seat default Character selectors, sheriff switch, victory selector, copy, save,
+  edit, and confirmed deletion.
 - New match: available-player-count selection, compatible built-in or custom board summary, ordered
   seat assignment defaulted to the first persisted Agent Profile, per-seat Agent Profile selector,
-  color-labeled board composition and manual identity selector, name edit, per-seat reroll, and
-  reroll-all.
-- Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Every player card carries its configured model and visibility-safe role badge. Left-rail name, identity, Session status, and model metadata align to the left edge; the same four fields align to the right edge on the right rail. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
+  inherited and overridable Character selector, color-labeled board composition and manual identity
+  selector, editable Character-name nickname default, duplicate nickname feedback, per-seat reroll,
+  and reroll-all.
+- Spectator: a `100dvh` shell with an integrated status HUD, portrait-aware left and right player
+  rosters, a center presence stage, and an independently scrolling event feed. Nickname remains
+  primary, Character name is public secondary context, and every player card carries its configured
+  model and visibility-safe role badge. Left-rail name, identity, Session status, and model metadata
+  align to the left edge; the same four fields align to the right edge on the right rail. Speech,
+  system events, night information, votes, and resolutions use distinct presentation. History folds
+  by match day.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
 - Developer: every Match record exposes trajectory and eligible simulation actions in developer
@@ -72,7 +83,7 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   item and disables manual history playback until the automatic queue is idle. Each committed
   speech otherwise exposes manual play and stop controls. Speech synthesis errors skip the current
   item and report the outcome without blocking the Match.
-- Vote result cards use target-grouped seat labels such as `投1号：2号、3号、4号`; player nicknames are omitted from the result title and ballot rows.
+- Vote result cards use target-grouped seat labels such as `投1号：2号、3号、4号`; player nicknames are omitted from the result title and ballot rows. Wolf results label null ballots as `空刀`, identify replay-stable tie selection, and appear only in god and Werewolf player projections supplied by the server.
 
 ## Frontend gates
 
@@ -85,5 +96,7 @@ management, developer gating, trajectory details, the Match-row simulation wizar
 and cleanup, streaming speech, sequence-keyed automatic and manual audio controls, fixed-height
 overflow, waiting-state movement and cleanup, terminal connection settlement, missing-Match retry
 shutdown, listbox interaction, confirmation-dialog focus behavior, reduced motion, and responsive
-layout. Agent Profile coverage includes name/model separation, whole-row drag feedback, keyboard
+layout. Character coverage includes catalog CRUD, local portrait upload, board defaults, Match
+overrides, repeated Characters, duplicate nickname blocking, and public portrait projection. Agent
+Profile coverage includes name/model separation, whole-row drag feedback, keyboard
 reordering, reload persistence, and new-Match defaults.

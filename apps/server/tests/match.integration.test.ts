@@ -285,6 +285,11 @@ describe('match orchestration', () => {
     ).toBe(true)
     expect(final.timeline.some((item) => item.kind === 'vote.resolved')).toBe(true)
     expect(final.timeline.some((item) => item.kind === 'vote.cast')).toBe(false)
+    const godWolfVotes = final.timeline.filter(
+      (item) => item.kind === 'vote.resolved' && item.title.startsWith('狼人投票'),
+    )
+    expect(godWolfVotes.length).toBeGreaterThan(0)
+    expect(godWolfVotes.every((item) => item.detail?.startsWith('投'))).toBe(true)
 
     const wolfIds = roles
       .map((roleId, index) => ({ roleId, playerId: `player-${index + 1}` as PlayerId }))
@@ -367,12 +372,24 @@ describe('match orchestration', () => {
     })
     expect(wolfView.seats.filter((seat) => seat.roleId === 'role-werewolf')).toHaveLength(4)
     expect(wolfView.seats.every((seat) => seat.sessionStatus === 'closed')).toBe(true)
+    expect(
+      wolfView.timeline.filter(
+        (item) => item.kind === 'vote.resolved' && item.title.startsWith('狼人投票'),
+      ),
+    ).toEqual(godWolfVotes)
     const villagerView = server.matches.getMatch(created.id, {
       kind: 'player',
       playerId: 'player-5' as PlayerId,
     })
     expect(villagerView.seats.filter((seat) => seat.roleId !== undefined)).toHaveLength(12)
     expect(villagerView.seats.every((seat) => seat.sessionStatus === 'closed')).toBe(true)
+    expect(closed.timeline.some((item) => item.title.startsWith('狼人投票'))).toBe(false)
+    expect(villagerView.timeline.some((item) => item.title.startsWith('狼人投票'))).toBe(false)
+    const witchView = server.matches.getMatch(created.id, {
+      kind: 'player',
+      playerId: witchId!,
+    })
+    expect(witchView.timeline.some((item) => item.title.startsWith('狼人投票'))).toBe(false)
 
     const events = server.repository.listMatchEvents(created.id)
     expect(events.map((event) => event.sequence)).toEqual(

@@ -49,7 +49,9 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
     {
       title: getCopy('tools.voteTitle'),
       description: getCopy('tools.voteDescription'),
-      inputSchema: { targetPlayerId: z.string().nullable() },
+      inputSchema: {
+        targetPlayerId: z.string().nullable().describe(getCopy('tools.voteTargetDescription')),
+      },
     },
     ({ targetPlayerId }) => toolResult(() => mailbox.submitVote(token, targetPlayerId)),
   )
