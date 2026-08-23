@@ -102,6 +102,7 @@ export async function auditTrajectory(
               turn.promptVersion,
               state.status,
               state.pausedReason,
+              match.setup.speechCharacterLimit,
               issues,
               turn.turnId,
             )
@@ -147,6 +148,7 @@ async function expectedActionPrompt(
   promptVersion: number,
   status: ReturnType<typeof replayGame>['status'],
   pausedReason: string | null,
+  speechCharacterLimit: number,
   issues: TrajectoryAuditIssue[],
   turnId: string,
 ) {
@@ -170,7 +172,7 @@ async function expectedActionPrompt(
     promptAssetFor(descriptor, promptVersion),
     actionInstructionFor(
       descriptor,
-      { board, state: engine.state, playerId: ownerId },
+      { board, state: engine.state, playerId: ownerId, speechCharacterLimit },
       promptVersion,
     ),
     promptVersion,

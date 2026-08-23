@@ -45,6 +45,7 @@ export function MatchPage() {
   const projectionKey = view.kind === 'player' ? `${view.kind}:${view.playerId}` : view.kind
   const speechPlayback = useSpeechPlayback({
     timeline: match?.timeline ?? [],
+    activeSpeech: match?.activeSpeech ?? null,
     playbackState,
     projectionKey,
     viewPending,

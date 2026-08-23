@@ -2,6 +2,7 @@ import {
   AgentProfileIdSchema,
   GameEventSchema,
   MatchIdSchema,
+  PhaseIdSchema,
   PlayerIdSchema,
 } from '@agentwolf/contracts'
 import type { NarrationCatalog } from '@agentwolf/assets'
@@ -10,6 +11,53 @@ import { describe, expect, it } from 'vitest'
 import { projectMatch, projectRoleEffectCues, projectTimeline } from '../src/projector.js'
 
 describe('vote timeline projection', () => {
+  it('projects a raised-hand state only while a standing candidate is in the election', () => {
+    const matchId = MatchIdSchema.parse('match-sheriff-candidate-projection')
+    const roleIds = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId,
+      board: sixPlayerBoard,
+      roleAssignment: 'manual',
+      seed: 4,
+      roles: createV1RoleRegistry(),
+      players: roleIds.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `Candidate player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-candidate-${index + 1}`),
+        roleId,
+      })),
+    })
+    const candidateId = PlayerIdSchema.parse('player-2')
+    const electionState = {
+      ...engine.state,
+      phaseId: PhaseIdSchema.parse('phase-sheriff-speech'),
+      sheriff: {
+        ...engine.state.sheriff,
+        standingCandidates: new Set([candidateId]),
+      },
+    }
+    const options = {
+      matchId,
+      board: sixPlayerBoard,
+      boardName: 'Candidate projection board',
+      events: engine.events,
+      view: { kind: 'god' } as const,
+      roles: createV1RoleRegistry(),
+    }
+    expect(projectMatch({ ...options, state: electionState }).seats).toContainEqual(
+      expect.objectContaining({ playerId: candidateId, sheriffCandidate: true }),
+    )
+    expect(
+      projectMatch({
+        ...options,
+        state: { ...electionState, phaseId: PhaseIdSchema.parse('phase-day-speech') },
+      }).seats.find((seat) => seat.playerId === candidateId)?.sheriffCandidate,
+    ).toBe(false)
+  })
+
   it('groups ballots by target using seat numbers without player names', () => {
     const matchId = MatchIdSchema.parse('match-vote-projection')
     const players = new Map(
@@ -182,6 +230,44 @@ describe('vote timeline projection', () => {
     ])
     expect(projectRoleEffectCues([privateEvent])).toMatchObject([
       { effectId: 'seer-inspect', roleId: 'role-seer' },
+    ])
+  })
+
+  it('maps sheriff election and transfer events to role-neutral effect cues', () => {
+    const matchId = MatchIdSchema.parse('match-sheriff-effects')
+    const events = [
+      GameEventSchema.parse({
+        matchId,
+        sequence: 1,
+        occurredAt: '2026-08-23T00:00:00.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'sheriff.elected', playerId: 'player-1' },
+      }),
+      GameEventSchema.parse({
+        matchId,
+        sequence: 2,
+        occurredAt: '2026-08-23T00:00:01.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'sheriff.transferred',
+          fromPlayerId: 'player-1',
+          toPlayerId: 'player-2',
+        },
+      }),
+    ]
+    expect(projectRoleEffectCues(events)).toMatchObject([
+      {
+        effectId: 'sheriff-elected',
+        roleId: null,
+        sourcePlayerIds: [],
+        targetPlayerIds: ['player-1'],
+      },
+      {
+        effectId: 'sheriff-transferred',
+        roleId: null,
+        sourcePlayerIds: ['player-1'],
+        targetPlayerIds: ['player-2'],
+      },
     ])
   })
 })

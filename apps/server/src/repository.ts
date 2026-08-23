@@ -5,11 +5,12 @@ import {
   AgentProfileSchema,
   AgentToolSchema,
   BoardIdSchema,
-  CreateMatchRequestSchema,
   CustomBoardSchema,
   GameEventSchema,
+  GlobalSettingsSchema,
   MatchBoardSnapshotSchema,
   MatchIdSchema,
+  MatchSetupSnapshotSchema,
   TrajectoryRecordSchema,
   TrajectoryTurnSchema,
   type AgentProfile,
@@ -17,10 +18,11 @@ import {
   type AgentTool,
   type AgentToolId,
   type BoardId,
-  type CreateMatchRequest,
   type CustomBoard,
   type GameEvent,
+  type GlobalSettings,
   type MatchId,
+  type MatchSetupSnapshot,
   type MatchBoardSnapshot,
   type MatchStatus,
   type PlayerId,
@@ -35,7 +37,7 @@ export interface MatchRecord {
   readonly id: MatchId
   readonly boardId: BoardId
   readonly status: MatchStatus
-  readonly setup: CreateMatchRequest
+  readonly setup: MatchSetupSnapshot
   readonly boardSnapshot: MatchBoardSnapshot | null
   readonly createdAt: string
   readonly updatedAt: string
@@ -75,6 +77,25 @@ export class SqliteRepository {
 
   public close(): void {
     this.#database.close()
+  }
+
+  public getGlobalSettings(): GlobalSettings {
+    const row = this.#database
+      .prepare("SELECT json FROM global_settings WHERE id = 'global'")
+      .get() as DatabaseRow | undefined
+    return row ? GlobalSettingsSchema.parse(JSON.parse(row.json)) : GlobalSettingsSchema.parse({})
+  }
+
+  public saveGlobalSettings(settings: GlobalSettings): GlobalSettings {
+    const parsed = GlobalSettingsSchema.parse(settings)
+    this.#database
+      .prepare(
+        `INSERT INTO global_settings (id, json, updated_at)
+         VALUES ('global', ?, ?)
+         ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`,
+      )
+      .run(JSON.stringify(parsed), new Date().toISOString())
+    return parsed
   }
 
   public listCustomTools(): AgentTool[] {
@@ -442,7 +463,7 @@ export class SqliteRepository {
         ? MatchBoardSnapshotSchema.parse(JSON.parse(row.board_snapshot_json))
         : null,
       status: row.status,
-      setup: CreateMatchRequestSchema.parse(JSON.parse(row.setup_json)),
+      setup: MatchSetupSnapshotSchema.parse(JSON.parse(row.setup_json)),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       pausedReason: row.paused_reason,

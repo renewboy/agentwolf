@@ -1,4 +1,10 @@
-import { GearSix, MoonStars, PlusCircle, SquaresFour } from '@phosphor-icons/react'
+import {
+  GearSix,
+  MoonStars,
+  PlusCircle,
+  SlidersHorizontal,
+  SquaresFour,
+} from '@phosphor-icons/react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { getCopy } from '@agentwolf/assets'
 
@@ -14,6 +20,11 @@ export function AppShell() {
           <NavItem to="/matches/new" label={getCopy('navigation.newMatch')} icon={<PlusCircle />} />
           <NavItem to="/boards" label={getCopy('navigation.boards')} icon={<SquaresFour />} />
           <NavItem to="/agents" label={getCopy('navigation.agents')} icon={<GearSix />} />
+          <NavItem
+            to="/settings"
+            label={getCopy('navigation.settings')}
+            icon={<SlidersHorizontal />}
+          />
         </nav>
       </header>
       <Outlet />

@@ -19,7 +19,8 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 
 ## Layouts
 
-- Settings: agent list and focused editor with explicit empty, probe, saving, and error states.
+- Agent settings: agent list and focused editor with explicit empty, probe, saving, and error states.
+- Global settings: one focused editor for shared Match preferences, with saved and error states.
 - Board management: built-in and custom board list, role-count steppers, derived 6-24 player total,
   sheriff switch, victory selector, copy, save, edit, and confirmed deletion.
 - New match: available-player-count selection, compatible built-in or custom board summary, ordered
@@ -48,8 +49,15 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - Role effects use one pointer-transparent overlay and player-card anchors. Full mode adds bounded
   particles and stage-only impact movement; reduced mode keeps a static emblem and target pulse;
   off mode consumes cues without drawing them. The system reduced-motion preference defaults to
-  reduced mode.
-- Automatic speech playback is owned by one live spectator connection and follows its current server projection. The feed keys playback by committed event sequence, shows only skip on the active automatic item, and disables manual history playback until the automatic queue is idle. Each committed speech otherwise exposes manual play and stop controls. Speech synthesis errors skip the current item and report the outcome without blocking the Match.
+  reduced mode. Sheriff election and transfer use the same adapter and amber signal language.
+- Standing candidates display a raised-hand icon and `上警` label on their player cards while the
+  election is active.
+- Automatic speech playback is owned by one live spectator connection and follows its current
+  server projection. Complete streamed sentences play immediately; commit flushes only the final
+  tail and binds completion to the event sequence. The feed shows only skip on the active automatic
+  item and disables manual history playback until the automatic queue is idle. Each committed
+  speech otherwise exposes manual play and stop controls. Speech synthesis errors skip the current
+  item and report the outcome without blocking the Match.
 - Vote result cards use target-grouped seat labels such as `投1号：2号、3号、4号`; player nicknames are omitted from the result title and ballot rows.
 
 ## Frontend gates

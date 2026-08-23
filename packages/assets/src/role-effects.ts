@@ -8,7 +8,7 @@ import {
 
 export interface RoleEffectDefinition {
   readonly id: RoleEffectId
-  readonly roleId: RoleId
+  readonly roleId: RoleId | null
   readonly abilityId: AbilityId | null
   readonly labelKey: string
   readonly tier: 'medium' | 'large'
@@ -79,6 +79,22 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.guardProtect',
     tier: 'medium',
     durationMs: 560,
+  },
+  'sheriff-elected': {
+    id: 'sheriff-elected',
+    roleId: null,
+    abilityId: null,
+    labelKey: 'effects.sheriffElected',
+    tier: 'large',
+    durationMs: 680,
+  },
+  'sheriff-transferred': {
+    id: 'sheriff-transferred',
+    roleId: null,
+    abilityId: null,
+    labelKey: 'effects.sheriffTransferred',
+    tier: 'large',
+    durationMs: 720,
   },
 }
 

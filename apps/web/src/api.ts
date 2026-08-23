@@ -4,6 +4,7 @@ import {
   AgentToolSchema,
   BoardSummarySchema,
   CustomBoardInputSchema,
+  GlobalSettingsSchema,
   MatchViewSchema,
   RoleSummarySchema,
   RuntimeConfigSchema,
@@ -21,6 +22,7 @@ import {
   type BoardId,
   type CustomBoardInput,
   type CreateMatchRequest,
+  type GlobalSettings,
   type MatchId,
   type MatchView,
   type SpectatorView,
@@ -60,6 +62,14 @@ async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
 export const api = {
   async runtimeConfig(): Promise<RuntimeConfig> {
     return RuntimeConfigSchema.parse(await requestJson('/api/runtime-config'))
+  },
+  async globalSettings(): Promise<GlobalSettings> {
+    return GlobalSettingsSchema.parse(await requestJson('/api/settings'))
+  },
+  async updateGlobalSettings(settings: GlobalSettings): Promise<GlobalSettings> {
+    return GlobalSettingsSchema.parse(
+      await requestJson('/api/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+    )
   },
   async listTools(): Promise<AgentTool[]> {
     return AgentToolSchema.array().parse(await requestJson('/api/agent-tools'))

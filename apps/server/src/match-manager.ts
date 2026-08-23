@@ -99,12 +99,13 @@ export class MatchManager {
       roles,
     })
     const timestamp = new Date().toISOString()
+    const settings = this.#options.repository.getGlobalSettings()
     const record: MatchRecord = {
       id: matchId,
       boardId: board.id,
       boardSnapshot: resolvedBoard.snapshot,
       status: 'draft',
-      setup: request,
+      setup: { ...request, speechCharacterLimit: settings.speechCharacterLimit },
       createdAt: timestamp,
       updatedAt: timestamp,
       pausedReason: null,

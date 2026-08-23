@@ -11,6 +11,16 @@ import { ActionMailbox } from '../src/action-mailbox.js'
 import { SqliteRepository } from '../src/repository.js'
 
 describe('Agent catalog and repository', () => {
+  it('persists one global speech preference independently from Agent Profiles', () => {
+    const repository = new SqliteRepository(':memory:')
+    expect(repository.getGlobalSettings()).toEqual({ speechCharacterLimit: 300 })
+    expect(repository.saveGlobalSettings({ speechCharacterLimit: 420 })).toEqual({
+      speechCharacterLimit: 420,
+    })
+    expect(repository.getGlobalSettings()).toEqual({ speechCharacterLimit: 420 })
+    repository.close()
+  })
+
   it('maintains custom tools and reusable Agent Profiles', () => {
     const repository = new SqliteRepository(':memory:')
     const catalog = new AgentCatalogService(repository)

@@ -1,4 +1,4 @@
-import { Crown, Skull } from '@phosphor-icons/react'
+import { Crown, HandPalm, Skull } from '@phosphor-icons/react'
 import { getCopy } from '@agentwolf/assets'
 import type { SeatView } from '@agentwolf/contracts'
 
@@ -64,6 +64,7 @@ function PlayerCard({
       data-compact={compact}
       data-player-id={seat.playerId}
       data-session={seat.sessionStatus}
+      data-sheriff-candidate={seat.sheriffCandidate}
       data-side={side}
       data-tone={(seat.seat - 1) % 6}
     >
@@ -83,6 +84,12 @@ function PlayerCard({
               weight="fill"
               aria-label={getCopy('roles.sheriff')}
             />
+          ) : null}
+          {seat.sheriffCandidate ? (
+            <span className="aw-sheriff-candidate" aria-label={getCopy('match.sheriffCandidate')}>
+              <HandPalm size={13} weight="fill" aria-hidden />
+              {getCopy('match.sheriffCandidate')}
+            </span>
           ) : null}
           {!seat.alive ? <Skull size={15} aria-label={getCopy('match.eliminated')} /> : null}
         </div>

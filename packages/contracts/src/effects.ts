@@ -10,6 +10,8 @@ export const RoleEffectIdSchema = z.enum([
   'hunter-shot',
   'idiot-reveal',
   'guard-protect',
+  'sheriff-elected',
+  'sheriff-transferred',
 ])
 export type RoleEffectId = z.infer<typeof RoleEffectIdSchema>
 
@@ -17,7 +19,7 @@ export const RoleEffectCueSchema = z.object({
   cueId: z.string().min(1).max(160),
   sequence: z.number().int().positive(),
   effectId: RoleEffectIdSchema,
-  roleId: RoleIdSchema,
+  roleId: RoleIdSchema.nullable(),
   abilityId: AbilityIdSchema.nullable(),
   sourcePlayerIds: z.array(PlayerIdSchema),
   targetPlayerIds: z.array(PlayerIdSchema),

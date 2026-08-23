@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 2) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 3) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -19,6 +19,11 @@ export function migrateDatabase(database: Database.Database): void {
       CREATE INDEX agent_profiles_tool_id ON agent_profiles(tool_id);
       CREATE TABLE custom_boards (
         id TEXT PRIMARY KEY,
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE global_settings (
+        id TEXT PRIMARY KEY CHECK (id = 'global'),
         json TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -46,7 +51,7 @@ export function migrateDatabase(database: Database.Database): void {
         PRIMARY KEY(match_id, player_id)
       );
       ${trajectoryTables()}
-      PRAGMA user_version = 2;
+      PRAGMA user_version = 3;
     `)
   }
   if (version === 1) {
@@ -57,8 +62,23 @@ export function migrateDatabase(database: Database.Database): void {
         json TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE global_settings (
+        id TEXT PRIMARY KEY CHECK (id = 'global'),
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
       ${trajectoryTables()}
-      PRAGMA user_version = 2;
+      PRAGMA user_version = 3;
+    `)
+  }
+  if (version === 2) {
+    database.exec(`
+      CREATE TABLE global_settings (
+        id TEXT PRIMARY KEY CHECK (id = 'global'),
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      PRAGMA user_version = 3;
     `)
   }
 }

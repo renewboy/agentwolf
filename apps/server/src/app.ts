@@ -11,6 +11,7 @@ import {
   BoardIdSchema,
   CreateMatchRequestSchema,
   CustomBoardInputSchema,
+  GlobalSettingsSchema,
   LiveClientMessageSchema,
   MatchIdSchema,
   PlayerIdSchema,
@@ -83,6 +84,10 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
 
   app.get('/api/health', async () => ({ ok: true }))
   app.get('/api/runtime-config', async () => ({ developerMode: options.config.developerMode }))
+  app.get('/api/settings', async () => repository.getGlobalSettings())
+  app.put('/api/settings', async (request) =>
+    repository.saveGlobalSettings(GlobalSettingsSchema.parse(request.body)),
+  )
 
   app.get('/api/agent-tools', async () => catalog.listTools())
   app.post('/api/agent-tools', async (request, reply) => {

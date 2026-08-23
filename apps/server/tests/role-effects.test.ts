@@ -24,5 +24,7 @@ describe('role effect catalog', () => {
       expect(definition.durationMs).toBeGreaterThanOrEqual(320)
       expect(definition.durationMs).toBeLessThanOrEqual(760)
     }
+    expect(roleEffectCatalog['sheriff-elected']).toMatchObject({ roleId: null, tier: 'large' })
+    expect(roleEffectCatalog['sheriff-transferred']).toMatchObject({ roleId: null, tier: 'large' })
   })
 })

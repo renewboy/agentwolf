@@ -56,8 +56,9 @@ speech once. A player's own committed speech remains in its long-lived Session a
 later incremental prompts; every other required speech is delivered once. A replacement Session's
 foundation restores the complete visible history, including its own speech. A controlling
 spectator's visible speeches enter its browser playback queue without delaying later speakers in
-the same stage. The final speech holds the following phase until that queue reaches the final event
-sequence or the spectator skips it. Speech hidden from the controlling view does not create a
+the same stage. Complete sentences are queued from visible stream chunks; the committed event adds
+only the unspoken tail and supplies the event sequence. The final speech holds the following phase
+until that queue reaches the final event sequence or the spectator skips it. Speech hidden from the controlling view does not create a
 playback hold, and controller disconnect releases the boundary. After release, the vote barrier
 renders the remaining required speeches to all voters before accepting ballots.
 
@@ -65,6 +66,8 @@ Natural speech uses the ACP reply stream rather than an action tool. Every speec
 announced deaths, living state, vote results, and phase results as fixed public facts while still
 allowing strategic claims about identity, private information, and judgment. Wolf council prompts
 accept discussion only; the attack target is requested later through the parallel vote barrier.
+Every speech Prompt also carries the speech-length guidance snapshotted when its Match was created;
+the gateway records the resulting speech without enforcing that length.
 
 Every daytime action Prompt states the current day and complete publicly living roster. A single
 night death anchors a living Sheriff's left/right choice; peaceful and multiple-death mornings use

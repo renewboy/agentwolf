@@ -7,6 +7,7 @@ import {
   RoleIdSchema,
 } from './ids.js'
 import { RoleEffectCueSchema } from './effects.js'
+import { SpeechCharacterLimitSchema } from './settings.js'
 
 export const MatchStatusSchema = z.enum(['draft', 'starting', 'running', 'paused', 'ended'])
 export type MatchStatus = z.infer<typeof MatchStatusSchema>
@@ -32,6 +33,11 @@ export const CreateMatchRequestSchema = z.object({
   roleAssignment: z.enum(['random', 'manual']).default('random'),
 })
 export type CreateMatchRequest = z.infer<typeof CreateMatchRequestSchema>
+
+export const MatchSetupSnapshotSchema = CreateMatchRequestSchema.extend({
+  speechCharacterLimit: SpeechCharacterLimitSchema.default(300),
+})
+export type MatchSetupSnapshot = z.infer<typeof MatchSetupSnapshotSchema>
 
 export const BoardVictorySchema = z.enum(['slaughter-edge', 'slaughter-all'])
 export type BoardVictory = z.infer<typeof BoardVictorySchema>
@@ -109,6 +115,7 @@ export const SeatViewSchema = z.object({
   alive: z.boolean(),
   canVote: z.boolean(),
   sheriff: z.boolean(),
+  sheriffCandidate: z.boolean().default(false),
   active: z.boolean(),
   roleId: RoleIdSchema.optional(),
   roleName: z.string().optional(),

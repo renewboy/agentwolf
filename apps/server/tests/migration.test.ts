@@ -94,6 +94,8 @@ describe('database migration', () => {
         name: '6 人快速场',
         playerCount: 6,
       },
+      setup: { speechCharacterLimit: 300 },
     })
+    expect(server.repository.getGlobalSettings()).toEqual({ speechCharacterLimit: 300 })
   })
 })

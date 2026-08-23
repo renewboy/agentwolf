@@ -23,6 +23,15 @@ describe('Fastify API', () => {
     expect(health.json()).toEqual({ ok: true })
     const tools = (await server.app.inject({ method: 'GET', url: '/api/agent-tools' })).json()
     expect(tools).toHaveLength(3)
+    expect((await server.app.inject({ method: 'GET', url: '/api/settings' })).json()).toEqual({
+      speechCharacterLimit: 300,
+    })
+    const settingsResponse = await server.app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      payload: { speechCharacterLimit: 420 },
+    })
+    expect(settingsResponse.statusCode).toBe(200)
 
     const profileResponse = await server.app.inject({
       method: 'POST',
@@ -60,6 +69,7 @@ describe('Fastify API', () => {
     })
     expect(matchResponse.statusCode).toBe(201)
     const match = matchResponse.json()
+    expect(server.repository.getMatch(match.id)?.setup.speechCharacterLimit).toBe(420)
     const closed = await server.app.inject({
       method: 'GET',
       url: `/api/matches/${match.id}?view=closed-eye`,

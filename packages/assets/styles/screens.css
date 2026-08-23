@@ -230,6 +230,28 @@
   gap: 24px;
 }
 
+.aw-global-settings {
+  display: grid;
+  gap: 24px;
+  max-width: 720px;
+  padding: 24px;
+}
+
+.aw-global-settings .aw-panel-heading > div {
+  display: grid;
+  gap: 6px;
+}
+
+.aw-global-settings .aw-panel-heading p {
+  margin: 0;
+  color: var(--aw-color-text-muted);
+  font-size: 13px;
+}
+
+.aw-global-settings .aw-field {
+  max-width: 360px;
+}
+
 .aw-tool-editor {
   margin-top: 24px;
   padding: 24px;
@@ -1117,6 +1139,11 @@
   --aw-role-effect-color: var(--aw-effect-cyan);
 }
 
+.aw-role-effect-overlay[data-effect='sheriff-elected'],
+.aw-role-effect-overlay[data-effect='sheriff-transferred'] {
+  --aw-role-effect-color: var(--aw-color-amber);
+}
+
 .aw-role-effect-card {
   display: grid;
   position: relative;
@@ -1589,6 +1616,23 @@
   flex: none;
   color: var(--aw-color-amber);
   filter: drop-shadow(0 2px 5px rgb(216 169 91 / 32%));
+}
+
+.aw-sheriff-candidate {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  min-height: 20px;
+  padding: 0 6px;
+  border: 1px solid rgb(216 169 91 / 52%);
+  border-radius: 999px;
+  color: #f0d29c;
+  background: rgb(216 169 91 / 12%);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .aw-player-card__role {

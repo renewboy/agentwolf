@@ -150,6 +150,23 @@ test('creates, edits, and deletes an Agent Profile through styled controls', asy
   ).toBeHidden()
 })
 
+test('edits the shared speech preference from global settings', async ({ page, request }) => {
+  const original = (await (await request.get('/api/settings')).json()) as {
+    speechCharacterLimit: number
+  }
+  try {
+    await page.goto('/settings')
+    const input = page.getByLabel('建议发言字数')
+    await expect(input).toHaveValue(String(original.speechCharacterLimit))
+    await input.fill('360')
+    await page.getByRole('button', { name: '保存设置' }).click()
+    await expect(page.getByText('全局设置已保存。')).toBeVisible()
+    expect((await (await request.get('/api/settings')).json()).speechCharacterLimit).toBe(360)
+  } finally {
+    await request.put('/api/settings', { data: original })
+  }
+})
+
 test('generates unique seat names and preserves the manual role multiset', async ({ page }) => {
   await page.goto('/matches/new')
   const names = page.getByLabel('玩家昵称')
@@ -435,8 +452,14 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
   const base = {
     ...thinkingMatchFixture(),
     id: 'match-role-effect-test',
+    phaseId: 'phase-sheriff-speech',
+    phaseLabel: '警上发言',
     lastSequence: 30,
     effectCues: [],
+    seats: thinkingMatchFixture().seats.map((seat, index) => ({
+      ...seat,
+      sheriffCandidate: index === 0,
+    })),
   } as MatchView
   let sendSnapshot: ((match: MatchView) => void) | null = null
   await page.route(`**/api/matches/${base.id}?*`, async (route) => route.fulfill({ json: base }))
@@ -447,28 +470,31 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
     sendSnapshot(base)
   })
   await page.goto(`/matches/${base.id}`)
+  await expect(
+    page.locator('.aw-stage-grid .aw-player-card[data-player-id="player-1"]').first(),
+  ).toContainText('上警')
   const effectSelect = page.getByRole('combobox', { name: '技能特效' })
   await effectSelect.click()
   await page.getByRole('option', { name: '完整', exact: true }).click()
 
   const cue = {
-    cueId: '31:hunter-shot',
+    cueId: '31:sheriff-elected',
     sequence: 31,
-    effectId: 'hunter-shot',
-    roleId: 'role-hunter',
-    abilityId: 'ability-hunter-shot',
-    sourcePlayerIds: ['player-1'],
-    targetPlayerIds: ['player-2'],
+    effectId: 'sheriff-elected',
+    roleId: null,
+    abilityId: null,
+    sourcePlayerIds: [],
+    targetPlayerIds: ['player-1'],
     variant: null,
     tier: 'large',
     occurredAt: '2026-08-23T00:00:02.000Z',
   } as const
   sendSnapshot?.({ ...base, lastSequence: 31, effectCues: [cue] } as MatchView)
   const overlay = page.locator('.aw-role-effect-overlay')
-  await expect(overlay).toHaveAttribute('data-effect', 'hunter-shot')
+  await expect(overlay).toHaveAttribute('data-effect', 'sheriff-elected')
   await expect(
-    page.locator('.aw-stage-grid .aw-player-card[data-player-id="player-2"]').first(),
-  ).toHaveAttribute('data-role-effect', 'hunter-shot')
+    page.locator('.aw-stage-grid .aw-player-card[data-player-id="player-1"]').first(),
+  ).toHaveAttribute('data-role-effect', 'sheriff-elected')
   await expect(overlay).toBeHidden({ timeout: 2_000 })
 
   await effectSelect.click()
@@ -481,16 +507,15 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
     effectCues: [
       {
         ...cue,
-        cueId: '32:guard-protect',
+        cueId: '32:sheriff-transferred',
         sequence: 32,
-        effectId: 'guard-protect',
-        roleId: 'role-guard',
-        abilityId: 'ability-guard-protect',
-        tier: 'medium',
+        effectId: 'sheriff-transferred',
+        sourcePlayerIds: ['player-1'],
+        targetPlayerIds: ['player-2'],
       },
     ],
   } as MatchView)
-  await expect(overlay).toHaveAttribute('data-effect', 'guard-protect')
+  await expect(overlay).toHaveAttribute('data-effect', 'sheriff-transferred')
   await page.waitForTimeout(180)
   expect(await stage.evaluate((element) => getComputedStyle(element).transform)).toBe(before)
   await expect(overlay).toBeHidden({ timeout: 2_000 })
@@ -500,10 +525,89 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
   sendSnapshot?.({
     ...base,
     lastSequence: 33,
-    effectCues: [{ ...cue, cueId: '33:hunter-shot', sequence: 33 }],
+    effectCues: [{ ...cue, cueId: '33:sheriff-elected', sequence: 33 }],
   } as MatchView)
   await page.waitForTimeout(250)
   await expect(overlay).toHaveCount(0)
+})
+
+test('starts narration at sentence boundaries and only appends the committed tail', async ({
+  page,
+}) => {
+  await installSpeechSynthesisStub(page)
+  const initial = {
+    ...thinkingMatchFixture(),
+    id: 'match-streamed-speech-playback-test',
+    activeSpeech: null,
+  } as MatchView
+  let current = initial
+  let sendLive: (message: unknown) => void = ignoreLiveMessage
+  const clientMessages: Array<Record<string, unknown>> = []
+  await page.route(`**/api/matches/${initial.id}?*`, async (route) =>
+    route.fulfill({ json: current }),
+  )
+  await page.routeWebSocket('**/live?*', (socket) => {
+    sendLive = (message) => socket.send(JSON.stringify(message))
+    sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+    sendLive({
+      type: 'speech-playback.state',
+      state: { enabled: false, controlledByThisClient: false, pendingSequence: null },
+    })
+    socket.onMessage((value) => {
+      const message = JSON.parse(String(value)) as Record<string, unknown>
+      clientMessages.push(message)
+      if (message['type'] === 'speech-playback.set' && message['enabled'] === true) {
+        sendLive({
+          type: 'speech-playback.state',
+          state: { enabled: true, controlledByThisClient: true, pendingSequence: null },
+        })
+      }
+    })
+  })
+
+  await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '语音播报已关闭' }).click()
+  await expect(page.getByRole('button', { name: '语音播报已开启' })).toBeVisible()
+  sendLive({
+    type: 'speech-chunk',
+    matchId: initial.id,
+    playerId: 'player-1',
+    text: '第一句',
+  })
+  await page.waitForTimeout(50)
+  expect(await speechStubState(page, 'spoken')).toEqual([])
+  sendLive({
+    type: 'speech-chunk',
+    matchId: initial.id,
+    playerId: 'player-1',
+    text: '。第二句',
+  })
+  await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一句。'])
+  await finishSpeech(page)
+
+  current = {
+    ...current,
+    activeSpeech: { playerId: 'player-1', text: '第一句。第二句', final: true },
+    timeline: [...current.timeline, speechTimelineItem(31, 'player-1', '第一句。第二句')],
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  sendLive({
+    type: 'speech-playback.state',
+    state: { enabled: true, controlledByThisClient: true, pendingSequence: 31 },
+  })
+  await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一句。', '第二句'])
+  await finishSpeech(page)
+  await expect
+    .poll(() =>
+      clientMessages.some(
+        (message) =>
+          message['type'] === 'speech-playback.resolve' &&
+          message['sequence'] === 31 &&
+          message['outcome'] === 'completed',
+      ),
+    )
+    .toBe(true)
+  expect(await speechStubState(page, 'spoken')).not.toContain('第一句。第二句')
 })
 
 test('shows sealed vote progress without a thinking spinner and groups ballots by seat', async ({

@@ -6,6 +6,7 @@ import { AgentsPage } from './pages/AgentsPage.js'
 import { BoardsPage } from './pages/BoardsPage.js'
 import { LobbyPage } from './pages/LobbyPage.js'
 import { NewMatchPage } from './pages/NewMatchPage.js'
+import { SettingsPage } from './pages/SettingsPage.js'
 import { LoadingState } from './components/AsyncState.js'
 import { RuntimeConfigProvider, useRuntimeConfig } from './hooks/useRuntimeConfig.js'
 import { DeveloperPage } from './pages/DeveloperPage.js'
@@ -34,6 +35,7 @@ function AppRoutes() {
         <Route index element={<LobbyPage />} />
         <Route path="agents" element={<AgentsPage />} />
         <Route path="boards" element={<BoardsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route
           path="matches/:matchId/trajectory"
           element={developerMode ? <DeveloperPage /> : <Navigate to="/" replace />}

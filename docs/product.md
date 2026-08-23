@@ -24,6 +24,11 @@ Player identities remain hidden after death and exile. A role-specific public re
 
 The Agent settings screen creates, edits, probes, and deletes Agent Profiles. Selecting an Agent Tool opens a temporary ACP session and reads its advertised model configuration; the model is selected from that returned list. A profile combines the tool, selected model, and non-secret connection settings. Environment-variable references supply credentials.
 
+The global settings screen stores one speech-length preference shared by every Agent. It defaults
+to 300 Chinese characters. Match creation copies the current value into the Match setup snapshot,
+and each speech Prompt presents it as guidance without truncating or rejecting the final speech.
+Changing the global value affects subsequently created Matches only.
+
 The board-management screen creates and maintains custom boards. The new-match screen selects any
 available player count and compatible built-in or custom board, assigns an Agent Profile to each
 seat, and edits or rerolls player names. The nickname generator composes curated word lists and
@@ -46,7 +51,13 @@ the lowest-seat death as the no-sheriff anchor.
 
 The spectator screen is a fixed-height live match stage. Player rosters run down the left and right edges, while the center presents streamed speech, public events, night information allowed by the selected view, voting results, and audio playback through the browser Speech Synthesis API. Resolved votes group voter seat numbers under each target seat number. The central history scrolls independently and can be folded by match day.
 
-One connected spectator window can control automatic speech playback. Every player speech visible in that window's selected view enters a sequence-ordered playback queue. Agent speech generation may continue inside the current speech stage, while its final speech holds the following phase until the queue completes or the spectator skips it. Closing the controlling connection releases the hold. Every committed speech also has manual play and stop controls that do not affect match progression.
+One connected spectator window can control automatic speech playback. Complete sentences enter the
+browser speech queue while visible Agent text is still streaming; the committed event contributes
+only the remaining unterminated tail and is never replayed as a duplicate full speech. Agent speech
+generation may continue inside the current speech stage, while its final speech holds the following
+phase until the queue completes or the spectator skips it. Closing the controlling connection
+releases the hold. Every committed speech also has manual play and stop controls that do not affect
+match progression.
 
 View projections are server-owned:
 
@@ -55,8 +66,10 @@ View projections are server-owned:
 - Player view includes the selected player's public information, private role knowledge, faction knowledge, and private results.
 
 Role abilities produce view-safe visual effect cues. The match screen plays Werewolf attack and
-self-destruct, Seer inspection, Witch antidote and poison, Hunter shot, Idiot reveal, and Guard
-protection effects through full, reduced, or off presentation modes. Effects never delay the rule
+self-destruct, Seer inspection, Witch antidote and poison, Hunter shot, Idiot reveal, Guard
+protection, Sheriff election, and Sheriff transfer effects through full, reduced, or off
+presentation modes. Standing Sheriff candidates carry an explicit raised-hand marker throughout
+the election. Effects never delay the rule
 engine and a projection receives only cues derived from events visible to that view.
 
 Every ACP turn records one normalized trajectory with its exact Prompt, event range, reasoning,

@@ -6,7 +6,7 @@
 Web spectator and setup UI
           |
           v
-Fastify API and view projector ---- SQLite event/profile/board/trajectory repository
+Fastify API and view projector ---- SQLite event/profile/board/settings/trajectory repository
           |
           +---- Match orchestrator ---- Action gateway ---- Player MCP tools
           |             |
@@ -43,6 +43,10 @@ snapshot rather than consulting the mutable catalog. A role is a concrete class 
 metadata plus event handlers and action providers. Rule modules register phase transitions, action
 validators, resolution handlers, visibility rules, and victory evaluators.
 
+Global Match preferences are persisted separately from Agent Profiles. Match creation reads the
+current global settings and stores the speech-character preference in its setup snapshot; runtime
+Prompt rendering and trajectory reconstruction both read that immutable per-Match value.
+
 Submitted actions become immutable intents. The resolution agenda orders effects by named priority and stable sequence:
 
 1. target mapping and redirection;
@@ -73,7 +77,13 @@ instruction disclose a death target to her.
 
 Each player session stores a delivery cursor. A prompt envelope contains only visible events after that cursor. The envelope is marked in-flight before `session/prompt`; the cursor advances only after a final ACP response. Failure after dispatch produces an uncertain-delivery pause with no automatic retry.
 
-The live WebSocket accepts view changes and speech-playback controls as validated client messages. One connection may own automatic playback for a Match. Visible committed speeches continue through a sequence-ordered browser queue; the final speech in a sequential speech stage leaves the engine at an explicit action boundary until that connection reports completion or skip. The playback coordinator is runtime-only presentation state and uses the committed event sequence as its idempotency key. Hidden events never create a hold for the controlling view, and owner disconnect releases any pending boundary.
+The live WebSocket accepts view changes and speech-playback controls as validated client messages.
+One connection may own automatic playback for a Match. Visible stream chunks are split at complete
+sentence boundaries in the browser, while the committed event supplies the final tail and sequence
+identity. The final speech in a sequential speech stage leaves the engine at an explicit action
+boundary until that connection reports completion or skip. The playback coordinator is runtime-only
+presentation state and uses the committed event sequence as its idempotency key. Hidden events never
+create a hold for the controlling view, and owner disconnect releases any pending boundary.
 
 Operator recovery keeps a live ACP session when available. The uncertain attempt is abandoned at
 its delivered sequence so previous context is not resent, then the current action is prompted
@@ -130,7 +140,7 @@ route carries one Match ID and does not provide a cross-Match selector.
 ## Role-effect projection
 
 Domain events contain game semantics only. After visibility filtering, the server projects
-recognized role events into `RoleEffectCue` DTOs. The browser consumes each sequence once through
+recognized role and Sheriff events into `RoleEffectCue` DTOs. The browser consumes each sequence once through
 the role-effect catalog and GSAP adapter. A view change establishes a new sequence baseline, so a
 newly selected projection cannot replay historical private cues. The effect overlay is
 pointer-transparent and cannot alter rule timing or state.

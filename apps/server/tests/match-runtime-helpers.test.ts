@@ -81,9 +81,27 @@ describe('model action instructions', () => {
 
     const werewolfSpeech = actionInstructionFor(
       { ...campaign, phaseId: PhaseIdSchema.parse('phase-day-speech'), speechKind: 'day' },
-      { board: sixPlayerBoard, state: engine.state, playerId: actorId },
+      {
+        board: sixPlayerBoard,
+        state: engine.state,
+        playerId: actorId,
+        speechCharacterLimit: 360,
+      },
     )
     expect(werewolfSpeech).toContain('ability-werewolf-self-destruct')
+    expect(werewolfSpeech).toContain('360 字以内')
+    expect(
+      actionInstructionFor(
+        { ...campaign, phaseId: PhaseIdSchema.parse('phase-day-speech'), speechKind: 'day' },
+        {
+          board: sixPlayerBoard,
+          state: engine.state,
+          playerId: actorId,
+          speechCharacterLimit: 360,
+        },
+        14,
+      ),
+    ).not.toContain('360 字以内')
 
     const wolfCouncil: TurnDescriptor = {
       ...campaign,

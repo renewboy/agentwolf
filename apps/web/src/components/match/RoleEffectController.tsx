@@ -1,5 +1,7 @@
 import {
   Crosshair,
+  ArrowsLeftRight,
+  Crown,
   Drop,
   Eye,
   MoonStars,
@@ -169,6 +171,8 @@ function effectIcon(effectId: RoleEffectId): ReactNode {
     'hunter-shot': <Crosshair size={34} weight="bold" />,
     'idiot-reveal': <Smiley size={34} weight="fill" />,
     'guard-protect': <Shield size={34} weight="fill" />,
+    'sheriff-elected': <Crown size={34} weight="fill" />,
+    'sheriff-transferred': <ArrowsLeftRight size={34} weight="bold" />,
   }
   return icons[effectId]
 }

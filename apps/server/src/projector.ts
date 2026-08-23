@@ -27,6 +27,15 @@ import {
 
 export type SessionStatus = MatchView['seats'][number]['sessionStatus']
 
+const sheriffElectionPhases = new Set([
+  'phase-sheriff-signup',
+  'phase-sheriff-speech',
+  'phase-sheriff-withdraw',
+  'phase-sheriff-vote',
+  'phase-sheriff-runoff-speech',
+  'phase-sheriff-runoff-vote',
+])
+
 export interface ProjectMatchOptions {
   readonly matchId: MatchId
   readonly board: BoardManifest
@@ -101,6 +110,9 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
               ? player.canVote
               : visibleAlive && !publiclyRevealedIdiots.has(player.id),
           sheriff: options.state.sheriff.holderId === player.id,
+          sheriffCandidate:
+            sheriffElectionPhases.has(options.state.phaseId ?? '') &&
+            options.state.sheriff.standingCandidates.has(player.id),
           active: activeSpeech?.playerId === player.id && !activeSpeech.final,
           ...(roleId
             ? {
@@ -174,6 +186,14 @@ export function projectRoleEffectCues(events: readonly GameEvent[]): RoleEffectC
         break
       case 'guard.protected':
         if (payload.targetId) append('guard-protect', [payload.actorId], [payload.targetId])
+        break
+      case 'sheriff.elected':
+        append('sheriff-elected', [], [payload.playerId])
+        break
+      case 'sheriff.transferred':
+        if (payload.toPlayerId) {
+          append('sheriff-transferred', [payload.fromPlayerId], [payload.toPlayerId])
+        }
         break
       default:
         break

@@ -338,6 +338,7 @@ export class MatchRuntime {
         board: this.#options.board,
         state: this.engine.state,
         playerId,
+        speechCharacterLimit: this.#options.record.setup.speechCharacterLimit,
       }),
     )
     return { playerId, runtime, envelope, expectation }

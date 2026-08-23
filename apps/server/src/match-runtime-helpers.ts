@@ -104,6 +104,7 @@ export function actionInstructionFor(
     readonly board: BoardManifest
     readonly state: GameState
     readonly playerId: PlayerId
+    readonly speechCharacterLimit?: number
   },
   promptVersion = promptContractVersion,
 ): string {
@@ -117,6 +118,13 @@ export function actionInstructionFor(
     }
     if (promptVersion >= 3 && turn.speechKind === 'sheriff') {
       instructions.push(getCopy('promptActions.sheriffCampaignPrivacy'))
+    }
+    if (promptVersion >= 15 && context?.speechCharacterLimit !== undefined) {
+      instructions.push(
+        formatCopy(getCopy('promptActions.speechCharacterLimit'), {
+          count: context.speechCharacterLimit,
+        }),
+      )
     }
     if (
       promptVersion >= 6 &&
