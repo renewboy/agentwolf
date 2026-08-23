@@ -107,7 +107,10 @@ test('creates, edits, selects, and deletes a custom six-player board', async ({ 
   await expect(page.getByRole('button', { name: new RegExp(boardName) })).toBeHidden()
 })
 
-test('creates, edits, and deletes an Agent Profile through styled controls', async ({ page }) => {
+test('creates, reorders, defaults, edits, and deletes an Agent Profile', async ({
+  page,
+  request,
+}) => {
   const profileName = `E2E UI ${testRunId}`
   const updatedName = `E2E UI Updated ${testRunId}`
   await page.goto('/agents')
@@ -124,18 +127,91 @@ test('creates, edits, and deletes an Agent Profile through styled controls', asy
   await page.getByRole('option', { name: 'mock-model', exact: true }).click()
   await page.getByRole('button', { name: '保存配置' }).click()
   await expect(page.getByText('已保存', { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: new RegExp(`${profileName}mock-model`) }),
-  ).toBeVisible()
+  await expect(page.locator('.aw-profile-item').filter({ hasText: profileName })).toBeVisible()
 
   await page.getByLabel('配置名称', { exact: true }).fill(updatedName)
   await page.getByRole('button', { name: '保存配置' }).click()
-  await expect(
-    page.getByRole('button', { name: new RegExp(`${updatedName}mock-model`) }),
-  ).toBeVisible()
+  const updatedProfileRow = page.locator('.aw-profile-item').filter({ hasText: updatedName })
+  const sharedProfileRow = page.locator('.aw-profile-item').filter({ hasText: sharedProfileName })
+  await expect(updatedProfileRow).toBeVisible()
+  const nameBox = await updatedProfileRow.locator('strong').boundingBox()
+  const modelBox = await updatedProfileRow.locator('small').boundingBox()
+  expect(nameBox).not.toBeNull()
+  expect(modelBox).not.toBeNull()
+  expect(modelBox!.y).toBeGreaterThan(nameBox!.y)
+
+  const reorderHandle = updatedProfileRow.getByRole('button', {
+    name: `调整 ${updatedName} 的顺序`,
+  })
+  const sourceBox = await updatedProfileRow.boundingBox()
+  const targetBox = await sharedProfileRow.boundingBox()
+  expect(sourceBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+  const pointerOrderSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/agent-profiles/order') && response.request().method() === 'PUT',
+  )
+  const dragStartX = sourceBox!.x + sourceBox!.width * 0.8
+  const dragStartY = sourceBox!.y + sourceBox!.height / 2
+  await page.mouse.move(dragStartX, dragStartY)
+  await page.mouse.down()
+  await page.mouse.move(dragStartX, dragStartY - 14, { steps: 4 })
+  await expect(updatedProfileRow).toHaveAttribute('data-dragging', 'true')
+  await expect(updatedProfileRow).toHaveCSS('opacity', '0.38')
+  await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 4, {
+    steps: 8,
+  })
+  await expect(sharedProfileRow).toHaveAttribute('data-drop-position', 'before')
+  await page.mouse.up()
+  await pointerOrderSaved
+  const profileList = page.locator('.aw-profile-list')
+  await expect(profileList).toHaveAttribute('data-reordering', 'false')
+  await expect(page.locator('.aw-profile-item').first()).toContainText(updatedName)
+
+  await reorderHandle.focus()
+  const arrowOrderSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/agent-profiles/order') && response.request().method() === 'PUT',
+  )
+  await page.keyboard.press('ArrowDown')
+  await arrowOrderSaved
+  await expect(profileList).toHaveAttribute('data-reordering', 'false')
+  await expect(page.locator('.aw-profile-item').first()).toContainText(sharedProfileName)
+  const homeOrderSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/agent-profiles/order') && response.request().method() === 'PUT',
+  )
+  await page.keyboard.press('Home')
+  await homeOrderSaved
+  await expect(profileList).toHaveAttribute('data-reordering', 'false')
+  await expect(page.locator('.aw-profile-item').first()).toContainText(updatedName)
+
+  await page.reload()
+  await expect(page.locator('.aw-profile-item').first()).toContainText(updatedName)
+  const orderedProfiles = (await (await request.get('/api/agent-profiles')).json()) as Array<{
+    id: string
+    name: string
+  }>
+  expect(orderedProfiles[0]?.name).toBe(updatedName)
+
+  await page.goto('/matches/new')
+  const seatProfiles = page.getByRole('combobox', { name: 'Agent 配置' })
+  await expect(seatProfiles).toHaveCount(12)
+  expect(
+    await seatProfiles.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('data-value')),
+    ),
+  ).toEqual(Array.from({ length: 12 }, () => orderedProfiles[0]!.id))
   await expect(page.getByRole('link', { name: '开发者' })).toHaveCount(0)
   await expect(page.locator('select')).toHaveCount(0)
 
+  await page.goto('/agents')
+  await page
+    .locator('.aw-profile-item')
+    .filter({ hasText: updatedName })
+    .locator('button')
+    .last()
+    .click()
   const deleteButton = page.getByRole('button', { name: '删除配置' })
   await deleteButton.click()
   const dialog = page.getByRole('alertdialog', { name: '确认删除配置' })
@@ -145,9 +221,7 @@ test('creates, edits, and deletes an Agent Profile through styled controls', asy
   await expect(deleteButton).toBeFocused()
   await deleteButton.click()
   await dialog.getByRole('button', { name: '删除配置' }).click()
-  await expect(
-    page.getByRole('button', { name: new RegExp(`${updatedName}mock-model`) }),
-  ).toBeHidden()
+  await expect(page.locator('.aw-profile-item').filter({ hasText: updatedName })).toBeHidden()
 })
 
 test('edits the shared speech preference from global settings', async ({ page, request }) => {

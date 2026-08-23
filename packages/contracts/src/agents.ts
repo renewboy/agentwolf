@@ -53,6 +53,15 @@ export const AgentProfileInputSchema = AgentProfileSchema.omit({
 })
 export type AgentProfileInput = z.infer<typeof AgentProfileInputSchema>
 
+export const AgentProfileOrderInputSchema = z.object({
+  profileIds: z
+    .array(AgentProfileIdSchema)
+    .refine((profileIds) => new Set(profileIds).size === profileIds.length, {
+      message: 'Agent Profile order contains duplicate IDs',
+    }),
+})
+export type AgentProfileOrderInput = z.infer<typeof AgentProfileOrderInputSchema>
+
 export const AgentProbeResultSchema = z.object({
   ok: z.boolean(),
   agentName: z.string().optional(),

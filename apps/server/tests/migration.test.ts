@@ -2,8 +2,10 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import Database from 'better-sqlite3'
+import { AgentProfileSchema } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
+import { SqliteRepository } from '../src/repository.js'
 
 const roots: string[] = []
 const servers: AgentWolfServer[] = []
@@ -97,5 +99,60 @@ describe('database migration', () => {
       setup: { speechCharacterLimit: 300 },
     })
     expect(server.repository.getGlobalSettings()).toEqual({ speechCharacterLimit: 300 })
+  })
+
+  it('upgrades schema three with the current visible Agent Profile order', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-profile-order-migration-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const legacy = new Database(databasePath)
+    legacy.exec(`
+      CREATE TABLE agent_profiles (
+        id TEXT PRIMARY KEY,
+        tool_id TEXT NOT NULL,
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      PRAGMA user_version = 3;
+    `)
+    const older = AgentProfileSchema.parse({
+      id: 'profile-older-player',
+      name: 'Older player',
+      toolId: 'tool-trae-cli',
+      model: 'older-model',
+      promptTimeoutMs: 10_000,
+      connection: {},
+      createdAt: '2026-08-20T00:00:00.000Z',
+      updatedAt: '2026-08-21T00:00:00.000Z',
+    })
+    const newer = AgentProfileSchema.parse({
+      id: 'profile-newer-player',
+      name: 'Newer player',
+      toolId: 'tool-trae-cli',
+      model: 'newer-model',
+      promptTimeoutMs: 10_000,
+      connection: {},
+      createdAt: '2026-08-21T00:00:00.000Z',
+      updatedAt: '2026-08-22T00:00:00.000Z',
+    })
+    const insert = legacy.prepare(
+      'INSERT INTO agent_profiles (id, tool_id, json, updated_at) VALUES (?, ?, ?, ?)',
+    )
+    for (const profile of [older, newer]) {
+      insert.run(profile.id, profile.toolId, JSON.stringify(profile), profile.updatedAt)
+    }
+    legacy.close()
+
+    const repository = new SqliteRepository(databasePath)
+    expect(repository.listProfiles().map(({ id }) => id)).toEqual([newer.id, older.id])
+    repository.reorderProfiles([older.id, newer.id])
+    repository.close()
+
+    const reopened = new SqliteRepository(databasePath)
+    expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
+    reopened.close()
+    const migrated = new Database(databasePath)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(4)
+    migrated.close()
   })
 })

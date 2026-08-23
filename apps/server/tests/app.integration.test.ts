@@ -46,6 +46,52 @@ describe('Fastify API', () => {
     })
     expect(profileResponse.statusCode).toBe(201)
     const profile = profileResponse.json()
+    const secondProfileResponse = await server.app.inject({
+      method: 'POST',
+      url: '/api/agent-profiles',
+      payload: {
+        name: 'HTTP second player',
+        toolId: tools[0].id,
+        model: 'test-model-2',
+        promptTimeoutMs: 5_000,
+        connection: {},
+      },
+    })
+    expect(secondProfileResponse.statusCode).toBe(201)
+    const secondProfile = secondProfileResponse.json()
+    const reorderedProfiles = await server.app.inject({
+      method: 'PUT',
+      url: '/api/agent-profiles/order',
+      payload: { profileIds: [secondProfile.id, profile.id] },
+    })
+    expect(reorderedProfiles.statusCode).toBe(200)
+    expect(reorderedProfiles.json().map(({ id }: { id: string }) => id)).toEqual([
+      secondProfile.id,
+      profile.id,
+    ])
+    const incompleteOrder = await server.app.inject({
+      method: 'PUT',
+      url: '/api/agent-profiles/order',
+      payload: { profileIds: [profile.id] },
+    })
+    expect(incompleteOrder.statusCode).toBe(400)
+    const updatedProfile = await server.app.inject({
+      method: 'PUT',
+      url: `/api/agent-profiles/${profile.id}`,
+      payload: {
+        name: 'HTTP player updated',
+        toolId: tools[0].id,
+        model: 'test-model',
+        promptTimeoutMs: 5_000,
+        connection: {},
+      },
+    })
+    expect(updatedProfile.statusCode).toBe(200)
+    expect(
+      (await server.app.inject({ method: 'GET', url: '/api/agent-profiles' }))
+        .json()
+        .map(({ id }: { id: string }) => id),
+    ).toEqual([secondProfile.id, profile.id])
     const boards = (await server.app.inject({ method: 'GET', url: '/api/boards' })).json()
     expect(boards.map((board: { id: string }) => board.id)).toEqual([
       'board-quick-6',

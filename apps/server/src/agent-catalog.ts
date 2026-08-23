@@ -1,6 +1,7 @@
 import {
   AgentProfileIdSchema,
   AgentProfileInputSchema,
+  AgentProfileOrderInputSchema,
   AgentProfileSchema,
   AgentToolIdSchema,
   AgentToolInputSchema,
@@ -8,11 +9,13 @@ import {
   type AgentProfile,
   type AgentProfileId,
   type AgentProfileInput,
+  type AgentProfileOrderInput,
   type AgentTool,
   type AgentToolId,
   type AgentToolInput,
 } from '@agentwolf/contracts'
 import { builtInAgentTools } from '@agentwolf/acp'
+import { RuleViolation } from '@agentwolf/game-engine'
 import { createReadableId } from './ids.js'
 import type { SqliteRepository } from './repository.js'
 
@@ -95,6 +98,19 @@ export class AgentCatalogService {
     })
     this.#repository.saveProfile(profile)
     return profile
+  }
+
+  public reorderProfiles(input: AgentProfileOrderInput): AgentProfile[] {
+    const { profileIds } = AgentProfileOrderInputSchema.parse(input)
+    const currentProfiles = this.listProfiles()
+    if (
+      profileIds.length !== currentProfiles.length ||
+      currentProfiles.some((profile) => !profileIds.includes(profile.id))
+    ) {
+      throw new RuleViolation('Agent Profile order must include every current profile exactly once')
+    }
+    this.#repository.reorderProfiles(profileIds)
+    return this.listProfiles()
   }
 
   public deleteProfile(id: AgentProfileId): void {

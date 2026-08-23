@@ -6,6 +6,7 @@ import websocket from '@fastify/websocket'
 import {
   AgentProfileIdSchema,
   AgentProfileInputSchema,
+  AgentProfileOrderInputSchema,
   AgentToolIdSchema,
   AgentToolInputSchema,
   BoardIdSchema,
@@ -113,6 +114,9 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const profile = catalog.createProfile(AgentProfileInputSchema.parse(request.body))
     return reply.code(201).send(profile)
   })
+  app.put('/api/agent-profiles/order', async (request) =>
+    catalog.reorderProfiles(AgentProfileOrderInputSchema.parse(request.body)),
+  )
   app.put('/api/agent-profiles/:id', async (request) => {
     const id = AgentProfileIdSchema.parse((request.params as { id: string }).id)
     return catalog.updateProfile(id, AgentProfileInputSchema.parse(request.body))

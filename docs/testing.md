@@ -7,12 +7,13 @@
   visibility projection.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
 - Integration tests run the API with an in-memory repository and fake ACP processes. They cover
-  custom-board CRUD and immutable Match snapshots, schema-one migration, one session per seat,
-  cursor advancement, submitted-action status, normalized and redacted trajectories, exact Prompt
-  reconstruction, uncertain-delivery recovery, MCP action authorization, sync barriers, and
-  streamed speech.
+  custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
+  migration, one session per seat, cursor advancement, submitted-action status, normalized and
+  redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
+  authorization, sync barriers, and streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
-- Browser tests cover Agent Profile and custom-board management, styled listbox behavior,
+- Browser tests cover Agent Profile management, profile metadata layout, whole-row drag feedback,
+  keyboard ordering, persisted setup defaults, custom-board management, styled listbox behavior,
   confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
   nickname labels, semantic record tags, minimap-to-Record navigation, stable player switching,
   shared-period collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
@@ -102,3 +103,5 @@ pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
 31. Sheriff campaign speech uses a replay-stable random first candidate. Day speech order covers
     single-death, multiple-death, and peaceful-night anchors with or without a Sheriff, persists its
     basis and direction, and always places a living Sheriff last.
+32. Agent Profiles render their names and models on separate lines, retain a user-defined order
+    across edits and restarts, and default every new-Match seat to the first ordered profile.

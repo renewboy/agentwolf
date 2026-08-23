@@ -159,7 +159,7 @@ export class SqliteRepository {
 
   public listProfiles(): AgentProfile[] {
     const rows = this.#database
-      .prepare('SELECT json FROM agent_profiles ORDER BY updated_at DESC')
+      .prepare('SELECT json FROM agent_profiles ORDER BY sort_order ASC, id ASC')
       .all() as DatabaseRow[]
     return rows.map((row) => AgentProfileSchema.parse(JSON.parse(row.json)))
   }
@@ -175,14 +175,31 @@ export class SqliteRepository {
     const parsed = AgentProfileSchema.parse(profile)
     this.#database
       .prepare(
-        `INSERT INTO agent_profiles (id, tool_id, json, updated_at)
-         VALUES (?, ?, ?, ?)
+        `INSERT INTO agent_profiles (id, tool_id, json, updated_at, sort_order)
+         VALUES (
+           ?,
+           ?,
+           ?,
+           ?,
+           (SELECT COALESCE(MAX(sort_order) + 1, 0) FROM agent_profiles)
+         )
          ON CONFLICT(id) DO UPDATE SET
            tool_id = excluded.tool_id,
            json = excluded.json,
            updated_at = excluded.updated_at`,
       )
       .run(parsed.id, parsed.toolId, JSON.stringify(parsed), parsed.updatedAt)
+  }
+
+  public reorderProfiles(profileIds: readonly AgentProfileId[]): void {
+    const update = this.#database.prepare('UPDATE agent_profiles SET sort_order = ? WHERE id = ?')
+    this.#database.transaction(() => {
+      for (const [sortOrder, profileId] of profileIds.entries()) {
+        if (update.run(sortOrder, profileId).changes !== 1) {
+          throw new Error(`Unknown Agent Profile ${profileId}`)
+        }
+      }
+    })()
   }
 
   public deleteProfile(id: AgentProfileId): boolean {

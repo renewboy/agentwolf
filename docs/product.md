@@ -22,7 +22,13 @@ Player identities remain hidden after death and exile. A role-specific public re
 
 ## Setup
 
-The Agent settings screen creates, edits, probes, and deletes Agent Profiles. Selecting an Agent Tool opens a temporary ACP session and reads its advertised model configuration; the model is selected from that returned list. A profile combines the tool, selected model, and non-secret connection settings. Environment-variable references supply credentials.
+The Agent settings screen creates, edits, probes, deletes, and orders Agent Profiles. Each list row
+keeps the profile name and model on separate lines. The whole row is draggable and presents a
+following drag image, lifted source state, and insertion marker; its handle also supports keyboard
+ordering. The order persists across edits and restarts. Selecting an Agent Tool opens a temporary
+ACP session and reads its advertised model configuration; the model is selected from that returned
+list. A profile combines the tool, selected model, and non-secret connection settings.
+Environment-variable references supply credentials.
 
 Match player Sessions run in a game-only configuration. Their model context contains the
 AgentWolf player contract, the selected board and visible Match history, and the five structured
@@ -36,9 +42,9 @@ Changing the global value affects subsequently created Matches only.
 
 The board-management screen creates and maintains custom boards. The new-match screen selects any
 available player count and compatible built-in or custom board, assigns an Agent Profile to each
-seat, and edits or rerolls player names. The nickname generator composes curated word lists and
-guarantees uniqueness inside a match. Starting a match assigns `player-1` through `player-N` by
-seat order.
+seat, and edits or rerolls player names. Every seat initially uses the first profile in the
+persisted Agent Profile order. The nickname generator composes curated word lists and guarantees
+uniqueness inside a match. Starting a match assigns `player-1` through `player-N` by seat order.
 
 Every player's initial Match prompt includes one detailed public introduction for each role on the
 selected board. Each entry states the role's faction, skill timing, legal targets, usage limits,

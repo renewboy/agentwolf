@@ -43,8 +43,28 @@ describe('Agent catalog and repository', () => {
         connection: { region: 'local' },
       }),
     )
+    const secondProfile = catalog.createProfile(
+      AgentProfileInputSchema.parse({
+        name: 'Second player',
+        toolId: tool.id,
+        model: 'model-c',
+        promptTimeoutMs: 15_000,
+        connection: {},
+      }),
+    )
     expect(catalog.listTools().some((entry) => entry.id === tool.id)).toBe(true)
     expect(catalog.getProfile(profile.id)?.model).toBe('model-a')
+    expect(catalog.listProfiles().map((entry) => entry.id)).toEqual([profile.id, secondProfile.id])
+
+    expect(
+      catalog.reorderProfiles({ profileIds: [secondProfile.id, profile.id] }).map(({ id }) => id),
+    ).toEqual([secondProfile.id, profile.id])
+    expect(() => catalog.reorderProfiles({ profileIds: [secondProfile.id] })).toThrow(
+      /every current profile/,
+    )
+    expect(() =>
+      catalog.reorderProfiles({ profileIds: [secondProfile.id, secondProfile.id] }),
+    ).toThrow(/duplicate IDs/)
 
     const updated = catalog.updateProfile(profile.id, {
       name: 'Updated player',
@@ -55,8 +75,10 @@ describe('Agent catalog and repository', () => {
     })
     expect(updated.createdAt).toBe(profile.createdAt)
     expect(updated.model).toBe('model-b')
+    expect(catalog.listProfiles().map((entry) => entry.id)).toEqual([secondProfile.id, profile.id])
     expect(() => catalog.deleteTool(tool.id)).toThrow(/used/)
     catalog.deleteProfile(profile.id)
+    catalog.deleteProfile(secondProfile.id)
     catalog.deleteTool(tool.id)
     expect(catalog.getTool(tool.id)).toBeNull()
     repository.close()

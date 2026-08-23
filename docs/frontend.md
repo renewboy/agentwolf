@@ -19,12 +19,15 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 
 ## Layouts
 
-- Agent settings: agent list and focused editor with explicit empty, probe, saving, and error states.
+- Agent settings: ordered agent list with separate name and model lines, whole-row drag images,
+  lifted source and insertion feedback, keyboard reorder handles, and a focused editor with
+  explicit empty, probe, saving, and error states.
 - Global settings: one focused editor for shared Match preferences, with saved and error states.
 - Board management: built-in and custom board list, role-count steppers, derived 6-24 player total,
   sheriff switch, victory selector, copy, save, edit, and confirmed deletion.
 - New match: available-player-count selection, compatible built-in or custom board summary, ordered
-  seat assignment, per-seat Agent Profile selector, name edit, per-seat reroll, and reroll-all.
+  seat assignment defaulted to the first persisted Agent Profile, per-seat Agent Profile selector,
+  name edit, per-seat reroll, and reroll-all.
 - Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
@@ -71,4 +74,5 @@ management, developer gating and trajectory details, all three view projections,
 and cleanup, streaming speech, sequence-keyed automatic and manual audio controls, fixed-height
 overflow, waiting-state movement and cleanup, terminal connection settlement, missing-Match retry
 shutdown, listbox interaction, confirmation-dialog focus behavior, reduced motion, and responsive
-layout.
+layout. Agent Profile coverage includes name/model separation, whole-row drag feedback, keyboard
+reordering, reload persistence, and new-Match defaults.

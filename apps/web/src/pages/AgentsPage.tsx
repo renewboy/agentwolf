@@ -12,10 +12,13 @@ import {
 } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
+import { AgentProfileList } from '../components/AgentProfileList.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { CustomToolEditor, emptyToolDraft, type ToolDraft } from '../components/CustomToolEditor.js'
 import { FormField } from '../components/FormField.js'
 import { GameSelect } from '../components/GameSelect.js'
+import { useProfileOrdering } from '../hooks/useProfileOrdering.js'
+import { parseRecordInput } from '../input.js'
 
 interface ProfileDraft {
   readonly id: AgentProfileId | null
@@ -40,6 +43,12 @@ export function AgentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const profileOrdering = useProfileOrdering({
+    profiles,
+    busy,
+    onProfilesChange: setProfiles,
+    onError: setError,
+  })
 
   const load = useCallback(async () => {
     setError(null)
@@ -134,7 +143,7 @@ export function AgentsPage() {
         model: draft.model,
         ...(draft.mode.trim() ? { mode: draft.mode.trim() } : {}),
         promptTimeoutMs: draft.promptTimeoutMs,
-        connection: parseRecord(draft.connection),
+        connection: parseRecordInput(draft.connection),
       })
       const profile = draft.id
         ? await api.updateProfile(draft.id, input)
@@ -196,7 +205,7 @@ export function AgentsPage() {
             .split('\n')
             .map((line) => line.trim())
             .filter(Boolean),
-          environment: parseRecord(toolDraft.environment),
+          environment: parseRecordInput(toolDraft.environment),
           ...(toolDraft.initialMode.trim() ? { initialMode: toolDraft.initialMode.trim() } : {}),
           modelConfigKey: toolDraft.modelConfigKey,
         }),
@@ -241,23 +250,13 @@ export function AgentsPage() {
               <p>{getCopy('agents.emptyHint')}</p>
             </div>
           ) : (
-            <div className="aw-profile-list">
-              {profiles.map((profile) => (
-                <button
-                  className="aw-profile-item"
-                  data-selected={draft.id === profile.id}
-                  key={profile.id}
-                  type="button"
-                  onClick={() => selectProfile(profile)}
-                >
-                  <Robot size={22} aria-hidden />
-                  <span>
-                    <strong>{profile.name}</strong>
-                    <small>{profile.model}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <AgentProfileList
+              busy={busy}
+              ordering={profileOrdering}
+              profiles={profiles}
+              selectedProfileId={draft.id}
+              onSelect={selectProfile}
+            />
           )}
           <div className="aw-tool-summary">
             <div className="aw-panel-heading">
@@ -441,12 +440,4 @@ function createEmptyProfile(toolId: AgentToolId | ''): ProfileDraft {
     promptTimeoutMs: 180_000,
     connection: '{}',
   }
-}
-
-function parseRecord(value: string): Record<string, unknown> {
-  const parsed: unknown = JSON.parse(value)
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(getCopy('errors.jsonObjectRequired'))
-  }
-  return parsed as Record<string, unknown>
 }

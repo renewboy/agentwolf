@@ -47,6 +47,10 @@ Global Match preferences are persisted separately from Agent Profiles. Match cre
 current global settings and stores the speech-character preference in its setup snapshot; runtime
 Prompt rendering and trajectory reconstruction both read that immutable per-Match value.
 
+The Agent Profile catalog stores one explicit SQLite order. Reorder requests contain every current
+profile ID exactly once and commit in one transaction. Profile edits preserve their position, new
+profiles append to the catalog, and the ordered list is the source for new-Match seat defaults.
+
 Submitted actions become immutable intents. The resolution agenda orders effects by named priority and stable sequence:
 
 1. target mapping and redirection;
@@ -147,7 +151,11 @@ pointer-transparent and cannot alter rule timing or state.
 
 ## ACP and action transport
 
-An Agent Tool is a command, arguments, environment allowlist, initial mode, and capability hints. The settings API discovers its current models and modes from the ACP `session/new` response before an Agent Profile binds the tool to one advertised model and its connection options.
+An Agent Tool is a command, arguments, environment allowlist, initial mode, and capability hints.
+The settings API discovers its current models and modes from the ACP `session/new` response before
+an Agent Profile binds the tool to one advertised model and its connection options. The profile
+catalog API returns profiles in their persisted order and accepts validated whole-catalog reorder
+requests.
 
 For each seat, the supervisor starts one stdio ACP process, initializes the connection, creates one session with the seat workspace and AgentWolf MCP server, applies advertised model and mode configuration, then retains the returned session ID for the match lifetime. ACP permission requests are approved only when their structured MCP server and tool identity matches one of the five AgentWolf action tools. `session/update` is the streaming source; the final `session/prompt` response closes the turn.
 

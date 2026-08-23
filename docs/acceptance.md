@@ -4,9 +4,9 @@ Evidence date: 2026-08-23. Environment: macOS arm64, Node.js 25.7.0, pnpm 10.20.
 
 ## Deterministic application checks
 
-- 91 unit and integration scenarios across 26 test files passed, including exact bootstrap teammate knowledge, game-only player launch policies, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 87.88% lines, 84.81% statements, 88.68% functions, and 74.63% branches over rule, ACP, asset, and server production sources.
-- Thirteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile controls, global speech settings, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
+- 92 unit and integration scenarios across 26 test files passed, including exact bootstrap teammate knowledge, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
+- Coverage passed at 88.03% lines, 84.99% statements, 89.15% functions, and 74.71% branches over rule, ACP, asset, and server production sources.
+- Thirteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile metadata layout, whole-row drag image, lifted source and insertion feedback, keyboard ordering, reload persistence and new-Match defaults, global speech settings, 6/9/12-player setup, spectator projections, developer trajectory inspection, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
 
 ## Live ACP adapters
@@ -60,6 +60,13 @@ The match stage stayed exactly equal to the viewport at 3456×1760, 1440×900, 1
 A delayed six-player Mock ACP match exposed `reconnecting`, `starting`, `streaming`, and `thinking` in the browser. The visible thinking ring changed transform across a 350ms sample, the center presence stage named the live state, and the browser reported no page or console errors. A 9.72-second browser recording captured startup, streaming, thinking, and paused feedback. Closed-eye projection hid every private seat runtime status while the selected player view retained only its own private status.
 
 The application listbox rendered through its Portal with the dark game-control surface, constrained internal scrolling, selected-state mark, and keyboard navigation. The destructive confirmation layer covered the application, focused cancel first, closed on Escape, restored trigger focus, and completed deletion without browser-native prompts. Suite teardown left zero test Matches, zero test Agent Profiles, and zero custom test Agent Tools in the reusable local server.
+
+The live Agent settings page rendered every profile name and model on separate lines, made every row
+draggable, and exposed a grab cursor across each row. The live new-Match page assigned the persisted
+first profile to all 12 seat selectors and reported no browser warning or error. Isolated Chromium
+coverage started a drag from the right side of a profile row, observed the lifted source and target
+insertion line, completed the reorder, repeated it with Arrow/Home keys, reloaded the page, verified
+the persisted order, and then verified all 12 setup defaults before deleting the test profile.
 
 ## Speech playback pacing
 

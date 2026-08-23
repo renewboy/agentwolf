@@ -1,5 +1,6 @@
 import {
   AgentProbeResultSchema,
+  AgentProfileOrderInputSchema,
   AgentProfileSchema,
   AgentToolSchema,
   BoardSummarySchema,
@@ -14,6 +15,7 @@ import {
   type AgentProfile,
   type AgentProfileId,
   type AgentProfileInput,
+  type AgentProfileOrderInput,
   type AgentProbeResult,
   type AgentTool,
   type AgentToolId,
@@ -108,6 +110,15 @@ export const api = {
       await requestJson(`/api/agent-profiles/${id}`, {
         method: 'PUT',
         body: JSON.stringify(input),
+      }),
+    )
+  },
+  async reorderProfiles(input: AgentProfileOrderInput): Promise<AgentProfile[]> {
+    const parsed = AgentProfileOrderInputSchema.parse(input)
+    return AgentProfileSchema.array().parse(
+      await requestJson('/api/agent-profiles/order', {
+        method: 'PUT',
+        body: JSON.stringify(parsed),
       }),
     )
   },

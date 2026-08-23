@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 3) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 4) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -14,9 +14,11 @@ export function migrateDatabase(database: Database.Database): void {
         id TEXT PRIMARY KEY,
         tool_id TEXT NOT NULL,
         json TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        sort_order INTEGER NOT NULL
       );
       CREATE INDEX agent_profiles_tool_id ON agent_profiles(tool_id);
+      CREATE INDEX agent_profiles_sort_order ON agent_profiles(sort_order);
       CREATE TABLE custom_boards (
         id TEXT PRIMARY KEY,
         json TEXT NOT NULL,
@@ -51,7 +53,7 @@ export function migrateDatabase(database: Database.Database): void {
         PRIMARY KEY(match_id, player_id)
       );
       ${trajectoryTables()}
-      PRAGMA user_version = 3;
+      PRAGMA user_version = 4;
     `)
   }
   if (version === 1) {
@@ -79,6 +81,21 @@ export function migrateDatabase(database: Database.Database): void {
         updated_at TEXT NOT NULL
       );
       PRAGMA user_version = 3;
+    `)
+  }
+  if (version >= 1 && version <= 3) {
+    database.exec(`
+      ALTER TABLE agent_profiles ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+      WITH ranked_profiles AS (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY updated_at DESC, id ASC) - 1 AS position
+        FROM agent_profiles
+      )
+      UPDATE agent_profiles
+      SET sort_order = (
+        SELECT position FROM ranked_profiles WHERE ranked_profiles.id = agent_profiles.id
+      );
+      CREATE INDEX agent_profiles_sort_order ON agent_profiles(sort_order);
+      PRAGMA user_version = 4;
     `)
   }
 }
