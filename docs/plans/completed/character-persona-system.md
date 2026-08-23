@@ -26,8 +26,8 @@ reasoning quality, Werewolf identity, legal actions, visibility, or canonical Ma
 ## Completion evidence
 
 - `pnpm check` passed architecture, artifacts, docs, Skills, strict TypeScript, Oxlint, Oxfmt, Knip,
-  zero-clone JSCPD, 117 covered tests, and the production build. Coverage was 89.02% lines, 86.24%
-  statements, 91.00% functions, and 75.41% branches.
+  zero-clone JSCPD, 117 covered tests, and the production build. Coverage was 89.02% lines, 86.21%
+  statements, 91.00% functions, and 75.33% branches.
 - `pnpm test:e2e` passed all 16 Chromium scenarios, including Character copy/edit, real browser
   PNG-to-WebP upload, repeated board defaults, duplicate nickname blocking, and Match overrides.
 - The three-fixture deterministic simulation corpus and every configured replay variant passed.

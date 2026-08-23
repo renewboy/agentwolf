@@ -21,7 +21,7 @@ per-feature run narratives live under `docs/acceptance/archive/`; see the archiv
   orchestration project-root validation, role-effect projection, bounded transport auto-recovery,
   cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day
   order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 89.02% lines, 86.24% statements, 91.00% functions, and 75.41% branches over
+- Coverage passed at 89.02% lines, 86.21% statements, 91.00% functions, and 75.33% branches over
   rule, ACP, asset, and server production sources.
 - Sixteen Chromium acceptance scenarios passed: Character library copy/edit and PNG-to-WebP upload,
   repeated board Character defaults, duplicate-nickname blocking, custom-board
