@@ -241,6 +241,126 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   expect(visibleRoles.length).toBeLessThanOrEqual(4)
 })
 
+test('guides simulation review and approval from the Match row', async ({ page }) => {
+  const source = thinkingMatchFixture()
+  const ended: MatchView = {
+    ...source,
+    id: 'match-simulation-wizard-e2e',
+    status: 'ended',
+    day: 2,
+    phaseId: 'phase-match-ended',
+    phaseLabel: '对局结束',
+    winner: 'village',
+    seats: source.seats.map((seat) => ({
+      ...seat,
+      active: false,
+      sessionStatus: 'closed',
+    })),
+  }
+  const running: MatchView = {
+    ...source,
+    id: 'match-simulation-running-e2e',
+  }
+  await page.route(
+    (url) => url.pathname.endsWith('/api/matches'),
+    (route) => route.fulfill({ json: [ended, running] }),
+  )
+  await page.route('**/api/developer/matches/*/simulation/review', async (route) => {
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 220))
+    await route.fulfill({
+      json: {
+        simulationId: 'simulation-browser-wizard-e2e',
+        relativePath: '.agentwolf/simulations/inbox/simulation-browser-wizard-e2e.sim.json',
+        sourceStatus: 'ended',
+        turns: 35,
+        events: 180,
+        deterministic: true,
+        replayOk: true,
+        orchestrationDeterministic: true,
+        orchestrationOk: true,
+        runnersAgree: true,
+        canApprove: true,
+        canAcceptCurrent: true,
+        failures: [],
+        warnings: ['trajectory-audit:review-required'],
+        secretWarnings: [],
+      },
+    })
+  })
+  await page.route('**/api/developer/simulations/*/approve', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      acceptCurrent: false,
+      acknowledgeWarnings: true,
+    })
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 160))
+    await route.fulfill({
+      json: {
+        simulationId: 'simulation-browser-wizard-e2e',
+        relativePath:
+          'apps/server/tests/fixtures/simulations/simulation-browser-wizard-e2e.sim.json',
+        created: true,
+        variants: ['recorded', 'parallel-seat-order', 'parallel-reverse-order'],
+      },
+    })
+  })
+
+  await page.goto('/')
+  const endedRow = page.locator(`[data-match-id="${ended.id}"]`)
+  const runningRow = page.locator(`[data-match-id="${running.id}"]`)
+  const trigger = endedRow.getByRole('button', { name: '添加仿真' })
+  await expect(trigger).toBeEnabled()
+  await expect(runningRow.getByRole('button', { name: '添加仿真' })).toBeDisabled()
+  const rowBounds = await endedRow.boundingBox()
+  const actionBounds = await endedRow.locator('.aw-match-row__actions').boundingBox()
+  expect(rowBounds).not.toBeNull()
+  expect(actionBounds).not.toBeNull()
+  expect((actionBounds?.x ?? 0) + (actionBounds?.width ?? 0)).toBeLessThanOrEqual(
+    (rowBounds?.x ?? 0) + (rowBounds?.width ?? 0) + 1,
+  )
+
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: '添加仿真用例' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('准备数据')).toBeVisible()
+  await expect(dialog.getByText('校验行为')).toBeVisible()
+  await expect(dialog.getByText('写入测试集')).toBeVisible()
+  await dialog.getByRole('button', { name: '生成并开始校验' }).click()
+  await expect(dialog.getByText('正在校验对局行为')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('规则引擎重放')).toBeVisible()
+  await expect(dialog.getByText('服务编排重放')).toBeVisible()
+  await expect(dialog.getByText('35', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('180', { exact: true })).toBeVisible()
+  const approveButton = dialog.getByRole('button', { name: '确认写入测试集' })
+  await expect(approveButton).toBeDisabled()
+  await dialog.getByRole('checkbox', { name: '我已检查并确认这些审核提示' }).check()
+  await expect(approveButton).toBeEnabled()
+  await approveButton.click()
+  await expect(dialog.getByText('正在写入正式用例')).toBeVisible()
+  await expect(dialog.getByText('仿真用例已就绪')).toBeVisible()
+  await expect(dialog.locator('code')).toContainText('simulation-browser-wizard-e2e.sim.json')
+  await dialog.getByRole('button', { name: '完成' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(trigger).toBeFocused()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await trigger.click()
+  await expect(dialog).toBeVisible()
+  const mobileBounds = await dialog.boundingBox()
+  expect(mobileBounds).not.toBeNull()
+  expect(mobileBounds?.x ?? -1).toBeGreaterThanOrEqual(0)
+  expect((mobileBounds?.x ?? 0) + (mobileBounds?.width ?? 0)).toBeLessThanOrEqual(390)
+  expect(mobileBounds?.y ?? -1).toBeGreaterThanOrEqual(0)
+  expect((mobileBounds?.y ?? 0) + (mobileBounds?.height ?? 0)).toBeLessThanOrEqual(844)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(trigger).toBeFocused()
+})
+
 test('streams a normalized developer trajectory with prompt, reasoning, tool, and usage details', async ({
   page,
   request,
@@ -269,6 +389,12 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
       return summary.owners.find((owner) => owner.ownerId === 'player-1')?.turnCount ?? 0
     })
     .toBeGreaterThan(0)
+  await expect
+    .poll(async () => {
+      const response = await request.get(`/api/matches/${match.id}?view=god`)
+      return ((await response.json()) as MatchView).status
+    })
+    .toBe('paused')
 
   await page.goto('/')
   const matchRow = page.locator(`[data-match-id="${match.id}"]`)
@@ -277,6 +403,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   await expect(page).toHaveURL(new RegExp(`/matches/${match.id}/trajectory$`))
   await expect(page.getByRole('combobox', { name: '选择对局' })).toHaveCount(0)
   await expect(page.getByText('上下文审计通过')).toBeVisible()
+  await expect(page.getByRole('button', { name: '添加仿真' })).toHaveCount(0)
   const firstOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '1号玩家' })
   await expect(firstOwner).toContainText(`${testRunId}-trajectory-1`)
   await firstOwner.click()

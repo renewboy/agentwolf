@@ -140,6 +140,15 @@
   gap: 10px;
 }
 
+.aw-match-row__actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.aw-match-row__actions .aw-button {
+  white-space: nowrap;
+}
+
 .aw-match-row p {
   color: var(--aw-color-text-muted);
   font-size: 13px;

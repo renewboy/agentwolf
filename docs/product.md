@@ -55,6 +55,13 @@ action to every Match record. That action opens the selected Match's loopback-on
 seat-first ledger, detail inspector, and context audit; ordinary startup exposes none of these
 routes or controls while continuing to retain the records locally.
 
+An ended or paused Match can produce a sanitized simulation capture from its immutable board,
+fixed roles, player decisions, context ranges, completion order, delivery outcomes, and relevant
+speech-playback controls. Developer mode places `添加仿真` on the Match record and opens a guided
+workflow for source confirmation, deterministic engine and orchestration review, warning
+acknowledgement, approval, and completion. Approved fixtures run offline without model credentials
+and compare newly generated game behavior with reviewed event summaries and semantic checkpoints.
+
 ## Player identity
 
 Every player has a readable `player-N` ID, a numbered seat, and a nickname. Prompts bind all three. Structured actions use Player IDs. Public speech and last words use nicknames or seat labels.

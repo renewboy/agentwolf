@@ -15,6 +15,7 @@ import {
   type TrajectoryUsage,
 } from '@agentwolf/contracts'
 import type { SqliteRepository } from './repository.js'
+import { recordTrajectoryRuntimeControl } from './trajectory-runtime-control.js'
 
 const contentLimit = 131_072
 const diagnosticLimit = 16_384
@@ -171,6 +172,17 @@ export class MatchTrajectoryRecorder {
         }),
       )
     }
+  }
+
+  public recordRuntimeControl(title: string, input: unknown): void {
+    recordTrajectoryRuntimeControl({
+      repository: this.#repository,
+      matchId: this.#matchId,
+      title,
+      input,
+      saveTurn: (turn) => this.#saveTurn(turn),
+      saveRecord: (record) => this.#saveRecord(record),
+    })
   }
 
   #saveTurn(turn: TrajectoryTurn): TrajectoryTurn {

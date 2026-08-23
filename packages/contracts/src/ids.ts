@@ -53,6 +53,12 @@ export type PhaseId = Brand<string, 'PhaseId'>
 export const EventSequenceSchema = z.number().int().positive()
 export type EventSequence = number
 
+export const SimulationIdSchema = z
+  .string()
+  .regex(/^simulation-[a-z0-9][a-z0-9-]{5,95}$/)
+  .transform((value) => value as SimulationId)
+export type SimulationId = Brand<string, 'SimulationId'>
+
 export function playerIdForSeat(seat: number): PlayerId {
   return PlayerIdSchema.parse(`player-${seat}`)
 }

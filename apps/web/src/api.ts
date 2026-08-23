@@ -7,6 +7,8 @@ import {
   MatchViewSchema,
   RoleSummarySchema,
   RuntimeConfigSchema,
+  SimulationApprovalResultSchema,
+  SimulationReviewResultSchema,
   TrajectoryPageSchema,
   TrajectoryAuditReportSchema,
   TrajectorySummarySchema,
@@ -26,6 +28,9 @@ import {
   type SpectatorView,
   type RoleSummary,
   type RuntimeConfig,
+  type SimulationApprovalRequest,
+  type SimulationApprovalResult,
+  type SimulationReviewResult,
   type TrajectoryOwnerId,
   type TrajectoryPage,
   type TrajectoryAuditReport,
@@ -153,6 +158,22 @@ export const api = {
     if (beforeTurn !== null) query.set('beforeTurn', String(beforeTurn))
     return TrajectoryPageSchema.parse(
       await requestJson(`/api/developer/matches/${id}/trajectory?${query}`),
+    )
+  },
+  async reviewSimulation(id: MatchId): Promise<SimulationReviewResult> {
+    return SimulationReviewResultSchema.parse(
+      await requestJson(`/api/developer/matches/${id}/simulation/review`, { method: 'POST' }),
+    )
+  },
+  async approveSimulation(
+    id: SimulationReviewResult['simulationId'],
+    input: SimulationApprovalRequest,
+  ): Promise<SimulationApprovalResult> {
+    return SimulationApprovalResultSchema.parse(
+      await requestJson(`/api/developer/simulations/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
     )
   },
   async listMatches(): Promise<MatchView[]> {

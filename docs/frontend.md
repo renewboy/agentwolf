@@ -27,8 +27,12 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
-- Developer: every Match record exposes its own trajectory action in developer mode. The selected
-  Match fills the viewport below the application bar with a seat-first participant list, a compact
+- Developer: every Match record exposes trajectory and eligible simulation actions in developer
+  mode. `添加仿真` opens an application-styled modal for source preparation, live validation,
+  warning confirmation, fixture approval, and completion. The dialog traps focus, restores the
+  Match-row trigger, blocks dismissal while work is active, and keeps its body independently
+  scrollable inside desktop and mobile safe areas. Opening the trajectory action fills the viewport
+  below the application bar with a seat-first participant list, a compact
   Prompt/model/tool/runtime record minimap, a virtualized and collapsible Turn ledger, semantic
   event-color tags, full record inspector, live revision updates, older-page loading, search, and
   context-audit status. Minimap nodes select and center their Record. Player switching keeps the
@@ -59,7 +63,7 @@ Components contain no inline style props, utility-class design strings, emoji ic
 literals, native select elements, browser prompt calls, or unregistered user-facing text. GSAP
 and its React binding enter the browser only through the registered animation adapter. Browser
 Speech Synthesis access is centralized in the speech playback hook. Browser tests cover board
-management, developer gating and trajectory details, all three view projections, role-effect modes
+management, developer gating, trajectory details, the Match-row simulation wizard, all three view projections, role-effect modes
 and cleanup, streaming speech, sequence-keyed automatic and manual audio controls, fixed-height
 overflow, waiting-state movement and cleanup, terminal connection settlement, missing-Match retry
 shutdown, listbox interaction, confirmation-dialog focus behavior, reduced motion, and responsive

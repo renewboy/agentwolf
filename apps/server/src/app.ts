@@ -14,6 +14,8 @@ import {
   LiveClientMessageSchema,
   MatchIdSchema,
   PlayerIdSchema,
+  SimulationApprovalRequestSchema,
+  SimulationIdSchema,
   SpectatorViewSchema,
   TrajectoryOwnerIdSchema,
   type SpectatorView,
@@ -27,6 +29,7 @@ import { handleMcpRequest } from './mcp.js'
 import { MatchManager, MatchNotFoundError } from './match-manager.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
 import { SqliteRepository } from './repository.js'
+import { SimulationService } from './simulation-service.js'
 import { TrajectoryService } from './trajectory-service.js'
 import { auditTrajectory } from './trajectory-audit.js'
 
@@ -43,6 +46,7 @@ export interface AgentWolfServer {
   readonly catalog: AgentCatalogService
   readonly boards: BoardCatalogService
   readonly trajectories: TrajectoryService
+  readonly simulations: SimulationService
   readonly matches: MatchManager
   close(): Promise<void>
 }
@@ -54,6 +58,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   const boards = new BoardCatalogService(repository)
   boards.backfillMatchSnapshots()
   const trajectories = new TrajectoryService(repository)
+  const simulations = new SimulationService(repository, boards, options.config)
   const matches = new MatchManager({
     repository,
     catalog,
@@ -74,9 +79,17 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const normalized = error instanceof Error ? error : new Error(String(error))
     const notFound =
       normalized instanceof MatchNotFoundError || normalized.name === 'DeveloperModeDisabledError'
+    const conflict =
+      normalized.name === 'SimulationSourceError' || normalized.name === 'SimulationWorkflowError'
     const clientError = normalized instanceof ZodError || normalized.name === 'RuleViolation'
-    await reply.code(notFound ? 404 : clientError ? 400 : 500).send({
-      error: notFound ? 'not-found' : clientError ? 'invalid-request' : 'internal-error',
+    await reply.code(notFound ? 404 : conflict ? 409 : clientError ? 400 : 500).send({
+      error: notFound
+        ? 'not-found'
+        : conflict
+          ? 'simulation-source-unavailable'
+          : clientError
+            ? 'invalid-request'
+            : 'internal-error',
       message: normalized.message,
     })
   })
@@ -178,6 +191,29 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
     return auditTrajectory(repository, boards, id)
   })
+  app.get('/api/developer/matches/:id/simulation/export', async (request, reply) => {
+    requireDeveloperMode(options.config)
+    const id = MatchIdSchema.parse((request.params as { id: string }).id)
+    const capture = await simulations.capture(id)
+    return reply
+      .header('Content-Disposition', `attachment; filename="${capture.simulationId}.sim.json"`)
+      .send(capture)
+  })
+  app.post('/api/developer/matches/:id/simulation/candidates', async (request, reply) => {
+    requireDeveloperMode(options.config)
+    const id = MatchIdSchema.parse((request.params as { id: string }).id)
+    return reply.code(201).send(await simulations.addCandidate(id))
+  })
+  app.post('/api/developer/matches/:id/simulation/review', async (request) => {
+    requireDeveloperMode(options.config)
+    const id = MatchIdSchema.parse((request.params as { id: string }).id)
+    return simulations.review(id)
+  })
+  app.post('/api/developer/simulations/:id/approve', async (request) => {
+    requireDeveloperMode(options.config)
+    const id = SimulationIdSchema.parse((request.params as { id: string }).id)
+    return simulations.approve(id, SimulationApprovalRequestSchema.parse(request.body ?? {}))
+  })
   app.get('/api/developer/matches/:id/trajectory/live', { websocket: true }, (socket, request) => {
     try {
       requireDeveloperMode(options.config)
@@ -254,7 +290,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     repository.close()
   }
 
-  return { app, repository, catalog, boards, trajectories, matches, close }
+  return { app, repository, catalog, boards, trajectories, simulations, matches, close }
 }
 
 function viewFromQuery(query: Record<string, unknown>): SpectatorView {

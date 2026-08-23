@@ -15,6 +15,7 @@ interface PendingPlayback {
 export interface SpeechPlaybackCoordinatorOptions {
   readonly isVisible: (event: SpeechCommittedEvent, view: SpectatorView) => boolean
   readonly onStateChange: () => void
+  readonly onControl?: (title: string, input: unknown) => void
 }
 
 export class SpeechPlaybackCoordinator {
@@ -42,12 +43,14 @@ export class SpeechPlaybackCoordinator {
     if (enabled) {
       if (this.#owner && this.#owner !== subscriber) return 'busy'
       this.#owner = subscriber
+      this.#options.onControl?.('playback.enabled', { enabled })
       this.#options.onStateChange()
       return 'accepted'
     }
     if (this.#owner && this.#owner !== subscriber) return 'busy'
     this.#owner = null
     this.#settlePending('skipped')
+    this.#options.onControl?.('playback.enabled', { enabled })
     this.#options.onStateChange()
     return 'accepted'
   }
@@ -81,12 +84,16 @@ export class SpeechPlaybackCoordinator {
   ): 'accepted' | 'invalid' {
     if (this.#resolvedSequences.has(sequence)) return 'accepted'
     if (this.#owner !== subscriber || this.#pending?.event.sequence !== sequence) return 'invalid'
+    this.#options.onControl?.('playback.resolved', { sequence, outcome })
     this.#settlePending(outcome)
     return 'accepted'
   }
 
   public disconnect(subscriber: LiveSubscriber): void {
     if (this.#owner !== subscriber) return
+    this.#options.onControl?.('playback.disconnected', {
+      sequence: this.#pending?.event.sequence ?? null,
+    })
     this.#owner = null
     this.#settlePending('skipped')
     this.#options.onStateChange()

@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "simulationId": "simulation-paused-32ec9c061df7156f",
+  "title": "Repeated uncertain delivery pauses at the same action boundary",
+  "setup": {
+    "matchId": "match-simulation-replay",
+    "board": {
+      "schemaVersion": 1,
+      "rulesetId": "classic-v1",
+      "id": "board-simulation-6-plain",
+      "name": "Simulation board 6",
+      "description": "",
+      "roles": [
+        { "roleId": "role-werewolf", "count": 2 },
+        { "roleId": "role-villager", "count": 2 },
+        { "roleId": "role-seer", "count": 1 },
+        { "roleId": "role-hunter", "count": 1 }
+      ],
+      "playerCount": 6,
+      "sheriff": false,
+      "victory": "slaughter-all",
+      "source": "custom",
+      "revision": 1
+    },
+    "players": [
+      {
+        "playerId": "player-1",
+        "seat": 1,
+        "name": "Simulation seat 1",
+        "profileId": "profile-simulation-1",
+        "roleId": "role-werewolf"
+      },
+      {
+        "playerId": "player-2",
+        "seat": 2,
+        "name": "Simulation seat 2",
+        "profileId": "profile-simulation-2",
+        "roleId": "role-werewolf"
+      },
+      {
+        "playerId": "player-3",
+        "seat": 3,
+        "name": "Simulation seat 3",
+        "profileId": "profile-simulation-3",
+        "roleId": "role-villager"
+      },
+      {
+        "playerId": "player-4",
+        "seat": 4,
+        "name": "Simulation seat 4",
+        "profileId": "profile-simulation-4",
+        "roleId": "role-villager"
+      },
+      {
+        "playerId": "player-5",
+        "seat": 5,
+        "name": "Simulation seat 5",
+        "profileId": "profile-simulation-5",
+        "roleId": "role-seer"
+      },
+      {
+        "playerId": "player-6",
+        "seat": 6,
+        "name": "Simulation seat 6",
+        "profileId": "profile-simulation-6",
+        "roleId": "role-hunter"
+      }
+    ]
+  },
+  "turns": [
+    {
+      "ordinal": 1,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-1", "player-2"],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "promptVersion": 9,
+      "visibleEventSequences": [],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 1,
+      "status": "uncertain",
+      "fault": "uncertain-delivery",
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-1", "player-2"],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "promptVersion": 9,
+      "visibleEventSequences": [],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 2,
+      "status": "uncertain",
+      "fault": "uncertain-delivery",
+      "action": null
+    }
+  ],
+  "controls": [],
+  "stage": "approved",
+  "source": {
+    "status": "paused",
+    "cutoffSequence": 15,
+    "fingerprint": "32ec9c061df7156f3345268dd9351d7c175bdd943a24f83fa2116317427eb71e"
+  },
+  "expected": {
+    "eventCount": 15,
+    "eventDigest": "b046cbee11c4505cd6f534473fe76caee9f15f1a95a1f071c83091d06d579356",
+    "eventTypes": [
+      "match.created",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "faction.members",
+      "match.starting",
+      "match.started",
+      "night.started",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "match.paused"
+    ],
+    "checkpoint": {
+      "status": "paused",
+      "day": 0,
+      "night": 1,
+      "phaseId": "phase-night-wolf-council",
+      "winner": null,
+      "sheriffId": null,
+      "alivePlayerIds": ["player-1", "player-2", "player-3", "player-4", "player-5", "player-6"],
+      "votingPlayerIds": ["player-1", "player-2", "player-3", "player-4", "player-5", "player-6"],
+      "lastSequence": 15
+    }
+  },
+  "variants": ["recorded"],
+  "browser": false
+}

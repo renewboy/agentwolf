@@ -25,7 +25,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['packages/*/src/**/*.ts', 'apps/server/src/**/*.ts'],
-      exclude: ['**/index.ts', '**/bin.ts', '**/errors.ts'],
+      exclude: ['**/index.ts', '**/bin.ts', '**/errors.ts', '**/simulation-cli.ts'],
       thresholds: {
         lines: 80,
         functions: 80,

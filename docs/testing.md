@@ -12,6 +12,10 @@
   reconstruction, uncertain-delivery recovery, MCP action authorization, sync barriers, and
   streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
+- Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
+  the production Match runtime with deterministic fake Sessions. They check semantic event order,
+  vote calculations, visibility, actor snapshots, Prompt reconstruction, delivery recovery,
+  restart reconstruction, playback completion, skip and disconnect, and repeated-run determinism.
 - Browser tests cover Agent Profile and custom-board management, styled listbox behavior,
   confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
   nickname labels, semantic record tags, minimap-to-Record navigation, stable player switching,
@@ -35,6 +39,8 @@ pnpm check:artifacts
 pnpm check:docs
 pnpm check:skills
 pnpm test:e2e
+pnpm test:simulation
+pnpm simulation:check
 pnpm smoke:trae-action -- gpt-5.6-luna
 ```
 
@@ -84,3 +90,16 @@ pnpm smoke:trae-action -- gpt-5.6-luna
     semantic colors without a global developer navigation item or Match selector. Minimap nodes
     center the selected Record, and an owner change keeps the page mounted while restoring that
     owner's ledger position.
+29. Ended and paused Matches export a sanitized, versioned simulation capture; running Matches and
+    Matches with unresolved trajectory Turns reject capture without mutating the source Match.
+30. A complete twelve-player capture reaches the same winner and semantic event digest through the
+    engine and orchestration runners under recorded, forward, reverse, transient-delivery, restart,
+    playback-complete, playback-skip, and playback-disconnect variants.
+31. A repeated uncertain delivery capture replaces Sessions once and pauses on the second failure
+    at the same action boundary. Re-running a fixture and seed produces identical canonical output.
+32. Candidate approval strips source identifiers and full event bodies from the committed oracle;
+    schema, secret, invariant, engine, orchestration, and determinism checks gate the corpus.
+33. Developer-mode Match rows open a keyboard-safe simulation wizard that reviews and approves the
+    same candidate through HTTP, disables ineligible Matches, blocks dismissal during work, restores
+    trigger focus, and stays within desktop and mobile viewports. The trajectory page contains no
+    simulation workflow controls.

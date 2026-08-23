@@ -21,12 +21,16 @@
     "lint": "oxlint --type-aware --deny-warnings .",
     "hygiene": "knip --reporter compact",
     "test": "vitest run --config vitest.config.ts",
+    "test:simulation": "vitest run --config vitest.config.ts apps/server/tests/simulation-corpus.test.ts",
     "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --pretty false",
     "prepare": "node scripts/harness/install-hooks.mjs",
     "smoke:acp": "tsx scripts/smoke/acp-probe.ts",
-    "smoke:trae-action": "tsx apps/server/tests/live/trae-action.ts"
+    "smoke:trae-action": "tsx apps/server/tests/live/trae-action.ts",
+    "simulation:review": "tsx apps/server/src/simulation-cli.ts review",
+    "simulation:approve": "tsx apps/server/src/simulation-cli.ts approve",
+    "simulation:check": "tsx apps/server/src/simulation-cli.ts check"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
