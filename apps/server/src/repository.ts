@@ -419,6 +419,16 @@ export class SqliteRepository {
     ) as TrajectoryRow[]
     return rows.map((row) => TrajectoryRecordSchema.parse(JSON.parse(row.json)))
   }
+  public listTrajectoryRecordsForTurns(matchId: MatchId, turnIds: readonly string[]) {
+    if (turnIds.length === 0) return []
+    const placeholders = turnIds.map(() => '?').join(', ')
+    const rows = this.#database
+      .prepare(
+        `SELECT json, ordinal, revision FROM trajectory_records WHERE match_id = ? AND turn_id IN (${placeholders}) ORDER BY owner_id ASC, ordinal ASC`,
+      )
+      .all(matchId, ...turnIds) as TrajectoryRow[]
+    return rows.map((row) => TrajectoryRecordSchema.parse(JSON.parse(row.json)))
+  }
 
   public trajectoryChanges(
     matchId: MatchId,

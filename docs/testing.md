@@ -10,8 +10,8 @@
   custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
   redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
-  authorization, same-turn correction after a rejected structured action, sync barriers, and
-  streamed speech.
+  authorization, same-turn correction after a rejected structured action, guarded process-tree
+  shutdown, parent-process loss, bounded protocol close, sync barriers, and streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
 - Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
   the production Match runtime with deterministic fake Sessions. They check semantic event order,
@@ -52,10 +52,9 @@ pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
 
 `pnpm check` is the deterministic local and CI gate. It excludes live model calls and credentialed adapter smokes.
 
-The simulation corpus is CPU-heavy under V8 coverage because every approved variant runs duplicate
-engine and full-orchestration replays with complete trajectory audit. On a host where parallel
-coverage exceeds the corpus test's 180-second limit, run `VITEST_MAX_WORKERS=1 pnpm check`; this
-executes the same gates and coverage thresholds while serializing test files.
+The simulation corpus retains duplicate engine and full-orchestration replays for every approved
+variant. Trajectory persistence skips live-delta normalization without subscribers and reads live
+records by indexed Turn ID, so the default parallel coverage gate runs without a worker override.
 
 `pnpm install` registers Lefthook when Git uses its normal hooks directory. A managed global `core.hooksPath` is preserved; on such hosts, run `pnpm check` explicitly and rely on the required GitHub Actions jobs.
 
@@ -140,3 +139,8 @@ executes the same gates and coverage thresholds while serializing test files.
     allowlist and every shell, file, browser, network-search, plugin, and Agent prohibition. An
     isolated `gpt-5.6-luna` smoke submits a real vote, while a request to run `pwd` reports the tool
     unavailable and emits no call.
+40. Normal Session close, a hung protocol close, development shutdown, descendant processes that
+    ignore TERM, and an AgentWolf parent killed by SIGKILL all leave no guarded Agent process.
+41. The complete 14-variant simulation corpus preserves its reviewed events, checkpoints, audits,
+    and repeated-run determinism while default parallel `pnpm check` stays within the existing
+    timeout.

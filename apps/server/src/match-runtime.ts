@@ -86,7 +86,6 @@ export class MatchRuntime {
     this.#startPromise ??= this.#initialize()
     return this.#startPromise
   }
-
   async #initialize(): Promise<void> {
     this.#options.repository.updateMatchStatus(this.engine.state.matchId, 'starting')
     this.#record(this.engine.prepareStart())

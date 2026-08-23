@@ -11,8 +11,9 @@ import {
   TrajectoryTurnSchema,
   type GameEventPayload,
   type PlayerId,
+  type TrajectoryDelta,
 } from '@agentwolf/contracts'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { builtInAgentTools } from '@agentwolf/acp'
 import { getCopy } from '@agentwolf/assets'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
@@ -82,6 +83,8 @@ describe('trajectory capture', () => {
       })),
     })
     const recorder = server.trajectories.recorder(match.id)
+    const fullRecordReads = vi.spyOn(server.repository, 'listTrajectoryRecords')
+    const targetedRecordReads = vi.spyOn(server.repository, 'listTrajectoryRecordsForTurns')
     const ownerId = PlayerIdSchema.parse('player-1')
     const turn = recorder.beginTurn({
       turnId: 'delivery-trace-1',
@@ -147,8 +150,12 @@ describe('trajectory capture', () => {
       }),
     )
     turn.complete('end_turn')
+    expect(fullRecordReads).not.toHaveBeenCalled()
 
     const page = server.trajectories.page(match.id, ownerId, null)
+    expect(fullRecordReads).not.toHaveBeenCalled()
+    expect(targetedRecordReads).toHaveBeenCalledWith(match.id, ['delivery-trace-1'])
+    expect(server.repository.listTrajectoryRecordsForTurns(match.id, [])).toEqual([])
     expect(page.turns).toHaveLength(1)
     expect(page.turns[0]).toMatchObject({
       status: 'completed',
@@ -192,6 +199,13 @@ describe('trajectory capture', () => {
       ),
     ).toBe(false)
 
+    targetedRecordReads.mockClear()
+    const deltas: TrajectoryDelta[] = []
+    const unsubscribe = server.trajectories.subscribe(
+      match.id,
+      server.repository.trajectoryRevision(match.id),
+      (delta) => deltas.push(delta),
+    )
     const retry = recorder.beginTurn({
       turnId: 'delivery-trace-2',
       ownerId,
@@ -205,6 +219,19 @@ describe('trajectory capture', () => {
       prompt: '恢复后的同一行动。',
     })
     retry.fail(new Error('transport failed'), 'uncertain')
+    unsubscribe()
+    expect(targetedRecordReads).toHaveBeenCalled()
+    expect(
+      targetedRecordReads.mock.calls.every(
+        ([readMatchId, turnIds]) =>
+          readMatchId === match.id && turnIds.length === 1 && turnIds[0] === 'delivery-trace-2',
+      ),
+    ).toBe(true)
+    expect(
+      deltas
+        .flatMap((delta) => delta.records)
+        .every((record) => record.turnId === 'delivery-trace-2'),
+    ).toBe(true)
     expect(server.trajectories.page(match.id, ownerId, null).turns.at(-1)).toMatchObject({
       attempt: 2,
       status: 'uncertain',

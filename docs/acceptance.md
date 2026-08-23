@@ -8,18 +8,28 @@ per-feature run narratives live under `docs/acceptance/archive/`; see the archiv
 
 ## Deterministic application checks
 
-- 102 unit and integration scenarios across 28 test files passed, including exact bootstrap teammate knowledge, Trae code-mode MCP isolation, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, deterministic simulation, browser review and approval, orchestration project-root validation, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 88.92% lines, 85.98% statements, 90.55% functions, and 75.37% branches over rule, ACP, asset, and server production sources.
+- 107 unit and integration scenarios across 30 test files passed, including exact bootstrap teammate knowledge, guarded ACP process trees, parent-process loss, bounded protocol close, Trae code-mode MCP isolation, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, deterministic simulation, browser review and approval, orchestration project-root validation, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
+- Coverage passed at 89.13% lines, 86.24% statements, 90.83% functions, and 75.48% branches over rule, ACP, asset, and server production sources.
 - Fourteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete with complete role colors, Agent Profile metadata layout and ordering, global speech settings, 6/9/12-player setup, spectator model and visibility-safe role projection, Match-row simulation workflow, developer model/role trajectory inspection, right-rail and owner-heading alignment, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
-- TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
+- Default parallel `pnpm check` completed in 20.7 seconds. TypeScript strict build, Oxlint, Oxfmt,
+  Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
 
 The simulation corpus contains 3 fixtures and 14 variants. Each variant runs two engine replays and
 two full orchestration replays, for 56 executions; orchestration also rebuilds and audits every
-trajectory Turn. The focused corpus passed in 94.91 seconds without coverage and 162.02 seconds
-with V8 coverage. Default file-parallel coverage twice exceeded the per-test 180-second limit,
-while `VITEST_MAX_WORKERS=1 pnpm check` passed the complete 102-test coverage gate in 176.60 seconds
-by removing file-level CPU contention. Fake Sessions use microtask scheduling; the only timer is a
-5ms settlement poll while the engine remains active, not streaming or token-delay simulation.
+trajectory Turn. `pnpm simulation:check` completed the corpus in 8.79 seconds with identical
+reviewed events, checkpoints, audits, and deterministic repeats. CPU profiling reported no
+repeated full-record-read hotspot; trajectory repository code accounted for 9.7% of wall time.
+
+## ACP process supervision
+
+Deterministic fixtures verified normal close, a protocol close that never settles, an ACP process
+with a TERM-resistant descendant, a development process group requiring KILL escalation, and an
+AgentWolf parent killed by SIGKILL. Every guardian, Agent, and descendant PID disappeared within
+the bounded shutdown window.
+
+An isolated Trae 0.201.5 / `gpt-5.6-luna` Session submitted a real wolf-kill vote with 5,350 used
+context tokens. Its forbidden shell probe returned `unavailable` with no tool call, Session close
+completed, and the host reported zero orphaned `traecli acp serve` processes afterward.
 
 ## Deterministic simulation corpus
 

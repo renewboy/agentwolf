@@ -152,7 +152,46 @@ describe('database migration', () => {
     expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
     reopened.close()
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(4)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(5)
+    migrated.close()
+  })
+
+  it('adds the trajectory Turn lookup index to schema four', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-trajectory-index-migration-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const legacy = new Database(databasePath)
+    legacy.exec(`
+      CREATE TABLE matches (id TEXT PRIMARY KEY);
+      CREATE TABLE trajectory_turns (
+        match_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
+        PRIMARY KEY(match_id, turn_id)
+      );
+      CREATE TABLE trajectory_records (
+        match_id TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        ordinal INTEGER NOT NULL,
+        revision INTEGER NOT NULL,
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(match_id, record_id)
+      );
+      PRAGMA user_version = 4;
+    `)
+    legacy.close()
+
+    const repository = new SqliteRepository(databasePath)
+    repository.close()
+
+    const migrated = new Database(databasePath)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(5)
+    const indexes = migrated
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
+      .all('trajectory_records') as Array<{ name: string }>
+    expect(indexes.map(({ name }) => name)).toContain('trajectory_records_turn')
     migrated.close()
   })
 })

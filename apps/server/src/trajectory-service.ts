@@ -78,11 +78,11 @@ export class TrajectoryService {
       events,
     ).filter((turn) => beforeTurn === null || turn.ordinal < beforeTurn)
     const turns = allTurns.slice(-boundedLimit)
-    const turnIds = new Set(turns.map((turn) => turn.turnId))
     const records = canonicalizeSpeechRecords(
-      this.#repository
-        .listTrajectoryRecords(matchId, ownerId)
-        .filter((record) => turnIds.has(record.turnId)),
+      this.#repository.listTrajectoryRecordsForTurns(
+        matchId,
+        turns.map((turn) => turn.turnId),
+      ),
       events,
     )
     const first = turns[0]?.ordinal ?? null
@@ -124,8 +124,10 @@ export class TrajectoryService {
   }
 
   #publish(matchId: MatchId, delta: TrajectoryDelta): void {
+    const subscribers = this.#subscribers.get(matchId)
+    if (!subscribers || subscribers.size === 0) return
     const normalized = this.#normalizeDelta(matchId, delta)
-    for (const subscriber of this.#subscribers.get(matchId) ?? []) subscriber(normalized)
+    for (const subscriber of subscribers) subscriber(normalized)
   }
 
   #normalizeDelta(matchId: MatchId, delta: TrajectoryDelta): TrajectoryDelta {
@@ -139,9 +141,7 @@ export class TrajectoryService {
       turnIds.size === 0
         ? []
         : canonicalizeSpeechRecords(
-            this.#repository
-              .listTrajectoryRecords(matchId)
-              .filter((record) => turnIds.has(record.turnId)),
+            this.#repository.listTrajectoryRecordsForTurns(matchId, [...turnIds]),
             events,
           )
     return TrajectoryDeltaSchema.parse({ ...delta, turns, records })

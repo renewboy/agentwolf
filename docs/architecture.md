@@ -141,6 +141,10 @@ Trajectory collection is always active. Developer HTTP, WebSocket, configuration
 record actions require startup developer mode, which is valid only on a loopback listener. The Web
 route carries one Match ID and does not provide a cross-Match selector.
 
+Trajectory persistence skips live-delta projection when a Match has no trajectory subscriber.
+When a subscriber exists, delta normalization and paged reads load only the referenced Turn
+records through the indexed Match-and-Turn lookup.
+
 ## Deterministic simulation
 
 Simulation capture reads the immutable Match board, per-Match speech character limit, append-only
@@ -189,6 +193,12 @@ catalog API returns profiles in their persisted order and accepts validated whol
 requests.
 
 For each seat, the supervisor starts one stdio ACP process, initializes the connection, creates one session with the seat workspace and AgentWolf MCP server, applies advertised model and mode configuration, then retains the returned session ID for the match lifetime. ACP permission requests are approved only when their structured MCP server and tool identity matches one of the five AgentWolf action tools. `session/update` is the streaming source; the final `session/prompt` response closes the turn.
+
+On macOS and Linux, every ACP command runs inside a lightweight guardian-owned process group. The
+guardian relays stdio without interpreting ACP data, observes the AgentWolf parent through a
+dedicated input relay, and terminates the complete Agent process tree when that parent closes or
+dies. Normal Session shutdown bounds the protocol close request, then escalates the process group
+from TERM to KILL. Development server and Web process groups use the same bounded escalation.
 
 Every built-in player process uses a provider-specific game-only launch policy. Trae receives
 per-process config overrides plus ACP tool allow/deny flags after the `acp serve` subcommand. Codex

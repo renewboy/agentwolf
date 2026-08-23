@@ -141,4 +141,8 @@ valid action, pauses with an operator-visible reason and continue action. Live s
 acknowledged cursors; replacement sessions receive one current foundation plus each player's visible
 history. Matches can be deleted with their events and delivery ledgers.
 
+Closing a Match or server bounds Session shutdown and reclaims each Agent process tree. On macOS
+and Linux, parent-process loss also triggers process-tree termination without waiting for the next
+server start.
+
 An ended Match is a stable record: every identity is visible, every player Session is presented as ended, and the spectator connection settles without reconnecting. A deleted or unknown Match returns a terminal unavailable response rather than entering live recovery.

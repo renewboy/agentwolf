@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 4) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 5) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -53,7 +53,7 @@ export function migrateDatabase(database: Database.Database): void {
         PRIMARY KEY(match_id, player_id)
       );
       ${trajectoryTables()}
-      PRAGMA user_version = 4;
+      PRAGMA user_version = 5;
     `)
   }
   if (version === 1) {
@@ -98,6 +98,17 @@ export function migrateDatabase(database: Database.Database): void {
       PRAGMA user_version = 4;
     `)
   }
+  if (version >= 1 && version <= 4) {
+    const trajectoryRecords = database
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'trajectory_records'")
+      .get()
+    if (trajectoryRecords) {
+      database.exec(
+        'CREATE INDEX IF NOT EXISTS trajectory_records_turn ON trajectory_records(match_id, turn_id, ordinal)',
+      )
+    }
+    database.pragma('user_version = 5')
+  }
 }
 
 function trajectoryTables(): string {
@@ -130,5 +141,6 @@ function trajectoryTables(): string {
       FOREIGN KEY(match_id, turn_id) REFERENCES trajectory_turns(match_id, turn_id) ON DELETE CASCADE
     );
     CREATE INDEX trajectory_records_owner ON trajectory_records(match_id, owner_id, ordinal);
+    CREATE INDEX trajectory_records_turn ON trajectory_records(match_id, turn_id, ordinal);
   `
 }
