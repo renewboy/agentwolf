@@ -44,6 +44,7 @@ export interface ProjectMatchOptions {
   readonly events: readonly GameEvent[]
   readonly view: SpectatorView
   readonly roles: RoleRegistry
+  readonly model: (playerId: PlayerId) => string | null
   readonly sessionStatus?: (playerId: PlayerId) => SessionStatus
 }
 
@@ -104,6 +105,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
           playerId: player.id,
           seat: player.seat,
           name: player.name,
+          model: options.model(player.id),
           alive: visibleAlive,
           canVote:
             options.view.kind === 'god'

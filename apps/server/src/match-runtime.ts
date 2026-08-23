@@ -79,11 +79,9 @@ export class MatchRuntime {
       onStateChange: () => this.#broadcastPlaybackState(),
     })
   }
-
   public get engine(): GameEngine {
     return this.#options.engine
   }
-
   public async start(): Promise<void> {
     this.#startPromise ??= this.#initialize()
     return this.#startPromise
@@ -117,6 +115,11 @@ export class MatchRuntime {
       events: this.engine.events,
       view,
       roles: this.#roles,
+      model: (playerId) =>
+        this.#players.get(playerId)?.model ??
+        this.#options.catalog.getProfile(this.engine.state.players.get(playerId)!.profileId)
+          ?.model ??
+        null,
       sessionStatus: (playerId) => this.#players.get(playerId)?.status ?? 'idle',
     })
   }

@@ -19,9 +19,10 @@
   routing, Prompt reconstruction, delivery recovery, restart reconstruction, playback completion,
   skip and disconnect, and repeated-run determinism.
 - Browser tests cover Agent Profile management, profile metadata layout, whole-row drag feedback,
-  keyboard ordering, persisted setup defaults, custom-board management, styled listbox behavior,
-  confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
-  nickname labels, semantic record tags, minimap-to-Record navigation, stable player switching,
+  keyboard ordering, persisted setup defaults, custom-board management, complete role-palette
+  coverage, styled listbox behavior, confirmation-dialog focus and deletion, Match setup, per-Match trajectory entry, seat and
+  nickname labels, seat model labels, visibility-safe role badges, cross-screen role-color
+  consistency, semantic record tags, minimap-to-Record navigation, stable player switching,
   shared-period collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
   view switching, live speech, target-grouped vote
   results, non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
@@ -50,6 +51,11 @@ pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
 ```
 
 `pnpm check` is the deterministic local and CI gate. It excludes live model calls and credentialed adapter smokes.
+
+The simulation corpus is CPU-heavy under V8 coverage because every approved variant runs duplicate
+engine and full-orchestration replays with complete trajectory audit. On a host where parallel
+coverage exceeds the corpus test's 180-second limit, run `VITEST_MAX_WORKERS=1 pnpm check`; this
+executes the same gates and coverage thresholds while serializing test files.
 
 `pnpm install` registers Lefthook when Git uses its normal hooks directory. A managed global `core.hooksPath` is preserved; on such hosts, run `pnpm check` explicitly and rely on the required GitHub Actions jobs.
 
@@ -97,8 +103,9 @@ pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
     engine. The following wolf attack stage accepts only `submit_vote`, explicitly forbids
     `submit_night_action`, and the bootstrap callable-ability list omits the regular attack ID.
 28. Developer mode places `查看轨迹` on each Match record, routes by that Match ID, shows players by
-    seat with nicknames as secondary context, fills the available viewport, and presents labeled
-    semantic colors without a global developer navigation item or Match selector. Minimap nodes
+    seat with nickname, configured model, and complete color-labeled role identity as secondary
+    context, fills the available viewport, and presents labeled semantic colors without a global
+    developer navigation item or Match selector. Minimap nodes
     center the selected Record, and an owner change keeps the page mounted while restoring that
     owner's ledger position. Every owner is grouped by the same setup/night/sheriff/day/end game
     periods rather than player-local Turn numbers.
@@ -126,3 +133,10 @@ pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
     same candidate through HTTP, disables ineligible Matches, blocks dismissal during work, restores
     trigger focus, and stays within desktop and mobile viewports. The trajectory page contains no
     simulation workflow controls.
+38. Every Match player card shows its configured model. Role badges use the same semantic color for
+    the same identity on Match and trajectory screens, while closed-eye projections retain model
+    metadata and expose only the neutral `身份未公开` badge.
+39. Trae player launch enables only the code-mode MCP host while retaining the five-action MCP
+    allowlist and every shell, file, browser, network-search, plugin, and Agent prohibition. An
+    isolated `gpt-5.6-luna` smoke submits a real vote, while a request to run `pwd` reports the tool
+    unavailable and emits no call.

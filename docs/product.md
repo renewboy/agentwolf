@@ -44,7 +44,9 @@ The board-management screen creates and maintains custom boards. The new-match s
 available player count and compatible built-in or custom board, assigns an Agent Profile to each
 seat, and edits or rerolls player names. Every seat initially uses the first profile in the
 persisted Agent Profile order. The nickname generator composes curated word lists and guarantees
-uniqueness inside a match. Starting a match assigns `player-1` through `player-N` by seat order.
+uniqueness inside a match. Board role rows, board compositions, and manual identity selectors use
+the same labeled role colors as visible Match identities. Starting a match assigns `player-1`
+through `player-N` by seat order.
 
 Every player's initial Match prompt includes one detailed public introduction for each role on the
 selected board. Each entry states the role's faction, skill timing, legal targets, usage limits,
@@ -61,6 +63,11 @@ the lowest-seat death as the no-sheriff anchor.
 ## Match experience
 
 The spectator screen is a fixed-height live match stage. Player rosters run down the left and right edges, while the center presents streamed speech, public events, night information allowed by the selected view, voting results, and audio playback through the browser Speech Synthesis API. Resolved votes group voter seat numbers under each target seat number. The central history scrolls independently and can be folded by match day.
+
+Every player card shows the model bound to that seat. A visible identity uses one stable role badge:
+Villager is silver, Werewolf red, Seer blue, Witch purple, Hunter green, Idiot amber, and Guard
+cyan. The badge retains the localized role name so identity never depends on color alone. Hidden
+identities use one neutral `身份未公开` badge and reveal no role color.
 
 One connected spectator window can control automatic speech playback. Complete sentences enter the
 browser speech queue while visible Agent text is still streaming; the committed event contributes
@@ -90,6 +97,8 @@ secret-bearing metadata and bounds large fields. Starting with developer mode ad
 action to every Match record. That action opens the selected Match's loopback-only timeline,
 seat-first ledger grouped by shared game periods, detail inspector, and context audit; ordinary
 startup exposes none of these routes or controls while continuing to retain the records locally.
+Each player row includes its nickname, configured model, and complete role identity using the same
+role badge as the Match screen.
 
 An ended or paused Match can produce a sanitized simulation capture from its immutable board,
 fixed roles, player decisions, context ranges, completion order, delivery outcomes, and relevant

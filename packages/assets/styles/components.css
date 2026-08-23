@@ -66,6 +66,63 @@
   box-shadow: var(--aw-shadow-panel);
 }
 
+.aw-role-badge {
+  --aw-role-color: var(--aw-color-text-muted);
+  --aw-role-background: rgb(156 168 174 / 10%);
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 20px;
+  padding: 1px 7px;
+  overflow: hidden;
+  border: 1px solid var(--aw-role-color);
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-role-color);
+  background: var(--aw-role-background);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-role-badge[data-role-id='role-villager'] {
+  --aw-role-color: var(--aw-role-villager);
+  --aw-role-background: var(--aw-role-villager-soft);
+}
+
+.aw-role-badge[data-role-id='role-werewolf'] {
+  --aw-role-color: var(--aw-role-werewolf);
+  --aw-role-background: var(--aw-role-werewolf-soft);
+}
+
+.aw-role-badge[data-role-id='role-seer'] {
+  --aw-role-color: var(--aw-role-seer);
+  --aw-role-background: var(--aw-role-seer-soft);
+}
+
+.aw-role-badge[data-role-id='role-witch'] {
+  --aw-role-color: var(--aw-role-witch);
+  --aw-role-background: var(--aw-role-witch-soft);
+}
+
+.aw-role-badge[data-role-id='role-hunter'] {
+  --aw-role-color: var(--aw-role-hunter);
+  --aw-role-background: var(--aw-role-hunter-soft);
+}
+
+.aw-role-badge[data-role-id='role-idiot'] {
+  --aw-role-color: var(--aw-role-idiot);
+  --aw-role-background: var(--aw-role-idiot-soft);
+}
+
+.aw-role-badge[data-role-id='role-guard'] {
+  --aw-role-color: var(--aw-role-guard);
+  --aw-role-background: var(--aw-role-guard-soft);
+}
+
 .aw-field {
   display: grid;
   gap: 8px;

@@ -74,6 +74,17 @@ test.afterAll(async ({ request }) => {
 test('creates, edits, selects, and deletes a custom six-player board', async ({ page }) => {
   const boardName = `E2E Board ${testRunId}`
   await page.goto('/boards')
+  const roleBadges = page.locator('.aw-board-role-row .aw-role-badge')
+  await expect(roleBadges).toHaveCount(7)
+  expect(
+    new Set(
+      await roleBadges.evaluateAll((elements) =>
+        elements.map((element) => getComputedStyle(element).color),
+      ),
+    ).size,
+  ).toBe(7)
+  await expect(roleBadges.filter({ hasText: '女巫' })).toHaveCSS('color', 'rgb(189, 134, 223)')
+  await expect(roleBadges.filter({ hasText: '猎人' })).toHaveCSS('color', 'rgb(114, 198, 154)')
   await page.getByRole('button', { name: '新建板子' }).click()
   await page.getByLabel('板子名称').fill(boardName)
   await page.getByLabel('板子说明').fill('E2E six-player Seer and Witch board')
@@ -310,12 +321,22 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   await expect(page.getByRole('heading', { name: '事件时间线' })).toBeVisible()
   const roleLabels = page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__role')
   await expect(roleLabels).toHaveCount(12)
+  await expect(page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__model')).toHaveText(
+    Array.from({ length: 12 }, () => '模型 · mock-model'),
+  )
   expect(
     (await roleLabels.allTextContents()).filter((value) => value !== '身份未公开'),
   ).toHaveLength(12)
+  await expect(roleLabels.filter({ hasText: '女巫' })).toHaveCSS('color', 'rgb(189, 134, 223)')
+  await expect(roleLabels.filter({ hasText: '猎人' })).toHaveCSS('color', 'rgb(114, 198, 154)')
 
   await page.getByRole('button', { name: '闭眼视角' }).click()
   await expect(roleLabels).toHaveText(Array.from({ length: 12 }, () => '身份未公开'))
+  expect(
+    await roleLabels.evaluateAll((elements) =>
+      elements.map((element) => element.dataset['roleId']),
+    ),
+  ).toEqual(Array.from({ length: 12 }, () => 'hidden'))
 
   await page.getByRole('button', { name: '玩家视角' }).click()
   await expect(page.getByLabel('选择玩家视角')).toBeVisible()
@@ -487,6 +508,17 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     })
     .toBe('paused')
 
+  const matchSnapshot = (await (
+    await request.get(`/api/matches/${match.id}?view=god`)
+  ).json()) as MatchView
+  const firstSeat = matchSnapshot.seats.find((seat) => seat.seat === 1)!
+  await page.goto(`/matches/${match.id}`)
+  const matchRole = page
+    .locator('.aw-stage-grid .aw-player-card[data-player-id="player-1"] .aw-role-badge')
+    .first()
+  await expect(matchRole).toHaveAttribute('data-role-id', firstSeat.roleId!)
+  const matchRoleColor = await matchRole.evaluate((element) => getComputedStyle(element).color)
+
   await page.goto('/')
   const matchRow = page.locator(`[data-match-id="${match.id}"]`)
   await expect(matchRow).toBeVisible()
@@ -497,6 +529,29 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   await expect(page.getByRole('button', { name: '添加仿真' })).toHaveCount(0)
   const firstOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '1号玩家' })
   await expect(firstOwner).toContainText(`${testRunId}-trajectory-1`)
+  await expect(firstOwner).toContainText('模型：mock-model')
+  const trajectoryRole = firstOwner.locator('.aw-role-badge')
+  await expect(trajectoryRole).toHaveAttribute('data-role-id', firstSeat.roleId!)
+  await expect(trajectoryRole).toContainText(firstSeat.roleName!)
+  const ownerHeadingAlignment = await firstOwner.evaluate((element) => {
+    const heading = element.querySelector<HTMLElement>('.aw-trajectory-owner__heading')!
+    const label = heading.querySelector<HTMLElement>(':scope > span')!
+    const role = heading.querySelector<HTMLElement>('.aw-role-badge')!
+    const headingBox = heading.getBoundingClientRect()
+    const labelBox = label.getBoundingClientRect()
+    const roleBox = role.getBoundingClientRect()
+    return {
+      roleRightGap: Math.abs(headingBox.right - roleBox.right),
+      rowCenterGap: Math.abs(
+        labelBox.top + labelBox.height / 2 - (roleBox.top + roleBox.height / 2),
+      ),
+    }
+  })
+  expect(ownerHeadingAlignment.roleRightGap).toBeLessThanOrEqual(1)
+  expect(ownerHeadingAlignment.rowCenterGap).toBeLessThanOrEqual(1)
+  expect(await trajectoryRole.evaluate((element) => getComputedStyle(element).color)).toBe(
+    matchRoleColor,
+  )
   await expect(firstOwner).not.toContainText('回合')
   await firstOwner.click()
   await expect(page.getByRole('button', { name: /提示词/ }).first()).toBeVisible()
@@ -584,6 +639,62 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
   await page.goto(`/matches/${match.id}`)
   const shell = page.locator('.aw-match-shell')
   await expect(shell).toHaveAttribute('data-presence-state', 'thinking')
+  const rightCardAlignment = await page
+    .locator('.aw-stage-grid > .aw-player-rail--right .aw-player-card')
+    .first()
+    .evaluate((element) => {
+      const copyBox = element
+        .querySelector<HTMLElement>('.aw-player-card__copy')!
+        .getBoundingClientRect()
+      const roleBox = element
+        .querySelector<HTMLElement>('.aw-player-card__role')!
+        .getBoundingClientRect()
+      const nameBox = element
+        .querySelector<HTMLElement>('.aw-player-card__name-row strong')!
+        .getBoundingClientRect()
+      const statusBox = element
+        .querySelector<HTMLElement>('.aw-player-card__status')!
+        .getBoundingClientRect()
+      return {
+        nameRightGap: Math.abs(copyBox.right - nameBox.right),
+        roleRightGap: Math.abs(copyBox.right - roleBox.right),
+        statusRightGap: Math.abs(copyBox.right - statusBox.right),
+      }
+    })
+  expect(rightCardAlignment.nameRightGap).toBeLessThanOrEqual(1)
+  expect(rightCardAlignment.roleRightGap).toBeLessThanOrEqual(1)
+  expect(rightCardAlignment.statusRightGap).toBeLessThanOrEqual(1)
+  const leftCardAlignment = await page
+    .locator('.aw-stage-grid > .aw-player-rail--left .aw-player-card')
+    .first()
+    .evaluate((element) => {
+      const copyBox = element
+        .querySelector<HTMLElement>('.aw-player-card__copy')!
+        .getBoundingClientRect()
+      const roleBox = element
+        .querySelector<HTMLElement>('.aw-player-card__role')!
+        .getBoundingClientRect()
+      const nameBox = element
+        .querySelector<HTMLElement>('.aw-player-card__name-row strong')!
+        .getBoundingClientRect()
+      const statusBox = element
+        .querySelector<HTMLElement>('.aw-player-card__status')!
+        .getBoundingClientRect()
+      const modelBox = element
+        .querySelector<HTMLElement>('.aw-player-card__model')!
+        .getBoundingClientRect()
+      const cardBox = element.getBoundingClientRect()
+      return {
+        nameLeftGap: Math.abs(copyBox.left - nameBox.left),
+        roleLeftGap: Math.abs(copyBox.left - roleBox.left),
+        statusLeftGap: Math.abs(copyBox.left - statusBox.left),
+        modelLeftGap: Math.abs(cardBox.left + 12 - modelBox.left),
+      }
+    })
+  expect(leftCardAlignment.nameLeftGap).toBeLessThanOrEqual(1)
+  expect(leftCardAlignment.roleLeftGap).toBeLessThanOrEqual(1)
+  expect(leftCardAlignment.statusLeftGap).toBeLessThanOrEqual(1)
+  expect(leftCardAlignment.modelLeftGap).toBeLessThanOrEqual(1)
   const ring = page
     .locator('.aw-stage-grid .aw-player-card[data-session="thinking"] .aw-player-avatar__ring')
     .first()
@@ -1196,6 +1307,7 @@ function thinkingMatchFixture(): MatchView {
     playerId: `player-${index + 1}`,
     seat: index + 1,
     name: `测试玩家${index + 1}`,
+    model: 'mock-model',
     alive: true,
     canVote: true,
     sheriff: index === 1,

@@ -41,6 +41,7 @@ const server = await buildServer({
 })
 let session: AcpPlayerSession | null = null
 const permissionRequests: unknown[] = []
+const stderrChunks: string[] = []
 try {
   const address = await server.app.listen({ host: '127.0.0.1', port: 0 })
   const workspace = await preparePlayerWorkspace(root, process.cwd(), matchId, playerId)
@@ -73,6 +74,7 @@ try {
     approvedMcpTools: [
       { server: 'agentwolf-player-actions', tool: 'submit_vote', title: '提交投票' },
     ],
+    onStderr: (chunk) => stderrChunks.push(chunk),
     onPermissionRequest: (request) => permissionRequests.push(request),
   })
   const result = await session.prompt(
@@ -84,19 +86,21 @@ try {
     const updates = result.updates.map((update) =>
       update.sessionUpdate === 'agent_message_chunk'
         ? { sessionUpdate: update.sessionUpdate, content: update.content }
-        : update.sessionUpdate === 'tool_call' || update.sessionUpdate === 'tool_call_update'
-          ? {
-              sessionUpdate: update.sessionUpdate,
-              name: update.name,
-              title: update.title,
-              status: update.status,
-              rawInput: update.rawInput,
-              rawOutput: update.rawOutput,
-            }
-          : { sessionUpdate: update.sessionUpdate },
+        : update.sessionUpdate === 'agent_thought_chunk'
+          ? { sessionUpdate: update.sessionUpdate, content: update.content }
+          : update.sessionUpdate === 'tool_call' || update.sessionUpdate === 'tool_call_update'
+            ? {
+                sessionUpdate: update.sessionUpdate,
+                name: update.name,
+                title: update.title,
+                status: update.status,
+                rawInput: update.rawInput,
+                rawOutput: update.rawOutput,
+              }
+            : { sessionUpdate: update.sessionUpdate },
     )
     throw new Error(
-      `Trae returned without an action. Permissions: ${JSON.stringify(permissionRequests).slice(0, 4_000)} Text: ${result.text.slice(0, 500)} Updates: ${JSON.stringify(updates).slice(0, 4_000)}`,
+      `Trae returned without an action. Permissions: ${JSON.stringify(permissionRequests).slice(0, 4_000)} Text: ${result.text.slice(0, 500)} Updates: ${JSON.stringify(updates).slice(0, 4_000)} Stderr: ${stripAnsi(stderrChunks.join('')).slice(-4_000)}`,
     )
   }
   const usage = result.updates.findLast((update) => update.sessionUpdate === 'usage_update')
@@ -155,4 +159,8 @@ try {
   await session?.close()
   await server.close()
   await rm(root, { recursive: true, force: true })
+}
+
+function stripAnsi(value: string): string {
+  return value.replace(new RegExp(`${String.fromCodePoint(27)}\\[[0-9;]*m`, 'g'), '')
 }

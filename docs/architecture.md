@@ -198,6 +198,11 @@ plugins, hooks, repository development instructions, shell/file/browser/search t
 sub-agents. The AgentWolf player contract is the model instruction source, and the only external
 tools are the five actions on `agentwolf-player-actions`.
 
+Trae explicitly enables its code-mode host as the dispatch surface for those allowlisted MCP
+actions. Its `tools.enabled_tools` catalog still contains only the five AgentWolf functions;
+`shell_tool`, `unified_exec`, file tools, browser/search, plugins, hooks, and Agent features remain
+disabled. The host therefore supplies MCP call transport without restoring a coding environment.
+
 Prompt contract 16 audits a 12,000-token bootstrap context budget. The budget includes the Agent
 runtime's model instructions and tool schemas as reported by ACP usage, not only the visible judge
 Prompt.

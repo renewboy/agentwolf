@@ -260,6 +260,7 @@
     "system": "裁判与运行时",
     "seatPlayer": "{{seat}}号玩家",
     "nickname": "昵称：{{name}}",
+    "model": "模型：{{model}}",
     "ownerCounts": "{{records}} 条记录",
     "minimap": "记录导航",
     "minimapLanes": {
@@ -534,6 +535,8 @@
     "leftPlayers": "左侧玩家",
     "rightPlayers": "右侧玩家",
     "roleHidden": "身份未公开",
+    "playerModel": "模型 · {{model}}",
+    "modelUnavailable": "未知",
     "viewSelector": "观战视角",
     "voteResult": "投票结果",
     "setupGroup": "开局",

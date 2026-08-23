@@ -16,6 +16,10 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - Continuous waiting feedback uses only transform and opacity. Reduced-motion mode keeps explicit live status copy and removes spatial loops.
 - Phosphor is the only icon family.
 - Selection controls use the portal-backed `GameSelect` listbox. Destructive actions use the application `ConfirmDialog`; browser-native prompts are not part of the product surface.
+- Visible identities use one labeled role badge system across board management, Match setup,
+  spectator, and developer surfaces: silver Villager, red Werewolf, blue Seer, purple Witch, green
+  Hunter, amber Idiot, and cyan Guard. Hidden identities use a neutral badge with no role-specific
+  color.
 
 ## Layouts
 
@@ -23,12 +27,13 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   lifted source and insertion feedback, keyboard reorder handles, and a focused editor with
   explicit empty, probe, saving, and error states.
 - Global settings: one focused editor for shared Match preferences, with saved and error states.
-- Board management: built-in and custom board list, role-count steppers, derived 6-24 player total,
-  sheriff switch, victory selector, copy, save, edit, and confirmed deletion.
+- Board management: built-in and custom board list, color-labeled role-count steppers, derived 6-24
+  player total, sheriff switch, victory selector, copy, save, edit, and confirmed deletion.
 - New match: available-player-count selection, compatible built-in or custom board summary, ordered
   seat assignment defaulted to the first persisted Agent Profile, per-seat Agent Profile selector,
-  name edit, per-seat reroll, and reroll-all.
-- Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
+  color-labeled board composition and manual identity selector, name edit, per-seat reroll, and
+  reroll-all.
+- Spectator: a `100dvh` shell with an integrated status HUD, left and right player rosters, a center presence stage, and an independently scrolling event feed. Every player card carries its configured model and visibility-safe role badge. Left-rail name, identity, Session status, and model metadata align to the left edge; the same four fields align to the right edge on the right rail. Speech, system events, night information, votes, and resolutions use distinct presentation. History folds by match day.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
 - Developer: every Match record exposes trajectory and eligible simulation actions in developer
@@ -39,8 +44,10 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   below the application bar with a seat-first participant list, a compact
   Prompt/model/tool/runtime record minimap, a virtualized and collapsible Turn ledger, semantic
   event-color tags, full record inspector, live revision updates, older-page loading, search, and
-  context-audit status. Minimap nodes select and center their Record. Player switching keeps the
-  shell mounted and restores each player's ledger scroll position.
+  context-audit status. Each participant row places its complete role badge at the right edge of
+  the seat-heading row, with nickname and configured model below. Minimap nodes select and center
+  their Record. Player switching keeps the shell mounted and restores each player's ledger scroll
+  position.
 
 ## Live-state rules
 

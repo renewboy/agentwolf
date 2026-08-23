@@ -13,6 +13,7 @@ import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { FormField } from '../components/FormField.js'
+import { RoleBadge } from '../components/RoleBadge.js'
 
 interface BoardDraft {
   readonly id: BoardId | null
@@ -210,7 +211,7 @@ export function BoardsPage() {
               {roles.map((role) => (
                 <div className="aw-board-role-row" key={role.id}>
                   <span>
-                    <strong>{role.name}</strong>
+                    <RoleBadge label={role.name} roleId={role.id} />
                     <small>
                       {getCopy(
                         role.faction === 'werewolf'

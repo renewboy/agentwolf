@@ -70,6 +70,11 @@ const disabledCodingFeatures = [
   'workspace_undo_outside_workspace_roots',
 ] as const
 
+const traeDisabledCodingFeatures = disabledCodingFeatures.filter(
+  (feature) => feature !== 'code_mode_host',
+)
+const traeRequiredFeatures = ['code_mode_host'] as const
+
 const sharedContextConfig = {
   include_apps_instructions: false,
   include_environment_context: false,
@@ -82,7 +87,8 @@ const sharedContextConfig = {
 } as const
 
 const traePlayerContextArgs = [
-  ...disabledCodingFeatures.flatMap((feature) => ['--disable', feature]),
+  ...traeDisabledCodingFeatures.flatMap((feature) => ['--disable', feature]),
+  ...traeRequiredFeatures.flatMap((feature) => ['--enable', feature]),
   '-c',
   'include_apps_instructions=false',
   '-c',

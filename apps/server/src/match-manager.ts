@@ -203,6 +203,10 @@ export class MatchManager {
       events,
       view: parsedView,
       roles: createV1RoleRegistry(),
+      model: (playerId) => {
+        const profileId = state.players.get(playerId)?.profileId
+        return profileId ? (this.#options.catalog.getProfile(profileId)?.model ?? null) : null
+      },
     })
   }
 

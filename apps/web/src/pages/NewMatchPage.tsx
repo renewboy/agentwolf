@@ -7,6 +7,7 @@ import { AgentProfileIdSchema } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { GameSelect } from '../components/GameSelect.js'
+import { RoleBadge } from '../components/RoleBadge.js'
 
 interface SeatDraft {
   readonly seat: number
@@ -79,7 +80,12 @@ export function NewMatchPage() {
     [profiles],
   )
   const roleOptions = useMemo(
-    () => board?.roles.map((role) => ({ value: role.roleId, label: role.name })) ?? [],
+    () =>
+      board?.roles.map((role) => ({
+        value: role.roleId,
+        label: role.name,
+        content: <RoleBadge label={role.name} roleId={role.roleId} />,
+      })) ?? [],
     [board],
   )
   useEffect(() => {
@@ -233,18 +239,20 @@ export function NewMatchPage() {
                   </strong>
                   <span>{entry.description}</span>
                   <small>
-                    {formatCopy(getCopy('setup.boardHint'), {
-                      count: entry.playerCount,
-                      roles: entry.roles
-                        .map((role) =>
-                          formatCopy(getCopy('setup.roleCount'), {
-                            role: role.name,
-                            count: role.count,
-                          }),
-                        )
-                        .join(getCopy('setup.roleSeparator')),
-                    })}
+                    {formatCopy(getCopy('setup.playerCountOption'), { count: entry.playerCount })}
                   </small>
+                  <span className="aw-board-option__roles">
+                    {entry.roles.map((role) => (
+                      <RoleBadge
+                        key={role.roleId}
+                        label={formatCopy(getCopy('setup.roleCount'), {
+                          role: role.name,
+                          count: role.count,
+                        })}
+                        roleId={role.roleId}
+                      />
+                    ))}
+                  </span>
                 </button>
               ))}
             </div>

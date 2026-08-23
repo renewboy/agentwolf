@@ -112,6 +112,7 @@ export const SeatViewSchema = z.object({
   playerId: PlayerIdSchema,
   seat: z.number().int().positive(),
   name: z.string(),
+  model: z.string().trim().min(1).max(160).nullable(),
   alive: z.boolean(),
   canVote: z.boolean(),
   sheriff: z.boolean(),

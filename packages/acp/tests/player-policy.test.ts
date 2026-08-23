@@ -30,6 +30,8 @@ describe('game-only player process policy', () => {
         'unified_exec',
       ]),
     )
+    expect(disabled).not.toContain('code_mode_host')
+    expect(optionValues(launch.args, '--enable')).toEqual(['code_mode_host'])
     expect(optionValues(launch.args, '--allowed-tool')).toEqual(
       playerActionToolNames.map((name) => `mcp__agentwolf_player_actions__${name}`),
     )
@@ -100,6 +102,7 @@ describe('game-only player process policy', () => {
     expect(config.features).toMatchObject({
       apply_patch_freeform: false,
       browser_use: false,
+      code_mode_host: false,
       memories: false,
       multi_agent: false,
       shell_tool: false,

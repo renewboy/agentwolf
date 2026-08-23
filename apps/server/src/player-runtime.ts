@@ -148,6 +148,10 @@ export class PlayerRuntime {
     return this.#status
   }
 
+  public get model(): string {
+    return this.#options.profile.model
+  }
+
   public get acknowledgedSequence(): number {
     return this.#ledger.acknowledgedSequence
   }

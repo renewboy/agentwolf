@@ -8,10 +8,18 @@ per-feature run narratives live under `docs/acceptance/archive/`; see the archiv
 
 ## Deterministic application checks
 
-- 102 unit and integration scenarios across 28 test files passed, including exact bootstrap teammate knowledge, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, deterministic simulation, browser review and approval, orchestration project-root validation, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 88.90% lines, 85.95% statements, 90.50% functions, and 75.42% branches over rule, ACP, asset, and server production sources.
-- Fourteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete, Agent Profile metadata layout and ordering, global speech settings, 6/9/12-player setup, spectator projections, Match-row simulation workflow, developer trajectory inspection, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
+- 102 unit and integration scenarios across 28 test files passed, including exact bootstrap teammate knowledge, Trae code-mode MCP isolation, game-only player launch policies, Agent Profile ordering and migration, submitted-action status, grouped and weighted vote projection, public board composition, private night visibility, final-only role publication, custom-board persistence and migration, global-setting persistence and Match snapshots, normalized trajectory capture and audit, deterministic simulation, browser review and approval, orchestration project-root validation, role-effect projection, bounded transport auto-recovery, cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day order, terminal Session projection, and 6/9/12-player board validation.
+- Coverage passed at 88.92% lines, 85.98% statements, 90.55% functions, and 75.37% branches over rule, ACP, asset, and server production sources.
+- Fourteen Chromium acceptance scenarios passed: custom-board create/edit/select/delete with complete role colors, Agent Profile metadata layout and ordering, global speech settings, 6/9/12-player setup, spectator model and visibility-safe role projection, Match-row simulation workflow, developer model/role trajectory inspection, right-rail and owner-heading alignment, fixed-height live match motion, sheriff-candidate and full/reduced/off semantic effects, non-rotating vote collection with submitted status, target-grouped seat-only vote cards, streamed sentence playback with committed-tail deduplication, sequence-keyed speech playback and manual controls, terminal connection settlement, missing-Match retry shutdown, and paused-match recovery plus deletion.
 - TypeScript strict build, Oxlint, Oxfmt, Knip, zero-clone JSCPD, architecture, asset, document, and Skill gates passed.
+
+The simulation corpus contains 3 fixtures and 14 variants. Each variant runs two engine replays and
+two full orchestration replays, for 56 executions; orchestration also rebuilds and audits every
+trajectory Turn. The focused corpus passed in 94.91 seconds without coverage and 162.02 seconds
+with V8 coverage. Default file-parallel coverage twice exceeded the per-test 180-second limit,
+while `VITEST_MAX_WORKERS=1 pnpm check` passed the complete 102-test coverage gate in 176.60 seconds
+by removing file-level CPU contention. Fake Sessions use microtask scheduling; the only timer is a
+5ms settlement poll while the engine remains active, not streaming or token-delay simulation.
 
 ## Deterministic simulation corpus
 
@@ -88,6 +96,33 @@ Match completed; this was a rejected game target, not a context or transport fai
 Prompt contract 16 enforces a 12,000-token bootstrap budget in the trajectory audit. Deterministic
 coverage verifies the version boundary and exact budget, so a future Agent or adapter that restores
 ambient context makes the audit fail visibly.
+
+## Model, role, and Trae code-mode acceptance
+
+Read-only reconstruction of retained Match `match-board-standard-9-2a52b746dce1` found that the
+three Werewolf voters were Players 5, 6, and 8. Player 6 used DeepSeek-V4-Flash and submitted
+`agentwolf-player-actions/submit_vote` on both attempts. Players 5 and 8 used `gpt-5.6-luna` through
+Trae and produced 143 `codex_core::tools::router` diagnostics across their four vote Turns: 140
+reported `code-mode host is disabled` and three rejected an invalid `functions.exec` shape. Their
+Prompts contained the correct `submit_vote` contract and legal target context. The source Match was
+not resumed, deleted, or otherwise mutated during diagnosis.
+
+The Trae player policy now explicitly enables `code_mode_host` while keeping `shell_tool`,
+`unified_exec`, browser/search, file, plugin, hook, Memory, Skill, and Agent capabilities disabled.
+Its enabled nested tool catalog remains the five `agentwolf-player-actions` functions. Three
+consecutive isolated Trae 0.201.5 / `gpt-5.6-luna` probes submitted a real wolf-kill vote at about
+5.3k used context. A follow-up request to invoke `functions.exec` for `pwd` returned `unavailable`
+and emitted no tool call. The first probe after enabling the host ended without an action before
+stderr capture was added to the smoke harness; subsequent probes established the working MCP
+dispatch path while preserving the existing invalid-action pause for model non-compliance.
+
+The current developer API returned configured models and god-view roles for all nine retained
+seats. Browser inspection at 1280×720 rendered complete common model names on Match cards, placed
+the trajectory role badge on the right side of the seat-heading row, and used purple
+`rgb(189, 134, 223)` for Witch and green `rgb(114, 198, 154)` for Hunter. Left-rail name, role,
+Session status, and model left-edge gaps were at most 1px, while the same right-rail fields had at
+most 1px right-edge gaps. The trajectory heading role right-edge and vertical center gaps were 0px.
+The Match and trajectory pages reported no warning or error.
 
 ## Acceptance archive
 

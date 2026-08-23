@@ -1,11 +1,13 @@
 import { CaretDown, Check } from '@phosphor-icons/react'
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { getCopy } from '@agentwolf/assets'
 
 export interface GameSelectOption<Value extends string> {
   readonly value: Value
   readonly label: string
+  readonly content?: ReactNode
   readonly disabled?: boolean
 }
 
@@ -180,7 +182,7 @@ export function GameSelect<Value extends string>({
         }}
       >
         <span data-placeholder={!selected}>
-          {selected?.label ?? placeholder ?? getCopy('common.none')}
+          {selected?.content ?? selected?.label ?? placeholder ?? getCopy('common.none')}
         </span>
         <CaretDown size={17} aria-hidden />
       </button>
@@ -238,7 +240,7 @@ export function GameSelect<Value extends string>({
                         if (!option.disabled) setActiveIndex(index)
                       }}
                     >
-                      <span>{option.label}</span>
+                      <span>{option.content ?? option.label}</span>
                       {option.value === value ? (
                         <Check size={17} weight="bold" aria-hidden />
                       ) : null}

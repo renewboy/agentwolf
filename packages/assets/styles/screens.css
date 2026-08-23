@@ -206,6 +206,17 @@
   gap: 4px;
 }
 
+.aw-board-option__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.aw-board-option .aw-role-badge {
+  color: var(--aw-role-color);
+}
+
 .aw-profile-item__handle,
 .aw-profile-item__select {
   border: 0;
@@ -749,6 +760,30 @@
 }
 
 .aw-trajectory-owner__nickname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-trajectory-owner__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.aw-trajectory-owner__heading > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-trajectory-owner__heading .aw-role-badge {
+  flex: none;
+}
+
+.aw-trajectory-owner__model {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1565,8 +1600,10 @@
   display: grid;
   position: relative;
   grid-template-columns: 62px minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 4px;
   min-height: clamp(72px, 10vh, 112px);
   padding: 11px 12px;
   border: 1px solid rgb(70 87 99 / 70%);
@@ -1597,6 +1634,26 @@
   grid-column: 1;
   grid-row: 1;
   align-items: end;
+  text-align: left;
+}
+
+.aw-player-rail--right .aw-player-card__copy {
+  justify-items: end;
+  text-align: right;
+}
+
+.aw-player-card__model {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.aw-player-rail--left .aw-player-card__model {
+  justify-self: start;
+  text-align: left;
+}
+
+.aw-player-rail--right .aw-player-card__model {
+  justify-self: end;
   text-align: right;
 }
 
@@ -1712,6 +1769,11 @@
 }
 
 .aw-player-rail--left .aw-player-card__name-row {
+  justify-content: flex-start;
+}
+
+.aw-player-rail--right .aw-player-card__name-row,
+.aw-player-rail--right .aw-player-card__status {
   justify-content: flex-end;
 }
 
@@ -1747,9 +1809,15 @@
 }
 
 .aw-player-card__role {
+  min-height: 19px;
+  padding: 0 6px;
+  font-size: 9px;
+}
+
+.aw-player-card__model {
   overflow: hidden;
-  color: #d6c5a8;
-  font-size: 11px;
+  color: var(--aw-color-text-muted);
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2477,7 +2545,8 @@
 
   .aw-player-card {
     grid-template-columns: 48px minmax(0, 1fr);
-    gap: 8px;
+    column-gap: 8px;
+    row-gap: 3px;
     padding: 9px;
   }
 
@@ -2550,7 +2619,7 @@
   .aw-mobile-roster .aw-player-card {
     flex: 0 0 158px;
     grid-template-columns: 38px minmax(0, 1fr);
-    min-height: 54px;
+    min-height: 64px;
     padding: 7px;
   }
 

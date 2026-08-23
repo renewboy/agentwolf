@@ -13,6 +13,7 @@ import {
 } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
+import { RoleBadge } from '../components/RoleBadge.js'
 import {
   TrajectoryInspector,
   TrajectoryLedger,
@@ -216,6 +217,7 @@ export function DeveloperPage() {
           <h2>{getCopy('trajectory.owners')}</h2>
           {owners.map((owner) => {
             const seat = ownerSeat(owner.ownerId)
+            const player = seat === null ? null : match.seats.find((entry) => entry.seat === seat)
             return (
               <button
                 className="aw-trajectory-owner"
@@ -224,15 +226,33 @@ export function DeveloperPage() {
                 type="button"
                 onClick={() => setOwnerId(owner.ownerId)}
               >
-                <span>
-                  {seat === null
-                    ? getCopy('trajectory.system')
-                    : formatCopy(getCopy('trajectory.seatPlayer'), { seat })}
-                </span>
+                <div className="aw-trajectory-owner__heading">
+                  <span>
+                    {seat === null
+                      ? getCopy('trajectory.system')
+                      : formatCopy(getCopy('trajectory.seatPlayer'), { seat })}
+                  </span>
+                  {seat === null ? null : (
+                    <RoleBadge
+                      label={player?.roleName ?? getCopy('match.roleHidden')}
+                      roleId={player?.roleId}
+                    />
+                  )}
+                </div>
                 {seat === null ? null : (
-                  <small className="aw-trajectory-owner__nickname">
-                    {formatCopy(getCopy('trajectory.nickname'), { name: owner.label })}
-                  </small>
+                  <>
+                    <small className="aw-trajectory-owner__nickname">
+                      {formatCopy(getCopy('trajectory.nickname'), { name: owner.label })}
+                    </small>
+                    <small
+                      className="aw-trajectory-owner__model"
+                      title={player?.model ?? undefined}
+                    >
+                      {formatCopy(getCopy('trajectory.model'), {
+                        model: player?.model ?? getCopy('match.modelUnavailable'),
+                      })}
+                    </small>
+                  </>
                 )}
                 <small>
                   {formatCopy(getCopy('trajectory.ownerCounts'), {
