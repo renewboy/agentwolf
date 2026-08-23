@@ -328,6 +328,7 @@ export class MatchRuntime {
       ...(turn.voteKind ? { voteKind: turn.voteKind } : {}),
       ...(turn.allowedAbilityIds ? { allowedAbilityIds: turn.allowedAbilityIds } : {}),
       ...interruptAbilityExpectation(this.engine.state, playerId, turn),
+      validate: (action) => this.engine.validateAction(action),
     }
     const envelope = await this.#renderer.turn(
       this.engine.state,

@@ -121,6 +121,15 @@ callable ability list contains self-destruct but does not present the regular at
 
 ## Match failure behavior
 
-An agent process exit, prompt timeout, malformed structured action, or uncertain prompt delivery activates bounded recovery. One uncertain transport failure per player and phase replaces failed sessions and retries without changing game state. A repeated transport failure or invalid structured action pauses with an operator-visible reason and continue action. Live sessions retain their acknowledged cursors; replacement sessions receive one current foundation plus each player's visible history. Matches can be deleted with their events and delivery ledgers.
+A schema-invalid or rule-invalid structured action is returned to the Agent as a failed tool result
+inside the current turn. The rejected call does not enter the phase barrier or change game state, so
+the Agent can submit a corrected action before ending its response.
+
+An agent process exit, prompt timeout, or uncertain prompt delivery activates bounded recovery. One
+uncertain transport failure per player and phase replaces failed sessions and retries without
+changing game state. A repeated transport failure, or a final Agent response without the expected
+valid action, pauses with an operator-visible reason and continue action. Live sessions retain their
+acknowledged cursors; replacement sessions receive one current foundation plus each player's visible
+history. Matches can be deleted with their events and delivery ledgers.
 
 An ended Match is a stable record: every identity is visible, every player Session is presented as ended, and the spectator connection settles without reconnecting. A deleted or unknown Match returns a terminal unavailable response rather than entering live recovery.

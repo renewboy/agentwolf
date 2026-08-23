@@ -113,15 +113,20 @@ describe('GameEngine', () => {
         text: '确认狼队成员后再选择目标。',
       })
     }
-    expect(() =>
-      engine.submit({
-        type: 'vote',
-        matchId: engine.state.matchId,
-        actorId: firstWolf,
-        targetId: secondWolf,
-        kind: 'wolf-kill',
-      }),
-    ).toThrow('Werewolves cannot attack a werewolf')
+    const invalidAction = {
+      type: 'vote' as const,
+      matchId: engine.state.matchId,
+      actorId: firstWolf,
+      targetId: secondWolf,
+      kind: 'wolf-kill' as const,
+    }
+    const beforeValidation = engine.snapshot()
+
+    expect(() => engine.validateAction(invalidAction)).toThrow(
+      'Werewolves cannot attack a werewolf',
+    )
+    expect(engine.snapshot()).toEqual(beforeValidation)
+    expect(() => engine.submit(invalidAction)).toThrow('Werewolves cannot attack a werewolf')
   })
 
   it('accepts a Hunter pass as an intentional death-trigger action', () => {

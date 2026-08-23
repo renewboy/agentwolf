@@ -96,7 +96,8 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 
 - Durable documents describe current implemented behavior. One fact has one owning document; other documents link to it.
 - Keep architecture, interface specification, operations, decisions, execution plans, incidents, acceptance evidence, and roadmaps in separate documents.
-- A non-trivial implementation plan lives under `docs/plans/` while work is active.
+- Cross-layer, architectural, high-risk, or multi-milestone work requires an implementation plan under `docs/plans/` while work is active.
+- Small scoped requests and localized bug fixes that can be implemented and verified directly do not require an implementation plan.
 - When every required change and acceptance check is complete, move the plan to `docs/plans/completed/<slug>.md`.
 - Every completed plan contains `Goal`, `Completed work`, and `Completion evidence` and contains no pending checklist, TODO, or future scope.
 
@@ -105,6 +106,6 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 1. Update source, assets, and owning tests together.
 2. Add a mechanical invariant for every enforceable review rule.
 3. Update current-state documentation for changed public behavior or boundaries.
-4. Move the finished execution plan into `docs/plans/completed/`.
+4. When the work required an execution plan, move the finished plan into `docs/plans/completed/`.
 5. Run focused tests, `pnpm check`, and user-visible browser acceptance.
 6. Record current acceptance evidence in `docs/acceptance.md` without committing `.agentwolf/` artifacts.

@@ -176,7 +176,16 @@ describe('Fastify API', () => {
     const matchId = MatchIdSchema.parse('match-mcp-001')
     const playerId = PlayerIdSchema.parse('player-1')
     const token = server.matches.mailbox.issueToken(matchId, playerId)
-    server.matches.mailbox.expect({ matchId, playerId, actionType: 'vote', voteKind: 'exile' })
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'night-action',
+      validate: (action) => {
+        if (action.type === 'night-action' && action.option !== 'pass') {
+          throw new Error('Poison has already been used')
+        }
+      },
+    })
 
     const client = new Client({ name: 'agentwolf-test-client', version: '1.0.0' })
     const transport = new StreamableHTTPClientTransport(new URL('/mcp', address), {
@@ -191,6 +200,32 @@ describe('Fastify API', () => {
       'submit_sheriff_action',
       'trigger_skill',
     ])
+    const rejectedPoison = await client.callTool({
+      name: 'submit_night_action',
+      arguments: {
+        abilityId: 'ability-witch-poison',
+        targetPlayerIds: ['player-2'],
+      },
+    })
+    expect(rejectedPoison.isError).toBe(true)
+    expect(rejectedPoison.content).toContainEqual(
+      expect.objectContaining({ text: expect.stringContaining('Poison has already been used') }),
+    )
+    const correctedPass = await client.callTool({
+      name: 'submit_night_action',
+      arguments: {
+        abilityId: 'ability-witch-poison',
+        targetPlayerIds: [],
+        option: 'pass',
+      },
+    })
+    expect(correctedPass.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'night-action',
+      option: 'pass',
+    })
+
+    server.matches.mailbox.expect({ matchId, playerId, actionType: 'vote', voteKind: 'exile' })
     const result = await client.callTool({
       name: 'submit_vote',
       arguments: { targetPlayerId: 'player-2' },

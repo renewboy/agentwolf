@@ -176,13 +176,15 @@ export class GameEngine {
     return this.#events.slice(from)
   }
 
+  public validateAction(input: PlayerAction): void {
+    const action = PlayerActionSchema.parse(input)
+    this.#validateSubmittedAction(action)
+  }
+
   public submit(input: PlayerAction, options: SubmitActionOptions = {}): readonly GameEvent[] {
     const from = this.#events.length
     const action = PlayerActionSchema.parse(input)
-    assertRule(this.#state.status === 'running', 'Match is not accepting actions')
-    assertRule(this.#state.phaseId, 'Match has no active phase')
-    const node = this.#phaseNode(this.#state.phaseId)
-    this.#validateActor(node, action.actorId)
+    const node = this.#validateSubmittedAction(action)
     assertRule(
       !options.deferContinuation || action.type === 'speech',
       'Only speech actions can defer phase continuation',
@@ -192,7 +194,6 @@ export class GameEngine {
       this.#drive()
       return this.#events.slice(from)
     }
-    validateTurnAction(node, action, this.#state, this.#board, this.#roles)
     const committed = normalizeTurnAction(node, action, this.#state)
     this.#append(
       { type: 'action.submitted', playerId: action.actorId, action: committed },
@@ -393,6 +394,23 @@ export class GameEngine {
     if (node.mode === 'sequential') {
       assertRule(this.activeActor() === actorId, `It is not ${actor.name}'s turn`)
     }
+  }
+
+  #validateSubmittedAction(action: PlayerAction): PhaseNode {
+    assertRule(this.#state.status === 'running', 'Match is not accepting actions')
+    assertRule(this.#state.phaseId, 'Match has no active phase')
+    const node = this.#phaseNode(this.#state.phaseId)
+    this.#validateActor(node, action.actorId)
+    if (isSelfDestructInterrupt(node, action)) {
+      const actor = this.#state.players.get(action.actorId)
+      assertRule(actor?.roleId, `Self-destruct actor ${action.actorId} has no role`)
+      const entry = this.#roles.ability(action.abilityId)
+      assertRule(entry.role.id === actor.roleId, `${actor.name} cannot self-destruct`)
+      entry.ability.validate({ state: this.#state, board: this.#board, action, actor })
+    } else {
+      validateTurnAction(node, action, this.#state, this.#board, this.#roles)
+    }
+    return node
   }
 
   #submitSelfDestruct(

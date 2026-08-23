@@ -269,3 +269,19 @@ Match `match-board-quick-6-c5b673ee202c` entered its first exile vote at event 1
 A structured action acceptance emitted `submitted` before the ACP final response in integration coverage. Chromium sampling reported `data-presence-state="awaiting-actions"`, `已提交` for an accepted voter, `投票中` for a pending voter, stable orb and player-ring transforms, and a changing signal-rail transform/opacity sample.
 
 Current API projection of the same Match renders its first result as `投票结算：2号以3票获得最高票。`, followed by `投2号：1号、5号、6号` and `投6号：2号、3号`. The second result renders `投5号：1号、6号` and `投6号：5号`. Neither title nor ballot row contains a player nickname.
+
+## Structured action rejection acceptance
+
+The authenticated MCP integration called `submit_night_action` with a Witch poison action whose
+semantic validator returned `Poison has already been used`. The tool response carried an error
+flag and the rule message, no action entered the mailbox, and a corrected pass using the same
+player token and open expectation was accepted.
+
+The six-player orchestration integration submitted an unavailable Guard ability during the Seer
+turn, received the phase rule rejection, and submitted the required Seer inspection inside the
+same ACP Prompt. The inspection settled with no `match.paused` or `match.resumed` event. Engine
+coverage also verified that semantic validation leaves the event log and state snapshot unchanged.
+
+`pnpm check` passed all architecture, artifact, documentation, skill, type, lint, format, hygiene,
+duplication, coverage, and build gates with 28 test files and 102 tests. Chromium E2E passed all 14
+scenarios.

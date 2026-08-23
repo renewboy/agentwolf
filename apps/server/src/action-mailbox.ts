@@ -19,6 +19,7 @@ export interface ActionExpectation {
   readonly actionType: PlayerAction['type']
   readonly speechKind?: Extract<PlayerAction, { type: 'speech' }>['kind']
   readonly voteKind?: Extract<PlayerAction, { type: 'vote' }>['kind']
+  readonly validate?: (action: PlayerAction) => void
   readonly onAccepted?: (action: PlayerAction) => void
   readonly allowedAbilityIds?: readonly AbilityId[]
   readonly interruptAbilityIds?: readonly AbilityId[]
@@ -187,6 +188,7 @@ export class ActionMailbox {
   #accept(expectation: ActionExpectation, action: PlayerAction): ActionReceipt {
     const key = this.#key(expectation.matchId, expectation.playerId)
     if (this.#actions.has(key)) throw new Error('This player already submitted an action')
+    expectation.validate?.(action)
     this.#actions.set(key, action)
     expectation.onAccepted?.(action)
     return ActionReceiptSchema.parse({

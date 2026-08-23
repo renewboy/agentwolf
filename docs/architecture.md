@@ -79,7 +79,7 @@ while her antidote remains available. The Witch's antidote can target only that 
 target. Once the antidote is unavailable, neither incremental events nor the Witch action
 instruction disclose a death target to her.
 
-Each player session stores a delivery cursor. A prompt envelope contains only visible events after that cursor. The envelope is marked in-flight before `session/prompt`; the cursor advances only after a final ACP response. Failure after dispatch produces an uncertain-delivery pause with no automatic retry.
+Each player session stores a delivery cursor. A prompt envelope contains only visible events after that cursor. The envelope is marked in-flight before `session/prompt`; the cursor advances only after a final ACP response. Failure after dispatch marks delivery as uncertain for bounded runtime recovery; a repeated failure for the same player and phase pauses for operator action.
 
 The live WebSocket accepts view changes and speech-playback controls as validated client messages.
 One connection may own automatic playback for a Match. Visible stream chunks are split at complete
@@ -205,8 +205,10 @@ Prompt.
 The MCP server is bound to one player token. It exposes speech, vote, night action, sheriff action,
 and skill trigger tools. Normal Match speech is committed from the ACP response; `submit_speech`
 is a compatibility surface that requires an explicit expectation opt-in which the Match runtime
-does not grant. The action gateway validates actor, phase, ability, target Player IDs,
-cardinality, and single-submission rules. Werewolf self-destruct is offered only in the sheriff
+does not grant. Before acceptance, the action gateway validates actor, phase, ability, target Player
+IDs, cardinality, role state, and single-submission rules without changing engine state. A rejected
+call returns its reason as a failed tool result inside the same Agent turn and leaves the expectation
+open for a corrected call. Werewolf self-destruct is offered only in the sheriff
 and daytime phases accepted by the rule engine. Wolf council accepts natural discussion only and
 opens its structured `submit_vote` attack action in the following phase. The regular attack is not
 advertised as a callable night-action ability, and that vote phase explicitly rejects

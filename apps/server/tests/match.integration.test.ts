@@ -17,7 +17,7 @@ import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
 import { auditTrajectory } from '../src/trajectory-audit.js'
-import { scriptedSessionFactory } from './fixtures/scripted-session.js'
+import { scriptedSessionFactory, type ScriptedSeerFault } from './fixtures/scripted-session.js'
 
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
@@ -415,17 +415,22 @@ describe('match orchestration', () => {
     })
   }, 15_000)
 
-  it('recovers a rejected six-player Seer action without replaying prior context', async () => {
+  it('returns a rejected structured action to the same Agent turn and continues without pausing', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-recovery-'))
     temporaryDirectories.push(root)
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
-    const invalidSeerOnce = { value: true }
+    const rejectedSeerReasons: string[] = []
+    const seerFault: ScriptedSeerFault = {
+      value: true,
+      behavior: 'correct-in-turn',
+      rejectedReasons: rejectedSeerReasons,
+    }
     const uncertainSpeechOnce = { playerId: 'player-3' as PlayerId, value: true }
     const sessionFactory = scriptedSessionFactory({
       prompts,
       mailbox: () => server.matches.mailbox,
-      invalidSeerOnce,
+      seerFault,
       uncertainSpeechOnce,
     })
     const config: ServerConfig = {
@@ -470,33 +475,20 @@ describe('match orchestration', () => {
     })
     server.matches.beginMatch(created.id)
 
-    const paused = await waitForMatch(server, created.id)
-    expect(paused.status).toBe('paused')
-    expect(paused.pausedReason).toContain('phase-night-seer requires ability-seer-inspect')
     const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
-    expect(
-      prompts
-        .get(seerId)
-        ?.find(
-          (prompt) => prompt.includes('ability-seer-inspect') && prompt.includes('targetPlayerIds'),
-        ),
-    ).toBeDefined()
-
-    await server.matches.resumeMatch(created.id)
-    const resumed = await waitForMatchState(server, created.id, (match) =>
+    const corrected = await waitForMatchState(server, created.id, (match) =>
       match.timeline.some((item) => item.kind === 'seer.inspected'),
     )
-    expect(resumed.day).toBeGreaterThanOrEqual(1)
-    expect(resumed.phaseId).not.toBe('phase-night-seer')
+    expect(rejectedSeerReasons).toEqual(['phase-night-seer requires ability-seer-inspect'])
+    expect(corrected.status).toBe('running')
+    expect(corrected.timeline.filter((item) => item.kind === 'match.paused')).toHaveLength(0)
     const seerTurns =
       prompts
         .get(seerId)
         ?.filter(
           (prompt) => prompt.includes('ability-seer-inspect') && prompt.includes('targetPlayerIds'),
         ) ?? []
-    expect(seerTurns).toHaveLength(2)
-    expect(seerTurns[1]).toContain(getCopy('narration.matchResumed'))
-    expect(seerTurns[1]).not.toContain(getCopy('phases.nightWolfCouncil'))
+    expect(seerTurns).toHaveLength(1)
     const automaticallyRecovered = await waitForMatchState(server, created.id, (match) =>
       match.timeline.some(
         (item) =>
@@ -516,8 +508,7 @@ describe('match orchestration', () => {
     ).toBe(false)
     expect(
       automaticallyRecovered.timeline.filter((item) => item.kind === 'match.resumed'),
-    ).toHaveLength(1)
-    await waitForMatch(server, created.id)
+    ).toHaveLength(0)
   })
 
   it('rebuilds replacement sessions and resumes a paused match after server restart', async () => {
@@ -525,11 +516,11 @@ describe('match orchestration', () => {
     temporaryDirectories.push(root)
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
-    const invalidSeerOnce = { value: true }
+    const seerFault: ScriptedSeerFault = { value: true, behavior: 'omit' }
     const sessionFactory = scriptedSessionFactory({
       prompts,
       mailbox: () => server.matches.mailbox,
-      invalidSeerOnce,
+      seerFault,
     })
     const config: ServerConfig = {
       host: '127.0.0.1',
@@ -573,7 +564,7 @@ describe('match orchestration', () => {
     })
     server.matches.beginMatch(created.id)
     expect((await waitForMatch(server, created.id)).pausedReason).toContain(
-      'phase-night-seer requires ability-seer-inspect',
+      'Agent did not submit the expected night-action action',
     )
     await server.close()
 
@@ -592,7 +583,9 @@ describe('match orchestration', () => {
     const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
     const recoveryFoundation = prompts
       .get(seerId)
-      ?.findLast((prompt) => prompt.includes('phase-night-seer requires ability-seer-inspect'))
+      ?.findLast((prompt) =>
+        prompt.includes('Agent did not submit the expected night-action action'),
+      )
     expect(recoveryFoundation).toContain(getCopy('phases.nightWolfCouncil'))
     expect(recoveryFoundation).toContain(getCopy('promptContext.villageVictory'))
     expect(

@@ -10,7 +10,8 @@
   custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
   redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
-  authorization, sync barriers, and streamed speech.
+  authorization, same-turn correction after a rejected structured action, sync barriers, and
+  streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
 - Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
   the production Match runtime with deterministic fake Sessions. They check semantic event order,
@@ -63,10 +64,10 @@ pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
 6. Guard, Witch, Hunter, and Idiot interactions match the selected board policies. A Witch with an
    available antidote sees only the regular Werewolf attack target; after losing the antidote she
    receives no death target through either events or action instructions.
-7. A killed or timed-out ACP process pauses the match without resending an in-flight envelope.
+7. A killed or timed-out ACP process enters bounded recovery without resending an in-flight envelope; a repeated failure pauses the Match.
 8. Selecting 6, 9, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
 9. Agent Tool selection discovers its ACP model list, and only an advertised model can be selected in the settings UI.
-10. A rejected six-player Seer action pauses at the same phase, resumes with the exact ability contract, and reaches a settled inspection without replaying acknowledged context.
+10. A rejected six-player Seer action returns its rule error to the same Agent turn, accepts a corrected tool call, reaches a settled inspection, and emits no pause or resume event.
 11. Recovery after server restart restores the event-sourced engine, starts replacement sessions with visible history, and continues the interrupted turn.
 12. A paused match exposes continue and delete controls; deletion removes the match, events, and delivery ledgers.
 13. A simulated uncertain ACP speech delivery replaces failed sessions once, commits the retried speech, and does not emit a transient pause event.

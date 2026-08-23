@@ -82,6 +82,11 @@ bootstrap context exceeds 12,000 tokens.
 
 ## Failure semantics
 
+Structured action calls are validated before acceptance. Schema and game-rule rejections return a
+failed tool result to the invoking Agent inside the active ACP turn, leave the action expectation
+open, and do not change the engine, phase barrier, or delivery cursor. The Agent may submit a valid
+replacement call in that turn. A final ACP response without an accepted action fails the turn.
+
 Each delivery is recorded as in-flight before `session/prompt`. A final ACP response acknowledges its sequence range. A timeout, process exit, or transport error leaves the delivery uncertain. The first failure for one player and phase replaces failed sessions and retries from a visible-history foundation without replaying old prompts to the same Session. A repeated failure pauses for operator action. Manual recovery advances past already delivered uncertain ranges and sends the current structured action contract.
 
 Every foundation source history ends at the same sequence as its delivery cursor. The foundation

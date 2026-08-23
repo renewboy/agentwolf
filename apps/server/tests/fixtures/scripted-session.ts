@@ -12,8 +12,14 @@ import type { PlayerSession, PlayerSessionFactory } from '../../src/player-runti
 export interface ScriptedSessionOptions {
   readonly prompts: Map<PlayerId, string[]>
   readonly mailbox: () => ActionMailbox
-  readonly invalidSeerOnce?: { value: boolean }
+  readonly seerFault?: ScriptedSeerFault
   readonly uncertainSpeechOnce?: { playerId: PlayerId; value: boolean }
+}
+
+export interface ScriptedSeerFault {
+  value: boolean
+  readonly behavior: 'correct-in-turn' | 'omit'
+  readonly rejectedReasons?: string[]
 }
 
 export function scriptedSessionFactory(options: ScriptedSessionOptions): PlayerSessionFactory {
@@ -23,7 +29,7 @@ export function scriptedSessionFactory(options: ScriptedSessionOptions): PlayerS
       extractToken(session.mcpServer),
       options.mailbox,
       options.prompts,
-      options.invalidSeerOnce,
+      options.seerFault,
       options.uncertainSpeechOnce,
     )
 }
@@ -34,7 +40,7 @@ export class ScriptedSession implements PlayerSession {
   readonly #token: string
   readonly #mailbox: () => ActionMailbox
   readonly #prompts: Map<PlayerId, string[]>
-  readonly #invalidSeerOnce?: { value: boolean }
+  readonly #seerFault?: ScriptedSeerFault
   readonly #uncertainSpeechOnce?: { playerId: PlayerId; value: boolean }
   #night = 1
 
@@ -43,14 +49,14 @@ export class ScriptedSession implements PlayerSession {
     token: string,
     mailbox: () => ActionMailbox,
     prompts: Map<PlayerId, string[]>,
-    invalidSeerOnce?: { value: boolean },
+    seerFault?: ScriptedSeerFault,
     uncertainSpeechOnce?: { playerId: PlayerId; value: boolean },
   ) {
     this.#playerId = playerId
     this.#token = token
     this.#mailbox = mailbox
     this.#prompts = prompts
-    this.#invalidSeerOnce = invalidSeerOnce
+    this.#seerFault = seerFault
     this.#uncertainSpeechOnce = uncertainSpeechOnce
     this.sessionId = `scripted-${playerId}`
   }
@@ -90,9 +96,18 @@ export class ScriptedSession implements PlayerSession {
     else if (phase === 'nightWitch') {
       this.#mailbox().submitNightAction(this.#token, 'ability-witch-antidote', [], 'pass')
     } else if (phase === 'nightSeer') {
-      if (this.#invalidSeerOnce?.value) {
-        this.#invalidSeerOnce.value = false
-        this.#mailbox().submitNightAction(this.#token, 'ability-guard-protect', ['player-1'])
+      if (this.#seerFault?.value) {
+        this.#seerFault.value = false
+        if (this.#seerFault.behavior === 'correct-in-turn') {
+          try {
+            this.#mailbox().submitNightAction(this.#token, 'ability-guard-protect', ['player-1'])
+          } catch (error) {
+            this.#seerFault.rejectedReasons?.push(
+              error instanceof Error ? error.message : String(error),
+            )
+            this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', ['player-1'])
+          }
+        }
       } else {
         this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', ['player-1'])
       }
