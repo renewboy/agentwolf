@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getCopy } from '@agentwolf/assets'
-import type { MatchView, SpeechPlaybackState, TimelineItem } from '@agentwolf/contracts'
+import type { MatchView, PlayerId, SpeechPlaybackState, TimelineItem } from '@agentwolf/contracts'
+import { completeSentences } from './speech-playback-text.js'
 
 export interface SpeechPlaybackController {
   readonly supported: boolean
   readonly automaticSequence: number | null
+  readonly automaticPlayerId: PlayerId | null
   readonly automaticBusy: boolean
   readonly manualSequence: number | null
   readonly notice: string | null
@@ -16,7 +18,7 @@ export interface SpeechPlaybackController {
 
 interface StreamJob {
   readonly id: number
-  readonly playerId: string
+  readonly playerId: PlayerId
   observedText: string
   consumedLength: number
   nextUnit: number
@@ -57,6 +59,7 @@ export function useSpeechPlayback({
   const supported = supportsSpeechSynthesis()
   const [queue, setQueue] = useState<readonly PlaybackUnit[]>([])
   const [automaticSequence, setAutomaticSequence] = useState<number | null>(null)
+  const [automaticPlayerId, setAutomaticPlayerId] = useState<PlayerId | null>(null)
   const [manualSequence, setManualSequence] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [streamingActive, setStreamingActive] = useState(false)
@@ -111,6 +114,7 @@ export function useSpeechPlayback({
     streamJobsRef.current.clear()
     setQueue([])
     setAutomaticSequence(null)
+    setAutomaticPlayerId(null)
     setStreamingActive(false)
   }, [])
 
@@ -126,6 +130,11 @@ export function useSpeechPlayback({
 
   const enqueueStreamText = useCallback(
     (job: StreamJob, text: string, flushTail: boolean): void => {
+      if (job.outcome === 'skipped') {
+        job.observedText = text
+        job.consumedLength = text.length
+        return
+      }
       const unconsumed = text.slice(Math.min(job.consumedLength, text.length))
       const extracted = completeSentences(unconsumed)
       const segments = [...extracted.segments]
@@ -207,6 +216,33 @@ export function useSpeechPlayback({
   useEffect(() => {
     if (!controlled || viewPending) return
 
+    const additions = speechItems.filter((item) => !seenSequencesRef.current.has(item.sequence))
+    for (const item of additions) {
+      seenSequencesRef.current.add(item.sequence)
+      const job = [...streamJobsRef.current.values()].find(
+        (candidate) => candidate.finalSequence === null && candidate.playerId === item.playerIds[0],
+      )
+      if (!job) {
+        enqueueCommitted(item)
+        continue
+      }
+      enqueueStreamText(job, item.title, true)
+      job.finalSequence = item.sequence
+      if (activeStreamRef.current?.id === job.id) {
+        activeStreamRef.current = null
+        setStreamingActive(false)
+      }
+      const current = currentUnitRef.current
+      if (current?.source === 'stream' && current.streamId === job.id) {
+        setAutomaticSequence(item.sequence)
+        setAutomaticPlayerId(job.playerId)
+      }
+      if (job.pendingUnits === 0) {
+        streamJobsRef.current.delete(job.id)
+        finishSequence(item.sequence, job.outcome)
+      }
+    }
+
     if (activeSpeech && !activeSpeech.final) {
       let job = activeStreamRef.current
       if (
@@ -230,36 +266,6 @@ export function useSpeechPlayback({
       }
       setStreamingActive(true)
       enqueueStreamText(job, activeSpeech.text, false)
-    }
-
-    if (activeSpeech?.final) {
-      const item = speechItems.findLast(
-        (candidate) =>
-          candidate.playerIds[0] === activeSpeech.playerId &&
-          !seenSequencesRef.current.has(candidate.sequence),
-      )
-      const job = activeStreamRef.current
-      if (item && job?.playerId === activeSpeech.playerId) {
-        enqueueStreamText(job, activeSpeech.text, true)
-        job.finalSequence = item.sequence
-        activeStreamRef.current = null
-        setStreamingActive(false)
-        seenSequencesRef.current.add(item.sequence)
-        const current = currentUnitRef.current
-        if (current?.source === 'stream' && current.streamId === job.id) {
-          setAutomaticSequence(item.sequence)
-        }
-        if (job.pendingUnits === 0) {
-          streamJobsRef.current.delete(job.id)
-          finishSequence(item.sequence, job.outcome)
-        }
-      }
-    }
-
-    const additions = speechItems.filter((item) => !seenSequencesRef.current.has(item.sequence))
-    for (const item of additions) {
-      seenSequencesRef.current.add(item.sequence)
-      enqueueCommitted(item)
     }
 
     const pendingSequence = playbackState.pendingSequence
@@ -298,6 +304,7 @@ export function useSpeechPlayback({
       if (currentUnitRef.current?.key !== unit.key) return
       currentUnitRef.current = null
       setAutomaticSequence(null)
+      setAutomaticPlayerId(null)
       setQueue((current) => current.filter((entry) => entry.key !== unit.key))
       if (unit.source === 'committed') {
         finishSequence(unit.item.sequence, outcome)
@@ -323,6 +330,7 @@ export function useSpeechPlayback({
     currentUnitRef.current = nextUnit
     setNotice(null)
     setAutomaticSequence(sequenceForUnit(nextUnit, streamJobsRef.current))
+    setAutomaticPlayerId(playerForUnit(nextUnit, streamJobsRef.current))
     if (!supported) {
       setNotice(getCopy('match.audioUnsupportedSkipped'))
       finishUnit(nextUnit, 'skipped')
@@ -403,6 +411,7 @@ export function useSpeechPlayback({
       entries.filter((entry) => entry.source !== 'stream' || entry.streamId !== job.id),
     )
     setAutomaticSequence(null)
+    setAutomaticPlayerId(null)
     if (job.finalSequence !== null) {
       streamJobsRef.current.delete(job.id)
       finishSequence(job.finalSequence, 'skipped')
@@ -418,6 +427,7 @@ export function useSpeechPlayback({
   return {
     supported,
     automaticSequence,
+    automaticPlayerId,
     automaticBusy:
       streamingActive || automaticSequence !== null || queue.length > 0 || Boolean(manualSequence),
     manualSequence,
@@ -438,25 +448,16 @@ function mergePlaybackQueue(
   return [...merged.values()]
 }
 
-function completeSentences(text: string): {
-  readonly segments: readonly string[]
-  readonly consumedLength: number
-} {
-  const segments: string[] = []
-  let start = 0
-  for (let index = 0; index < text.length; index += 1) {
-    if (!/[。！？!?；;\n]/u.test(text[index]!)) continue
-    const segment = text.slice(start, index + 1).trim()
-    if (segment) segments.push(segment)
-    start = index + 1
-  }
-  return { segments, consumedLength: start }
-}
-
 function sequenceForUnit(unit: PlaybackUnit, jobs: ReadonlyMap<number, StreamJob>): number | null {
   return unit.source === 'committed'
     ? unit.item.sequence
     : (jobs.get(unit.streamId)?.finalSequence ?? null)
+}
+
+function playerForUnit(unit: PlaybackUnit, jobs: ReadonlyMap<number, StreamJob>): PlayerId | null {
+  return unit.source === 'committed'
+    ? (unit.item.playerIds[0] ?? null)
+    : (jobs.get(unit.streamId)?.playerId ?? null)
 }
 
 function sequenceInFlight(

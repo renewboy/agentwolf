@@ -55,6 +55,7 @@ export function MatchPage() {
     () => ({
       supported: speechPlayback.supported,
       automaticSequence: speechPlayback.automaticSequence,
+      automaticPlayerId: speechPlayback.automaticPlayerId,
       automaticBusy: speechPlayback.automaticBusy,
       manualSequence: speechPlayback.manualSequence,
       play: speechPlayback.playManual,
@@ -67,7 +68,7 @@ export function MatchPage() {
     match,
     connectionState,
     viewPending,
-    speechPlayback.automaticSequence !== null,
+    speechPlayback.automaticPlayerId !== null,
   )
   const activePlayer = useMemo(
     () => match?.seats.find((seat) => seat.playerId === match.activeSpeech?.playerId) ?? null,
@@ -104,10 +105,9 @@ export function MatchPage() {
   const leftSeats = match.seats.slice(0, splitIndex)
   const rightSeats = match.seats.slice(splitIndex)
   const thinkingPlayer = match.seats.find((seat) => seat.sessionStatus === 'thinking') ?? null
-  const narratingItem = match.timeline.find(
-    (item) => item.sequence === speechPlayback.automaticSequence,
+  const narratingPlayer = match.seats.find(
+    (seat) => seat.playerId === speechPlayback.automaticPlayerId,
   )
-  const narratingPlayer = match.seats.find((seat) => seat.playerId === narratingItem?.playerIds[0])
   const thinkingCount = match.seats.filter((seat) => seat.sessionStatus === 'thinking').length
   const lastSequence = match.lastSequence
   const sheriffId = match.seats.find((seat) => seat.sheriff)?.playerId ?? null
@@ -296,10 +296,20 @@ function presenceLabel(
   activePlayer: NonNullable<ReturnType<typeof useLiveMatch>['match']>['seats'][number] | null,
   thinkingCount: number,
 ): string {
+  const orderingSheriff =
+    match.phaseId === 'phase-day-speech-order'
+      ? match.seats.find((seat) => seat.sheriff && seat.alive)
+      : undefined
   switch (state) {
     case 'starting':
       return getCopy('match.presenceStarting')
     case 'thinking':
+      if (orderingSheriff) {
+        return formatCopy(getCopy('match.presenceSheriffOrdering'), {
+          seat: orderingSheriff.seat,
+          player: orderingSheriff.name,
+        })
+      }
       if (thinkingCount > 1) {
         return formatCopy(getCopy('match.presenceThinkingMany'), { count: thinkingCount })
       }
@@ -331,6 +341,12 @@ function presenceLabel(
     case 'initial-loading':
       return getCopy('match.syncing')
     case 'awaiting-actions':
+      if (orderingSheriff) {
+        return formatCopy(getCopy('match.presenceSheriffOrderPending'), {
+          seat: orderingSheriff.seat,
+          player: orderingSheriff.name,
+        })
+      }
       return getCopy(
         match.phaseId.includes('vote') ? 'match.presenceVotePending' : 'match.presenceAwaiting',
       )

@@ -21,6 +21,7 @@ interface TimelineGroup {
 export interface SpeechAudioControls {
   readonly supported: boolean
   readonly automaticSequence: number | null
+  readonly automaticPlayerId: PlayerId | null
   readonly automaticBusy: boolean
   readonly manualSequence: number | null
   readonly play: (item: TimelineItem) => void
@@ -146,6 +147,7 @@ export function MatchFeed({
         )}
         {activeSpeech && !activeSpeech.final ? (
           <SpeechBubble
+            audio={audio}
             live
             playerId={activeSpeech.playerId}
             seats={seats}
@@ -230,9 +232,11 @@ function SpeechBubble({
   const playback =
     item?.sequence === audio?.automaticSequence
       ? 'automatic'
-      : item?.sequence === audio?.manualSequence
-        ? 'manual'
-        : 'idle'
+      : live && audio?.automaticPlayerId === playerId
+        ? 'automatic'
+        : item?.sequence === audio?.manualSequence
+          ? 'manual'
+          : 'idle'
   return (
     <article
       className="aw-feed-item aw-speech-bubble"
@@ -247,7 +251,14 @@ function SpeechBubble({
       <div className="aw-speech-bubble__body">
         <header>
           <strong>{playerLabel}</strong>
-          {live ? (
+          {playback === 'automatic' && audio ? (
+            <SpeechAudioButton
+              audio={audio}
+              item={item}
+              playback={playback}
+              playerLabel={playerLabel}
+            />
+          ) : live ? (
             <span>{getCopy('sessionStatuses.thinking')}</span>
           ) : item && audio ? (
             <SpeechAudioButton
@@ -272,7 +283,7 @@ function SpeechAudioButton({
   playerLabel,
 }: {
   readonly audio: SpeechAudioControls
-  readonly item: TimelineItem
+  readonly item: TimelineItem | undefined
   readonly playback: 'automatic' | 'manual' | 'idle'
   readonly playerLabel: string
 }) {
@@ -302,6 +313,7 @@ function SpeechAudioButton({
       </button>
     )
   }
+  if (!item) return null
   return (
     <button
       className="aw-speech-audio-control"

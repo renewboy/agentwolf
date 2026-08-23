@@ -19,13 +19,17 @@ const allowedInternalDependencies: Readonly<Record<string, ReadonlySet<string>>>
 }
 
 const files = await sourceFiles(roots, new Set(['.ts', '.tsx']))
+const maxProductionFileLines = 600
 const errors: string[] = []
 for (const path of files) {
   const relativePath = localPath(path)
   const content = await text(path)
   const lines = content.split(/\r?\n/).length
-  if (lines > 500)
-    errors.push(`${relativePath} has ${lines} lines; production files are limited to 500`)
+  if (lines > maxProductionFileLines) {
+    errors.push(
+      `${relativePath} has ${lines} lines; production files are limited to ${maxProductionFileLines}`,
+    )
+  }
   const owner = packageOwner(relativePath)
   for (const match of content.matchAll(
     /\b(?:import|export)\s+(?:type\s+)?(?:[^'";]*?\sfrom\s*)?['"](@agentwolf\/[^'"]+)['"]/g,

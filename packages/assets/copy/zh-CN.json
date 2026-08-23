@@ -605,6 +605,8 @@
     "presenceStarting": "正在唤醒所有玩家",
     "presenceThinking": "{{player}}正在思考",
     "presenceThinkingMany": "{{count}} 名玩家正在完成当前行动",
+    "presenceSheriffOrdering": "{{seat}} 号警长 {{player}}正在决定发言顺序",
+    "presenceSheriffOrderPending": "等待 {{seat}} 号警长 {{player}}决定发言顺序",
     "presenceAwaiting": "等待玩家完成当前行动",
     "presenceVotePending": "等待玩家提交投票",
     "presenceRecoveringAgents": "正在恢复玩家会话",

@@ -815,6 +815,42 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
   await expect(page.getByText('测试玩家6正在思考')).toBeVisible()
 })
 
+test('identifies the Sheriff while daytime speech order is pending', async ({ page }) => {
+  const base = thinkingMatchFixture()
+  const deciding = {
+    ...base,
+    id: 'match-sheriff-speech-order-presence-test',
+    phaseId: 'phase-day-speech-order',
+    phaseLabel: '确定发言顺序',
+    activeSpeech: null,
+    seats: base.seats.map((seat, index) => ({
+      ...seat,
+      active: false,
+      sessionStatus: index === 1 ? 'thinking' : 'ready',
+    })),
+  } as MatchView
+  let current = deciding
+  let sendSnapshot: ((match: MatchView) => void) | null = null
+  await page.route(`**/api/matches/${deciding.id}?*`, async (route) =>
+    route.fulfill({ json: current }),
+  )
+  await page.routeWebSocket('**/live?*', (socket) => {
+    sendSnapshot = (match) =>
+      socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: match }))
+    sendSnapshot(deciding)
+  })
+
+  await page.goto(`/matches/${deciding.id}`)
+  await expect(page.getByText('2 号警长 测试玩家2正在决定发言顺序')).toBeVisible()
+
+  current = {
+    ...deciding,
+    seats: deciding.seats.map((seat) => ({ ...seat, sessionStatus: 'ready' })),
+  } as MatchView
+  sendSnapshot?.(current)
+  await expect(page.getByText('等待 2 号警长 测试玩家2决定发言顺序')).toBeVisible()
+})
+
 test('plays visible role-effect cues once and respects reduced and off modes', async ({ page }) => {
   const base = {
     ...thinkingMatchFixture(),
@@ -975,6 +1011,121 @@ test('starts narration at sentence boundaries and only appends the committed tai
     )
     .toBe(true)
   expect(await speechStubState(page, 'spoken')).not.toContain('第一句。第二句')
+})
+
+test('keeps skip available across speaker handoff and suppresses later chunks after skip', async ({
+  page,
+}) => {
+  await installSpeechSynthesisStub(page)
+  const initial = {
+    ...thinkingMatchFixture(),
+    id: 'match-streamed-speech-skip-handoff-test',
+    activeSpeech: null,
+  } as MatchView
+  let current = initial
+  let sendLive: (message: unknown) => void = ignoreLiveMessage
+  const clientMessages: Array<Record<string, unknown>> = []
+  await page.route(`**/api/matches/${initial.id}?*`, async (route) =>
+    route.fulfill({ json: current }),
+  )
+  await page.routeWebSocket('**/live?*', (socket) => {
+    sendLive = (message) => socket.send(JSON.stringify(message))
+    sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+    sendLive({
+      type: 'speech-playback.state',
+      state: { enabled: false, controlledByThisClient: false, pendingSequence: null },
+    })
+    socket.onMessage((value) => {
+      const message = JSON.parse(String(value)) as Record<string, unknown>
+      clientMessages.push(message)
+      if (message['type'] === 'speech-playback.set' && message['enabled'] === true) {
+        sendLive({
+          type: 'speech-playback.state',
+          state: { enabled: true, controlledByThisClient: true, pendingSequence: null },
+        })
+      }
+    })
+  })
+
+  await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '语音播报已关闭' }).click()
+  sendLive({
+    type: 'speech-chunk',
+    matchId: initial.id,
+    playerId: 'player-1',
+    text: '第一位已经开始播报。',
+  })
+  const firstSkip = page.getByRole('button', {
+    name: '1 号玩家 测试玩家1：跳过自动播报',
+  })
+  await expect(firstSkip).toBeVisible()
+  await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一位已经开始播报。'])
+
+  current = {
+    ...current,
+    lastSequence: 31,
+    activeSpeech: { playerId: 'player-2', text: '', final: false },
+    timeline: [...current.timeline, speechTimelineItem(31, 'player-1', '第一位已经开始播报。')],
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  sendLive({
+    type: 'speech-chunk',
+    matchId: initial.id,
+    playerId: 'player-2',
+    text: '第二位正在生成。',
+  })
+  const committedFirst = page.locator('.aw-speech-bubble[data-sequence="31"]')
+  await expect(committedFirst.getByRole('button', { name: /跳过自动播报/ })).toBeVisible()
+  await committedFirst.getByRole('button', { name: /跳过自动播报/ }).click()
+
+  await expect
+    .poll(async () => speechStubState(page, 'spoken'))
+    .toEqual(['第一位已经开始播报。', '第二位正在生成。'])
+  const secondSkip = page.getByRole('button', {
+    name: '2 号玩家 测试玩家2：跳过自动播报',
+  })
+  await expect(secondSkip).toBeVisible()
+  await secondSkip.click()
+  sendLive({
+    type: 'speech-chunk',
+    matchId: initial.id,
+    playerId: 'player-2',
+    text: '后续句子。',
+  })
+  await page.waitForTimeout(100)
+  expect(await speechStubState(page, 'spoken')).toEqual([
+    '第一位已经开始播报。',
+    '第二位正在生成。',
+  ])
+
+  current = {
+    ...current,
+    lastSequence: 32,
+    activeSpeech: {
+      playerId: 'player-2',
+      text: '第二位正在生成。后续句子。',
+      final: true,
+    },
+    timeline: [
+      ...current.timeline,
+      speechTimelineItem(32, 'player-2', '第二位正在生成。后续句子。'),
+    ],
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  sendLive({
+    type: 'speech-playback.state',
+    state: { enabled: true, controlledByThisClient: true, pendingSequence: 32 },
+  })
+  await expect
+    .poll(() =>
+      clientMessages.some(
+        (message) =>
+          message['type'] === 'speech-playback.resolve' &&
+          message['sequence'] === 32 &&
+          message['outcome'] === 'skipped',
+      ),
+    )
+    .toBe(true)
 })
 
 test('shows sealed vote progress without a thinking spinner and groups ballots by seat', async ({

@@ -57,6 +57,7 @@ const nodes: PhaseNode[] = [
     labelKey: 'phases.nightResolve',
     mode: 'automatic',
     edges: [
+      { to: phase('phase-day-announcement'), when: 'has-winner' },
       { to: phase('phase-sheriff-signup'), when: 'first-day-with-sheriff' },
       { to: phase('phase-day-announcement') },
     ],
@@ -129,9 +130,9 @@ const nodes: PhaseNode[] = [
     labelKey: 'phases.dayAnnouncement',
     mode: 'automatic',
     edges: [
-      { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
       { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
       { to: phase('phase-match-ended'), when: 'has-winner' },
+      { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
       { to: phase('phase-last-words'), when: 'has-last-words' },
       { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
       { to: phase('phase-day-speech-order') },
@@ -159,9 +160,9 @@ const nodes: PhaseNode[] = [
     actionType: 'skill-trigger',
     actorSelector: 'pending-death-trigger-owners',
     edges: [
-      { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
       { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
       { to: phase('phase-match-ended'), when: 'has-winner' },
+      { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
       { to: phase('phase-last-words'), when: 'has-last-words' },
       { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
       { to: phase('phase-day-speech-order') },
@@ -227,9 +228,9 @@ const nodes: PhaseNode[] = [
     labelKey: 'phases.dayResolve',
     mode: 'automatic',
     edges: [
-      { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
       { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
       { to: phase('phase-match-ended'), when: 'has-winner' },
+      { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
       { to: phase('phase-last-words'), when: 'has-last-words' },
       { to: phase('phase-night-guard') },
     ],
