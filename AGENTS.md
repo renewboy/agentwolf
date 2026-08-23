@@ -1,6 +1,13 @@
 # AgentWolf repository guide
 
-AgentWolf is a TypeScript workspace for running Werewolf matches between long-lived ACP Agent sessions. Read this file first, then open only the source that owns the area being changed.
+AgentWolf is a TypeScript workspace for running Werewolf matches between long-lived ACP Agent sessions. This file defines repo-wide rules; nested `AGENTS.md` files add instructions for their own subtrees.
+
+## Instruction scope
+
+- Before editing any file, locate and read the closest `AGENTS.md` in that file's directory or nearest ancestor, then follow its links to applicable parent instructions. Repeat this for every affected subtree; do not assume the current working directory loaded rules for a different subtree.
+- Root instructions apply repo-wide. Nested instructions contain only subtree-specific additions or overrides, and the closest applicable file wins when instructions conflict.
+- Every nested `AGENTS.md` links to its closest ancestor `AGENTS.md` with a relative Markdown link so the full instruction chain remains discoverable.
+- After changing code, review the closest applicable `AGENTS.md` for drift in responsibilities, commands, boundaries, and conventions. Update it in the same change when durable guidance changed; leave it untouched when it remains accurate.
 
 ## Required reading
 
@@ -19,8 +26,8 @@ AgentWolf is a TypeScript workspace for running Werewolf matches between long-li
 - `packages/game-engine`: deterministic boards, phase graph, roles, resolution, victory, replay, and visibility. It performs no IO.
 - `packages/acp`: Agent tool catalog, ACP process/session lifecycle, streamed updates, and delivery ledgers.
 - `packages/assets`: prompts, localized copy, narration, nickname words, design tokens, and all CSS.
-- `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery.
-- `apps/web`: React application, validated API client, setup, settings, lobby, and spectator UI.
+- `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery. See its [local instructions](apps/server/AGENTS.md).
+- `apps/web`: React application, validated API client, setup, settings, lobby, and spectator UI. See its [local instructions](apps/web/AGENTS.md).
 - `scripts`: architecture, artifact, documentation, skill, formatting, coverage, and CI gates.
 - `.agentwolf/`: runtime-only databases, workspaces, sessions, logs, and local acceptance evidence.
 
@@ -39,7 +46,7 @@ contracts <- game-engine
 ```
 
 - `contracts` and `game-engine` never import server, web, ACP, filesystem, network, or asset code.
-- The server filters every view before serialization. The browser never receives hidden fields and hides them locally.
+- The server filters every view before serialization; the browser never receives hidden fields or enforces secrecy through local hiding.
 - Add an executable architecture rule whenever a dependency boundary is mechanically checkable.
 
 ## Commands
@@ -62,7 +69,6 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Use ESM, strict TypeScript, branded cross-boundary IDs, Zod at wire/config/user-input boundaries, and exhaustive switches for closed unions.
 - Do not interpolate shell strings for subprocess execution.
 - Prompts, copy, CSS, colors, nicknames, and reusable user/model-facing text belong in `packages/assets`.
-- Web components contain no inline style props, raw color literals, emoji icons, or unregistered visible copy.
 - Runtime skill and secret material never enters browser bundles or durable match events.
 
 ## Runtime invariants
@@ -75,15 +81,7 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Structured actions enter through the action gateway. Natural speech streams, is sanitized, and commits through the same gateway.
 - Player IDs are valid in prompts and structured actions. Public speech and last words contain nicknames or seats, never `player-N` identifiers.
 - Parallel vote/action stages use one barrier snapshot and publish results only after all eligible turns settle.
-- Developer trace mode remains a reserved V1 surface with no data endpoint.
-
-## Frontend interaction rules
-
-- Native `<select>` controls are forbidden in `apps/web`. Use the project `GameSelect` so the popup, keyboard behavior, scrolling, and focus match the game UI.
-- `window.alert`, `window.confirm`, and `window.prompt` are forbidden. Destructive actions use `ConfirmDialog` with an application-styled backdrop, initial cancel focus, Escape handling, focus trapping, and focus restoration.
-- Modal and listbox layers must survive scroll containers, safe areas, mobile viewports, keyboard input, and reduced-motion mode.
-- The match screen stays at `100dvh`; the document does not scroll and the center feed owns its scroll range.
-- Waiting states remain visibly alive without inventing progress or reasoning. Continuous motion uses transform/opacity and pauses for reduced motion.
+- Trajectory collection is active in every mode; its HTTP and WebSocket read surfaces require loopback developer mode.
 
 ## Test and runtime-data rules
 

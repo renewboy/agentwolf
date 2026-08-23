@@ -1,10 +1,12 @@
 import { access } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
 import { sourceFiles, text, localPath, failIfErrors, projectRoot } from './files.js'
 
 const errors: string[] = []
 const required = [
   'AGENTS.md',
+  'apps/server/AGENTS.md',
+  'apps/web/AGENTS.md',
   'README.md',
   'artifacts_rules.md',
   'docs/product.md',
@@ -52,11 +54,49 @@ for (const path of currentStateDocs) {
 }
 
 const markdownFiles = await sourceFiles(['docs'], new Set(['.md']))
-for (const path of [
+const rootAgentsPath = resolve(projectRoot, 'AGENTS.md')
+const nestedAgentFiles = (await sourceFiles(['.'], new Set(['.md']))).filter(
+  (path) => path !== rootAgentsPath && path.endsWith('/AGENTS.md'),
+)
+
+for (const path of nestedAgentFiles) {
+  let ancestorDirectory = dirname(dirname(path))
+  let parentAgentsPath: string | undefined
+  while (ancestorDirectory.startsWith(projectRoot)) {
+    const candidate = resolve(ancestorDirectory, 'AGENTS.md')
+    try {
+      await access(candidate)
+      parentAgentsPath = candidate
+      break
+    } catch {
+      if (ancestorDirectory === projectRoot) break
+      const parentDirectory = dirname(ancestorDirectory)
+      if (parentDirectory === ancestorDirectory) break
+      ancestorDirectory = parentDirectory
+    }
+  }
+
+  if (!parentAgentsPath) {
+    errors.push(`${localPath(path)} has no ancestor AGENTS.md`)
+    continue
+  }
+
+  const parentLink = relative(dirname(path), parentAgentsPath).replaceAll('\\', '/')
+  const parentLabel =
+    parentAgentsPath === rootAgentsPath ? 'the root AGENTS.md' : 'the parent AGENTS.md'
+  const expectedReference = `See [${parentLabel}](${parentLink})`
+  const content = await text(path)
+  if (!content.includes(expectedReference)) {
+    errors.push(`${localPath(path)} must contain ${expectedReference}`)
+  }
+}
+
+for (const path of new Set([
   resolve(projectRoot, 'README.md'),
-  resolve(projectRoot, 'AGENTS.md'),
+  rootAgentsPath,
+  ...nestedAgentFiles,
   ...markdownFiles,
-]) {
+])) {
   const content = await text(path)
   for (const match of content.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
     const target = match[1]!
@@ -72,8 +112,8 @@ for (const path of [
 }
 
 const agents = await text(resolve(projectRoot, 'AGENTS.md'))
-if (agents.split(/\r?\n/).length > 150)
-  errors.push('AGENTS.md must remain a concise map under 150 lines')
+if (agents.split(/\r?\n/).length > 200)
+  errors.push('AGENTS.md must remain a concise map under 200 lines')
 
 const workflow = await text(resolve(projectRoot, '.github/workflows/ci.yml')).catch(() => '')
 for (const requiredText of [

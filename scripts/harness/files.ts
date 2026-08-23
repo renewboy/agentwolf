@@ -15,7 +15,13 @@ export async function sourceFiles(
 async function walk(path: string, files: string[], extensions: ReadonlySet<string>): Promise<void> {
   const entries = await readdir(path, { withFileTypes: true })
   for (const entry of entries) {
-    if (entry.name === 'dist' || entry.name === 'dist-types' || entry.name === 'node_modules')
+    if (
+      entry.name === '.agentwolf' ||
+      entry.name === '.git' ||
+      entry.name === 'dist' ||
+      entry.name === 'dist-types' ||
+      entry.name === 'node_modules'
+    )
       continue
     const child = resolve(path, entry.name)
     if (entry.isDirectory()) await walk(child, files, extensions)
