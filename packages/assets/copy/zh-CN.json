@@ -237,7 +237,7 @@
     "nightWitchLimit": "本局每夜最多使用一瓶药。工具返回接受回执后不要再次提交。",
     "nightGeneric": "通过 `submit_night_action` 工具完成裁判要求的夜间行动，工具接受后结束本回合。",
     "skillAbilities": "通过 `trigger_skill` 工具处理当前技能。`abilityId` 只能是 {{abilityIds}}；发动技能时提交合法目标，放弃时提交空目标和 `option: pass`。不得使用其他能力 ID。",
-    "sheriffTransferTargets": "当前允许接收警徽的存活玩家只有：{{playerIds}}。`targetPlayerId` 必须从该列表中选择；若不移交警徽，提交空目标和 `option: pass`。不得选择已经死亡的玩家。",
+    "sheriffTransferTargets": "当前允许接收警徽的存活玩家：{{playerIds}}。通过 `submit_sheriff_action` 提交警徽处理动作。移交警徽时提交 `action: transfer` 和目标 `targetPlayerId`；撕毁警徽时提交 `action: destroy-badge` 且 `targetPlayerId: null`。工具返回接受回执后结束本回合。",
     "skillGeneric": "通过 `trigger_skill` 工具处理当前技能，工具接受后结束本回合。"
   },
   "errors": {
@@ -253,15 +253,15 @@
     "speechTitle": "提交发言",
     "voteTitle": "提交投票",
     "nightTitle": "提交夜间行动",
-    "sheriffTitle": "提交警长竞选动作",
+    "sheriffTitle": "提交警长动作",
     "skillTitle": "触发身份技能",
     "speechDescription": "兼容模式下提交发言正文。正常对局必须直接回复发言，不调用此工具。",
     "speechDirectReplyRequired": "当前回合不接受 submit_speech；请停止调用工具，直接将完整发言正文作为本轮回复。",
     "voteDescription": "提交当前投票选择。玩家目标使用 Player ID；允许不选玩家时目标为空，狼人袭击阶段表示空刀。",
     "voteTargetDescription": "玩家目标使用 Player ID；当前阶段允许空选择时使用 null，狼人袭击阶段的 null 表示空刀。",
     "nightDescription": "提交当前身份允许的夜间行动。所有目标使用 Player ID。",
-    "sheriffDescription": "提交上警、退水或警长发言方向动作。",
-    "skillDescription": "提交当前触发的身份技能、警徽移交或放弃选项。"
+    "sheriffDescription": "提交上警、退水、警徽移交或警长发言方向动作。",
+    "skillDescription": "提交当前触发的身份技能或放弃选项。"
   },
   "navigation": {
     "lobby": "对局大厅",

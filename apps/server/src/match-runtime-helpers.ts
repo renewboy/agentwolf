@@ -85,6 +85,9 @@ export function promptAssetFor(turn: TurnDescriptor, promptVersion = promptContr
     case 'night-action':
       return 'night-turn' as const
     case 'sheriff-action':
+      if (promptVersion >= 20 && turn.phaseId === 'phase-sheriff-transfer') {
+        return 'sheriff-transfer-turn' as const
+      }
       return promptVersion >= 14 && turn.phaseId === 'phase-day-speech-order'
         ? ('speech-order-turn' as const)
         : ('sheriff-turn' as const)
@@ -134,6 +137,14 @@ export function actionInstructionFor(
     }
     if (promptVersion >= 6) instructions.push(...interruptInstructions)
     return instructions.join('\n')
+  }
+  if (
+    promptVersion >= 20 &&
+    turn.actionType === 'sheriff-action' &&
+    turn.phaseId === 'phase-sheriff-transfer' &&
+    context
+  ) {
+    return sheriffTransferInstruction(context.state, context.playerId)
   }
   if (
     promptVersion >= 14 &&
@@ -188,24 +199,24 @@ export function actionInstructionFor(
     return `${base}\n${currentConstraint}\n${getCopy('promptActions.nightWitchLimit')}`
   }
   if (turn.actionType === 'skill-trigger') {
-    const base = turn.allowedAbilityIds?.length
+    return turn.allowedAbilityIds?.length
       ? formatCopy(getCopy('promptActions.skillAbilities'), {
           abilityIds: turn.allowedAbilityIds.map((id) => `\`${id}\``).join(' / '),
         })
       : getCopy('promptActions.skillGeneric')
-    if (promptVersion >= 4 && turn.phaseId === 'phase-sheriff-transfer' && context) {
-      const targets = [...context.state.players.values()]
-        .filter((player) => player.alive && player.id !== context.playerId)
-        .sort((left, right) => left.seat - right.seat)
-        .map((player) => `\`${player.id}\``)
-        .join(' / ')
-      return `${base}\n${formatCopy(getCopy('promptActions.sheriffTransferTargets'), {
-        playerIds: targets || getCopy('common.none'),
-      })}`
-    }
-    return base
   }
   return ''
+}
+
+function sheriffTransferInstruction(state: GameState, playerId: PlayerId): string {
+  const targets = [...state.players.values()]
+    .filter((player) => player.alive && player.id !== playerId)
+    .sort((left, right) => left.seat - right.seat)
+    .map((player) => `\`${player.id}\``)
+    .join(' / ')
+  return formatCopy(getCopy('promptActions.sheriffTransferTargets'), {
+    playerIds: targets || getCopy('common.none'),
+  })
 }
 
 function daySpeechOrderInstruction(state: GameState): string {

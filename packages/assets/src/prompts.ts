@@ -10,6 +10,7 @@ export type PromptAssetId =
   | 'wolf-vote-turn'
   | 'night-turn'
   | 'sheriff-turn'
+  | 'sheriff-transfer-turn'
   | 'speech-order-turn'
   | 'skill-turn'
 
@@ -22,6 +23,7 @@ const promptFiles: Record<PromptAssetId, URL> = {
   'wolf-vote-turn': new URL('../prompts/wolf-vote-turn.md', import.meta.url),
   'night-turn': new URL('../prompts/night-turn.md', import.meta.url),
   'sheriff-turn': new URL('../prompts/sheriff-turn.md', import.meta.url),
+  'sheriff-transfer-turn': new URL('../prompts/sheriff-transfer-turn.md', import.meta.url),
   'speech-order-turn': new URL('../prompts/speech-order-turn.md', import.meta.url),
   'skill-turn': new URL('../prompts/skill-turn.md', import.meta.url),
 }

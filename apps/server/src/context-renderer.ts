@@ -24,7 +24,7 @@ export interface ContextEnvelope {
   readonly continuation: boolean
 }
 
-export const promptContractVersion = 19
+export const promptContractVersion = 20
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {

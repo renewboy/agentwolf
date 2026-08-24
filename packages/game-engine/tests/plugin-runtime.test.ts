@@ -20,12 +20,14 @@ import {
   emptyGameState,
   sixPlayerBoard,
   type ExtensibleResolutionEffect,
+  type PlayerState,
   type RulePlugin,
 } from '../src/index.js'
 
 const pluginId = PluginIdSchema.parse('plugin-synthetic-role')
 const capabilityId = CapabilityIdSchema.parse('capability-synthetic-action')
 const roleId = RoleIdSchema.parse('role-synthetic')
+const receiverRoleId = RoleIdSchema.parse('role-synthetic-receiver')
 const abilityId = AbilityIdSchema.parse('ability-synthetic-mark')
 const eventType = PluginEventTypeSchema.parse('event-synthetic-counted')
 const queryType = QueryTypeSchema.parse('query-synthetic-score')
@@ -58,6 +60,15 @@ class SyntheticRole extends Role {
   ]
 }
 
+class SyntheticReceiverRole extends Role {
+  public readonly id = receiverRoleId
+  public readonly displayNameKey = 'roles.villager'
+  public readonly publicRulesKey = 'promptContext.roleRules.villager'
+  public readonly faction = 'village' as const
+  public readonly kind = 'villager' as const
+  public readonly abilities = []
+}
+
 describe('ruleset plugin runtime', () => {
   it('adds a role, phase, effect, event state, capability, and victory evaluator without kernel edits', () => {
     const basePlugin: RulePlugin<RulesetBuilder> = {
@@ -81,6 +92,7 @@ describe('ruleset plugin runtime', () => {
       requires: [{ id: basePlugin.id, version: 1 }],
       register: ({ events, phases, queries, resolution, roles, triggers, victories }) => {
         roles.register(new SyntheticRole())
+        roles.register(new SyntheticReceiverRole())
         phases.insert({
           node: {
             id: insertedPhaseId,
@@ -107,7 +119,9 @@ describe('ruleset plugin runtime', () => {
           }),
           lane: 'information',
           apply: (effect, _context, frame) => {
-            frame.fact('synthetic.marked', () => new Set()).add(effect.playerId)
+            frame
+              .fact('synthetic.marked', () => new Set<ReturnType<typeof PlayerIdSchema.parse>>())
+              .add(effect.playerId)
           },
         })
         resolution.registerFinalizer({
@@ -160,9 +174,10 @@ describe('ruleset plugin runtime', () => {
     }).build()
     expect(runtime.phases.entry).toBe(insertedPhaseId)
     expect(runtime.roles.role(roleId)).toBeInstanceOf(SyntheticRole)
+    expect(runtime.roles.role(receiverRoleId)).toBeInstanceOf(SyntheticReceiverRole)
 
     const playerId = PlayerIdSchema.parse('player-1')
-    const player = {
+    const player: PlayerState = {
       id: playerId,
       seat: 1,
       name: 'Synthetic player',
@@ -171,10 +186,27 @@ describe('ruleset plugin runtime', () => {
       faction: 'independent' as const,
       alive: true,
       canVote: true,
-      roleState: { abilityUses: {}, capabilities: new Set(), memory: {} },
+      roleState: {
+        abilityUses: {},
+        capabilities: new Set<ReturnType<typeof CapabilityIdSchema.parse>>(),
+        memory: {},
+      },
     }
     expect(runtime.roles.hasCapability(player, capabilityId)).toBe(true)
+    const receiver: PlayerState = {
+      ...player,
+      id: PlayerIdSchema.parse('player-2'),
+      roleId: receiverRoleId,
+      roleState: {
+        abilityUses: {},
+        capabilities: new Set<ReturnType<typeof CapabilityIdSchema.parse>>([capabilityId]),
+        memory: {},
+      },
+    }
+    expect(runtime.roles.canUseAbility(receiver, abilityId)).toBe(true)
+    expect(runtime.roles.abilitiesFor(receiver).map((ability) => ability.id)).toContain(abilityId)
     const state = emptyGameState(MatchIdSchema.parse('match-synthetic-test'), sixPlayerBoard)
+    const effect: SyntheticEffect = { kind: 'synthetic-mark', priority: 1, playerId }
     expect(
       runtime.triggers.abilityIdsFor(
         'synthetic-signal',
@@ -185,7 +217,7 @@ describe('ruleset plugin runtime', () => {
       ),
     ).toEqual([abilityId])
     expect(
-      runtime.resolution.settle([{ kind: 'synthetic-mark', priority: 1, playerId }], {
+      runtime.resolution.settle([effect], {
         state,
         board: sixPlayerBoard,
         roles: runtime.roles,

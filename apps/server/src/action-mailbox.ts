@@ -112,6 +112,7 @@ export class ActionMailbox {
   public submitSheriffAction(
     token: string,
     action: Extract<PlayerAction, { type: 'sheriff-action' }>['action'],
+    targetPlayerId?: string | null,
   ): ActionReceipt {
     const expectation = this.#expectation(token, 'sheriff-action')
     return this.#accept(
@@ -121,6 +122,9 @@ export class ActionMailbox {
         matchId: expectation.matchId,
         actorId: expectation.playerId,
         action,
+        ...(targetPlayerId !== undefined
+          ? { targetId: targetPlayerId === null ? null : PlayerIdSchema.parse(targetPlayerId) }
+          : {}),
       }),
     )
   }

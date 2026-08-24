@@ -101,6 +101,7 @@ describe('ContextRenderer board rules', () => {
       'speech-turn',
       'vote-turn',
       'sheriff-turn',
+      'sheriff-transfer-turn',
       'speech-order-turn',
       'skill-turn',
     ] as const) {

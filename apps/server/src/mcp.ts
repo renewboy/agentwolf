@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { z } from 'zod'
 import { formatCopy, getCopy } from '@agentwolf/assets'
+import { SheriffActionKindSchema } from '@agentwolf/contracts'
 import type { ActionMailbox } from './action-mailbox.js'
 
 function bearerToken(request: FastifyRequest): string | null {
@@ -75,17 +76,12 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
       title: getCopy('tools.sheriffTitle'),
       description: getCopy('tools.sheriffDescription'),
       inputSchema: {
-        action: z.enum([
-          'join',
-          'decline',
-          'withdraw',
-          'keep-running',
-          'speech-clockwise',
-          'speech-counterclockwise',
-        ]),
+        action: SheriffActionKindSchema,
+        targetPlayerId: z.string().nullable().optional(),
       },
     },
-    ({ action }) => toolResult(() => mailbox.submitSheriffAction(token, action)),
+    ({ action, targetPlayerId }) =>
+      toolResult(() => mailbox.submitSheriffAction(token, action, targetPlayerId)),
   )
   server.registerTool(
     'trigger_skill',

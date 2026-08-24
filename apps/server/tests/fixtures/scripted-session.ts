@@ -151,6 +151,8 @@ export class ScriptedSession implements PlayerSession {
       } else {
         this.#mailbox().submitSheriffAction(this.#token, 'keep-running')
       }
+    } else if (phase === 'sheriffTransfer') {
+      this.#mailbox().submitSheriffAction(this.#token, 'destroy-badge', null)
     } else if (phase === 'nightWolfVote') {
       this.#mailbox().submitVote(this.#token, `player-${4 + this.#night}`)
     } else if (phase === 'dayVote') this.#mailbox().submitVote(this.#token, null)
@@ -202,6 +204,7 @@ function latestPhase(prompt: string): string | null {
   const phases = [
     'sheriffSignup',
     'sheriffWithdraw',
+    'sheriffTransfer',
     'nightWolfVote',
     'dayVote',
     'nightWitch',

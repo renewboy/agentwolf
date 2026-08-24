@@ -251,6 +251,19 @@ describe('Fastify API', () => {
       kind: 'wolf-kill',
       targetId: null,
     })
+
+    server.matches.mailbox.expect({ matchId, playerId, actionType: 'sheriff-action' })
+    const badgeTransfer = await client.callTool({
+      name: 'submit_sheriff_action',
+      arguments: { action: 'transfer', targetPlayerId: 'player-2' },
+    })
+    expect(badgeTransfer.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'sheriff-action',
+      action: 'transfer',
+      targetId: 'player-2',
+    })
+
     server.matches.mailbox.expect({
       matchId,
       playerId,

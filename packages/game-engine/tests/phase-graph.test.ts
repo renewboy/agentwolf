@@ -60,6 +60,14 @@ describe('phase action semantics', () => {
     expect(phaseNode('phase-sheriff-transfer').interrupts).toBeUndefined()
     expect(phaseNode('phase-death-triggers').interrupts).toBeUndefined()
   })
+
+  it('models badge transfer as a Sheriff tool action', () => {
+    expect(phaseNode('phase-sheriff-transfer').action).toEqual({
+      type: 'sheriff-action',
+      actions: ['transfer', 'destroy-badge'],
+      visibility: 'public',
+    })
+  })
 })
 
 function edgeConditions(phaseId: string): Array<string | undefined> {

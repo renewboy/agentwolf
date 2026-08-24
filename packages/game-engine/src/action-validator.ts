@@ -55,10 +55,7 @@ export function validateTurnAction(
       return
     case 'sheriff-action':
       assertRule(action.type === 'sheriff-action', `${node.id} requires a Sheriff action`)
-      assertRule(
-        definition.actions.includes(action.action),
-        `${action.action} is invalid during ${node.id}`,
-      )
+      validateSheriffAction(definition, action, state, actor)
       return
     case 'night-action': {
       assertRule(action.type === 'night-action', `${node.id} requires a night action`)
@@ -90,17 +87,29 @@ export function validateTurnAction(
         allowedSkillAbilityIds(definition, actor, state, board, roles, triggers),
         action.abilityId,
       )
-      if (definition.validation === 'sheriff-transfer') {
-        if (action.targetId) {
-          const target = state.players.get(action.targetId)
-          assertRule(target?.alive, 'Badge target must be alive')
-          assertRule(target.id !== actor.id, 'Badge cannot remain with a dead sheriff')
-        }
-        return
-      }
       validateRoleSkill(action, state, board, roles, actor)
       return
   }
+}
+
+function validateSheriffAction(
+  definition: Extract<PhaseActionDefinition, { type: 'sheriff-action' }>,
+  action: Extract<PlayerAction, { type: 'sheriff-action' }>,
+  state: GameState,
+  actor: PlayerState,
+): void {
+  assertRule(
+    definition.actions.includes(action.action),
+    `${action.action} is invalid during ${state.phaseId}`,
+  )
+  if (action.action === 'transfer') {
+    assertRule(action.targetId, 'Badge transfer requires a target')
+    const target = state.players.get(action.targetId)
+    assertRule(target?.alive, 'Badge target must be alive')
+    assertRule(target.id !== actor.id, 'Badge cannot remain with a dead sheriff')
+    return
+  }
+  assertRule(!action.targetId, `${action.action} cannot target a player`)
 }
 
 function allowedSkillAbilityIds(

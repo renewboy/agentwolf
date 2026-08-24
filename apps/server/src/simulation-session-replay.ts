@@ -283,7 +283,7 @@ function performAction(
       mailbox.submitNightAction(token, action.abilityId, action.targetIds, action.option)
       break
     case 'sheriff-action':
-      mailbox.submitSheriffAction(token, action.action)
+      mailbox.submitSheriffAction(token, action.action, action.targetId)
       break
     case 'skill-trigger':
       mailbox.submitSkillTrigger(token, action.abilityId, action.targetId, action.option)

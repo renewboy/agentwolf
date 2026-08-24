@@ -74,9 +74,10 @@ Every daytime Prompt begins with the current day and the complete publicly livin
 each nickname, seat, and Player ID. During the first-day election, the first campaign speaker is
 chosen randomly. A living Sheriff chooses dead-left or dead-right after one night death, and
 Sheriff-left or Sheriff-right after a peaceful night or multiple deaths; the Sheriff always speaks
-last. Without a Sheriff, the judge uses a replay-stable random direction around a night-death
-anchor, or a replay-stable random start and direction after a peaceful night. Multiple deaths use
-the lowest-seat death as the no-sheriff anchor.
+last. A dead Sheriff transfers or destroys the badge through the Sheriff action tool. Without a
+Sheriff, the judge uses a replay-stable random direction around a night-death anchor, or a
+replay-stable random start and direction after a peaceful night. Multiple deaths use the
+lowest-seat death as the no-sheriff anchor.
 
 ## Match experience
 

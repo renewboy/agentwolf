@@ -71,7 +71,7 @@ export type PhaseActionDefinition =
       readonly capabilityIds?: readonly CapabilityId[]
       readonly abilitySource?: 'decision-trigger'
       readonly triggerSignal?: string
-      readonly validation: 'role-ability' | 'sheriff-transfer'
+      readonly validation: 'role-ability'
       readonly visibility: PhaseActionVisibility
     }
 

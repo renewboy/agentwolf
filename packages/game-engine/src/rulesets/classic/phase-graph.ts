@@ -156,9 +156,8 @@ const nodes: PhaseNode[] = [
     labelKey: 'phases.sheriffTransfer',
     mode: 'parallel',
     action: {
-      type: 'skill-trigger',
-      abilityIds: [ability('ability-sheriff-transfer')],
-      validation: 'sheriff-transfer',
+      type: 'sheriff-action',
+      actions: ['transfer', 'destroy-badge'],
       visibility: 'public',
     },
     actorSelector: 'dead-sheriff',

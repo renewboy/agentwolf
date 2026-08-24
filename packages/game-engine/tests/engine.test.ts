@@ -420,6 +420,47 @@ describe('GameEngine', () => {
     expect(engine.state.speechOrder.at(-1)).toBe(first)
   })
 
+  it('transfers the badge through a Sheriff action after the Sheriff dies', () => {
+    const { engine, sheriffId, targetId } = enterSheriffTransfer()
+
+    expect(engine.currentTurn()).toMatchObject({
+      phaseId: 'phase-sheriff-transfer',
+      actionType: 'sheriff-action',
+      actors: [sheriffId],
+    })
+    engine.submit({
+      type: 'sheriff-action',
+      matchId: engine.state.matchId,
+      actorId: sheriffId,
+      action: 'transfer',
+      targetId,
+    })
+
+    expect(engine.state.sheriff.holderId).toBe(targetId)
+    expect(engine.state.sheriff.badgeLost).toBe(false)
+    expect(
+      engine.events.findLast((event) => event.payload.type === 'sheriff.transferred')?.payload,
+    ).toEqual({ type: 'sheriff.transferred', fromPlayerId: sheriffId, toPlayerId: targetId })
+  })
+
+  it('destroys the badge through a Sheriff action after the Sheriff dies', () => {
+    const { engine, sheriffId } = enterSheriffTransfer()
+
+    engine.submit({
+      type: 'sheriff-action',
+      matchId: engine.state.matchId,
+      actorId: sheriffId,
+      action: 'destroy-badge',
+      targetId: null,
+    })
+
+    expect(engine.state.sheriff.holderId).toBeNull()
+    expect(engine.state.sheriff.badgeLost).toBe(true)
+    expect(
+      engine.events.findLast((event) => event.payload.type === 'sheriff.transferred')?.payload,
+    ).toEqual({ type: 'sheriff.transferred', fromPlayerId: sheriffId, toPlayerId: null })
+  })
+
   it('persists a deterministic death-anchored order without a Sheriff', () => {
     const engine = createManualEngine(noSheriffBoard)
     const targetId = actorsWithRole(engine, 'role-villager')[0]!
@@ -617,4 +658,51 @@ function advanceToWolfVote(engine: GameEngine): void {
     })
   }
   expect(engine.state.phaseId).toBe('phase-night-wolf-vote')
+}
+
+function enterSheriffTransfer() {
+  const engine = createManualEngine(standardBoard)
+  engine.start()
+  playNight(engine, { wolfTargetId: null })
+  expect(engine.state.phaseId).toBe('phase-sheriff-signup')
+  const sheriffId = engine.expectedActors()[0]!
+  submitExpected(engine, (actorId) => ({
+    type: 'sheriff-action',
+    matchId: engine.state.matchId,
+    actorId,
+    action: actorId === sheriffId ? 'join' : 'decline',
+  }))
+  expect(engine.state.sheriff.holderId).toBe(sheriffId)
+  expect(engine.state.phaseId).toBe('phase-day-speech-order')
+  engine.submit({
+    type: 'sheriff-action',
+    matchId: engine.state.matchId,
+    actorId: sheriffId,
+    action: 'speech-clockwise',
+  })
+  while (engine.state.phaseId === 'phase-day-speech') {
+    const actorId = engine.activeActor()
+    if (!actorId) throw new Error('Day speech is missing an actor')
+    engine.submit({
+      type: 'speech',
+      matchId: engine.state.matchId,
+      actorId,
+      kind: 'day',
+      text: '白天发言结束。',
+    })
+  }
+  expect(engine.state.phaseId).toBe('phase-day-vote')
+  submitExpected(engine, (actorId) => ({
+    type: 'vote',
+    matchId: engine.state.matchId,
+    actorId,
+    targetId: sheriffId,
+    kind: 'exile',
+  }))
+  expect(engine.state.phaseId).toBe('phase-sheriff-transfer')
+  const targetId = [...engine.state.players.values()].find(
+    (player) => player.alive && player.id !== sheriffId,
+  )?.id
+  if (!targetId) throw new Error('Expected a living badge target')
+  return { engine, sheriffId, targetId }
 }

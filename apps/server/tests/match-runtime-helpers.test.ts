@@ -1,6 +1,5 @@
 import {
   AgentProfileIdSchema,
-  AbilityIdSchema,
   MatchIdSchema,
   PhaseIdSchema,
   PlayerIdSchema,
@@ -70,7 +69,7 @@ describe('model action instructions', () => {
     expect(instruction).not.toContain('ability-werewolf-self-destruct')
   })
 
-  it('binds campaign privacy and live skill targets to the current prompt contract', () => {
+  it('binds campaign privacy and live action targets to the current prompt contract', () => {
     const campaign: TurnDescriptor = {
       phaseId: PhaseIdSchema.parse('phase-sheriff-speech'),
       labelKey: 'phases.sheriffSpeech',
@@ -114,9 +113,8 @@ describe('model action instructions', () => {
       phaseId: PhaseIdSchema.parse('phase-sheriff-transfer'),
       labelKey: 'phases.sheriffTransfer',
       mode: 'parallel',
-      actionType: 'skill-trigger',
+      actionType: 'sheriff-action',
       actors: [actorId],
-      allowedAbilityIds: [AbilityIdSchema.parse('ability-sheriff-transfer')],
     }
     const instruction = actionInstructionFor(transfer, {
       board: sixPlayerBoard,
@@ -124,7 +122,11 @@ describe('model action instructions', () => {
       playerId: actorId,
       roles: roleRegistry,
     })
-    expect(promptContractVersion).toBeGreaterThanOrEqual(17)
+    expect(promptContractVersion).toBeGreaterThanOrEqual(20)
+    expect(promptAssetFor(transfer)).toBe('sheriff-transfer-turn')
+    expect(instruction).toContain('submit_sheriff_action')
+    expect(instruction).toContain('action: transfer')
+    expect(instruction).toContain('action: destroy-badge')
     expect(instruction).toContain('`player-2`')
     expect(instruction).not.toContain('`player-6`')
 

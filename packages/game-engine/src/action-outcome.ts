@@ -56,21 +56,16 @@ export function appendActionOutcome({
         },
         visibility.public,
       )
+    } else if (action.action === 'transfer' || action.action === 'destroy-badge') {
+      append(
+        {
+          type: 'sheriff.transferred',
+          fromPlayerId: action.actorId,
+          toPlayerId: action.action === 'transfer' ? (action.targetId ?? null) : null,
+        },
+        visibility.public,
+      )
     }
     return
-  }
-  if (
-    action.type === 'skill-trigger' &&
-    node.action?.type === 'skill-trigger' &&
-    node.action.validation === 'sheriff-transfer'
-  ) {
-    append(
-      {
-        type: 'sheriff.transferred',
-        fromPlayerId: action.actorId,
-        toPlayerId: action.targetId,
-      },
-      visibility.public,
-    )
   }
 }

@@ -25,16 +25,22 @@ export const NightActionSchema = ActionBaseSchema.extend({
   option: z.string().max(80).optional(),
 })
 
+export const SheriffActionKindSchema = z.enum([
+  'join',
+  'decline',
+  'withdraw',
+  'keep-running',
+  'speech-clockwise',
+  'speech-counterclockwise',
+  'transfer',
+  'destroy-badge',
+])
+export type SheriffActionKind = z.infer<typeof SheriffActionKindSchema>
+
 export const SheriffActionSchema = ActionBaseSchema.extend({
   type: z.literal('sheriff-action'),
-  action: z.enum([
-    'join',
-    'decline',
-    'withdraw',
-    'keep-running',
-    'speech-clockwise',
-    'speech-counterclockwise',
-  ]),
+  action: SheriffActionKindSchema,
+  targetId: PlayerIdSchema.nullable().optional(),
 })
 
 export const SkillTriggerActionSchema = ActionBaseSchema.extend({
