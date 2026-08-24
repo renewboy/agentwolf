@@ -438,6 +438,7 @@ describe('match orchestration', () => {
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
     const rejectedSeerReasons: string[] = []
+    const sessionStarts: Array<{ playerId: PlayerId; resumeSessionId: string | null }> = []
     const seerFault: ScriptedSeerFault = {
       value: true,
       behavior: 'correct-in-turn',
@@ -449,6 +450,7 @@ describe('match orchestration', () => {
       mailbox: () => server.matches.mailbox,
       seerFault,
       uncertainSpeechOnce,
+      sessionStarts,
     })
     const config: ServerConfig = {
       host: '127.0.0.1',
@@ -526,18 +528,227 @@ describe('match orchestration', () => {
     expect(
       automaticallyRecovered.timeline.filter((item) => item.kind === 'match.resumed'),
     ).toHaveLength(0)
+    expect(sessionStarts).toHaveLength(6)
+    expect(sessionStarts.every((start) => start.resumeSessionId === null)).toBe(true)
+    expect(
+      prompts
+        .get('player-3' as PlayerId)
+        ?.some((prompt) => prompt.includes('继续执行裁判当前阶段')),
+    ).toBe(true)
+    const playerTurns = server.repository
+      .listTrajectoryTurns(created.id)
+      .filter((turn) => turn.ownerId !== 'system')
+    expect(new Set(playerTurns.map((turn) => turn.sessionGeneration))).toEqual(new Set([1]))
+    expect(playerTurns.filter((turn) => turn.kind === 'bootstrap')).toHaveLength(6)
+    expect(server.repository.playerSessions.list(created.id)).toHaveLength(6)
+    expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
+      ok: true,
+      issues: [],
+    })
   })
 
-  it('rebuilds replacement sessions and resumes a paused match after server restart', async () => {
+  it.each([
+    { failResume: false, label: 'resumes only the disconnected player' },
+    { failResume: true, label: 'pauses without creating another Session when resume fails' },
+  ])('$label', async ({ failResume }) => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-session-resume-'))
+    temporaryDirectories.push(root)
+    let server: AgentWolfServer
+    const prompts = new Map<PlayerId, string[]>()
+    const sessionStarts: Array<{ playerId: PlayerId; resumeSessionId: string | null }> = []
+    const disconnectedPlayerId = 'player-3' as PlayerId
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+      uncertainSpeechOnce: {
+        playerId: disconnectedPlayerId,
+        value: true,
+        disconnect: true,
+      },
+      sessionStarts,
+      ...(failResume ? { failResumeFor: disconnectedPlayerId } : {}),
+    })
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
+    }
+    server = await buildServer({ config, sessionFactory })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: `Resume ${failResume ? 'failure' : 'success'} ACP`,
+      kind: 'custom',
+      command: 'resume-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: `Resume ${failResume ? 'failure' : 'success'} player`,
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = server.matches.createMatch({
+      boardId: sixPlayerBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Resume player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    server.matches.beginMatch(created.id)
+
+    if (failResume) {
+      const paused = await waitForMatch(server, created.id)
+      expect(paused.status).toBe('paused')
+      expect(paused.pausedReason).toContain('simulated resume failure')
+    } else {
+      const recovered = await waitForMatchState(server, created.id, (match) =>
+        match.timeline.some(
+          (item) =>
+            item.kind === 'speech.committed' && item.playerIds.includes(disconnectedPlayerId),
+        ),
+      )
+      expect(recovered.status).toBe('running')
+    }
+
+    expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
+    expect(sessionStarts.slice(6)).toEqual([
+      { playerId: disconnectedPlayerId, resumeSessionId: `scripted-${disconnectedPlayerId}` },
+    ])
+    const bindings = server.repository.playerSessions.list(created.id)
+    expect(bindings).toHaveLength(6)
+    expect(bindings.every((binding) => binding.sessionId === `scripted-${binding.playerId}`)).toBe(
+      true,
+    )
+    const turns = server.repository
+      .listTrajectoryTurns(created.id)
+      .filter((turn) => turn.ownerId !== 'system')
+    expect(turns.filter((turn) => turn.kind === 'bootstrap')).toHaveLength(6)
+    expect(new Set(turns.map((turn) => turn.sessionGeneration))).toEqual(new Set([1]))
+    expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
+      ok: true,
+      issues: [],
+    })
+  })
+
+  it('continues an interrupted bootstrap in the same logical Session', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-bootstrap-resume-'))
+    temporaryDirectories.push(root)
+    let server: AgentWolfServer
+    const prompts = new Map<PlayerId, string[]>()
+    const sessionStarts: Array<{ playerId: PlayerId; resumeSessionId: string | null }> = []
+    const interruptedPlayerId = 'player-3' as PlayerId
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+      uncertainBootstrapOnce: {
+        playerId: interruptedPlayerId,
+        value: true,
+        disconnect: true,
+      },
+      sessionStarts,
+    })
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
+    }
+    server = await buildServer({ config, sessionFactory })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: 'Bootstrap resume ACP',
+      kind: 'custom',
+      command: 'bootstrap-resume-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Bootstrap resume player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = server.matches.createMatch({
+      boardId: sixPlayerBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Bootstrap player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    server.matches.beginMatch(created.id)
+    const paused = await waitForMatch(server, created.id)
+    expect(paused.status).toBe('paused')
+    expect(paused.pausedReason).toContain('simulated bootstrap disconnect')
+
+    await server.matches.resumeMatch(created.id)
+    const resumed = await waitForMatchState(server, created.id, (match) =>
+      match.timeline.some((item) => item.kind === 'speech.committed'),
+    )
+    expect(resumed.status).toBe('running')
+    expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
+    expect(sessionStarts.slice(6)).toEqual([
+      { playerId: interruptedPlayerId, resumeSessionId: `scripted-${interruptedPlayerId}` },
+    ])
+    expect(
+      prompts.get(interruptedPlayerId)?.filter((prompt) => prompt.includes('# 任务目标')),
+    ).toHaveLength(1)
+    expect(
+      prompts.get(interruptedPlayerId)?.some((prompt) => prompt.includes('当前仍在开局准备阶段')),
+    ).toBe(true)
+    expect(
+      server.repository.playerSessions
+        .list(created.id)
+        .every((binding) => binding.bootstrapState === 'acknowledged'),
+    ).toBe(true)
+    const turns = server.repository
+      .listTrajectoryTurns(created.id)
+      .filter((turn) => turn.ownerId !== 'system')
+    expect(turns.filter((turn) => turn.kind === 'bootstrap')).toHaveLength(6)
+    expect(new Set(turns.map((turn) => turn.sessionGeneration))).toEqual(new Set([1]))
+    expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
+      ok: true,
+      issues: [],
+    })
+  })
+
+  it('resumes the same durable player Sessions after server restart', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-restart-recovery-'))
     temporaryDirectories.push(root)
     let server: AgentWolfServer
     const prompts = new Map<PlayerId, string[]>()
+    const sessionStarts: Array<{ playerId: PlayerId; resumeSessionId: string | null }> = []
     const seerFault: ScriptedSeerFault = { value: true, behavior: 'omit' }
     const sessionFactory = scriptedSessionFactory({
       prompts,
       mailbox: () => server.matches.mailbox,
       seerFault,
+      sessionStarts,
     })
     const config: ServerConfig = {
       host: '127.0.0.1',
@@ -598,13 +809,31 @@ describe('match orchestration', () => {
     )
     expect(resumed.day).toBeGreaterThanOrEqual(1)
     const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
-    const recoveryFoundation = prompts
+    const recoveryPrompt = prompts
       .get(seerId)
       ?.findLast((prompt) =>
         prompt.includes('Agent did not submit the expected night-action action'),
       )
-    expect(recoveryFoundation).toContain(getCopy('phases.nightWolfCouncil'))
-    expect(recoveryFoundation).toContain(getCopy('promptContext.villageVictory'))
+    expect(recoveryPrompt).toContain('ability-seer-inspect')
+    expect(recoveryPrompt).not.toContain('# 任务目标')
+    expect(recoveryPrompt).not.toContain(getCopy('promptContext.villageVictory'))
+    expect(sessionStarts).toHaveLength(12)
+    expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
+    expect(
+      sessionStarts
+        .slice(6)
+        .every((start) => start.resumeSessionId === `scripted-${start.playerId}`),
+    ).toBe(true)
+    const bindings = server.repository.playerSessions.list(created.id)
+    expect(bindings).toHaveLength(6)
+    expect(bindings.every((binding) => binding.sessionId === `scripted-${binding.playerId}`)).toBe(
+      true,
+    )
+    const turns = server.repository
+      .listTrajectoryTurns(created.id)
+      .filter((turn) => turn.ownerId !== 'system')
+    expect(turns.filter((turn) => turn.kind === 'bootstrap')).toHaveLength(6)
+    expect(new Set(turns.map((turn) => turn.sessionGeneration))).toEqual(new Set([1]))
     expect(
       recoveredLiveMessages.some(
         (message) =>
@@ -712,6 +941,7 @@ describe('match orchestration', () => {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
 
     expect(server.repository.getMatch(created.id)).toBeNull()
+    expect(server.repository.playerSessions.list(created.id)).toEqual([])
     expect(
       liveMessages.some(
         (message) =>
@@ -727,6 +957,11 @@ class BlockingSession implements PlayerSession {
   public readonly sessionId: string
   readonly #turnStarted: () => void
   #rejectPrompt: ((reason: Error) => void) | null = null
+  #closed = false
+
+  public get connected(): boolean {
+    return !this.#closed
+  }
 
   public constructor(playerId: PlayerId, turnStarted: () => void) {
     this.sessionId = `blocking-${playerId}`
@@ -744,6 +979,7 @@ class BlockingSession implements PlayerSession {
   }
 
   public close(): Promise<void> {
+    this.#closed = true
     this.#rejectPrompt?.(new Error('Active session disposed'))
     this.#rejectPrompt = null
     return Promise.resolve()

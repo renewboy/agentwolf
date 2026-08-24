@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,6 +33,84 @@ describe('AcpPlayerSession', () => {
     expect(result.text).toBe('你好')
     expect(result.stopReason).toBe('end_turn')
     await session.close()
+  })
+
+  it('resumes one durable Session ID in a new ACP process without session/new', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-resume-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const launch = { command: process.execPath, args: [fixture], env: { ...process.env } }
+    const created = await AcpPlayerSession.start({
+      cwd,
+      launch,
+      model: 'mock-model',
+      requireSessionResume: true,
+    })
+    const sessionId = created.sessionId
+    expect((await created.prompt('开始', 5_000)).text).toBe('你好')
+    await created.close()
+
+    const resumed = await AcpPlayerSession.start({
+      cwd,
+      launch,
+      resumeSessionId: sessionId,
+      requireSessionResume: true,
+      mcpServers: [
+        {
+          type: 'http',
+          name: 'agentwolf-player-actions',
+          url: 'http://127.0.0.1:4310/mcp',
+          headers: [],
+        },
+      ],
+    })
+    expect(resumed.sessionId).toBe(sessionId)
+    expect((await resumed.prompt('继续当前阶段', 5_000)).text).toBe('你好')
+    await resumed.close()
+
+    const store = JSON.parse(await readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8')) as {
+      newCount: number
+      resumeCount: number
+      lastResumeMcpServers: string[]
+    }
+    expect(store).toMatchObject({
+      newCount: 1,
+      resumeCount: 1,
+      lastResumeMcpServers: ['agentwolf-player-actions'],
+    })
+  })
+
+  it('fails before session/new when a Match player Agent cannot resume Sessions', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-no-resume-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    await expect(
+      AcpPlayerSession.start({
+        cwd,
+        launch: {
+          command: process.execPath,
+          args: [fixture],
+          env: { ...process.env, AGENTWOLF_MOCK_DISABLE_RESUME: 'true' },
+        },
+        requireSessionResume: true,
+      }),
+    ).rejects.toThrow('Unable to start ACP player session')
+    await expect(readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8')).rejects.toThrow()
+  })
+
+  it('does not create a Session when the persisted resume ID is unknown', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-unknown-resume-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    await expect(
+      AcpPlayerSession.start({
+        cwd,
+        launch: { command: process.execPath, args: [fixture], env: { ...process.env } },
+        resumeSessionId: 'mock-session-missing',
+        requireSessionResume: true,
+      }),
+    ).rejects.toThrow('Unable to start ACP player session')
+    await expect(readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8')).rejects.toThrow()
   })
 
   it('approves only explicitly whitelisted AgentWolf action tools', async () => {

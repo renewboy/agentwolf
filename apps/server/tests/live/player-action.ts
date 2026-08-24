@@ -7,6 +7,7 @@ import {
   playerSessionMeta,
   resolveLaunchSpec,
   resolvePlayerLaunchSpec,
+  type AcpSessionStartOptions,
 } from '@agentwolf/acp'
 import { AgentToolKindSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
 import { buildServer } from '../../src/app.js'
@@ -19,6 +20,7 @@ const toolKind = AgentToolKindSchema.parse(
 const model = process.argv.slice(2).find((argument) => !argument.startsWith('--')) ?? 'gpt-5.6-luna'
 const inspectTools = process.argv.includes('--inspect-tools')
 const probeForbidden = process.argv.includes('--probe-forbidden')
+const probeResume = process.argv.includes('--resume')
 const isolated = !process.argv.includes('--unisolated')
 const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-player-action-'))
 const matchId = MatchIdSchema.parse('match-player-action-probe')
@@ -52,7 +54,7 @@ try {
     actionType: 'vote',
     voteKind: 'wolf-kill',
   })
-  session = await AcpPlayerSession.start({
+  const sessionOptions: AcpSessionStartOptions = {
     cwd: workspace,
     launch: isolated ? resolvePlayerLaunchSpec(tool, workspace) : resolveLaunchSpec(tool),
     model,
@@ -76,7 +78,10 @@ try {
     ],
     onStderr: (chunk) => stderrChunks.push(chunk),
     onPermissionRequest: (request) => permissionRequests.push(request),
-  })
+    requireSessionResume: true,
+  }
+  session = await AcpPlayerSession.start(sessionOptions)
+  const initialSessionId = session.sessionId
   const result = await session.prompt(
     `Call the submit_vote tool with targetPlayerId ${tokenTarget}. End the turn immediately after the accepted receipt. Do not answer with text instead of the tool.`,
     90_000,
@@ -102,6 +107,30 @@ try {
     throw new Error(
       `Trae returned without an action. Permissions: ${JSON.stringify(permissionRequests).slice(0, 4_000)} Text: ${result.text.slice(0, 500)} Updates: ${JSON.stringify(updates).slice(0, 4_000)} Stderr: ${stripAnsi(stderrChunks.join('')).slice(-4_000)}`,
     )
+  }
+  let resumeResult: Awaited<ReturnType<AcpPlayerSession['prompt']>> | null = null
+  let resumedAction: ReturnType<typeof server.matches.mailbox.take> = null
+  if (probeResume) {
+    await session.close()
+    session = await AcpPlayerSession.start({
+      ...sessionOptions,
+      resumeSessionId: initialSessionId,
+    })
+    if (session.sessionId !== initialSessionId) {
+      throw new Error(`Resumed Session ${session.sessionId}; expected ${initialSessionId}`)
+    }
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'vote',
+      voteKind: 'wolf-kill',
+    })
+    resumeResult = await session.prompt(
+      `Continue the current judge stage. Call submit_vote with targetPlayerId ${tokenTarget}, then end the turn after the accepted receipt.`,
+      90_000,
+    )
+    resumedAction = server.matches.mailbox.take(matchId, playerId)
+    if (!resumedAction) throw new Error('Resumed Session returned without an accepted action')
   }
   const usage = result.updates.findLast((update) => update.sessionUpdate === 'usage_update')
   const toolCalls = result.updates
@@ -130,8 +159,13 @@ try {
         agentTool: toolKind,
         isolated,
         model,
+        initialSessionId,
+        resumedSessionId: probeResume ? session.sessionId : null,
         stopReason: result.stopReason,
         action,
+        resume: resumeResult
+          ? { stopReason: resumeResult.stopReason, action: resumedAction }
+          : null,
         toolCalls,
         usage: usage ? { used: usage.used, size: usage.size } : null,
         inspection: inspection

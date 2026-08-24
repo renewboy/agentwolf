@@ -155,7 +155,7 @@ describe('database migration', () => {
     expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
     reopened.close()
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(6)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(7)
     expect(
       migrated
         .prepare(
@@ -197,7 +197,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(6)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(7)
     const indexes = migrated
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
       .all('trajectory_records') as Array<{ name: string }>
@@ -252,7 +252,7 @@ describe('database migration', () => {
       repository.close()
 
       const migrated = new Database(databasePath)
-      expect(migrated.pragma('user_version', { simple: true })).toBe(6)
+      expect(migrated.pragma('user_version', { simple: true })).toBe(7)
       const tables = migrated
         .prepare(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
@@ -265,5 +265,38 @@ describe('database migration', () => {
       expect(indexes.map(({ name }) => name)).toContain('trajectory_records_turn')
       migrated.close()
     }
+  })
+
+  it('upgrades schema six with durable Player Session bindings', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-session-binding-migration-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const legacy = new Database(databasePath)
+    legacy.exec(`
+      CREATE TABLE matches (id TEXT PRIMARY KEY);
+      PRAGMA user_version = 6;
+    `)
+    legacy.close()
+
+    const repository = new SqliteRepository(databasePath)
+    repository.close()
+
+    const migrated = new Database(databasePath)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(7)
+    expect(
+      migrated
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'player_session_bindings'",
+        )
+        .get(),
+    ).toEqual({ name: 'player_session_bindings' })
+    const foreignKeys = migrated.pragma('foreign_key_list(player_session_bindings)') as Array<{
+      table: string
+      on_delete: string
+    }>
+    expect(foreignKeys).toEqual(
+      expect.arrayContaining([expect.objectContaining({ table: 'matches', on_delete: 'CASCADE' })]),
+    )
+    migrated.close()
   })
 })

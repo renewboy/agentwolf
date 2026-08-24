@@ -220,7 +220,7 @@
     "skillGeneric": "通过 `trigger_skill` 工具处理当前技能，工具接受后结束本回合。"
   },
   "errors": {
-    "serverRestartedSessionNotReplayable": "服务重启后需要重建 Agent Session，请点击继续对局。",
+    "serverRestartedSessionResumeRequired": "服务重启后需要恢复 Agent Session，请点击继续对局。",
     "jsonObjectRequired": "JSON 内容必须是对象",
     "invalidMatchId": "对局 ID 无效",
     "matchNotFound": "这场对局不存在或已经删除",

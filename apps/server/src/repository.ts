@@ -33,6 +33,7 @@ import type { DeliveryLedgerSnapshot } from '@agentwolf/acp'
 import { migrateDatabase } from './database-schema.js'
 import { CharacterSqliteRepository } from './character-repository.js'
 import type { MatchRecord } from './match-record.js'
+import { PlayerSessionSqliteRepository } from './player-session-repository.js'
 export type { MatchRecord } from './match-record.js'
 
 interface DatabaseRow {
@@ -58,6 +59,7 @@ interface TrajectoryRow extends DatabaseRow {
 export class SqliteRepository {
   readonly #database: Database.Database
   public readonly characters: CharacterSqliteRepository
+  public readonly playerSessions: PlayerSessionSqliteRepository
 
   public constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true })
@@ -66,6 +68,7 @@ export class SqliteRepository {
     this.#database.pragma('foreign_keys = ON')
     migrateDatabase(this.#database)
     this.characters = new CharacterSqliteRepository(this.#database)
+    this.playerSessions = new PlayerSessionSqliteRepository(this.#database)
   }
 
   public close(): void {
@@ -450,7 +453,7 @@ export class SqliteRepository {
          SET status = 'paused', paused_reason = ?, updated_at = ?
          WHERE status IN ('starting', 'running')`,
       )
-      .run('server-restarted-session-not-replayable', new Date().toISOString()).changes
+      .run('server-restarted-session-resume-required', new Date().toISOString()).changes
   }
 
   #insertEvents(events: readonly GameEvent[]): void {

@@ -100,7 +100,12 @@ antidote remains available. The Witch's antidote can target only that regular at
 the antidote is unavailable, neither incremental events nor the Witch action instruction disclose
 a death target to her.
 
-Each player session stores a delivery cursor. A prompt envelope contains only visible events after that cursor. The envelope is marked in-flight before `session/prompt`; the cursor advances only after a final ACP response. Failure after dispatch marks delivery as uncertain for bounded runtime recovery; a repeated failure for the same player and phase pauses for operator action.
+Each player Session binding stores one logical ACP Session ID, immutable Agent launch snapshot,
+bootstrap state, delivery cursor, and any accepted structured action. A Match seat completes
+`session/new` once. A Prompt envelope contains only visible events after the cursor and is marked
+in-flight before `session/prompt`. A final ACP response acknowledges its range. An accepted
+structured action is durable before its tool receipt returns and remains authoritative if the final
+Prompt response is lost.
 
 The live WebSocket accepts view changes and speech-playback controls as validated client messages.
 One connection may own automatic playback for a Match. Visible stream chunks are split at complete
@@ -110,21 +115,23 @@ boundary until that connection reports completion or skip. The playback coordina
 presentation state and uses the committed event sequence as its idempotency key. Hidden events never
 create a hold for the controlling view, and owner disconnect releases any pending boundary.
 
-Operator recovery keeps a live ACP session when available. The uncertain attempt is abandoned at
-its delivered sequence so previous context is not resent, then the current action is prompted
-again. After process restart, the rule engine is restored from the event log and replacement ACP
-sessions receive one foundation containing their own role, one detailed public rules entry for
-every role on the selected board, their own Character card when selected, the complete
-nickname-only roster, their permitted faction knowledge, and
-their visible match history before incremental delivery resumes. A foundation's source history
-must cover its acknowledged cursor.
+Recovery retains a healthy ACP connection or initializes a new process and calls `session/resume`
+with the persisted Session ID, player workspace, and current AgentWolf MCP token. Process lifetime
+does not define Session lifetime. The uncertain attempt advances through its delivered sequence;
+the same Session then receives only newly visible events and a current-stage continuation contract.
+An accepted pending action is consumed without another Prompt. Server restart restores the rule
+engine from the event log and resumes every persisted Session ID before incremental delivery.
 
-An uncertain ACP transport failure receives one automatic recovery attempt per player and phase. The engine remains running while failed sessions are replaced; a second failure pauses for operator action. The web client preserves its current snapshot across transient WebSocket closure, refreshes over HTTP, and reconnects with bounded backoff. Ended snapshots close the live channel and settle locally. Unknown or deleted Match IDs return 404 and enter a non-retrying unavailable state.
+An uncertain ACP transport failure receives one automatic continuation attempt per player and
+phase. Only that player's connection can change. A second failure, missing binding, unsupported
+`session.resume`, or resume failure pauses for operator action without creating a Session. The web
+client preserves its current snapshot across transient WebSocket closure, refreshes over HTTP, and
+reconnects with bounded backoff. Ended snapshots close the live channel and settle locally. Unknown
+or deleted Match IDs return 404 and enter a non-retrying unavailable state.
 
 Speech turns deliver preceding visible speech to the active player. Incremental delivery omits the
 active player's own previously committed speech because that speech already exists in its
-long-lived ACP Session; replacement foundations still contain the player's complete visible
-history. Vote prompts are created from one barrier snapshot after all speeches are committed, so
+long-lived ACP Session. Vote prompts are created from one barrier snapshot after all speeches are committed, so
 every eligible voter receives every other player's speech before any vote is accepted. The same
 barrier rule applies to sheriff voting and phase transitions.
 
@@ -140,7 +147,7 @@ The complete phase matrix is defined in [Information synchronization](informatio
 ## Developer trajectory
 
 The server records trajectory Turn and Record entities independently from the game event log. A
-Turn begins at the delivery attempt and owns its Player, ACP Session generation, phase, action
+Turn begins at the delivery attempt and owns its Player, durable ACP Session generation, phase, action
 type, acknowledged event range, attempt number, timing, final status, and context usage. Stable
 records inside it represent Prompt, reasoning, message, tool, permission, accepted action, usage,
 diagnostic, lifecycle, and error data. Stream records merge by message channel and ID; tool state
@@ -214,7 +221,14 @@ an Agent Profile binds the tool to one advertised model and its connection optio
 catalog API returns profiles in their persisted order and accepts validated whole-catalog reorder
 requests.
 
-For each seat, the supervisor starts one stdio ACP process, initializes the connection, creates one session with the seat workspace and AgentWolf MCP server, applies advertised model and mode configuration, then retains the returned session ID for the match lifetime. ACP permission requests are approved only when their structured MCP server and tool identity matches one of the five AgentWolf action tools. `session/update` is the streaming source; the final `session/prompt` response closes the turn.
+For each seat, the supervisor reserves a durable binding, starts a stdio ACP process, initializes
+the connection, requires the stable `session.resume` capability, and creates one Session with the
+seat workspace and AgentWolf MCP server. It persists the returned ID before the single foundation
+Prompt. Later processes call `session/resume` with that ID and replace the Session's MCP connection
+configuration with the current player-bound endpoint and token. ACP permission requests are
+approved only when their structured MCP server and tool identity matches one of the five AgentWolf
+action tools. `session/update` is the streaming source; the final `session/prompt` response closes
+the turn.
 
 On macOS and Linux, every ACP command runs inside a lightweight guardian-owned process group. The
 guardian relays stdio without interpreting ACP data, observes the AgentWolf parent through a

@@ -581,6 +581,27 @@ describe('GameEngine', () => {
     expect(restored.state.status).toBe('running')
     expect(restored.state.phaseId).toBe('phase-night-wolf-council')
   })
+
+  it('starts the first phase when preparation resumes before a phase existed', () => {
+    const engine = createManualEngine(sixPlayerBoard)
+    engine.prepareStart()
+    engine.pause('bootstrap-interrupted')
+
+    const restored = GameEngine.restore({
+      matchId: engine.state.matchId,
+      board: sixPlayerBoard,
+      events: engine.events,
+      status: 'paused',
+      pausedReason: 'bootstrap-interrupted',
+    })
+    const resumed = restored.resume()
+
+    expect(resumed.map((event) => event.payload.type)).toEqual(
+      expect.arrayContaining(['match.resumed', 'match.started', 'night.started']),
+    )
+    expect(restored.state.status).toBe('running')
+    expect(restored.state.phaseId).toBe('phase-night-wolf-council')
+  })
 })
 
 function advanceToWolfVote(engine: GameEngine): void {

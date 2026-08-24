@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 6) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 7) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -53,8 +53,9 @@ export function migrateDatabase(database: Database.Database): void {
         updated_at TEXT NOT NULL,
         PRIMARY KEY(match_id, player_id)
       );
+      ${playerSessionTables()}
       ${trajectoryTables()}
-      PRAGMA user_version = 6;
+      PRAGMA user_version = 7;
     `)
   }
   if (version === 1) {
@@ -111,6 +112,23 @@ export function migrateDatabase(database: Database.Database): void {
     database.exec(characterTables())
     database.pragma('user_version = 6')
   }
+  const migratedVersion = database.pragma('user_version', { simple: true }) as number
+  if (migratedVersion === 6) {
+    database.exec(playerSessionTables())
+    database.pragma('user_version = 7')
+  }
+}
+
+function playerSessionTables(): string {
+  return `
+    CREATE TABLE IF NOT EXISTS player_session_bindings (
+      match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+      player_id TEXT NOT NULL,
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(match_id, player_id)
+    );
+  `
 }
 
 function characterTables(): string {

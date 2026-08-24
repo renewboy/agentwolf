@@ -37,6 +37,7 @@ export interface TrajectoryTurnStart {
   readonly visibleEventSequences: readonly number[]
   readonly gameStatus: TrajectoryTurn['gameStatus']
   readonly pausedReasonAtRender: string | null
+  readonly continuation?: boolean
 }
 
 export class MatchTrajectoryRecorder {
@@ -87,6 +88,7 @@ export class MatchTrajectoryRecorder {
         visibleEventSequences: input.visibleEventSequences,
         gameStatus: input.gameStatus,
         pausedReasonAtRender: input.pausedReasonAtRender,
+        continuation: input.continuation ?? false,
         status: 'running',
         startedAt,
         completedAt: null,

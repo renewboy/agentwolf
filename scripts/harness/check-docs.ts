@@ -14,7 +14,6 @@ const required = [
   'docs/frontend.md',
   'docs/testing.md',
   'docs/information-sync.md',
-  'docs/acceptance.md',
   'docs/research/preflight.md',
   'docs/plans/completed/v1.md',
   'docs/plans/completed/immersive-match-ui.md',
@@ -24,6 +23,38 @@ for (const path of required) {
     await access(resolve(projectRoot, path))
   } catch {
     errors.push(`missing required document ${path}`)
+  }
+}
+
+try {
+  await access(resolve(projectRoot, 'docs/acceptance.md'))
+  errors.push(
+    'docs/acceptance.md is a shared write hotspot; planned work uses one dated acceptance record',
+  )
+} catch {
+  // The aggregate acceptance document must remain absent.
+}
+
+const acceptanceFiles = await sourceFiles(['docs/acceptance'], new Set(['.md']))
+if (acceptanceFiles.length === 0) errors.push('docs/acceptance contains no dated records')
+const acceptancePattern =
+  /^docs\/acceptance\/(\d{4}-\d{2}-\d{2})\/(\d{2})-(\d{2})-(\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/
+for (const path of acceptanceFiles) {
+  const relativePath = localPath(path)
+  const match = relativePath.match(acceptancePattern)
+  if (!match) {
+    errors.push(`${relativePath} must use docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md`)
+    continue
+  }
+  const content = await text(path)
+  const lines = content.split(/\r?\n/).length
+  if (lines > 120) errors.push(`${relativePath} exceeds the 120-line acceptance record limit`)
+  for (const heading of ['## Scope', '## Evidence']) {
+    if (!content.includes(heading)) errors.push(`${relativePath} is missing ${heading}`)
+  }
+  const expectedTime = `Evidence time: ${match[1]} ${match[2]}:${match[3]}:${match[4]}`
+  if (!content.includes(expectedTime)) {
+    errors.push(`${relativePath} must contain ${expectedTime}`)
   }
 }
 

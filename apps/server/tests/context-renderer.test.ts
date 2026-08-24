@@ -158,6 +158,22 @@ describe('ContextRenderer board rules', () => {
     expect(replacement.prompt.match(/当前是第 2 天/gu)).toHaveLength(1)
     expect(replacement.prompt).toContain('当前公开存活玩家')
     expect(replacement.prompt).not.toContain('天亮了，现在是第 2 天')
+
+    const continuation = await renderer.turn(
+      state,
+      [dayStarted],
+      players[0]!.id,
+      dayStarted.sequence,
+      'speech-turn',
+      '本轮发言请尽量控制在 300 字以内。',
+      promptContractVersion,
+      true,
+    )
+    expect(continuation.continuation).toBe(true)
+    expect(continuation.visibleEvents).toEqual([])
+    expect(continuation.prompt).toContain('继续执行裁判当前阶段')
+    expect(continuation.prompt).toContain('现在轮到你发言')
+    expect(continuation.prompt).not.toContain('# 任务目标')
   })
 
   it('delivers exact wolf teammate knowledge in the bootstrap foundation', async () => {

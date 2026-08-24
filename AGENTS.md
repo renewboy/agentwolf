@@ -75,9 +75,9 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 
 - Roles are concrete classes registered through the role registry. Rule modules and policies own phase flow, actions, visibility, resolution, and victory.
 - Every game change is an append-only domain event, and model-visible state is reconstructable from events.
-- Each seat owns one ACP process and one ACP session for the match lifetime. Delivery uses a per-player acknowledged event cursor.
+- Each seat completes `session/new` once and owns one durable ACP Session ID for the Match lifetime. ACP processes may restart, but reconnect through `session/resume` with that persisted ID. Delivery uses a per-player acknowledged event cursor.
 - A foundation source history covers its cursor and renders every visible bootstrap fact exactly once, including private faction membership.
-- One uncertain ACP transport failure per player and phase may replace failed sessions and retry from visible history. A repeated failure pauses for operator action.
+- One uncertain ACP transport failure per player and phase may continue the existing connection or resume that player's persisted Session ID. Recovery never creates another Session or disturbs another player. A repeated failure pauses for operator action.
 - Structured actions enter through the action gateway. Natural speech streams, is sanitized, and commits through the same gateway.
 - Player IDs are valid in prompts and structured actions. Public speech and last words contain nicknames or seats, never `player-N` identifiers.
 - Parallel vote/action stages use one barrier snapshot and publish results only after all eligible turns settle.
@@ -100,7 +100,7 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Durable documents describe current implemented behavior. One fact has one owning document; other documents link to it.
 - Keep architecture, interface specification, operations, decisions, execution plans, incidents, acceptance evidence, and roadmaps in separate documents.
 - Cross-layer, architectural, high-risk, or multi-milestone work requires an implementation plan under `docs/plans/` while work is active.
-- Small scoped requests and localized bug fixes that can be implemented and verified directly do not require an implementation plan.
+- Work that requires an implementation plan also requires one request-owned acceptance record. Small scoped requests and localized bug fixes that can be implemented and verified directly require neither document; report their verification in the handoff.
 - When every required change and acceptance check is complete, move the plan to `docs/plans/completed/<slug>.md`.
 - Every completed plan contains `Goal`, `Completed work`, and `Completion evidence` and contains no pending checklist, TODO, or future scope.
 
@@ -111,4 +111,4 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 3. Update current-state documentation for changed public behavior or boundaries.
 4. When the work required an execution plan, move the finished plan into `docs/plans/completed/`.
 5. Run focused tests, `pnpm check`, and user-visible browser acceptance.
-6. Record current acceptance evidence in `docs/acceptance.md` without committing `.agentwolf/` artifacts.
+6. When the work required an implementation plan, add one immutable acceptance record at `docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md` without editing earlier records or committing `.agentwolf/` artifacts.

@@ -83,11 +83,15 @@ class ReplayScript {
   }
 
   public readonly factory: PlayerSessionFactory = async (options) => {
-    const generation = (this.#generations.get(options.playerId) ?? 0) + 1
+    const generation = options.resumeSessionId
+      ? (this.#generations.get(options.playerId) ?? 1)
+      : (this.#generations.get(options.playerId) ?? 0) + 1
     this.#generations.set(options.playerId, generation)
     return new ReplaySession(
       options.playerId,
       generation,
+      options.resumeSessionId ?? `simulation-${options.playerId}-${generation}`,
+      options.resumeSessionId === undefined,
       (playerId, sessionGeneration, bootstrap, callbacks) =>
         this.#prompt(
           playerId,
@@ -170,9 +174,15 @@ class ReplaySession implements PlayerSession {
   #closed = false
   #firstPrompt = true
 
+  public get connected(): boolean {
+    return !this.#closed
+  }
+
   public constructor(
     playerId: PlayerId,
     generation: number,
+    sessionId: string,
+    bootstrapPending: boolean,
     promptHandler: (
       playerId: PlayerId,
       generation: number,
@@ -180,7 +190,8 @@ class ReplaySession implements PlayerSession {
       callbacks: AcpPromptCallbacks,
     ) => Promise<AcpPromptResult>,
   ) {
-    this.sessionId = `simulation-${playerId}-${generation}`
+    this.sessionId = sessionId
+    this.#firstPrompt = bootstrapPending
     this.#promptHandler = (bootstrap, callbacks) =>
       promptHandler(playerId, generation, bootstrap, callbacks)
   }

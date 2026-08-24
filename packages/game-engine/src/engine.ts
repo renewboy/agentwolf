@@ -101,6 +101,11 @@ export class GameEngine {
       'Only a draft or starting match can start',
     )
     const from = this.#events.length
+    this.#beginMatch()
+    return this.#events.slice(from)
+  }
+
+  #beginMatch(): void {
     this.#append(
       { type: 'match.started', startedAt: this.#clock().toISOString() },
       visibility.public,
@@ -108,7 +113,6 @@ export class GameEngine {
     this.#append({ type: 'night.started', night: 1 }, visibility.public)
     this.#enterPhase(this.#board.phases.entry)
     this.#drive()
-    return this.#events.slice(from)
   }
 
   public prepareStart(): readonly GameEvent[] {
@@ -245,8 +249,8 @@ export class GameEngine {
     assertRule(this.#state.status === 'paused', 'Only a paused match can resume')
     const from = this.#events.length
     this.#append({ type: 'match.resumed' }, visibility.public)
-    assertRule(this.#state.phaseId, 'Match has no active phase')
-    this.#continueFromActionBoundary(this.#phaseNode(this.#state.phaseId))
+    if (this.#state.phaseId) this.#continueFromActionBoundary(this.#phaseNode(this.#state.phaseId))
+    else this.#beginMatch()
     return this.#events.slice(from)
   }
 

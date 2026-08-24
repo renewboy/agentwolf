@@ -37,6 +37,7 @@ export type PlayerRuntimeStatus =
 
 export interface PlayerSession {
   readonly sessionId: string
+  readonly connected: boolean
   prompt(
     prompt: string,
     timeoutMs: number,
@@ -54,6 +55,7 @@ export type PlayerSessionFactory = (options: {
   readonly playerId: PlayerId
   readonly onStderr?: (chunk: string) => void
   readonly onPermissionDecision?: (request: RequestPermissionRequest, allowed: boolean) => void
+  readonly resumeSessionId?: string
 }) => Promise<PlayerSession>
 
 export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
@@ -70,6 +72,8 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
       agentwolf: { matchId: options.matchId, playerId: options.playerId },
     },
     approvedToolNames: playerActionToolNames,
+    requireSessionResume: true,
+    ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     allowOpaqueMcpPermissions: options.tool.kind === 'codex',
     approvedMcpTools: [
       {
@@ -120,7 +124,7 @@ export interface PlayerRuntimeOptions {
   readonly repository: SqliteRepository
   readonly deliveryEvents: DeliveryEvents
   readonly trajectory: MatchTrajectoryRecorder
-  readonly resetDeliveryLedger?: boolean
+  readonly allowSessionCreation?: boolean
   readonly sessionFactory?: PlayerSessionFactory
   readonly onStderr?: (chunk: string) => void
   readonly onStatusChange?: (playerId: PlayerId, status: PlayerRuntimeStatus) => void
@@ -132,15 +136,17 @@ export class PlayerRuntime {
   #session: PlayerSession | null = null
   #status: PlayerRuntimeStatus = 'idle'
   #activeTrajectory: TrajectoryTurnRecorder | null = null
-  readonly #sessionGeneration: number
+  #activeDeliveryId: string | null = null
+  #sessionGeneration = 1
+  #continuationPending = false
 
   public constructor(options: PlayerRuntimeOptions) {
     this.#options = options
-    this.#sessionGeneration = options.trajectory.nextSessionGeneration(options.playerId)
+    this.#sessionGeneration =
+      options.repository.playerSessions.get(options.matchId, options.playerId)?.sessionGeneration ??
+      1
     this.#ledger = new DeliveryLedger(
-      options.resetDeliveryLedger
-        ? undefined
-        : (options.repository.getDeliveryLedger(options.matchId, options.playerId) ?? undefined),
+      options.repository.getDeliveryLedger(options.matchId, options.playerId) ?? undefined,
     )
   }
 
@@ -156,30 +162,67 @@ export class PlayerRuntime {
     return this.#ledger.acknowledgedSequence
   }
 
+  public get continuationPending(): boolean {
+    return this.#continuationPending
+  }
+
+  public get needsBootstrap(): boolean {
+    return (
+      this.#options.repository.playerSessions.get(this.#options.matchId, this.#options.playerId)
+        ?.bootstrapState === 'pending'
+    )
+  }
+
+  public get bootstrapState() {
+    return this.#options.repository.playerSessions.get(
+      this.#options.matchId,
+      this.#options.playerId,
+    )?.bootstrapState
+  }
+
   public async start(): Promise<void> {
     if (this.#session) return
     this.#setStatus('starting')
     const sessionFactory = this.#options.sessionFactory ?? defaultPlayerSessionFactory
     try {
-      this.#session = await sessionFactory({
-        cwd: this.#options.workspace,
-        tool: this.#options.tool,
-        profile: this.#options.profile,
-        matchId: this.#options.matchId,
-        playerId: this.#options.playerId,
-        mcpServer: {
-          type: 'http',
-          name: 'agentwolf-player-actions',
-          url: this.#options.mcpUrl,
-          headers: [{ name: 'Authorization', value: `Bearer ${this.#options.token}` }],
-        },
-        onStderr: (chunk) => {
-          this.#activeTrajectory?.diagnostic(chunk)
-          this.#options.onStderr?.(chunk)
-        },
-        onPermissionDecision: (request, allowed) =>
-          this.#activeTrajectory?.permission(request, allowed),
-      })
+      let binding = this.#options.repository.playerSessions.get(
+        this.#options.matchId,
+        this.#options.playerId,
+      )
+      if (!binding && this.#options.allowSessionCreation === false) {
+        binding = this.#adoptLegacySessionBinding()
+      }
+      let created = false
+      if (!binding) {
+        binding = this.#options.repository.playerSessions.reserve({
+          matchId: this.#options.matchId,
+          playerId: this.#options.playerId,
+          profile: this.#options.profile,
+          tool: this.#options.tool,
+          sessionGeneration: 1,
+        })
+        created = true
+      } else if (binding.state === 'creating' || !binding.sessionId) {
+        throw new Error(
+          `Player ${this.#options.playerId} Session creation is unresolved; refusing session/new`,
+        )
+      }
+      this.#sessionGeneration = binding.sessionGeneration
+      this.#session = await this.#openSession(
+        sessionFactory,
+        created ? undefined : (binding.sessionId ?? undefined),
+      )
+      if (created) {
+        binding = this.#options.repository.playerSessions.activate(
+          this.#options.matchId,
+          this.#options.playerId,
+          this.#session.sessionId,
+        )
+      } else if (this.#session.sessionId !== binding.sessionId) {
+        throw new Error(
+          `Player ${this.#options.playerId} resumed Session ${this.#session.sessionId}; expected ${binding.sessionId}`,
+        )
+      }
       this.#setStatus('ready')
     } catch (error) {
       this.#setStatus('failed')
@@ -188,12 +231,38 @@ export class PlayerRuntime {
   }
 
   public async bootstrap(envelope: ContextEnvelope): Promise<void> {
+    this.#options.repository.playerSessions.markBootstrap(
+      this.#options.matchId,
+      this.#options.playerId,
+      'dispatched',
+    )
     await this.#deliver(
       envelope,
       undefined,
       { kind: 'bootstrap', phaseId: null, actionType: 'bootstrap' },
       'syncing',
     )
+    this.#options.repository.playerSessions.markBootstrap(
+      this.#options.matchId,
+      this.#options.playerId,
+      'acknowledged',
+    )
+  }
+
+  public async continueBootstrap(envelope: ContextEnvelope): Promise<void> {
+    if (this.bootstrapState !== 'dispatched') return
+    await this.#deliver(
+      envelope,
+      undefined,
+      { kind: 'action', phaseId: null, actionType: 'bootstrap-continuation' },
+      'syncing',
+    )
+    this.#options.repository.playerSessions.markBootstrap(
+      this.#options.matchId,
+      this.#options.playerId,
+      'acknowledged',
+    )
+    this.#continuationPending = false
   }
 
   public async takeTurn(
@@ -202,10 +271,24 @@ export class PlayerRuntime {
     phaseId: PhaseId,
     callbacks: AcpPromptCallbacks = {},
   ): Promise<PlayerAction> {
+    const persistedAction = this.#pendingAction()
+    if (persistedAction) {
+      expectation.validate?.(persistedAction)
+      return persistedAction
+    }
     this.#options.mailbox.expect({
       ...expectation,
       onAccepted: (action) => {
         this.#activeTrajectory?.action(action)
+        if (!this.#activeDeliveryId) {
+          throw new Error(`Player ${this.#options.playerId} accepted an action outside a delivery`)
+        }
+        this.#options.repository.playerSessions.savePendingAction(
+          this.#options.matchId,
+          this.#options.playerId,
+          this.#activeDeliveryId,
+          action,
+        )
         this.#setStatus('submitted')
       },
     })
@@ -241,19 +324,45 @@ export class PlayerRuntime {
     this.#session = null
   }
 
-  public recoverForRetry(): void {
-    if (!this.#session || this.#status === 'closed') {
-      throw new Error(`Player ${this.#options.playerId} has no recoverable ACP session`)
-    }
-    const attempt = this.#ledger.activeAttempt
-    if (attempt) {
-      if (attempt.state !== 'uncertain') {
-        throw new Error(`Player ${this.#options.playerId} still has an in-flight delivery`)
+  public async recoverForRetry(): Promise<void> {
+    try {
+      if (!this.#session?.connected) await this.#resumeSessionConnection()
+      const attempt = this.#ledger.activeAttempt
+      if (attempt) {
+        const pending = this.#pendingAction()
+        if (pending) {
+          if (attempt.state === 'in-flight') this.#ledger.acknowledge(attempt.id)
+          else this.#ledger.abandonUncertain(attempt.id)
+          this.#options.deliveryEvents.acknowledged(
+            this.#options.playerId,
+            attempt.id,
+            attempt.toSequence,
+          )
+        } else {
+          if (attempt.state === 'in-flight') {
+            this.#ledger.markUncertain(attempt.id, 'ACP connection interrupted')
+          }
+          this.#ledger.abandonUncertain(attempt.id)
+          this.#continuationPending = true
+        }
+        this.#persistLedger()
       }
-      this.#ledger.abandonUncertain(attempt.id)
-      this.#persistLedger()
+      this.#setStatus('ready')
+    } catch (error) {
+      this.#setStatus('failed')
+      throw error
     }
-    this.#setStatus('ready')
+  }
+
+  public async ensureReady(): Promise<void> {
+    if (this.#status === 'failed' || !this.#session?.connected) await this.recoverForRetry()
+  }
+
+  public actionCommitted(): void {
+    this.#options.repository.playerSessions.clearPendingAction(
+      this.#options.matchId,
+      this.#options.playerId,
+    )
   }
 
   async #deliver(
@@ -297,8 +406,10 @@ export class PlayerRuntime {
       visibleEventSequences: envelope.visibleEvents.map((event) => event.sequence),
       gameStatus: envelope.gameStatus,
       pausedReasonAtRender: envelope.pausedReason,
+      continuation: envelope.continuation,
     })
     this.#activeTrajectory = trajectory
+    this.#activeDeliveryId = deliveryId
     try {
       const result = await this.#session.prompt(
         envelope.prompt,
@@ -319,12 +430,39 @@ export class PlayerRuntime {
       )
       this.#persistLedger()
       this.#setStatus('ready')
+      this.#continuationPending = false
       if (result.stopReason !== 'end_turn') {
         throw new Error(`ACP turn stopped with ${result.stopReason}`)
       }
       trajectory.complete(result.stopReason)
       return { result, trajectory }
     } catch (error) {
+      const accepted = this.#options.repository.playerSessions.get(
+        this.#options.matchId,
+        this.#options.playerId,
+      )?.pendingAction
+      if (accepted?.deliveryId === deliveryId) {
+        const activeAttempt = this.#ledger.snapshot().activeAttempt
+        if (activeAttempt) {
+          if (activeAttempt.state === 'in-flight') this.#ledger.acknowledge(deliveryId)
+          else this.#ledger.abandonUncertain(deliveryId)
+          this.#options.deliveryEvents.acknowledged(
+            this.#options.playerId,
+            deliveryId,
+            envelope.toSequence,
+          )
+          this.#persistLedger()
+        }
+        trajectory.diagnostic(
+          'ACP Prompt ended after the structured action was accepted; using the accepted action.',
+        )
+        trajectory.complete('end_turn')
+        this.#setStatus(this.#session.connected ? 'ready' : 'failed')
+        return {
+          result: { text: '', stopReason: 'end_turn', updates: [] },
+          trajectory,
+        }
+      }
       const activeAttempt = this.#ledger.snapshot().activeAttempt
       if (activeAttempt?.state === 'in-flight') {
         this.#ledger.markUncertain(
@@ -344,7 +482,89 @@ export class PlayerRuntime {
       throw error
     } finally {
       if (this.#activeTrajectory === trajectory) this.#activeTrajectory = null
+      if (this.#activeDeliveryId === deliveryId) this.#activeDeliveryId = null
     }
+  }
+
+  async #resumeSessionConnection(): Promise<void> {
+    const binding = this.#options.repository.playerSessions.get(
+      this.#options.matchId,
+      this.#options.playerId,
+    )
+    if (binding?.state !== 'active' || !binding.sessionId) {
+      throw new Error(`Player ${this.#options.playerId} has no durable ACP Session binding`)
+    }
+    await this.#session?.close()
+    this.#session = null
+    const sessionFactory = this.#options.sessionFactory ?? defaultPlayerSessionFactory
+    const resumed = await this.#openSession(sessionFactory, binding.sessionId)
+    if (resumed.sessionId !== binding.sessionId) {
+      await resumed.close()
+      throw new Error(
+        `Player ${this.#options.playerId} resumed Session ${resumed.sessionId}; expected ${binding.sessionId}`,
+      )
+    }
+    this.#session = resumed
+  }
+
+  async #openSession(
+    sessionFactory: PlayerSessionFactory,
+    resumeSessionId?: string,
+  ): Promise<PlayerSession> {
+    return sessionFactory({
+      cwd: this.#options.workspace,
+      tool: this.#options.tool,
+      profile: this.#options.profile,
+      matchId: this.#options.matchId,
+      playerId: this.#options.playerId,
+      mcpServer: {
+        type: 'http',
+        name: 'agentwolf-player-actions',
+        url: this.#options.mcpUrl,
+        headers: [{ name: 'Authorization', value: `Bearer ${this.#options.token}` }],
+      },
+      ...(resumeSessionId ? { resumeSessionId } : {}),
+      onStderr: (chunk) => {
+        this.#activeTrajectory?.diagnostic(chunk)
+        this.#options.onStderr?.(chunk)
+      },
+      onPermissionDecision: (request, allowed) =>
+        this.#activeTrajectory?.permission(request, allowed),
+    })
+  }
+
+  #adoptLegacySessionBinding() {
+    const turns = this.#options.repository.listTrajectoryTurns(
+      this.#options.matchId,
+      this.#options.playerId,
+    )
+    const latest = turns.at(-1)
+    if (!latest) {
+      throw new Error(
+        `Player ${this.#options.playerId} has no durable ACP Session binding to resume`,
+      )
+    }
+    const binding = this.#options.repository.playerSessions.adopt({
+      matchId: this.#options.matchId,
+      playerId: this.#options.playerId,
+      profile: this.#options.profile,
+      tool: this.#options.tool,
+      sessionGeneration: latest.sessionGeneration,
+      sessionId: latest.sessionId,
+    })
+    this.#options.repository.playerSessions.markBootstrap(
+      this.#options.matchId,
+      this.#options.playerId,
+      'acknowledged',
+    )
+    return binding
+  }
+
+  #pendingAction(): PlayerAction | null {
+    return (
+      this.#options.repository.playerSessions.get(this.#options.matchId, this.#options.playerId)
+        ?.pendingAction?.action ?? null
+    )
   }
 
   #persistLedger(): void {

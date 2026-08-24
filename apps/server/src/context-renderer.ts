@@ -21,9 +21,10 @@ export interface ContextEnvelope {
   readonly visibleEvents: readonly GameEvent[]
   readonly gameStatus: GameState['status']
   readonly pausedReason: string | null
+  readonly continuation: boolean
 }
 
-export const promptContractVersion = 18
+export const promptContractVersion = 19
 
 function narrationCatalog(state: GameState, roles: RoleRegistry, viewerPlayerId?: PlayerId) {
   return {
@@ -256,6 +257,7 @@ export class ContextRenderer {
       visibleEvents: projectedHistory,
       gameStatus: state.status,
       pausedReason: state.pausedReason,
+      continuation: false,
     }
   }
 
@@ -264,9 +266,13 @@ export class ContextRenderer {
     events: readonly GameEvent[],
     playerId: PlayerId,
     afterSequence: number,
-    promptAsset: Exclude<PromptAssetId, 'player-foundation'>,
+    promptAsset: Exclude<
+      PromptAssetId,
+      'player-foundation' | 'player-continuation' | 'bootstrap-continuation'
+    >,
     actionInstruction = '',
     promptVersion = promptContractVersion,
+    continuation = false,
   ): Promise<ContextEnvelope> {
     const projected = visibleEvents(events, { kind: 'player', playerId }, state, afterSequence)
     const catalog = narrationCatalog(state, this.#roles, playerId)
@@ -295,34 +301,51 @@ export class ContextRenderer {
         .filter((line): line is string => Boolean(line)),
     ].join('\n')
     const template = await loadPromptAsset(promptAsset)
+    const currentTurn = renderPrompt(template, {
+      GAME_NARRATION: narration,
+      WOLF_VOTE_INSTRUCTION:
+        promptAsset === 'wolf-vote-turn'
+          ? getAssetCopy(
+              promptVersion >= 17
+                ? 'promptActions.wolfVoteTargetOptions'
+                : 'promptActions.wolfVoteTargetRequired',
+            )
+          : '',
+      ACTION_INSTRUCTION: versionedActionInstruction(promptAsset, actionInstruction, promptVersion),
+    })
     return {
-      prompt: renderPrompt(template, {
-        GAME_NARRATION: narration,
-        WOLF_VOTE_INSTRUCTION:
-          promptAsset === 'wolf-vote-turn'
-            ? getAssetCopy(
-                promptVersion >= 17
-                  ? 'promptActions.wolfVoteTargetOptions'
-                  : 'promptActions.wolfVoteTargetRequired',
-              )
-            : '',
-        ACTION_INSTRUCTION: versionedActionInstruction(
-          promptAsset,
-          actionInstruction,
-          promptVersion,
-        ),
-      }),
+      prompt: continuation
+        ? renderPrompt(await loadPromptAsset('player-continuation'), {
+            CURRENT_TURN: currentTurn,
+          })
+        : currentTurn,
       promptVersion,
       toSequence: state.lastSequence,
       visibleEvents: projected,
       gameStatus: state.status,
       pausedReason: state.pausedReason,
+      continuation,
+    }
+  }
+
+  public async bootstrapContinuation(state: GameState): Promise<ContextEnvelope> {
+    return {
+      prompt: await loadPromptAsset('bootstrap-continuation'),
+      promptVersion: promptContractVersion,
+      toSequence: state.lastSequence,
+      visibleEvents: [],
+      gameStatus: state.status,
+      pausedReason: state.pausedReason,
+      continuation: true,
     }
   }
 }
 
 function versionedActionInstruction(
-  promptAsset: Exclude<PromptAssetId, 'player-foundation'>,
+  promptAsset: Exclude<
+    PromptAssetId,
+    'player-foundation' | 'player-continuation' | 'bootstrap-continuation'
+  >,
   actionInstruction: string,
   promptVersion: number,
 ): string {

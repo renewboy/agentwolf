@@ -153,12 +153,19 @@ A schema-invalid or rule-invalid structured action is returned to the Agent as a
 inside the current turn. The rejected call does not enter the phase barrier or change game state, so
 the Agent can submit a corrected action before ending its response.
 
-An agent process exit, prompt timeout, or uncertain prompt delivery activates bounded recovery. One
-uncertain transport failure per player and phase replaces failed sessions and retries without
-changing game state. A repeated transport failure, or a final Agent response without the expected
-valid action, pauses with an operator-visible reason and continue action. Live sessions retain their
-acknowledged cursors; replacement sessions receive one current foundation plus each player's visible
-history. Matches can be deleted with their events and delivery ledgers.
+Every Match seat completes `session/new` once and persists that logical ACP Session ID with its
+launch identity, bootstrap state, delivery cursor, and any accepted structured action. A Prompt
+timeout with a healthy connection continues inside that Session. Agent-process loss and server
+restart initialize another ACP process and call `session/resume` with the persisted ID, current
+player workspace, and refreshed AgentWolf MCP authorization. Only the affected player reconnects.
+
+The first uncertain transport failure for one player and phase advances past the delivered
+envelope and sends a compact current-stage continuation Prompt. A structured action accepted before
+transport loss is consumed from durable state without prompting or submitting it again. A repeated
+failure, an unavailable Session binding, an Agent without `session.resume`, or a failed resume
+pauses with an operator-visible reason and continue action. Recovery never issues another
+`session/new` or sends another foundation. Matches can be deleted with their events, delivery
+ledgers, and Session bindings.
 
 Closing a Match or server bounds Session shutdown and reclaims each Agent process tree. On macOS
 and Linux, parent-process loss also triggers process-tree termination without waiting for the next

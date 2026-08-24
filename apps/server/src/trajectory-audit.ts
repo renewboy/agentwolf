@@ -99,20 +99,23 @@ export async function auditTrajectory(
       const expected =
         turn.kind === 'bootstrap'
           ? await renderer.foundation(state, board, ownerId, history, turn.promptVersion, character)
-          : await expectedActionPrompt(
-              renderer,
-              matchId,
-              board,
-              history,
-              ownerId,
-              turn.fromSequence,
-              turn.promptVersion,
-              state.status,
-              state.pausedReason,
-              match.setup.speechCharacterLimit,
-              issues,
-              turn.turnId,
-            )
+          : turn.actionType === 'bootstrap-continuation'
+            ? await renderer.bootstrapContinuation(state)
+            : await expectedActionPrompt(
+                renderer,
+                matchId,
+                board,
+                history,
+                ownerId,
+                turn.fromSequence,
+                turn.promptVersion,
+                state.status,
+                state.pausedReason,
+                match.setup.speechCharacterLimit,
+                issues,
+                turn.turnId,
+                turn.continuation,
+              )
       if (expected && turn.visibleEventSequences.length > 0) {
         const actualSequences = expected.visibleEvents.map((event) => event.sequence)
         if (!sameNumbers(actualSequences, turn.visibleEventSequences)) {
@@ -170,6 +173,7 @@ async function expectedActionPrompt(
   speechCharacterLimit: number,
   issues: TrajectoryAuditIssue[],
   turnId: string,
+  continuation: boolean,
 ) {
   const engine = GameEngine.restore({
     matchId,
@@ -195,6 +199,7 @@ async function expectedActionPrompt(
       promptVersion,
     ),
     promptVersion,
+    continuation,
   )
 }
 

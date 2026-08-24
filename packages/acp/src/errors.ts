@@ -10,8 +10,14 @@ export class AcpLifecycleError extends Error {
 }
 
 export class AcpDeliveryUncertainError extends Error {
-  public constructor(message: string, options?: ErrorOptions) {
+  public readonly sessionReusable: boolean
+
+  public constructor(
+    message: string,
+    options?: ErrorOptions & { readonly sessionReusable?: boolean },
+  ) {
     super(message, options)
     this.name = 'AcpDeliveryUncertainError'
+    this.sessionReusable = options?.sessionReusable ?? false
   }
 }

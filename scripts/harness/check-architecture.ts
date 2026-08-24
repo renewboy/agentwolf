@@ -112,6 +112,39 @@ for (const path of roleFiles) {
   }
 }
 
+const playerRuntime = await text(
+  files.find((path) => localPath(path) === 'apps/server/src/player-runtime.ts')!,
+)
+for (const required of [
+  'requireSessionResume: true',
+  'resumeSessionId',
+  'repository.playerSessions.reserve',
+  'repository.playerSessions.activate',
+]) {
+  if (!playerRuntime.includes(required)) {
+    errors.push(`player-runtime.ts must preserve durable Session invariant: ${required}`)
+  }
+}
+const matchRuntime = await text(
+  files.find((path) => localPath(path) === 'apps/server/src/match-runtime.ts')!,
+)
+for (const forbidden of ['replacePlayerSessions', 'resetDeliveryLedger']) {
+  if (matchRuntime.includes(forbidden)) {
+    errors.push(`match-runtime.ts must not recreate player Sessions through ${forbidden}`)
+  }
+}
+const sessionNewLocations: string[] = []
+for (const path of files) {
+  if ((await text(path)).includes('methods.agent.session.new')) {
+    sessionNewLocations.push(localPath(path))
+  }
+}
+if (sessionNewLocations.length !== 1 || sessionNewLocations[0] !== 'packages/acp/src/session.ts') {
+  errors.push(
+    `session/new must have one generic ACP owner; found ${sessionNewLocations.join(', ') || 'none'}`,
+  )
+}
+
 const webPackage = JSON.parse(await text(resolve(projectRoot, 'apps/web/package.json'))) as {
   dependencies?: Record<string, string>
 }

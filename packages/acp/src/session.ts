@@ -4,7 +4,6 @@ import {
   client,
   methods,
   ndJsonStream,
-  type ActiveSession,
   type ClientConnection,
   type ClientContext,
   type InitializeResponse,
@@ -39,6 +38,8 @@ export interface AcpSessionStartOptions {
   readonly onPermissionRequest?: (request: RequestPermissionRequest) => void
   readonly onPermissionDecision?: (request: RequestPermissionRequest, allowed: boolean) => void
   readonly onStderr?: (chunk: string) => void
+  readonly resumeSessionId?: string
+  readonly requireSessionResume?: boolean
 }
 
 export interface AcpPromptCallbacks {
@@ -52,26 +53,39 @@ export interface AcpPromptResult {
   readonly updates: readonly SessionUpdate[]
 }
 
+interface ActivePromptState {
+  readonly callbacks: AcpPromptCallbacks
+  readonly updates: SessionUpdate[]
+  text: string
+}
+
 export class AcpPlayerSession {
   readonly #process: AgentProcess
   readonly #connection: ClientConnection
   readonly #context: ClientContext
-  readonly #session: ActiveSession
+  readonly #sessionId: string
   readonly #initializeResponse: InitializeResponse
+  readonly #availableModes: readonly SessionMode[]
+  readonly #configOptions: readonly SessionConfigOption[]
+  #activePrompt: ActivePromptState | null = null
   #closed = false
 
   private constructor(
     process: AgentProcess,
     connection: ClientConnection,
     context: ClientContext,
-    session: ActiveSession,
+    sessionId: string,
     initializeResponse: InitializeResponse,
+    availableModes: readonly SessionMode[],
+    configOptions: readonly SessionConfigOption[],
   ) {
     this.#process = process
     this.#connection = connection
     this.#context = context
-    this.#session = session
+    this.#sessionId = sessionId
     this.#initializeResponse = initializeResponse
+    this.#availableModes = availableModes
+    this.#configOptions = configOptions
   }
 
   public static async start(options: AcpSessionStartOptions): Promise<AcpPlayerSession> {
@@ -81,10 +95,14 @@ export class AcpPlayerSession {
       ...(options.onStderr ? { onStderr: options.onStderr } : {}),
     })
     try {
-      const app = client({ name: 'AgentWolf' }).onRequest(
-        methods.client.session.requestPermission,
-        ({ params }) => permissionDecision(params, options),
-      )
+      let activeSession: AcpPlayerSession | null = null
+      const app = client({ name: 'AgentWolf' })
+        .onRequest(methods.client.session.requestPermission, ({ params }) =>
+          permissionDecision(params, options),
+        )
+        .onNotification(methods.client.session.update, ({ params }) => {
+          if (activeSession) activeSession.#handleUpdate(params.sessionId, params.update)
+        })
       const stream = ndJsonStream(
         Writable.toWeb(process.child.stdin) as WritableStream<Uint8Array>,
         Readable.toWeb(process.child.stdout) as ReadableStream<Uint8Array>,
@@ -101,25 +119,61 @@ export class AcpPlayerSession {
           `ACP protocol mismatch: expected ${PROTOCOL_VERSION}, received ${initialized.protocolVersion}`,
         )
       }
-      const session = await context
-        .buildSession({
-          cwd: options.cwd,
-          mcpServers: [...(options.mcpServers ?? [])],
+      const supportsResume =
+        initialized.agentCapabilities?.sessionCapabilities?.resume !== undefined
+      if ((options.requireSessionResume || options.resumeSessionId) && !supportsResume) {
+        throw new Error('ACP agent does not advertise session.resume')
+      }
+
+      const request = {
+        cwd: options.cwd,
+        mcpServers: [...(options.mcpServers ?? [])],
+      }
+      let sessionId: string
+      let availableModes: readonly SessionMode[]
+      let configOptions: readonly SessionConfigOption[]
+      if (options.resumeSessionId) {
+        const response = await context.request(methods.agent.session.resume, {
+          sessionId: options.resumeSessionId,
+          ...request,
+        })
+        sessionId = options.resumeSessionId
+        availableModes = response.modes?.availableModes ?? []
+        configOptions = response.configOptions ?? []
+      } else {
+        const response = await context.request(methods.agent.session.new, {
+          ...request,
           ...(options.sessionMeta ? { _meta: { ...options.sessionMeta } } : {}),
         })
-        .start()
-      await configureSession(context, session, options)
-      return new AcpPlayerSession(process, connection, context, session, initialized)
+        sessionId = response.sessionId
+        availableModes = response.modes?.availableModes ?? []
+        configOptions = response.configOptions ?? []
+        await configureSession(context, sessionId, response, options)
+      }
+
+      activeSession = new AcpPlayerSession(
+        process,
+        connection,
+        context,
+        sessionId,
+        initialized,
+        availableModes,
+        configOptions,
+      )
+      return activeSession
     } catch (error) {
       await process.close()
-      throw new AcpLifecycleError('Unable to start ACP player session', process.stderrTail, {
-        cause: error,
-      })
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new AcpLifecycleError(
+        `Unable to start ACP player session: ${detail}`,
+        process.stderrTail,
+        { cause: error },
+      )
     }
   }
 
   public get sessionId(): string {
-    return this.#session.sessionId
+    return this.#sessionId
   }
 
   public get initializeResponse(): InitializeResponse {
@@ -131,11 +185,15 @@ export class AcpPlayerSession {
   }
 
   public get availableModes(): readonly SessionMode[] {
-    return this.#session.modes?.availableModes ?? []
+    return this.#availableModes
   }
 
   public get configOptions(): readonly SessionConfigOption[] {
-    return this.#session.newSessionResponse.configOptions ?? []
+    return this.#configOptions
+  }
+
+  public get connected(): boolean {
+    return !this.#closed && !this.#connection.signal.aborted
   }
 
   public async prompt(
@@ -144,53 +202,55 @@ export class AcpPlayerSession {
     callbacks: AcpPromptCallbacks = {},
   ): Promise<AcpPromptResult> {
     if (this.#closed) throw new AcpLifecycleError('ACP session is closed', this.stderrTail)
+    if (this.#activePrompt) throw new AcpLifecycleError('ACP Session already has an active Prompt')
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(new Error('ACP prompt timed out')), timeoutMs)
     timer.unref()
-    const updates: SessionUpdate[] = []
-    let text = ''
+    const activePrompt: ActivePromptState = { callbacks, updates: [], text: '' }
+    this.#activePrompt = activePrompt
     const timeoutFailure = new Promise<never>((_resolve, reject) => {
       const onAbort = (): void => reject(controller.signal.reason)
       if (controller.signal.aborted) onAbort()
       else controller.signal.addEventListener('abort', onAbort, { once: true })
     })
     try {
-      const promptRequest = this.#session.prompt(prompt, {
-        cancellationSignal: controller.signal,
-      })
+      const promptRequest = this.#context.request(
+        methods.agent.session.prompt,
+        {
+          sessionId: this.#sessionId,
+          prompt: [{ type: 'text', text: prompt }],
+        },
+        { cancellationSignal: controller.signal },
+      )
       void promptRequest.catch(() => undefined)
-      for (;;) {
-        const message = await Promise.race([this.#session.nextUpdate(), timeoutFailure])
-        if (message.kind === 'stop') {
-          return { text, stopReason: message.stopReason, updates }
-        }
-        updates.push(message.update)
-        callbacks.onUpdate?.(message.update)
-        if (
-          message.update.sessionUpdate === 'agent_message_chunk' &&
-          message.update.content.type === 'text'
-        ) {
-          text += message.update.content.text
-          callbacks.onTextChunk?.(message.update.content.text)
-        }
+      const response = await Promise.race([promptRequest, timeoutFailure])
+      return {
+        text: activePrompt.text,
+        stopReason: response.stopReason,
+        updates: activePrompt.updates,
       }
     } catch (error) {
       const failure = error instanceof Error ? error.message : String(error)
       try {
         await this.#context.notify(methods.agent.session.cancel, {
-          sessionId: this.#session.sessionId,
+          sessionId: this.#sessionId,
         })
       } catch (cancelError) {
         throw new AcpDeliveryUncertainError(
           `ACP prompt failed: ${failure}; cancellation was not confirmed`,
           {
             cause: new AggregateError([error, cancelError]),
+            sessionReusable: false,
           },
         )
       }
-      throw new AcpDeliveryUncertainError(`ACP prompt failed: ${failure}`, { cause: error })
+      throw new AcpDeliveryUncertainError(`ACP prompt failed: ${failure}`, {
+        cause: error,
+        sessionReusable: this.connected,
+      })
     } finally {
       clearTimeout(timer)
+      if (this.#activePrompt === activePrompt) this.#activePrompt = null
     }
   }
 
@@ -200,19 +260,26 @@ export class AcpPlayerSession {
     try {
       await withTimeout(
         this.#context.request(methods.agent.session.close, {
-          sessionId: this.#session.sessionId,
+          sessionId: this.#sessionId,
         }),
         sessionCloseTimeoutMs,
         'ACP session close timed out',
       )
     } catch (error) {
-      if (!this.#connection.signal.aborted) {
-        this.#connection.close(error)
-      }
+      if (!this.#connection.signal.aborted) this.#connection.close(error)
     } finally {
-      this.#session.dispose()
       this.#connection.close()
       await this.#process.close()
+    }
+  }
+
+  #handleUpdate(sessionId: string, update: SessionUpdate): void {
+    if (sessionId !== this.#sessionId || !this.#activePrompt) return
+    this.#activePrompt.updates.push(update)
+    this.#activePrompt.callbacks.onUpdate?.(update)
+    if (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text') {
+      this.#activePrompt.text += update.content.text
+      this.#activePrompt.callbacks.onTextChunk?.(update.content.text)
     }
   }
 }
@@ -276,19 +343,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function configureSession(
   context: ClientContext,
-  session: ActiveSession,
+  sessionId: string,
+  session: {
+    readonly modes?: { readonly availableModes: readonly SessionMode[] } | null
+    readonly configOptions?: readonly SessionConfigOption[] | null
+  },
   options: AcpSessionStartOptions,
 ): Promise<void> {
   if (options.model) {
     const modelConfigKey = options.modelConfigKey ?? 'model'
-    const modelOption = session.newSessionResponse.configOptions?.find(
+    const modelOption = session.configOptions?.find(
       (option) => option.id === modelConfigKey || option.category === 'model',
     )
     if (!modelOption) {
       throw new Error('ACP agent does not advertise a model configuration option')
     }
     await context.request(methods.agent.session.setConfigOption, {
-      sessionId: session.sessionId,
+      sessionId,
       configId: modelOption.id,
       value: options.model,
     })
@@ -298,7 +369,7 @@ async function configureSession(
     const available = session.modes?.availableModes.some((mode) => mode.id === options.mode)
     if (!available) throw new Error(`ACP agent does not advertise mode ${options.mode}`)
     await context.request(methods.agent.session.setMode, {
-      sessionId: session.sessionId,
+      sessionId,
       modeId: options.mode,
     })
   }

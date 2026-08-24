@@ -52,6 +52,7 @@ export interface MatchRuntimeOptions {
   readonly trajectory: MatchTrajectoryRecorder
   readonly sessionFactory?: PlayerSessionFactory
   readonly sessionConcurrency?: number
+  readonly restored?: boolean
 }
 
 export class MatchRuntime {
@@ -99,7 +100,6 @@ export class MatchRuntime {
     } catch (error) {
       if (this.#disposed) return
       await this.#pauseForError(error)
-      await this.#closePlayerSessions()
       throw error
     }
   }
@@ -155,37 +155,44 @@ export class MatchRuntime {
 
   public async resume(): Promise<void> {
     if (this.#disposed) throw new Error(`Match runtime ${this.engine.state.matchId} is closed`)
-    const needsReplacementSessions =
-      this.#players.size === 0 ||
-      [...this.#players.values()].some(
-        (runtime) => runtime.status === 'closed' || runtime.status === 'failed',
-      )
-    if (needsReplacementSessions) {
-      await this.#replacePlayerSessions()
-    } else {
-      for (const runtime of this.#players.values()) runtime.recoverForRetry()
+    if (this.#players.size < this.engine.state.players.size) {
+      await this.#startPlayerSessions(this.engine.events)
     }
+    await mapWithConcurrency(
+      [...this.#players.values()],
+      this.#options.sessionConcurrency ?? 4,
+      async (runtime) => runtime.recoverForRetry(),
+    )
+    await this.#bootstrapPendingPlayerSessions(this.engine.events)
+    await mapWithConcurrency(
+      [...this.#players.values()].filter((runtime) => runtime.bootstrapState === 'dispatched'),
+      this.#options.sessionConcurrency ?? 4,
+      async (runtime) =>
+        runtime.continueBootstrap(await this.#renderer.bootstrapContinuation(this.engine.state)),
+    )
     this.#record(this.engine.resume())
     this.#options.repository.updateMatchStatus(this.engine.state.matchId, 'running')
     this.#broadcastSnapshot()
     void this.#run()
   }
 
-  async #startPlayerSessions(
-    historyEvents: readonly GameEvent[],
-    resetDeliveryLedger = false,
-  ): Promise<void> {
+  async #startPlayerSessions(historyEvents: readonly GameEvent[]): Promise<void> {
     const setupBySeat = new Map(this.#options.record.setup.seats.map((seat) => [seat.seat, seat]))
-    const entries = [...this.engine.state.players.values()].sort(
-      (left, right) => left.seat - right.seat,
-    )
+    const entries = [...this.engine.state.players.values()]
+      .filter((player) => !this.#players.has(player.id))
+      .sort((left, right) => left.seat - right.seat)
     await mapWithConcurrency(entries, this.#options.sessionConcurrency ?? 4, async (player) => {
       this.#assertOpen()
+      this.#reconcileCommittedPendingAction(player.id)
       const setup = setupBySeat.get(player.seat)
       if (!setup) throw new Error(`Missing setup for seat ${player.seat}`)
-      const profile = this.#options.catalog.getProfile(setup.profileId)
+      const binding = this.#options.repository.playerSessions.get(
+        this.engine.state.matchId,
+        player.id,
+      )
+      const profile = binding?.profile ?? this.#options.catalog.getProfile(setup.profileId)
       if (!profile) throw new Error(`Unknown Agent Profile ${setup.profileId}`)
-      const tool = this.#options.catalog.getTool(profile.toolId)
+      const tool = binding?.tool ?? this.#options.catalog.getTool(profile.toolId)
       if (!tool) throw new Error(`Unknown Agent Tool ${profile.toolId}`)
       const workspace = await preparePlayerWorkspace(
         this.#options.config.dataDirectory,
@@ -206,7 +213,7 @@ export class MatchRuntime {
         mailbox: this.#options.mailbox,
         trajectory: this.#options.trajectory,
         repository: this.#options.repository,
-        resetDeliveryLedger,
+        allowSessionCreation: this.#options.restored !== true,
         deliveryEvents: {
           started: (playerId, deliveryId, fromSequence, toSequence) => {
             this.#record(
@@ -232,18 +239,28 @@ export class MatchRuntime {
       }
     })
 
+    await this.#bootstrapPendingPlayerSessions(historyEvents)
+  }
+
+  async #bootstrapPendingPlayerSessions(historyEvents: readonly GameEvent[]): Promise<void> {
+    const setupBySeat = new Map(this.#options.record.setup.seats.map((seat) => [seat.seat, seat]))
+    const players = [...this.engine.state.players.values()].sort(
+      (left, right) => left.seat - right.seat,
+    )
     const foundations = await Promise.all(
-      entries.map(async (player) => ({
-        playerId: player.id,
-        envelope: await this.#renderer.foundation(
-          this.engine.state,
-          this.#options.board,
-          player.id,
-          historyEvents,
-          promptContractVersion,
-          setupBySeat.get(player.seat)?.character ?? null,
-        ),
-      })),
+      players
+        .filter((player) => this.#players.get(player.id)?.needsBootstrap)
+        .map(async (player) => ({
+          playerId: player.id,
+          envelope: await this.#renderer.foundation(
+            this.engine.state,
+            this.#options.board,
+            player.id,
+            historyEvents,
+            promptContractVersion,
+            setupBySeat.get(player.seat)?.character ?? null,
+          ),
+        })),
     )
     await mapWithConcurrency(
       foundations,
@@ -287,6 +304,7 @@ export class MatchRuntime {
             deferContinuation: deferSpeechBoundary,
           })
           this.#record(events)
+          this.#players.get(action.actorId)?.actionCommitted()
           if (deferSpeechBoundary) {
             const committed = findCommittedSpeech(events)
             if (!committed) throw new Error('Speech action did not produce a committed event')
@@ -304,11 +322,24 @@ export class MatchRuntime {
       }
     } catch (error) {
       if (this.#disposed) return
-      const recoveryKey = `${this.engine.state.phaseId}:${this.engine.expectedActors().join(',')}`
-      if (hasUncertainDelivery(error) && !this.#automaticRecoveryKeys.has(recoveryKey)) {
-        this.#automaticRecoveryKeys.add(recoveryKey)
+      const failedPlayers = [...this.#players.entries()].filter(
+        ([, runtime]) => runtime.status === 'failed',
+      )
+      const recoveryKeys = failedPlayers.map(
+        ([playerId]) => `${playerId}:${this.engine.state.phaseId}`,
+      )
+      if (
+        hasUncertainDelivery(error) &&
+        failedPlayers.length > 0 &&
+        recoveryKeys.every((key) => !this.#automaticRecoveryKeys.has(key))
+      ) {
+        for (const key of recoveryKeys) this.#automaticRecoveryKeys.add(key)
         try {
-          await this.#replacePlayerSessions()
+          await mapWithConcurrency(
+            failedPlayers.map(([, runtime]) => runtime),
+            this.#options.sessionConcurrency ?? 4,
+            async (runtime) => runtime.recoverForRetry(),
+          )
           void this.#run()
           return
         } catch (recoveryError) {
@@ -326,6 +357,7 @@ export class MatchRuntime {
   async #prepareActorTurn(playerId: PlayerId, turn: TurnDescriptor): Promise<PreparedActorTurn> {
     const runtime = this.#players.get(playerId)
     if (!runtime) throw new Error(`Player runtime ${playerId} is unavailable`)
+    await runtime.ensureReady()
     const expectation: ActionExpectation = {
       matchId: this.engine.state.matchId,
       playerId,
@@ -348,6 +380,8 @@ export class MatchRuntime {
         playerId,
         speechCharacterLimit: this.#options.record.setup.speechCharacterLimit,
       }),
+      promptContractVersion,
+      runtime.continuationPending,
     )
     return { playerId, runtime, envelope, expectation }
   }
@@ -460,13 +494,6 @@ export class MatchRuntime {
     })
   }
 
-  async #replacePlayerSessions(): Promise<void> {
-    await this.#closePlayerSessions()
-    this.#assertOpen()
-    this.#players.clear()
-    await this.#startPlayerSessions(this.engine.events, true)
-  }
-
   async #pauseForError(error: unknown): Promise<void> {
     if (this.#disposed) return
     const reason = describeError(error)
@@ -493,5 +520,32 @@ export class MatchRuntime {
 
   #assertOpen(): void {
     if (this.#disposed) throw new Error(`Match runtime ${this.engine.state.matchId} is closed`)
+  }
+
+  #reconcileCommittedPendingAction(playerId: PlayerId): void {
+    const pending = this.#options.repository.playerSessions.get(
+      this.engine.state.matchId,
+      playerId,
+    )?.pendingAction
+    if (!pending) return
+    const deliverySequence = this.engine.events.find(
+      (event) =>
+        event.payload.type === 'delivery.started' &&
+        event.payload.deliveryId === pending.deliveryId,
+    )?.sequence
+    if (!deliverySequence) return
+    const committed = this.engine.events.some(
+      (event) =>
+        event.sequence > deliverySequence &&
+        event.payload.type === 'action.submitted' &&
+        event.payload.playerId === playerId &&
+        JSON.stringify(event.payload.action) === JSON.stringify(pending.action),
+    )
+    if (committed) {
+      this.#options.repository.playerSessions.clearPendingAction(
+        this.engine.state.matchId,
+        playerId,
+      )
+    }
   }
 }

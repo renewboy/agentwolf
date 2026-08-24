@@ -50,6 +50,7 @@ export const TrajectoryTurnSchema = z.object({
   visibleEventSequences: z.array(z.number().int().positive()).default([]),
   gameStatus: z.enum(['draft', 'starting', 'running', 'paused', 'ended']).nullable().default(null),
   pausedReasonAtRender: z.string().nullable().default(null),
+  continuation: z.boolean().default(false),
   status: TrajectoryTurnStatusSchema,
   startedAt: z.string().datetime(),
   completedAt: z.string().datetime().nullable(),

@@ -181,6 +181,7 @@ export class MatchManager {
         config: this.#options.config,
         mailbox: this.#mailbox,
         trajectory: this.#options.trajectories.recorder(id),
+        restored: true,
         ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
       })
       this.#active.set(id, runtime)

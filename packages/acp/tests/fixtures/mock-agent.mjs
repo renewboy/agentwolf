@@ -1,4 +1,6 @@
 import { Readable, Writable } from 'node:stream'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { PROTOCOL_VERSION, agent, methods, ndJsonStream } from '@agentclientprotocol/sdk'
 
 const modelOption = (currentValue = 'mock-default') => ({
@@ -13,7 +15,30 @@ const modelOption = (currentValue = 'mock-default') => ({
   ],
 })
 
-const sessions = new Set()
+const storePath = resolve(process.cwd(), '.mock-agent-sessions.json')
+
+function readStore() {
+  try {
+    return JSON.parse(readFileSync(storePath, 'utf8'))
+  } catch {
+    return { sessions: [], newCount: 0, resumeCount: 0, lastResumeMcpServers: [] }
+  }
+}
+
+function writeStore(store) {
+  writeFileSync(storePath, JSON.stringify(store))
+}
+
+function sessionResponse() {
+  return {
+    modes: {
+      currentModeId: 'read-only',
+      availableModes: [{ id: 'read-only', name: 'Read only' }],
+    },
+    configOptions: [modelOption()],
+  }
+}
+
 let promptIndex = 0
 const promptDelayMs = Math.max(
   0,
@@ -22,27 +47,37 @@ const promptDelayMs = Math.max(
 const app = agent({ name: 'AgentWolf mock agent' })
   .onRequest(methods.agent.initialize, () => ({
     protocolVersion: PROTOCOL_VERSION,
-    agentCapabilities: {},
+    agentCapabilities:
+      process.env['AGENTWOLF_MOCK_DISABLE_RESUME'] === 'true'
+        ? {}
+        : { loadSession: true, sessionCapabilities: { resume: {}, close: {} } },
     agentInfo: { name: 'agentwolf-mock', version: '1.0.0' },
   }))
   .onRequest(methods.agent.session.new, () => {
-    const sessionId = `mock-session-${sessions.size + 1}`
-    sessions.add(sessionId)
+    const store = readStore()
+    const sessionId = `mock-session-${store.sessions.length + 1}`
+    store.sessions.push(sessionId)
+    store.newCount += 1
+    writeStore(store)
     return {
       sessionId,
-      modes: {
-        currentModeId: 'read-only',
-        availableModes: [{ id: 'read-only', name: 'Read only' }],
-      },
-      configOptions: [modelOption()],
+      ...sessionResponse(),
     }
+  })
+  .onRequest(methods.agent.session.resume, ({ params }) => {
+    const store = readStore()
+    if (!store.sessions.includes(params.sessionId)) throw new Error('Unknown session')
+    store.resumeCount += 1
+    store.lastResumeMcpServers = (params.mcpServers ?? []).map((server) => server.name)
+    writeStore(store)
+    return sessionResponse()
   })
   .onRequest(methods.agent.session.setConfigOption, ({ params }) => ({
     configOptions: [modelOption(String(params.value))],
   }))
   .onRequest(methods.agent.session.setMode, () => ({}))
   .onRequest(methods.agent.session.prompt, async ({ params, client }) => {
-    if (!sessions.has(params.sessionId)) throw new Error('Unknown session')
+    if (!readStore().sessions.includes(params.sessionId)) throw new Error('Unknown session')
     if (promptDelayMs > 0) {
       await new Promise((resolvePromise) => setTimeout(resolvePromise, promptDelayMs))
     }
@@ -141,11 +176,10 @@ const app = agent({ name: 'AgentWolf mock agent' })
     })
     return { stopReason: 'end_turn' }
   })
-  .onRequest(methods.agent.session.close, async ({ params }) => {
+  .onRequest(methods.agent.session.close, async () => {
     if (process.env['AGENTWOLF_MOCK_CLOSE_HANG'] === 'true') {
       await new Promise(() => undefined)
     }
-    sessions.delete(params.sessionId)
     return {}
   })
 

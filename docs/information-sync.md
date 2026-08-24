@@ -57,8 +57,7 @@ The action gateway marks a player Session as submitted immediately after accepti
 
 Sequential speech stages commit each speech immediately. The next speaker's prompt includes that
 speech once. A player's own committed speech remains in its long-lived Session and is omitted from
-later incremental prompts; every other required speech is delivered once. A replacement Session's
-foundation restores the complete visible history, including its own speech. A controlling
+later incremental prompts; every other required speech is delivered once. A controlling
 spectator's visible speeches enter its browser playback queue without delaying later speakers in
 the same stage. Complete sentences are queued from visible stream chunks; the committed event adds
 only the unspoken tail and supplies the event sequence. The final speech holds the following phase
@@ -95,7 +94,16 @@ failed tool result to the invoking Agent inside the active ACP turn, leave the a
 open, and do not change the engine, phase barrier, or delivery cursor. The Agent may submit a valid
 replacement call in that turn. A final ACP response without an accepted action fails the turn.
 
-Each delivery is recorded as in-flight before `session/prompt`. A final ACP response acknowledges its sequence range. A timeout, process exit, or transport error leaves the delivery uncertain. The first failure for one player and phase replaces failed sessions and retries from a visible-history foundation without replaying old prompts to the same Session. A repeated failure pauses for operator action. Manual recovery advances past already delivered uncertain ranges and sends the current structured action contract.
+Each delivery is recorded as in-flight before `session/prompt`. A final ACP response acknowledges
+its sequence range. A timeout, process exit, or transport error leaves the delivery uncertain. The
+first failure for one player and phase keeps the healthy connection or resumes the persisted
+Session ID in another ACP process. The delivered range advances once, and the same logical Session
+receives newly visible events plus the current stage and action contract. Other player Sessions are
+unchanged. A repeated failure or failed resume pauses for operator action.
+
+The action gateway persists an accepted structured action before returning its receipt. Recovery
+consumes that action without another Prompt or submission. Every seat receives one foundation for
+the Match; an interrupted foundation continues the preparation stage inside the same Session.
 
 Every foundation source history ends at the same sequence as its delivery cursor. The foundation
 renders each visible bootstrap fact exactly once: own role and abilities, complete roster, one

@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 
 export type PromptAssetId =
   | 'player-foundation'
+  | 'player-continuation'
+  | 'bootstrap-continuation'
   | 'speech-turn'
   | 'vote-turn'
   | 'wolf-vote-turn'
@@ -13,6 +15,8 @@ export type PromptAssetId =
 
 const promptFiles: Record<PromptAssetId, URL> = {
   'player-foundation': new URL('../prompts/player-foundation.md', import.meta.url),
+  'player-continuation': new URL('../prompts/player-continuation.md', import.meta.url),
+  'bootstrap-continuation': new URL('../prompts/bootstrap-continuation.md', import.meta.url),
   'speech-turn': new URL('../prompts/speech-turn.md', import.meta.url),
   'vote-turn': new URL('../prompts/vote-turn.md', import.meta.url),
   'wolf-vote-turn': new URL('../prompts/wolf-vote-turn.md', import.meta.url),

@@ -14,7 +14,7 @@
   custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
   redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
-  authorization, same-turn correction after a rejected structured action, guarded process-tree
+  authorization, durable Session binding and resume, accepted-action reconciliation, same-turn correction after a rejected structured action, guarded process-tree
   shutdown, parent-process loss, bounded protocol close, sync barriers, and streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
 - Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
@@ -66,6 +66,13 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
 
 `pnpm install` registers Lefthook when Git uses its normal hooks directory. A managed global `core.hooksPath` is preserved; on such hosts, run `pnpm check` explicitly and rely on the required GitHub Actions jobs.
 
+Work that requires an implementation plan writes one immutable acceptance record at
+`docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md`. A record contains `Scope` and `Evidence`, owns only
+that planned request's results, and is never refreshed with later aggregate counts. Small scoped
+requests and localized bug fixes report focused verification in their handoff and create neither a
+plan nor an acceptance record. Documentation gates reject a shared `docs/acceptance.md`, archive
+buckets, and paths outside the dated directory format.
+
 ## Acceptance scenarios
 
 1. Twelve fake agents complete a Standard match from first night through a winner with deterministic replay.
@@ -77,13 +84,13 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
 6. Guard, Witch, Hunter, and Idiot interactions match the selected board policies. A Witch with an
    available antidote sees only the regular Werewolf attack target; after losing the antidote she
    receives no death target through either events or action instructions.
-7. A killed or timed-out ACP process enters bounded recovery without resending an in-flight envelope; a repeated failure pauses the Match.
+7. A killed or timed-out ACP process continues or resumes the same persisted Session ID without resending an in-flight envelope; a repeated failure pauses the Match.
 8. Selecting 6, 9, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
 9. Agent Tool selection discovers its ACP model list, and only an advertised model can be selected in the settings UI.
 10. A rejected six-player Seer action returns its rule error to the same Agent turn, accepts a corrected tool call, reaches a settled inspection, and emits no pause or resume event.
-11. Recovery after server restart restores the event-sourced engine, starts replacement sessions with visible history, and continues the interrupted turn.
-12. A paused match exposes continue and delete controls; deletion removes the match, events, and delivery ledgers.
-13. A simulated uncertain ACP speech delivery replaces failed sessions once, commits the retried speech, and does not emit a transient pause event.
+11. Recovery after server restart restores the event-sourced engine, resumes every original Session ID without another foundation, and continues the interrupted turn.
+12. A paused match exposes continue and delete controls; deletion removes the match, events, delivery ledgers, and Session bindings.
+13. A simulated uncertain ACP speech delivery continues the affected Session once, commits the retried speech, leaves every other Session untouched, and does not emit a transient pause event.
 14. A transient spectator WebSocket closure keeps the last snapshot, refreshes over HTTP, and reconnects instead of replacing the page with an error.
 15. A daytime exile with last words completes the day and enters the next night before another day speech can begin.
 16. Every bootstrap prompt covers its delivery cursor, includes one detailed public rules entry for
@@ -135,7 +142,7 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
 34. A complete twelve-player capture reaches the same winner and semantic event digest through the
     engine and orchestration runners under recorded, forward, reverse, transient-delivery, restart,
     playback-complete, playback-skip, and playback-disconnect variants.
-35. A repeated uncertain delivery capture replaces Sessions once and pauses on the second failure
+35. A repeated uncertain delivery capture continues one stable Session once and pauses on the second failure
     at the same action boundary. Re-running a fixture and seed produces identical canonical output.
 36. Candidate approval strips source identifiers and full event bodies from the committed oracle;
     schema, secret, invariant, engine, orchestration, and determinism checks gate the corpus.

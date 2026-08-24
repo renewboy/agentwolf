@@ -13,7 +13,10 @@ export interface ScriptedSessionOptions {
   readonly prompts: Map<PlayerId, string[]>
   readonly mailbox: () => ActionMailbox
   readonly seerFault?: ScriptedSeerFault
-  readonly uncertainSpeechOnce?: { playerId: PlayerId; value: boolean }
+  readonly uncertainSpeechOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean }
+  readonly sessionStarts?: Array<{ playerId: PlayerId; resumeSessionId: string | null }>
+  readonly failResumeFor?: PlayerId
+  readonly uncertainBootstrapOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean }
 }
 
 export interface ScriptedSeerFault {
@@ -23,15 +26,30 @@ export interface ScriptedSeerFault {
 }
 
 export function scriptedSessionFactory(options: ScriptedSessionOptions): PlayerSessionFactory {
-  return async (session) =>
-    new ScriptedSession(
+  return async (session) => {
+    const expectedSessionId = `scripted-${session.playerId}`
+    if (session.resumeSessionId && session.resumeSessionId !== expectedSessionId) {
+      throw new Error(
+        `Expected resume of ${expectedSessionId}, received ${session.resumeSessionId}`,
+      )
+    }
+    options.sessionStarts?.push({
+      playerId: session.playerId,
+      resumeSessionId: session.resumeSessionId ?? null,
+    })
+    if (session.resumeSessionId && options.failResumeFor === session.playerId) {
+      throw new Error(`simulated resume failure for ${session.playerId}`)
+    }
+    return new ScriptedSession(
       session.playerId,
       extractToken(session.mcpServer),
       options.mailbox,
       options.prompts,
       options.seerFault,
       options.uncertainSpeechOnce,
+      options.uncertainBootstrapOnce,
     )
+  }
 }
 
 export class ScriptedSession implements PlayerSession {
@@ -41,8 +59,18 @@ export class ScriptedSession implements PlayerSession {
   readonly #mailbox: () => ActionMailbox
   readonly #prompts: Map<PlayerId, string[]>
   readonly #seerFault?: ScriptedSeerFault
-  readonly #uncertainSpeechOnce?: { playerId: PlayerId; value: boolean }
+  readonly #uncertainSpeechOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean }
+  readonly #uncertainBootstrapOnce?: {
+    playerId: PlayerId
+    value: boolean
+    disconnect?: boolean
+  }
   #night = 1
+  #closed = false
+
+  public get connected(): boolean {
+    return !this.#closed
+  }
 
   public constructor(
     playerId: PlayerId,
@@ -50,7 +78,8 @@ export class ScriptedSession implements PlayerSession {
     mailbox: () => ActionMailbox,
     prompts: Map<PlayerId, string[]>,
     seerFault?: ScriptedSeerFault,
-    uncertainSpeechOnce?: { playerId: PlayerId; value: boolean },
+    uncertainSpeechOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean },
+    uncertainBootstrapOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean },
   ) {
     this.#playerId = playerId
     this.#token = token
@@ -58,6 +87,7 @@ export class ScriptedSession implements PlayerSession {
     this.#prompts = prompts
     this.#seerFault = seerFault
     this.#uncertainSpeechOnce = uncertainSpeechOnce
+    this.#uncertainBootstrapOnce = uncertainBootstrapOnce
     this.sessionId = `scripted-${playerId}`
   }
 
@@ -70,12 +100,24 @@ export class ScriptedSession implements PlayerSession {
     history.push(prompt)
     this.#prompts.set(this.#playerId, history)
     this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
+    if (
+      prompt.includes('只回复“准备就绪”') &&
+      this.#uncertainBootstrapOnce?.value &&
+      this.#uncertainBootstrapOnce.playerId === this.#playerId
+    ) {
+      this.#uncertainBootstrapOnce.value = false
+      if (this.#uncertainBootstrapOnce.disconnect) this.#closed = true
+      const error = new Error('simulated bootstrap disconnect')
+      error.name = AcpDeliveryUncertainError.name
+      throw error
+    }
     if (prompt.includes('现在轮到你发言')) {
       if (
         this.#uncertainSpeechOnce?.value &&
         this.#uncertainSpeechOnce.playerId === this.#playerId
       ) {
         this.#uncertainSpeechOnce.value = false
+        if (this.#uncertainSpeechOnce.disconnect) this.#closed = true
         const error = new Error('simulated ACP disconnect')
         error.name = AcpDeliveryUncertainError.name
         throw error
@@ -117,6 +159,7 @@ export class ScriptedSession implements PlayerSession {
   }
 
   public close(): Promise<void> {
+    this.#closed = true
     return Promise.resolve()
   }
 }

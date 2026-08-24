@@ -8,7 +8,7 @@ pre-commit:
       glob: '*.{ts,tsx,js,mjs,json,css,md,yaml,yml}'
       run: pnpm exec oxfmt --check {staged_files}
     diff-check:
-      run: git diff --cached --check
+      run: git --no-pager diff --cached --check
 pre-push:
   commands:
     harness:

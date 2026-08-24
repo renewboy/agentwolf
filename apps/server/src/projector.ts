@@ -52,8 +52,11 @@ export interface ProjectMatchOptions {
 }
 
 function localizePausedReason(reason: string | null): string | null {
-  if (reason === 'server-restarted-session-not-replayable') {
-    return getCopy('errors.serverRestartedSessionNotReplayable')
+  if (
+    reason === 'server-restarted-session-resume-required' ||
+    reason === 'server-restarted-session-not-replayable'
+  ) {
+    return getCopy('errors.serverRestartedSessionResumeRequired')
   }
   return reason
 }
