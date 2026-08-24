@@ -5,13 +5,34 @@ function phase(value: string): ReturnType<typeof PhaseIdSchema.parse> {
   return PhaseIdSchema.parse(value)
 }
 
+const ability = (value: string) => AbilityIdSchema.parse(value)
+const werewolfKillAbilityId = ability('ability-werewolf-kill')
+const werewolfSelfDestructAbilityId = ability('ability-werewolf-self-destruct')
+const sheriffElectionInterrupts = [
+  {
+    kind: 'werewolf-self-destruct',
+    abilityId: werewolfSelfDestructAbilityId,
+    context: 'sheriff-election',
+  },
+] as const
+const daytimeInterrupts = [
+  {
+    kind: 'werewolf-self-destruct',
+    abilityId: werewolfSelfDestructAbilityId,
+    context: 'daytime',
+  },
+] as const
+
 const nodes: PhaseNode[] = [
   {
     id: phase('phase-night-guard'),
     labelKey: 'phases.nightGuard',
     mode: 'parallel',
-    actionType: 'night-action',
-    abilityId: AbilityIdSchema.parse('ability-guard-protect'),
+    action: {
+      type: 'night-action',
+      abilityIds: [ability('ability-guard-protect')],
+      visibility: 'actor',
+    },
     actorSelector: `role:${RoleIdSchema.parse('role-guard')}`,
     activeWhen: `role-alive:${RoleIdSchema.parse('role-guard')}`,
     edges: [{ to: phase('phase-night-wolf-council') }],
@@ -20,7 +41,7 @@ const nodes: PhaseNode[] = [
     id: phase('phase-night-wolf-council'),
     labelKey: 'phases.nightWolfCouncil',
     mode: 'sequential',
-    actionType: 'speech',
+    action: { type: 'speech', kind: 'wolf-council', visibility: 'werewolf-faction' },
     actorSelector: 'faction-alive:werewolf',
     edges: [{ to: phase('phase-night-wolf-vote') }],
   },
@@ -28,8 +49,12 @@ const nodes: PhaseNode[] = [
     id: phase('phase-night-wolf-vote'),
     labelKey: 'phases.nightWolfVote',
     mode: 'parallel',
-    actionType: 'vote',
-    abilityId: AbilityIdSchema.parse('ability-werewolf-kill'),
+    action: {
+      type: 'vote',
+      kind: 'wolf-kill',
+      visibility: 'werewolf-faction',
+      abilityId: werewolfKillAbilityId,
+    },
     actorSelector: 'faction-alive:werewolf',
     edges: [{ to: phase('phase-night-witch') }],
   },
@@ -37,7 +62,11 @@ const nodes: PhaseNode[] = [
     id: phase('phase-night-witch'),
     labelKey: 'phases.nightWitch',
     mode: 'parallel',
-    actionType: 'night-action',
+    action: {
+      type: 'night-action',
+      abilityIds: [ability('ability-witch-antidote'), ability('ability-witch-poison')],
+      visibility: 'actor',
+    },
     actorSelector: `role:${RoleIdSchema.parse('role-witch')}`,
     activeWhen: `role-alive:${RoleIdSchema.parse('role-witch')}`,
     edges: [{ to: phase('phase-night-seer') }],
@@ -46,8 +75,11 @@ const nodes: PhaseNode[] = [
     id: phase('phase-night-seer'),
     labelKey: 'phases.nightSeer',
     mode: 'parallel',
-    actionType: 'night-action',
-    abilityId: AbilityIdSchema.parse('ability-seer-inspect'),
+    action: {
+      type: 'night-action',
+      abilityIds: [ability('ability-seer-inspect')],
+      visibility: 'actor',
+    },
     actorSelector: `role:${RoleIdSchema.parse('role-seer')}`,
     activeWhen: `role-alive:${RoleIdSchema.parse('role-seer')}`,
     edges: [{ to: phase('phase-night-resolve') }],
@@ -66,7 +98,12 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-signup'),
     labelKey: 'phases.sheriffSignup',
     mode: 'parallel',
-    actionType: 'sheriff-action',
+    action: {
+      type: 'sheriff-action',
+      actions: ['join', 'decline'],
+      visibility: 'public',
+    },
+    interrupts: sheriffElectionInterrupts,
     actorSelector: 'publicly-alive',
     edges: [
       { to: phase('phase-sheriff-speech'), when: 'multiple-standing-candidates' },
@@ -77,7 +114,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-speech'),
     labelKey: 'phases.sheriffSpeech',
     mode: 'sequential',
-    actionType: 'speech',
+    action: { type: 'speech', kind: 'sheriff', visibility: 'public' },
+    interrupts: sheriffElectionInterrupts,
     actorSelector: 'standing-sheriff-candidates',
     edges: [{ to: phase('phase-sheriff-withdraw') }],
   },
@@ -85,7 +123,12 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-withdraw'),
     labelKey: 'phases.sheriffWithdraw',
     mode: 'parallel',
-    actionType: 'sheriff-action',
+    action: {
+      type: 'sheriff-action',
+      actions: ['withdraw', 'keep-running'],
+      visibility: 'public',
+    },
+    interrupts: sheriffElectionInterrupts,
     actorSelector: 'standing-sheriff-candidates',
     edges: [
       { to: phase('phase-sheriff-vote'), when: 'multiple-standing-candidates' },
@@ -96,7 +139,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-vote'),
     labelKey: 'phases.sheriffVote',
     mode: 'parallel',
-    actionType: 'vote',
+    action: { type: 'vote', kind: 'sheriff', visibility: 'actor' },
+    interrupts: sheriffElectionInterrupts,
     actorSelector: 'original-sheriff-noncandidates',
     edges: [
       { to: phase('phase-sheriff-runoff-speech'), when: 'sheriff-vote-tied' },
@@ -107,7 +151,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-runoff-speech'),
     labelKey: 'phases.sheriffRunoffSpeech',
     mode: 'sequential',
-    actionType: 'speech',
+    action: { type: 'speech', kind: 'runoff', visibility: 'public' },
+    interrupts: sheriffElectionInterrupts,
     actorSelector: 'sheriff-tied-candidates',
     edges: [{ to: phase('phase-sheriff-runoff-vote') }],
   },
@@ -115,7 +160,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-runoff-vote'),
     labelKey: 'phases.sheriffRunoffVote',
     mode: 'parallel',
-    actionType: 'vote',
+    action: { type: 'vote', kind: 'sheriff-runoff', visibility: 'actor' },
+    interrupts: sheriffElectionInterrupts,
     actorSelector: 'original-sheriff-noncandidates',
     edges: [{ to: phase('phase-sheriff-resolve') }],
   },
@@ -142,8 +188,12 @@ const nodes: PhaseNode[] = [
     id: phase('phase-sheriff-transfer'),
     labelKey: 'phases.sheriffTransfer',
     mode: 'parallel',
-    actionType: 'skill-trigger',
-    abilityId: AbilityIdSchema.parse('ability-sheriff-transfer'),
+    action: {
+      type: 'skill-trigger',
+      abilityIds: [ability('ability-sheriff-transfer')],
+      validation: 'sheriff-transfer',
+      visibility: 'public',
+    },
     actorSelector: 'dead-sheriff',
     edges: [
       { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
@@ -157,7 +207,12 @@ const nodes: PhaseNode[] = [
     id: phase('phase-death-triggers'),
     labelKey: 'phases.deathTriggers',
     mode: 'sequential',
-    actionType: 'skill-trigger',
+    action: {
+      type: 'skill-trigger',
+      abilityIds: [ability('ability-hunter-shot')],
+      validation: 'role-ability',
+      visibility: 'actor',
+    },
     actorSelector: 'pending-death-trigger-owners',
     edges: [
       { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
@@ -172,7 +227,7 @@ const nodes: PhaseNode[] = [
     id: phase('phase-last-words'),
     labelKey: 'phases.lastWords',
     mode: 'sequential',
-    actionType: 'speech',
+    action: { type: 'speech', kind: 'last-words', visibility: 'public' },
     actorSelector: 'last-words-eligible',
     edges: [
       { to: phase('phase-match-ended'), when: 'has-winner' },
@@ -184,7 +239,11 @@ const nodes: PhaseNode[] = [
     id: phase('phase-day-speech-order'),
     labelKey: 'phases.daySpeechOrder',
     mode: 'parallel',
-    actionType: 'sheriff-action',
+    action: {
+      type: 'sheriff-action',
+      actions: ['speech-clockwise', 'speech-counterclockwise'],
+      visibility: 'public',
+    },
     actorSelector: 'sheriff-or-system',
     edges: [{ to: phase('phase-day-speech') }],
   },
@@ -192,7 +251,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-day-speech'),
     labelKey: 'phases.daySpeech',
     mode: 'sequential',
-    actionType: 'speech',
+    action: { type: 'speech', kind: 'day', visibility: 'public' },
+    interrupts: daytimeInterrupts,
     actorSelector: 'day-speech-order',
     edges: [{ to: phase('phase-day-vote') }],
   },
@@ -200,7 +260,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-day-vote'),
     labelKey: 'phases.dayVote',
     mode: 'parallel',
-    actionType: 'vote',
+    action: { type: 'vote', kind: 'exile', visibility: 'actor' },
+    interrupts: daytimeInterrupts,
     actorSelector: 'eligible-voters',
     edges: [
       { to: phase('phase-day-runoff-speech'), when: 'exile-vote-tied' },
@@ -211,7 +272,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-day-runoff-speech'),
     labelKey: 'phases.dayRunoffSpeech',
     mode: 'sequential',
-    actionType: 'speech',
+    action: { type: 'speech', kind: 'runoff', visibility: 'public' },
+    interrupts: daytimeInterrupts,
     actorSelector: 'exile-tied-players',
     edges: [{ to: phase('phase-day-runoff-vote') }],
   },
@@ -219,7 +281,8 @@ const nodes: PhaseNode[] = [
     id: phase('phase-day-runoff-vote'),
     labelKey: 'phases.dayRunoffVote',
     mode: 'parallel',
-    actionType: 'vote',
+    action: { type: 'vote', kind: 'exile-runoff', visibility: 'actor' },
+    interrupts: daytimeInterrupts,
     actorSelector: 'eligible-runoff-voters',
     edges: [{ to: phase('phase-day-resolve') }],
   },

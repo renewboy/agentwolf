@@ -101,6 +101,26 @@ export class ResolutionAgenda {
   }
 }
 
+export function addAbilityEffects(
+  agenda: ResolutionAgenda,
+  state: GameState,
+  board: BoardManifest,
+  roles: RoleRegistry,
+  action: Extract<PlayerAction, { type: 'night-action' | 'skill-trigger' }>,
+): void {
+  const actor = state.players.get(action.actorId)
+  assertRule(actor?.roleId, `Action actor ${action.actorId} has no role`)
+  const { role, ability } = roles.ability(action.abilityId)
+  assertRule(role.id === actor.roleId, `${actor.name} does not own ${action.abilityId}`)
+  assertRule(
+    ability.actionTypes.includes(action.type),
+    `${action.abilityId} does not accept ${action.type}`,
+  )
+  const context = { state, board, action, actor }
+  ability.validate(context)
+  agenda.addAll(ability.effects(context))
+}
+
 export function effectsForActions(
   state: GameState,
   board: BoardManifest,
@@ -114,14 +134,8 @@ export function effectsForActions(
   const consumedAbilityIds: Array<{ playerId: PlayerId; abilityId: AbilityId }> = []
   for (const action of actions) {
     if (action.type !== 'night-action' && action.type !== 'skill-trigger') continue
-    const actor = state.players.get(action.actorId)
-    assertRule(actor?.roleId, `Action actor ${action.actorId} has no role`)
-    const { role, ability } = roles.ability(action.abilityId)
-    assertRule(role.id === actor.roleId, `${actor.name} does not own ${action.abilityId}`)
-    const context = { state, board, action, actor }
-    ability.validate(context)
-    agenda.addAll(ability.effects(context))
-    consumedAbilityIds.push({ playerId: actor.id, abilityId: action.abilityId })
+    addAbilityEffects(agenda, state, board, roles, action)
+    consumedAbilityIds.push({ playerId: action.actorId, abilityId: action.abilityId })
   }
   return { agenda, consumedAbilityIds }
 }

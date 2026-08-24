@@ -1,4 +1,4 @@
-import { AbilityIdSchema, RoleIdSchema } from '@agentwolf/contracts'
+import { AbilityIdSchema, RoleIdSchema, type PlayerId } from '@agentwolf/contracts'
 import { assertRule } from '../errors.js'
 import type { AbilityDefinition } from './base.js'
 import { Role } from './base.js'
@@ -17,11 +17,18 @@ export class WerewolfRole extends Role {
     {
       id: killAbilityId,
       labelKey: 'abilities.werewolfKill',
-      actionTypes: ['night-action'],
+      actionTypes: ['vote', 'night-action'],
       validate: (context) => {
-        assertRule(context.action.type === 'night-action', 'Werewolf kill is a night action')
-        assertRule(context.action.abilityId === killAbilityId, 'Unexpected werewolf ability')
-        const [targetId] = requireTargetCount(context, 1)
+        let targetId: PlayerId | null
+        if (context.action.type === 'vote') {
+          assertRule(context.action.kind === 'wolf-kill', 'Werewolf kill requires a wolf-kill vote')
+          targetId = context.action.targetId
+        } else {
+          assertRule(context.action.type === 'night-action', 'Werewolf kill is a night action')
+          assertRule(context.action.abilityId === killAbilityId, 'Unexpected werewolf ability')
+          targetId = requireTargetCount(context, 1)[0]
+        }
+        if (!targetId) return
         requireAliveTarget(context, targetId, { allowSelf: false })
         const target = context.state.players.get(targetId)
         assertRule(target?.faction !== 'werewolf', 'Werewolves cannot attack a werewolf')

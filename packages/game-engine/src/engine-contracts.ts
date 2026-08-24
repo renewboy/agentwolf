@@ -46,12 +46,13 @@ export interface TurnDescriptor {
   readonly phaseId: PhaseId
   readonly labelKey: string
   readonly mode: 'parallel' | 'sequential'
-  readonly actionType: NonNullable<PhaseNode['actionType']>
+  readonly actionType: NonNullable<PhaseNode['action']>['type']
   readonly actors: readonly PlayerId[]
   readonly speechKind?: Extract<PlayerAction, { type: 'speech' }>['kind']
   readonly voteKind?: Extract<PlayerAction, { type: 'vote' }>['kind']
-  readonly abilityId?: PhaseNode['abilityId']
+  readonly abilityId?: AbilityId
   readonly allowedAbilityIds?: readonly AbilityId[]
+  readonly interruptAbilityIds?: readonly AbilityId[]
 }
 
 export interface SubmitActionOptions {

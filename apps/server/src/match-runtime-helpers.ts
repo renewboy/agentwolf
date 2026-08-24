@@ -41,7 +41,7 @@ export function hasUncertainDelivery(error: unknown): boolean {
 export function interruptAbilityExpectation(
   state: GameState,
   playerId: PlayerId,
-  turn: Pick<TurnDescriptor, 'actionType' | 'phaseId'>,
+  turn: Pick<TurnDescriptor, 'interruptAbilityIds'>,
 ) {
   return state.players.get(playerId)?.roleId === 'role-werewolf' &&
     supportsWerewolfSelfDestruct(turn)
@@ -49,17 +49,8 @@ export function interruptAbilityExpectation(
     : {}
 }
 
-function supportsWerewolfSelfDestruct(
-  turn: Pick<TurnDescriptor, 'actionType' | 'phaseId'>,
-): boolean {
-  if (!['speech', 'vote', 'sheriff-action'].includes(turn.actionType)) return false
-  return (
-    turn.phaseId.startsWith('phase-sheriff-') ||
-    turn.phaseId === 'phase-day-speech' ||
-    turn.phaseId === 'phase-day-runoff-speech' ||
-    turn.phaseId === 'phase-day-vote' ||
-    turn.phaseId === 'phase-day-runoff-vote'
-  )
+function supportsWerewolfSelfDestruct(turn: Pick<TurnDescriptor, 'interruptAbilityIds'>): boolean {
+  return turn.interruptAbilityIds?.includes(v1AbilityIds.werewolfSelfDestruct) ?? false
 }
 
 export async function settleActions(

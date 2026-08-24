@@ -41,8 +41,17 @@ combines read-only built-ins with persisted custom definitions and compiles both
 classic manifest. Match creation stores the resolved name, composition, sheriff setting, victory
 policy, revision, and ruleset ID as an immutable snapshot; replay and recovery compile that
 snapshot rather than consulting the mutable catalog. A role is a concrete class implementing role
-metadata plus event handlers and action providers. Rule modules register phase transitions, action
-validators, resolution handlers, visibility rules, and victory evaluators.
+metadata and ability definitions. Each ability validates every action form that invokes it and
+produces effects for the shared resolution agenda. The grouped Werewolf ballot selects the regular
+attack target; the registered Werewolf kill ability validates that target and produces its damage
+effect. Immediate abilities such as self-destruct also settle their effects through the agenda
+before domain events are appended.
+
+Each interactive phase node declares one discriminated action contract containing its action type,
+speech or vote kind, allowed ability IDs or Sheriff actions, event visibility, and permitted
+ability interrupts. The engine and server turn descriptor consume that contract directly; phase
+IDs identify graph nodes and handler registration only. Rule modules register phase transitions,
+resolution handlers, visibility rules, and victory evaluators.
 
 A Character is public presentation metadata and is distinct from a game role. Custom boards store
 nullable Character IDs by seat; Match creation resolves board defaults and request overrides into
@@ -236,8 +245,8 @@ is a compatibility surface that requires an explicit expectation opt-in which th
 does not grant. Before acceptance, the action gateway validates actor, phase, ability, target Player
 IDs, cardinality, role state, and single-submission rules without changing engine state. A rejected
 call returns its reason as a failed tool result inside the same Agent turn and leaves the expectation
-open for a corrected call. Werewolf self-destruct is offered only in the sheriff
-and daytime phases accepted by the rule engine. Wolf council accepts natural discussion only and
+open for a corrected call. Werewolf self-destruct is offered only during the sheriff election and
+daytime speech or vote phases declared by the phase graph. Wolf council accepts natural discussion only and
 opens its structured `submit_vote` attack action in the following phase. The regular attack is not
 advertised as a callable night-action ability, and that vote phase explicitly rejects
 `submit_night_action`. Acceptance stores the action inside the current phase barrier and broadcasts

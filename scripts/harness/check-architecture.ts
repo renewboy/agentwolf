@@ -61,6 +61,38 @@ const gameEngineSource = (
 if (/\b(?:CharacterId|CharacterCard|CharacterCardSnapshot)\b/.test(gameEngineSource)) {
   errors.push('game-engine must not depend on Character persona data')
 }
+const actionValidator = await text(
+  files.find((path) => localPath(path) === 'packages/game-engine/src/action-validator.ts')!,
+)
+if (/['"]phase-[a-z0-9-]+['"]/.test(actionValidator)) {
+  errors.push('action-validator must read action semantics from PhaseNode, not phase ID literals')
+}
+const matchRuntimeHelpers = await text(
+  files.find((path) => localPath(path) === 'apps/server/src/match-runtime-helpers.ts')!,
+)
+if (/phaseId\.(?:includes|startsWith|endsWith)\(/.test(matchRuntimeHelpers)) {
+  errors.push('match-runtime helpers must read interrupt semantics from TurnDescriptor')
+}
+const damageAuthorityFiles = await Promise.all(
+  files
+    .filter(
+      (path) =>
+        localPath(path).startsWith('packages/game-engine/src/') &&
+        localPath(path) !== 'packages/game-engine/src/types.ts',
+    )
+    .map(async (path) => ({
+      path: localPath(path),
+      content: await text(path),
+    })),
+)
+for (const cause of ['werewolf', 'self-destruct']) {
+  const owners = damageAuthorityFiles
+    .filter(({ content }) => new RegExp(`cause\\s*:\\s*['"]${cause}['"]`).test(content))
+    .map(({ path }) => path)
+  if (owners.length !== 1 || owners[0] !== 'packages/game-engine/src/roles/werewolf.ts') {
+    errors.push(`${cause} damage effects must be defined only by roles/werewolf.ts`)
+  }
+}
 const roleFiles = files.filter((path) =>
   /packages\/game-engine\/src\/roles\/(?!base|helpers|registry)[^/]+\.ts$/.test(localPath(path)),
 )

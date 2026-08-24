@@ -6,7 +6,7 @@ import {
   type PlayerId,
 } from '@agentwolf/contracts'
 import { assertRule } from './errors.js'
-import { effectsForActions, v1AbilityIds } from './resolution.js'
+import { addAbilityEffects, effectsForActions, v1AbilityIds } from './resolution.js'
 import { appendFinalRoleReveals } from './role-reveal.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
 import { resolveDaySpeechOrder, sheriffCampaignOrder } from './speech-order.js'
@@ -83,12 +83,13 @@ function resolveNight(runtime: RuleRuntime): void {
     const source = [...runtime.state.players.values()].find(
       (player) => player.alive && player.faction === 'werewolf',
     )
-    agenda.add({
-      kind: 'damage',
-      priority: 400,
-      sourceId: source?.id ?? null,
-      targetId: runtime.state.nightAttackTargetId,
-      cause: 'werewolf',
+    assertRule(source, 'A resolved Werewolf attack requires a living Werewolf')
+    addAbilityEffects(agenda, runtime.state, runtime.board, runtime.roles, {
+      type: 'night-action',
+      matchId: runtime.state.matchId,
+      actorId: source.id,
+      abilityId: v1AbilityIds.werewolfKill,
+      targetIds: [runtime.state.nightAttackTargetId],
     })
   }
   const result = agenda.settle(runtime.state, runtime.board, runtime.roles)

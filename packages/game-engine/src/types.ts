@@ -34,12 +34,49 @@ export interface PhaseEdge {
 
 export type PhaseMode = 'automatic' | 'parallel' | 'sequential'
 
+export type PhaseActionVisibility = 'public' | 'actor' | 'werewolf-faction'
+
+export type PhaseActionDefinition =
+  | {
+      readonly type: 'speech'
+      readonly kind: Extract<PlayerAction, { type: 'speech' }>['kind']
+      readonly visibility: PhaseActionVisibility
+    }
+  | {
+      readonly type: 'vote'
+      readonly kind: Extract<PlayerAction, { type: 'vote' }>['kind']
+      readonly visibility: PhaseActionVisibility
+      readonly abilityId?: AbilityId
+    }
+  | {
+      readonly type: 'night-action'
+      readonly abilityIds: readonly AbilityId[]
+      readonly visibility: PhaseActionVisibility
+    }
+  | {
+      readonly type: 'sheriff-action'
+      readonly actions: readonly Extract<PlayerAction, { type: 'sheriff-action' }>['action'][]
+      readonly visibility: PhaseActionVisibility
+    }
+  | {
+      readonly type: 'skill-trigger'
+      readonly abilityIds: readonly AbilityId[]
+      readonly validation: 'role-ability' | 'sheriff-transfer'
+      readonly visibility: PhaseActionVisibility
+    }
+
+export interface PhaseInterruptDefinition {
+  readonly kind: 'werewolf-self-destruct'
+  readonly abilityId: AbilityId
+  readonly context: 'sheriff-election' | 'daytime'
+}
+
 export interface PhaseNode {
   readonly id: PhaseId
   readonly labelKey: string
   readonly mode: PhaseMode
-  readonly actionType?: PlayerAction['type']
-  readonly abilityId?: AbilityId
+  readonly action?: PhaseActionDefinition
+  readonly interrupts?: readonly PhaseInterruptDefinition[]
   readonly actorSelector?: string
   readonly activeWhen?: string
   readonly edges: readonly PhaseEdge[]

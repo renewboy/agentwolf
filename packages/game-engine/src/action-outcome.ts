@@ -58,7 +58,11 @@ export function appendActionOutcome({
     }
     return
   }
-  if (action.type === 'skill-trigger' && node.id === 'phase-sheriff-transfer') {
+  if (
+    action.type === 'skill-trigger' &&
+    node.action?.type === 'skill-trigger' &&
+    node.action.validation === 'sheriff-transfer'
+  ) {
     append(
       {
         type: 'sheriff.transferred',

@@ -2,8 +2,9 @@
 
 ## Test layers
 
-- Unit tests cover role classes, resolution priorities, wolf no-kill and replay-stable tie
-  selection, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
+- Unit tests cover role classes, production ability-effect dispatch, resolution priorities, wolf
+  no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
+  changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
   role-effect catalog coverage, custom-board validation, phase transitions, speech
   sanitization, nickname uniqueness, event reduction, and visibility projection.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
@@ -104,9 +105,10 @@ records by indexed Turn ID, so the default parallel coverage gate runs without a
     transform.
 26. Normal speech rejects the compatibility `submit_speech` tool and commits the ACP response;
     rendered speech prompts contain their versioned public-fact and phase-specific constraints.
-27. Wolf council exposes no self-destruct interrupt or premature night-action contract, while
-    sheriff and daytime Werewolves receive the exact self-destruct ability ID accepted by the
-    engine. The following wolf attack stage accepts only `submit_vote`, explicitly forbids
+27. Wolf council and post-death Sheriff transfer expose no self-destruct interrupt or premature
+    night-action contract, while sheriff-election and daytime speech or vote turns for living
+    Werewolves receive the exact self-destruct ability ID accepted by the engine. The following wolf
+    attack stage accepts only `submit_vote`, explicitly forbids
     `submit_night_action`, offers `targetPlayerId: null` as no-kill, resolves no-kill only by strict
     plurality, chooses a replay-stable player target on a highest-vote tie, and keeps the bootstrap
     callable-ability list free of the regular attack ID.

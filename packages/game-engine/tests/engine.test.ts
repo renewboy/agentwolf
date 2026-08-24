@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   GameEngine,
+  createV1RoleRegistry,
   guardBoard,
   sheriffCampaignOrder,
   sixPlayerBoard,
@@ -98,7 +99,9 @@ describe('GameEngine', () => {
   })
 
   it('rejects a wolf-kill vote that targets a werewolf teammate', () => {
-    const engine = createManualEngine(sixPlayerBoard)
+    const roles = createV1RoleRegistry()
+    const validateKill = vi.spyOn(roles.ability(v1AbilityIds.werewolfKill).ability, 'validate')
+    const engine = createManualEngine(sixPlayerBoard, roles)
     const [firstWolf, secondWolf] = actorsWithRole(engine, 'role-werewolf')
     if (!firstWolf || !secondWolf) throw new Error('Expected two werewolves')
     engine.start()
@@ -127,6 +130,20 @@ describe('GameEngine', () => {
     )
     expect(engine.snapshot()).toEqual(beforeValidation)
     expect(() => engine.submit(invalidAction)).toThrow('Werewolves cannot attack a werewolf')
+    expect(validateKill).toHaveBeenCalledTimes(2)
+  })
+
+  it('resolves the selected wolf attack through the registered Werewolf ability', () => {
+    const roles = createV1RoleRegistry()
+    const killEffects = vi.spyOn(roles.ability(v1AbilityIds.werewolfKill).ability, 'effects')
+    const engine = createManualEngine(standardBoard, roles)
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+
+    engine.start()
+    playNight(engine, { wolfTargetId: targetId })
+
+    expect(killEffects).toHaveBeenCalledOnce()
+    expect(engine.state.pendingDeaths.get(targetId)?.causes).toEqual(['werewolf'])
   })
 
   it('resolves a strict no-kill plurality as an intentional empty attack', () => {
@@ -471,7 +488,12 @@ describe('GameEngine', () => {
   })
 
   it('interrupts sheriff election when a werewolf self-destructs', () => {
-    const engine = createManualEngine(standardBoard)
+    const roles = createV1RoleRegistry()
+    const selfDestructEffects = vi.spyOn(
+      roles.ability(v1AbilityIds.werewolfSelfDestruct).ability,
+      'effects',
+    )
+    const engine = createManualEngine(standardBoard, roles)
     const wolfId = actorsWithRole(engine, 'role-werewolf')[0]!
     engine.start()
     playNight(engine, { wolfTargetId: null })
@@ -486,6 +508,7 @@ describe('GameEngine', () => {
     })
 
     expect(engine.state.sheriff.badgeLost).toBe(true)
+    expect(selfDestructEffects).toHaveBeenCalledOnce()
     expect(engine.state.players.get(wolfId)?.alive).toBe(false)
     expect(engine.state.phaseId).toBe('phase-last-words')
     engine.submit({

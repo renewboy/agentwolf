@@ -8,7 +8,9 @@ per-feature run narratives live under `docs/acceptance/archive/`; see the archiv
 
 ## Deterministic application checks
 
-- 117 unit and integration scenarios across 32 test files passed, including the twelve built-in
+- 125 unit and integration scenarios across 33 test files passed, including registered Werewolf
+  attack and self-destruct effect dispatch, explicit phase action contracts that remain stable
+  across phase-ID changes, the twelve built-in
   Character cards and portraits, full-ability Character prompting, Character
   copy/edit/upload/reference protection, board Character defaults and Match overrides, immutable
   Character snapshots, exact bootstrap teammate knowledge, guarded ACP process trees,
@@ -21,9 +23,9 @@ per-feature run narratives live under `docs/acceptance/archive/`; see the archiv
   orchestration project-root validation, role-effect projection, bounded transport auto-recovery,
   cross-restart engine and Session recovery, speech-playback phase boundaries, deterministic day
   order, terminal Session projection, and 6/9/12-player board validation.
-- Coverage passed at 89.02% lines, 86.21% statements, 91.00% functions, and 75.33% branches over
+- Coverage passed at 89.44% lines, 86.75% statements, 91.37% functions, and 75.63% branches over
   rule, ACP, asset, and server production sources.
-- Sixteen Chromium acceptance scenarios passed: Character library copy/edit and PNG-to-WebP upload,
+- Eighteen Chromium acceptance scenarios passed: Character library copy/edit and PNG-to-WebP upload,
   repeated board Character defaults, duplicate-nickname blocking, custom-board
   create/edit/select/delete with complete role colors, Agent Profile metadata layout and ordering,
   global speech settings, 6/9/12-player setup, spectator model and visibility-safe role projection,

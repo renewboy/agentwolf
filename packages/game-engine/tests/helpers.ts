@@ -10,6 +10,7 @@ import {
   v1AbilityIds,
   type BoardManifest,
   type EnginePlayerInput,
+  type RoleRegistry,
 } from '../src/index.js'
 
 function createPlayers(board: BoardManifest): EnginePlayerInput[] {
@@ -25,7 +26,7 @@ function createPlayers(board: BoardManifest): EnginePlayerInput[] {
   }))
 }
 
-export function createManualEngine(board: BoardManifest): GameEngine {
+export function createManualEngine(board: BoardManifest, roles?: RoleRegistry): GameEngine {
   let tick = 0
   return GameEngine.create({
     matchId: MatchIdSchema.parse('match-test-001'),
@@ -34,6 +35,7 @@ export function createManualEngine(board: BoardManifest): GameEngine {
     roleAssignment: 'manual',
     seed: 17,
     clock: () => new Date(Date.UTC(2026, 7, 22, 0, 0, tick++)),
+    ...(roles ? { roles } : {}),
   })
 }
 

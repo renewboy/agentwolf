@@ -10,8 +10,9 @@ import {
 } from '@agentwolf/contracts'
 import {
   expectedVoteKind,
-  isSelfDestructInterrupt,
   normalizeTurnAction,
+  phaseActionVisibility,
+  phaseInterruptForAction,
   phaseSpeechKind,
   turnActionVisibility,
   validateTurnAction,
@@ -26,10 +27,17 @@ import type {
 } from './engine-contracts.js'
 import { assertRule } from './errors.js'
 import { prepareMatchSetup } from './match-setup.js'
+import { ResolutionAgenda } from './resolution.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
 import { createV1RoleRegistry, type RoleRegistry } from './roles/registry.js'
 import { emptyGameState, reduceGameEvent } from './state.js'
-import type { BoardManifest, GameSnapshot, GameState, PhaseNode } from './types.js'
+import type {
+  BoardManifest,
+  GameSnapshot,
+  GameState,
+  PhaseInterruptDefinition,
+  PhaseNode,
+} from './types.js'
 
 export class GameEngine {
   readonly #board: BoardManifest
@@ -124,28 +132,29 @@ export class GameEngine {
   public currentTurn(): TurnDescriptor | null {
     if (this.#state.status !== 'running' || !this.#state.phaseId) return null
     const node = this.#phaseNode(this.#state.phaseId)
-    if (node.mode === 'automatic' || !node.actionType) return null
+    const definition = node.action
+    if (node.mode === 'automatic' || !definition) return null
     const actors = this.expectedActors()
-    const allowedAbilityIds = new Set(node.abilityId ? [node.abilityId] : [])
-    if (node.actionType === 'night-action' || node.actionType === 'skill-trigger') {
-      for (const actorId of actors) {
-        const roleId = this.#state.players.get(actorId)?.roleId
-        if (!roleId) continue
-        for (const ability of this.#roles.role(roleId).abilities) {
-          if (ability.actionTypes.includes(node.actionType)) allowedAbilityIds.add(ability.id)
-        }
-      }
-    }
+    const abilityId = definition.type === 'vote' ? definition.abilityId : undefined
+    const allowedAbilityIds =
+      definition.type === 'night-action' || definition.type === 'skill-trigger'
+        ? definition.abilityIds
+        : abilityId
+          ? [abilityId]
+          : []
     return {
       phaseId: node.id,
       labelKey: node.labelKey,
       mode: node.mode,
-      actionType: node.actionType,
+      actionType: definition.type,
       actors,
-      ...(node.actionType === 'speech' ? { speechKind: phaseSpeechKind(node.id) } : {}),
-      ...(node.actionType === 'vote' ? { voteKind: expectedVoteKind(node.id) } : {}),
-      ...(node.abilityId ? { abilityId: node.abilityId } : {}),
-      ...(allowedAbilityIds.size > 0 ? { allowedAbilityIds: [...allowedAbilityIds] } : {}),
+      ...(definition.type === 'speech' ? { speechKind: phaseSpeechKind(node) } : {}),
+      ...(definition.type === 'vote' ? { voteKind: expectedVoteKind(node) } : {}),
+      ...(abilityId ? { abilityId } : {}),
+      ...(allowedAbilityIds.length > 0 ? { allowedAbilityIds } : {}),
+      ...(node.interrupts?.length
+        ? { interruptAbilityIds: node.interrupts.map((interrupt) => interrupt.abilityId) }
+        : {}),
     }
   }
 
@@ -184,13 +193,14 @@ export class GameEngine {
   public submit(input: PlayerAction, options: SubmitActionOptions = {}): readonly GameEvent[] {
     const from = this.#events.length
     const action = PlayerActionSchema.parse(input)
-    const node = this.#validateSubmittedAction(action)
+    const { node, interrupt } = this.#validateSubmittedAction(action)
     assertRule(
       !options.deferContinuation || action.type === 'speech',
       'Only speech actions can defer phase continuation',
     )
-    if (isSelfDestructInterrupt(node, action)) {
-      this.#submitSelfDestruct(node, action)
+    if (interrupt) {
+      assertRule(action.type === 'skill-trigger', 'An ability interrupt requires a skill trigger')
+      this.#submitSelfDestruct(interrupt, action)
       this.#drive()
       return this.#events.slice(from)
     }
@@ -396,43 +406,56 @@ export class GameEngine {
     }
   }
 
-  #validateSubmittedAction(action: PlayerAction): PhaseNode {
+  #validateSubmittedAction(action: PlayerAction): {
+    readonly node: PhaseNode
+    readonly interrupt: PhaseInterruptDefinition | null
+  } {
     assertRule(this.#state.status === 'running', 'Match is not accepting actions')
     assertRule(this.#state.phaseId, 'Match has no active phase')
     const node = this.#phaseNode(this.#state.phaseId)
     this.#validateActor(node, action.actorId)
-    if (isSelfDestructInterrupt(node, action)) {
+    const interrupt = phaseInterruptForAction(node, action)
+    if (interrupt) {
+      assertRule(action.type === 'skill-trigger', 'An ability interrupt requires a skill trigger')
       const actor = this.#state.players.get(action.actorId)
       assertRule(actor?.roleId, `Self-destruct actor ${action.actorId} has no role`)
       const entry = this.#roles.ability(action.abilityId)
       assertRule(entry.role.id === actor.roleId, `${actor.name} cannot self-destruct`)
+      assertRule(
+        entry.ability.actionTypes.includes(action.type),
+        `${action.abilityId} does not accept ${action.type}`,
+      )
       entry.ability.validate({ state: this.#state, board: this.#board, action, actor })
     } else {
       validateTurnAction(node, action, this.#state, this.#board, this.#roles)
     }
-    return node
+    return { node, interrupt }
   }
 
   #submitSelfDestruct(
-    node: PhaseNode,
+    interrupt: PhaseInterruptDefinition,
     action: Extract<PlayerAction, { type: 'skill-trigger' }>,
   ): void {
     const actor = this.#state.players.get(action.actorId)
     assertRule(actor?.roleId, `Self-destruct actor ${action.actorId} has no role`)
     const entry = this.#roles.ability(action.abilityId)
     assertRule(entry.role.id === actor.roleId, `${actor.name} cannot self-destruct`)
-    entry.ability.validate({ state: this.#state, board: this.#board, action, actor })
     this.#append({ type: 'action.submitted', playerId: actor.id, action }, visibility.public)
     const count = (actor.roleState.abilityUses[action.abilityId] ?? 0) + 1
     this.#append(
       { type: 'ability.used', playerId: actor.id, abilityId: action.abilityId, count },
       visibility.players([actor.id]),
     )
+    const agenda = new ResolutionAgenda()
+    agenda.addAll(entry.ability.effects({ state: this.#state, board: this.#board, action, actor }))
+    const result = agenda.settle(this.#state, this.#board, this.#roles)
+    const death = result.pendingDeaths.find((pending) => pending.playerId === actor.id)
+    assertRule(death, 'Self-destruct ability must resolve the actor death')
     this.#append(
       {
         type: 'player.died',
         playerId: actor.id,
-        causes: ['self-destruct'],
+        causes: [...death.causes],
         announced: true,
       },
       visibility.god,
@@ -448,7 +471,7 @@ export class GameEngine {
     )
     this.#append({ type: 'day.interrupted', reason: 'self-destruct' }, visibility.public)
     if (
-      node.id.startsWith('phase-sheriff-') &&
+      interrupt.context === 'sheriff-election' &&
       this.#board.policies.sheriffExplosion === 'single-explosion-loses-badge'
     ) {
       this.#append(
@@ -459,7 +482,7 @@ export class GameEngine {
 
     if (this.#rules.evaluate('has-winner', this.#runtime())) {
       this.#enterPhase(PhaseIdSchema.parse('phase-match-ended'))
-    } else if (node.id.startsWith('phase-sheriff-')) {
+    } else if (interrupt.context === 'sheriff-election') {
       this.#enterPhase(PhaseIdSchema.parse('phase-day-announcement'))
     } else if (this.#state.sheriff.holderId === actor.id) {
       this.#enterPhase(PhaseIdSchema.parse('phase-sheriff-transfer'))
@@ -469,11 +492,10 @@ export class GameEngine {
   }
 
   #announceActiveSpeech(node: PhaseNode): void {
-    if (node.actionType !== 'speech') return
+    if (node.action?.type !== 'speech') return
     const playerId = this.activeActor()
     if (!playerId) return
-    const eventVisibility =
-      node.id === 'phase-night-wolf-council' ? visibility.faction('werewolf') : visibility.public
+    const eventVisibility = phaseActionVisibility(node, playerId)
     const lastPhaseChange = this.#events.findLastIndex(
       (event) => event.payload.type === 'phase.changed',
     )
@@ -486,13 +508,10 @@ export class GameEngine {
     if (
       previous?.type === 'speech.started' &&
       previous.playerId === playerId &&
-      previous.kind === phaseSpeechKind(node.id)
+      previous.kind === phaseSpeechKind(node)
     ) {
       return
     }
-    this.#append(
-      { type: 'speech.started', playerId, kind: phaseSpeechKind(node.id) },
-      eventVisibility,
-    )
+    this.#append({ type: 'speech.started', playerId, kind: phaseSpeechKind(node) }, eventVisibility)
   }
 }

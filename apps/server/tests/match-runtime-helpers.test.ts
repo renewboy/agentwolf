@@ -79,20 +79,23 @@ describe('model action instructions', () => {
     expect(instruction).toContain('`player-2`')
     expect(instruction).not.toContain('`player-6`')
 
-    const werewolfSpeech = actionInstructionFor(
-      { ...campaign, phaseId: PhaseIdSchema.parse('phase-day-speech'), speechKind: 'day' },
-      {
-        board: sixPlayerBoard,
-        state: engine.state,
-        playerId: actorId,
-        speechCharacterLimit: 360,
-      },
-    )
+    const daySpeech: TurnDescriptor = {
+      ...campaign,
+      phaseId: PhaseIdSchema.parse('phase-day-speech'),
+      speechKind: 'day',
+      interruptAbilityIds: [v1AbilityIds.werewolfSelfDestruct],
+    }
+    const werewolfSpeech = actionInstructionFor(daySpeech, {
+      board: sixPlayerBoard,
+      state: engine.state,
+      playerId: actorId,
+      speechCharacterLimit: 360,
+    })
     expect(werewolfSpeech).toContain('ability-werewolf-self-destruct')
     expect(werewolfSpeech).toContain('360 字以内')
     expect(
       actionInstructionFor(
-        { ...campaign, phaseId: PhaseIdSchema.parse('phase-day-speech'), speechKind: 'day' },
+        daySpeech,
         {
           board: sixPlayerBoard,
           state: engine.state,
@@ -132,12 +135,10 @@ describe('model action instructions', () => {
     expect(wolfKillInstruction).toContain('不得')
     expect(actionInstructionFor(wolfKill, undefined, 12)).toBe('')
     expect(interruptAbilityExpectation(engine.state, actorId, wolfCouncil)).toEqual({})
-    expect(
-      interruptAbilityExpectation(engine.state, actorId, {
-        ...campaign,
-        phaseId: PhaseIdSchema.parse('phase-day-speech'),
-      }),
-    ).toEqual({ interruptAbilityIds: ['ability-werewolf-self-destruct'] })
+    expect(interruptAbilityExpectation(engine.state, actorId, daySpeech)).toEqual({
+      interruptAbilityIds: ['ability-werewolf-self-destruct'],
+    })
+    expect(interruptAbilityExpectation(engine.state, actorId, transfer)).toEqual({})
   })
 
   it('hides every death target from a Witch after the antidote is unavailable', () => {
