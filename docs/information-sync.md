@@ -69,6 +69,10 @@ Natural speech uses the ACP reply stream rather than an action tool. Every speec
 announced deaths, living state, vote results, and phase results as fixed public facts while still
 allowing strategic claims about identity, private information, and judgment. Wolf council prompts
 accept discussion only; the attack target is requested later through the parallel vote barrier.
+The direct-speech stream ends at an embedded ACP role boundary or, once clean speech exists, the
+first action-tool update. Only one clean speech segment is broadcast and committed; a rejected tool
+may be followed by a clean same-turn correction when no speech preceded it. Other generated text
+remains available in the raw trajectory but cannot enter a Match event.
 No-kill is represented by a null wolf ballot and wins only when it strictly outpolls every player
 target. A highest-vote tie selects one of the tied player targets with a replay-stable random
 choice. The detailed ballot remains sealed to Werewolf and god projections; the Witch receives
@@ -93,6 +97,8 @@ Structured action calls are validated before acceptance. Schema and game-rule re
 failed tool result to the invoking Agent inside the active ACP turn, leave the action expectation
 open, and do not change the engine, phase barrier, or delivery cursor. The Agent may submit a valid
 replacement call in that turn. A final ACP response without an accepted action fails the turn.
+When an interrupt ends a parallel phase, accepted actions that did not enter the engine are removed
+from durable Session state before the next phase can prompt those players.
 
 Each delivery is recorded as in-flight before `session/prompt`. A final ACP response acknowledges
 its sequence range. A timeout, process exit, or transport error leaves the delivery uncertain. The

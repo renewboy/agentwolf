@@ -218,13 +218,26 @@ function canonicalizeSpeechRecords(
       continue
     }
   }
-  const lastMessageByTurn = new Map<string, string>()
+  const messagesByTurn = new Map<string, TrajectoryRecord[]>()
   for (const record of records) {
-    if (record.kind === 'message') lastMessageByTurn.set(record.turnId, record.recordId)
+    if (record.kind !== 'message') continue
+    const messages = messagesByTurn.get(record.turnId) ?? []
+    messages.push(record)
+    messagesByTurn.set(record.turnId, messages)
+  }
+  const canonicalMessageByTurn = new Map<string, string>()
+  for (const [turnId, messages] of messagesByTurn) {
+    const canonical = canonicalByTurn.get(turnId)
+    if (!canonical) continue
+    const matching = messages.find((record) => {
+      const raw = sanitizeSpeech(record.text ?? '', players).text
+      return raw.length > 0 && (raw.includes(canonical) || canonical.startsWith(raw))
+    })
+    canonicalMessageByTurn.set(turnId, matching?.recordId ?? messages[0]!.recordId)
   }
   return records.map((record) => {
     const canonical = canonicalByTurn.get(record.turnId)
-    return canonical && lastMessageByTurn.get(record.turnId) === record.recordId
+    return canonical && canonicalMessageByTurn.get(record.turnId) === record.recordId
       ? { ...record, text: canonical }
       : record
   })

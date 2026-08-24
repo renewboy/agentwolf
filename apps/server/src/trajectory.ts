@@ -222,6 +222,7 @@ export class TrajectoryTurnRecorder {
   readonly #tools = new Map<string, TrajectoryRecord>()
   #turn: TrajectoryTurn
   #step = 1
+  #streamGeneration = 1
   #lastKind: TrajectoryRecord['kind'] | null = null
 
   public constructor(
@@ -258,6 +259,7 @@ export class TrajectoryTurnRecorder {
       case 'tool_call_update': {
         const callId = update.toolCallId
         const current = this.#tools.get(callId)
+        if (!current) this.#streamGeneration += 1
         const rawInput = 'rawInput' in update ? update.rawInput : undefined
         const rawOutput = 'rawOutput' in update ? update.rawOutput : undefined
         const input = rawInput === undefined ? undefined : safeJson(rawInput)
@@ -370,7 +372,8 @@ export class TrajectoryTurnRecorder {
 
   #mergeStream(key: string, kind: 'reasoning' | 'message', incoming: string): void {
     if (this.#lastKind === 'tool') this.#step += 1
-    const current = this.#streams.get(key)
+    const stepKey = `${this.#streamGeneration}:${key}`
+    const current = this.#streams.get(stepKey)
     const text = current ? mergeText(current.text ?? '', incoming) : incoming
     const bounded = truncate(text, contentLimit)
     const record = current
@@ -386,9 +389,9 @@ export class TrajectoryTurnRecorder {
       : this.#createRecord(kind, kind, {
           text: bounded.value,
           truncatedText: bounded.truncated,
-          recordId: `${this.#turn.turnId}:${kind}:${key}`,
+          recordId: `${this.#turn.turnId}:${kind}:${stepKey}`,
         })
-    this.#streams.set(key, record)
+    this.#streams.set(stepKey, record)
     this.#lastKind = kind
   }
 

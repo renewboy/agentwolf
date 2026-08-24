@@ -22,6 +22,7 @@ import {
 import { getCopy } from '@agentwolf/assets'
 import type { ActionExpectation, ActionMailbox } from './action-mailbox.js'
 import type { ContextEnvelope } from './context-renderer.js'
+import { prepareDirectSpeechResponse } from './direct-speech-response.js'
 import type { SqliteRepository } from './repository.js'
 import type { MatchTrajectoryRecorder, TrajectoryTurnRecorder } from './trajectory.js'
 
@@ -273,8 +274,13 @@ export class PlayerRuntime {
   ): Promise<PlayerAction> {
     const persistedAction = this.#pendingAction()
     if (persistedAction) {
-      expectation.validate?.(persistedAction)
-      return persistedAction
+      try {
+        if (persistedAction.type !== expectation.actionType) throw new Error('Stale action type')
+        expectation.validate?.(persistedAction)
+        return persistedAction
+      } catch {
+        this.actionSettled()
+      }
     }
     this.#options.mailbox.expect({
       ...expectation,
@@ -293,11 +299,20 @@ export class PlayerRuntime {
       },
     })
     try {
-      const { result, trajectory } = await this.#deliver(envelope, callbacks, {
-        kind: 'action',
-        phaseId,
-        actionType: expectation.actionType,
-      })
+      const speechCapture =
+        expectation.actionType === 'speech' ? prepareDirectSpeechResponse(callbacks) : null
+      const { result, trajectory } = await this.#deliver(
+        envelope,
+        speechCapture?.callbacks ?? callbacks,
+        {
+          kind: 'action',
+          phaseId,
+          actionType: expectation.actionType,
+        },
+      )
+      const directSpeechText = speechCapture?.response.finish(result.text) ?? result.text
+      const speechDiagnostic = speechCapture?.response.diagnostic
+      if (speechDiagnostic) trajectory.diagnostic(speechDiagnostic)
       const submitted = this.#options.mailbox.take(this.#options.matchId, this.#options.playerId)
       if (submitted) return submitted
       if (expectation.actionType !== 'speech' || !expectation.speechKind) {
@@ -308,7 +323,7 @@ export class PlayerRuntime {
         matchId: this.#options.matchId,
         actorId: this.#options.playerId,
         kind: expectation.speechKind,
-        text: result.text,
+        text: directSpeechText,
       })
       trajectory.action(action)
       return action
@@ -358,7 +373,7 @@ export class PlayerRuntime {
     if (this.#status === 'failed' || !this.#session?.connected) await this.recoverForRetry()
   }
 
-  public actionCommitted(): void {
+  public actionSettled(): void {
     this.#options.repository.playerSessions.clearPendingAction(
       this.#options.matchId,
       this.#options.playerId,

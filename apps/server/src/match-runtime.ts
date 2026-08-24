@@ -296,6 +296,7 @@ export class MatchRuntime {
           const rightSeat = this.engine.state.players.get(right.actorId)?.seat ?? 0
           return leftSeat - rightSeat
         })
+        let committedActionCount = 0
         for (const action of orderedActions) {
           if (this.engine.state.phaseId !== turn.phaseId) break
           const deferSpeechBoundary =
@@ -304,7 +305,8 @@ export class MatchRuntime {
             deferContinuation: deferSpeechBoundary,
           })
           this.#record(events)
-          this.#players.get(action.actorId)?.actionCommitted()
+          this.#players.get(action.actorId)?.actionSettled()
+          committedActionCount += 1
           if (deferSpeechBoundary) {
             const committed = findCommittedSpeech(events)
             if (!committed) throw new Error('Speech action did not produce a committed event')
@@ -312,6 +314,9 @@ export class MatchRuntime {
             if (this.#disposed) return
             this.#record(this.engine.continueAfterDeferredAction())
           }
+        }
+        for (const action of orderedActions.slice(committedActionCount)) {
+          this.#players.get(action.actorId)?.actionSettled()
         }
         this.#broadcastSnapshot()
       }

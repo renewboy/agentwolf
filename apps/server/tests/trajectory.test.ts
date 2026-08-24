@@ -106,6 +106,10 @@ describe('trajectory capture', () => {
       } as SessionUpdate)
     }
     turn.update({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: '工具前消息。' },
+    } as SessionUpdate)
+    turn.update({
       sessionUpdate: 'tool_call',
       toolCallId: 'call-1',
       title: 'submit_night_action',
@@ -115,6 +119,12 @@ describe('trajectory capture', () => {
         authorization: 'Bearer should-not-persist',
         nested: { apiKey: 'also-secret' },
       },
+    } as unknown as SessionUpdate)
+    turn.update({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'call-1',
+      status: 'completed',
+      rawOutput: { accepted: true },
     } as unknown as SessionUpdate)
     turn.permission(
       {
@@ -129,11 +139,9 @@ describe('trajectory capture', () => {
       true,
     )
     turn.update({
-      sessionUpdate: 'tool_call_update',
-      toolCallId: 'call-1',
-      status: 'completed',
-      rawOutput: { accepted: true },
-    } as unknown as SessionUpdate)
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: '工具后消息。' },
+    } as SessionUpdate)
     turn.update({
       sessionUpdate: 'usage_update',
       used: 1234,
@@ -167,8 +175,12 @@ describe('trajectory capture', () => {
     const reasoning = page.records.filter((record) => record.kind === 'reasoning')
     expect(reasoning).toHaveLength(1)
     expect(reasoning[0]?.text).toBe('分析目标目标，完成。')
+    const messages = page.records.filter((record) => record.kind === 'message')
+    expect(messages.map((record) => record.text)).toEqual(['工具前消息。', '工具后消息。'])
     const toolRecord = page.records.find((record) => record.kind === 'tool')
     expect(toolRecord).toMatchObject({ status: 'completed' })
+    expect(messages[0]!.ordinal).toBeLessThan(toolRecord!.ordinal)
+    expect(messages[1]!.ordinal).toBeGreaterThan(toolRecord!.ordinal)
     expect(toolRecord?.input).toContain('[REDACTED]')
     expect(toolRecord?.input).not.toContain('should-not-persist')
     expect(toolRecord?.input).not.toContain('also-secret')
@@ -367,8 +379,18 @@ describe('trajectory capture', () => {
     })
     speech.update({
       sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'user当前进入工具回合。' },
+    } as SessionUpdate)
+    speech.update({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'speech-rejected-tool',
+      title: 'submit_vote',
+      status: 'failed',
+    } as unknown as SessionUpdate)
+    speech.update({
+      sessionUpdate: 'agent_message_chunk',
       messageId: 'speech-1',
-      content: { type: 'text', text: '昨夜平安，先听发言' },
+      content: { type: 'text', text: 'player-2 昨夜平安夜，先听发言。' },
     } as SessionUpdate)
     const beforeActionRevision = server.repository.trajectoryRevision(match.id)
     const submittedSpeech = 'player-2 昨夜平安夜，先听发言。'
@@ -412,12 +434,12 @@ describe('trajectory capture', () => {
       kind: 'night',
       index: 1,
     })
-    expect(page.records.find((record) => record.kind === 'message')?.text).toBe(canonicalSpeech)
+    expect(
+      page.records.filter((record) => record.kind === 'message').map((record) => record.text),
+    ).toEqual(['user当前进入工具回合。', canonicalSpeech])
 
     const actionDelta = server.trajectories.changes(match.id, beforeActionRevision)
-    expect(actionDelta.records.find((record) => record.kind === 'message')?.text).toBe(
-      canonicalSpeech,
-    )
+    expect(actionDelta.records.some((record) => record.text === canonicalSpeech)).toBe(true)
   })
 })
 

@@ -143,6 +143,158 @@ describe('PlayerRuntime action status', () => {
     await runtime.close()
   })
 
+  it('commits only clean direct speech when the Agent continues into a rejected tool turn', async () => {
+    const matchId = MatchIdSchema.parse('match-runtime-clean-speech')
+    const playerId = PlayerIdSchema.parse('player-1')
+    const mailbox = new ActionMailbox()
+    const token = mailbox.issueToken(matchId, playerId)
+    const profile = AgentProfileSchema.parse({
+      id: 'profile-runtime-clean-speech',
+      name: 'Clean speech profile',
+      toolId: 'tool-runtime-clean-speech',
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+      createdAt: '2026-08-23T00:00:00.000Z',
+      updatedAt: '2026-08-23T00:00:00.000Z',
+    })
+    const tool = AgentToolSchema.parse({
+      id: 'tool-runtime-clean-speech',
+      name: 'Clean speech tool',
+      kind: 'custom',
+      command: 'clean-speech-tool',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+      builtIn: false,
+    })
+    let binding: PlayerSessionBinding | null = null
+    let ledger: unknown = null
+    const repository = {
+      getDeliveryLedger: () => ledger,
+      saveDeliveryLedger: (_matchId: string, _playerId: string, snapshot: unknown) => {
+        ledger = snapshot
+      },
+      playerSessions: {
+        get: () => binding,
+        reserve: () => {
+          binding = createPlayerSessionBinding({ matchId, playerId, profile, tool })
+          return binding
+        },
+        activate: (_matchId: string, _playerId: string, sessionId: string) => {
+          binding = withActivePlayerSession(binding!, sessionId)
+          return binding
+        },
+        savePendingAction: () => {
+          throw new Error('Direct speech must not persist a structured action')
+        },
+        clearPendingAction: () => {
+          binding = withoutPendingPlayerAction(binding!)
+          return binding
+        },
+      },
+      listTrajectoryTurns: () => [],
+    } as unknown as SqliteRepository
+    const diagnostics: string[] = []
+    const recordedActions: unknown[] = []
+    const trajectory = {
+      beginTurn: () => ({
+        update: () => undefined,
+        permission: () => undefined,
+        diagnostic: (value: string) => diagnostics.push(value),
+        action: (action: unknown) => recordedActions.push(action),
+        complete: () => undefined,
+        fail: () => undefined,
+      }),
+    } as unknown as MatchTrajectoryRecorder
+    const streamed: string[] = []
+    const rejectedReasons: string[] = []
+    const cleanSpeech = '各位好，我会认真听完这一轮。'
+    const generatedPrompt = 'user当前是第 1 天。裁判：进入警长竞选投票。'
+    const secondSpeech = '我再重复一次刚才的发言。'
+    const updates: AcpPromptResult['updates'][number][] = []
+    const runtime = new PlayerRuntime({
+      matchId,
+      playerId,
+      profile,
+      tool,
+      workspace: '/tmp/agentwolf-clean-speech',
+      token,
+      mcpUrl: 'http://127.0.0.1:4310/mcp',
+      mailbox,
+      repository,
+      trajectory,
+      deliveryEvents: {
+        started: () => undefined,
+        acknowledged: () => undefined,
+      },
+      sessionFactory: async () => ({
+        sessionId: 'session-runtime-clean-speech',
+        connected: true,
+        prompt: async (_prompt, _timeoutMs, callbacks = {}) => {
+          const emitText = (text: string): void => {
+            const update = {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text },
+            } as AcpPromptResult['updates'][number]
+            updates.push(update)
+            callbacks.onUpdate?.(update)
+            callbacks.onTextChunk?.(text)
+          }
+          emitText(`${cleanSpeech}\n\nus`)
+          emitText(`er当前是第 1 天。裁判：进入警长竞选投票。`)
+          const toolUpdate = {
+            sessionUpdate: 'tool_call',
+            toolCallId: 'rejected-vote',
+            title: 'submit_vote',
+            status: 'pending',
+          } as AcpPromptResult['updates'][number]
+          updates.push(toolUpdate)
+          callbacks.onUpdate?.(toolUpdate)
+          try {
+            mailbox.submitVote(token, 'player-2')
+          } catch (error) {
+            rejectedReasons.push(error instanceof Error ? error.message : String(error))
+          }
+          emitText(secondSpeech)
+          return {
+            text: `${cleanSpeech}\n\n${generatedPrompt}${secondSpeech}`,
+            stopReason: 'end_turn',
+            updates,
+          }
+        },
+        close: () => Promise.resolve(),
+      }),
+    })
+    await runtime.start()
+
+    const action = await runtime.takeTurn(
+      {
+        prompt: '现在轮到你发言。',
+        promptVersion: 19,
+        toSequence: 1,
+        visibleEvents: [],
+        gameStatus: 'running',
+        pausedReason: null,
+        continuation: false,
+      },
+      { matchId, playerId, actionType: 'speech', speechKind: 'sheriff' },
+      PhaseIdSchema.parse('phase-sheriff-speech'),
+      { onTextChunk: (chunk) => streamed.push(chunk) },
+    )
+
+    expect(action).toMatchObject({ type: 'speech', text: cleanSpeech })
+    expect(streamed.join('')).toBe(cleanSpeech)
+    expect(recordedActions).toEqual([
+      expect.objectContaining({ type: 'speech', text: cleanSpeech }),
+    ])
+    expect(rejectedReasons).toEqual(['The judge expects speech, not vote'])
+    expect(diagnostics).toEqual([
+      'Filtered embedded ACP role content or post-tool text from the direct speech response.',
+    ])
+    await runtime.close()
+  })
+
   it('keeps an accepted action durable when the Prompt transport fails', async () => {
     const matchId = MatchIdSchema.parse('match-runtime-durable-action')
     const playerId = PlayerIdSchema.parse('player-1')
@@ -240,7 +392,10 @@ describe('PlayerRuntime action status', () => {
             return connected
           },
           prompt: async () => {
-            if (!initial) return { text: '', stopReason: 'end_turn', updates: [] }
+            if (!initial) {
+              mailbox.submitVote(token, 'player-3')
+              return { text: '', stopReason: 'end_turn', updates: [] }
+            }
             mailbox.submitVote(token, 'player-2')
             connected = false
             throw new AcpDeliveryUncertainError('simulated response loss')
@@ -272,11 +427,35 @@ describe('PlayerRuntime action status', () => {
     expect(binding?.pendingAction?.action).toMatchObject({ type: 'vote', targetId: 'player-2' })
     expect(acknowledged).toHaveLength(1)
 
-    runtime.actionCommitted()
+    runtime.actionSettled()
     expect(binding?.pendingAction).toBeNull()
     await runtime.ensureReady()
     expect(starts).toEqual([null, 'session-runtime-durable-action'])
     expect(runtime.status).toBe('ready')
+
+    binding = withPendingPlayerAction(binding!, 'stale-sheriff-delivery', {
+      matchId,
+      actorId: playerId,
+      type: 'sheriff-action',
+      action: 'keep-running',
+    })
+    await expect(
+      runtime.takeTurn(
+        {
+          prompt: '提交当前投票。',
+          promptVersion: 19,
+          toSequence: 2,
+          visibleEvents: [],
+          gameStatus: 'running',
+          pausedReason: null,
+          continuation: false,
+        },
+        { matchId, playerId, actionType: 'vote', voteKind: 'exile' },
+        PhaseIdSchema.parse('phase-day-vote'),
+      ),
+    ).resolves.toMatchObject({ type: 'vote', targetId: 'player-3' })
+    expect(binding?.pendingAction?.action).toMatchObject({ type: 'vote', targetId: 'player-3' })
+    runtime.actionSettled()
     await runtime.close()
   })
 })

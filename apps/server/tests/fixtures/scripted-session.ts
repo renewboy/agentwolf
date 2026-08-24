@@ -17,6 +17,7 @@ export interface ScriptedSessionOptions {
   readonly sessionStarts?: Array<{ playerId: PlayerId; resumeSessionId: string | null }>
   readonly failResumeFor?: PlayerId
   readonly uncertainBootstrapOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean }
+  readonly sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean }
 }
 
 export interface ScriptedSeerFault {
@@ -48,6 +49,7 @@ export function scriptedSessionFactory(options: ScriptedSessionOptions): PlayerS
       options.seerFault,
       options.uncertainSpeechOnce,
       options.uncertainBootstrapOnce,
+      options.sheriffSelfDestructOnce,
     )
   }
 }
@@ -65,6 +67,7 @@ export class ScriptedSession implements PlayerSession {
     value: boolean
     disconnect?: boolean
   }
+  readonly #sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean }
   #night = 1
   #closed = false
 
@@ -80,6 +83,7 @@ export class ScriptedSession implements PlayerSession {
     seerFault?: ScriptedSeerFault,
     uncertainSpeechOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean },
     uncertainBootstrapOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean },
+    sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean },
   ) {
     this.#playerId = playerId
     this.#token = token
@@ -88,6 +92,7 @@ export class ScriptedSession implements PlayerSession {
     this.#seerFault = seerFault
     this.#uncertainSpeechOnce = uncertainSpeechOnce
     this.#uncertainBootstrapOnce = uncertainBootstrapOnce
+    this.#sheriffSelfDestructOnce = sheriffSelfDestructOnce
     this.sessionId = `scripted-${playerId}`
   }
 
@@ -131,8 +136,22 @@ export class ScriptedSession implements PlayerSession {
       return { text: '准备就绪', stopReason: 'end_turn', updates: [] }
     }
     const phase = latestPhase(prompt)
-    if (phase === 'sheriffSignup') this.#mailbox().submitSheriffAction(this.#token, 'decline')
-    else if (phase === 'nightWolfVote') {
+    if (phase === 'sheriffSignup') {
+      this.#mailbox().submitSheriffAction(
+        this.#token,
+        this.#sheriffSelfDestructOnce ? 'join' : 'decline',
+      )
+    } else if (phase === 'sheriffWithdraw') {
+      if (
+        this.#sheriffSelfDestructOnce?.value &&
+        this.#sheriffSelfDestructOnce.playerId === this.#playerId
+      ) {
+        this.#sheriffSelfDestructOnce.value = false
+        this.#mailbox().submitSkillTrigger(this.#token, 'ability-werewolf-self-destruct', null)
+      } else {
+        this.#mailbox().submitSheriffAction(this.#token, 'keep-running')
+      }
+    } else if (phase === 'nightWolfVote') {
       this.#mailbox().submitVote(this.#token, `player-${4 + this.#night}`)
     } else if (phase === 'dayVote') this.#mailbox().submitVote(this.#token, null)
     else if (phase === 'nightWitch') {
@@ -180,7 +199,14 @@ function lastNumber(text: string, pattern: RegExp): number | null {
 function latestPhase(prompt: string): string | null {
   if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
   if (prompt.includes('ability-witch-antidote')) return 'nightWitch'
-  const phases = ['sheriffSignup', 'nightWolfVote', 'dayVote', 'nightWitch', 'nightSeer'] as const
+  const phases = [
+    'sheriffSignup',
+    'sheriffWithdraw',
+    'nightWolfVote',
+    'dayVote',
+    'nightWitch',
+    'nightSeer',
+  ] as const
   const ranked = phases
     .map((phase) => ({ phase, index: prompt.lastIndexOf(getCopy(`phases.${phase}`)) }))
     .filter((entry) => entry.index >= 0)

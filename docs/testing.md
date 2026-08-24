@@ -15,7 +15,8 @@
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
   redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
   authorization, durable Session binding and resume, accepted-action reconciliation, same-turn correction after a rejected structured action, guarded process-tree
-  shutdown, parent-process loss, bounded protocol close, sync barriers, and streamed speech.
+  shutdown, parent-process loss, bounded protocol close, sync barriers, clean direct-speech
+  boundaries, interrupted parallel-action cleanup, and streamed speech.
 - Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
 - Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
   the production Match runtime with deterministic fake Sessions. They check semantic event order,
@@ -110,15 +111,19 @@ buckets, and paths outside the dated directory format.
 25. Private Seer, Witch, Guard, and night-attack cues appear only in permitted projections; full,
     reduced, and off effect modes play each newly visible cue at most once and leave no residual
     transform.
-26. Normal speech rejects the compatibility `submit_speech` tool and commits the ACP response;
-    rendered speech prompts contain their versioned public-fact and phase-specific constraints.
+26. Normal speech rejects the compatibility `submit_speech` tool and commits only the clean direct
+    response around embedded role and action-tool boundaries. A clean same-turn correction remains
+    valid when no speech preceded a rejected tool; other generated text stays outside the live
+    stream and Match event. Rendered speech prompts contain their versioned public-fact and
+    phase-specific constraints.
 27. Wolf council and post-death Sheriff transfer expose no self-destruct interrupt or premature
     night-action contract, while sheriff-election and daytime speech or vote turns for living
     Werewolves receive the exact self-destruct ability ID accepted by the engine. The following wolf
     attack stage accepts only `submit_vote`, explicitly forbids
     `submit_night_action`, offers `targetPlayerId: null` as no-kill, resolves no-kill only by strict
     plurality, chooses a replay-stable player target on a highest-vote tie, and keeps the bootstrap
-    callable-ability list free of the regular attack ID.
+    callable-ability list free of the regular attack ID. A self-destruct that ends a parallel stage
+    discards every accepted action that did not enter the engine before the next phase begins.
 28. Developer mode places `查看轨迹` on each Match record, routes by that Match ID, shows players by
     seat with nickname, configured model, and complete color-labeled role identity as secondary
     context, fills the available viewport, and presents labeled semantic colors without a global

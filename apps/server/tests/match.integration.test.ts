@@ -547,6 +547,77 @@ describe('match orchestration', () => {
     })
   })
 
+  it('discards durable actions left behind when self-destruct interrupts a parallel stage', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-interrupt-actions-'))
+    temporaryDirectories.push(root)
+    let server: AgentWolfServer
+    const prompts = new Map<PlayerId, string[]>()
+    const selfDestruct = { playerId: 'player-3' as PlayerId, value: true }
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+      sheriffSelfDestructOnce: selfDestruct,
+    })
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
+    }
+    server = await buildServer({ config, sessionFactory })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: 'Interrupt ACP',
+      kind: 'custom',
+      command: 'interrupt-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Interrupt player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = standardBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = server.matches.createMatch({
+      boardId: standardBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Interrupt player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    server.matches.beginMatch(created.id)
+
+    const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
+    const continued = await waitForMatchState(
+      server,
+      created.id,
+      (match) => match.timeline.filter((item) => item.kind === 'seer.inspected').length >= 2,
+    )
+
+    expect(selfDestruct.value).toBe(false)
+    expect(continued.status).toBe('running')
+    expect(
+      continued.timeline.some(
+        (item) => item.kind === 'public.announcement' && item.playerIds.includes('player-3'),
+      ),
+    ).toBe(true)
+    expect(continued.timeline.some((item) => item.kind === 'match.paused')).toBe(false)
+    expect(server.repository.playerSessions.get(created.id, seerId)?.pendingAction).toBeNull()
+  }, 15_000)
+
   it.each([
     { failResume: false, label: 'resumes only the disconnected player' },
     { failResume: true, label: 'pauses without creating another Session when resume fails' },
