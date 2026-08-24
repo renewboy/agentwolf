@@ -679,9 +679,16 @@
   gap: 14px;
 }
 
-.aw-developer-heading .aw-back-link {
+.aw-developer-navigation {
+  display: flex;
   flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.aw-developer-navigation--standalone {
   margin: 0;
+  margin-bottom: 28px;
 }
 
 .aw-developer-title {

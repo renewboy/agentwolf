@@ -1,4 +1,4 @@
-import { ArrowLeft } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
@@ -19,11 +19,13 @@ import {
   TrajectoryLedger,
   TrajectoryMinimap,
 } from '../components/developer/TrajectoryPanels.js'
+import { useRuntimeConfig } from '../hooks/useRuntimeConfig.js'
 
 export function DeveloperPage() {
   const { matchId: matchIdParam } = useParams<{ matchId: string }>()
   const parsedMatchId = useMemo(() => MatchIdSchema.safeParse(matchIdParam), [matchIdParam])
   const matchId = parsedMatchId.success ? parsedMatchId.data : null
+  const { developerMode } = useRuntimeConfig()
   const [match, setMatch] = useState<MatchView | null>(null)
   const [summary, setSummary] = useState<TrajectorySummary | null>(null)
   const [audit, setAudit] = useState<TrajectoryAuditReport | null>(null)
@@ -160,10 +162,26 @@ export function DeveloperPage() {
   if (!matchId || (error && !match && !summary)) {
     return (
       <main className="aw-page">
-        <Link className="aw-back-link" to="/">
-          <ArrowLeft size={17} aria-hidden />
-          {getCopy('trajectory.backToMatches')}
-        </Link>
+        <div className="aw-developer-navigation aw-developer-navigation--standalone">
+          <Link
+            className="aw-button aw-button--square aw-tooltip-button aw-tooltip-button--start"
+            aria-label={getCopy('match.backLobby')}
+            data-tooltip={getCopy('match.backLobby')}
+            to="/"
+          >
+            <ArrowLeft size={18} aria-hidden />
+          </Link>
+          {developerMode && matchId ? (
+            <Link
+              className="aw-button aw-button--square aw-tooltip-button"
+              aria-label={getCopy('trajectory.openMatch')}
+              data-tooltip={getCopy('trajectory.openMatch')}
+              to={`/matches/${matchId}`}
+            >
+              <ArrowsLeftRight size={18} aria-hidden />
+            </Link>
+          ) : null}
+        </div>
         <ErrorState
           message={error ?? getCopy('trajectory.unavailable')}
           retry={() => void loadTrajectory()}
@@ -183,10 +201,26 @@ export function DeveloperPage() {
   return (
     <main className="aw-page aw-developer-page">
       <div className="aw-developer-heading">
-        <Link className="aw-back-link" to="/">
-          <ArrowLeft size={17} aria-hidden />
-          {getCopy('trajectory.backToMatches')}
-        </Link>
+        <div className="aw-developer-navigation">
+          <Link
+            className="aw-button aw-button--square aw-tooltip-button aw-tooltip-button--start"
+            aria-label={getCopy('match.backLobby')}
+            data-tooltip={getCopy('match.backLobby')}
+            to="/"
+          >
+            <ArrowLeft size={18} aria-hidden />
+          </Link>
+          {developerMode ? (
+            <Link
+              className="aw-button aw-button--square aw-tooltip-button"
+              aria-label={getCopy('trajectory.openMatch')}
+              data-tooltip={getCopy('trajectory.openMatch')}
+              to={`/matches/${match.id}`}
+            >
+              <ArrowsLeftRight size={18} aria-hidden />
+            </Link>
+          ) : null}
+        </div>
         <div className="aw-developer-title">
           <h1>{getCopy('trajectory.title')}</h1>
           <p>

@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowsLeftRight,
   CheckCircle,
   Eye,
   EyeClosed,
@@ -20,6 +21,7 @@ import {
   type SpectatorView,
 } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
+import { useRuntimeConfig } from '../../hooks/useRuntimeConfig.js'
 import { GameSelect } from '../GameSelect.js'
 import { StatusBadge } from '../StatusBadge.js'
 
@@ -50,6 +52,8 @@ export function MatchHeader({
   readonly effectMode: RoleEffectMode
   readonly setEffectMode: (mode: RoleEffectMode) => void
 }) {
+  const { developerMode } = useRuntimeConfig()
+  const showTrajectoryLink = developerMode && match.status !== 'paused'
   const playerOptions = useMemo(
     () =>
       match.seats.map((seat) => ({
@@ -84,9 +88,24 @@ export function MatchHeader({
     <header className="aw-match-hud">
       <div className="aw-match-hud__inner">
         <div className="aw-match-brand">
-          <Link className="aw-button aw-button--square" title={getCopy('match.backLobby')} to="/">
+          <Link
+            className="aw-button aw-button--square aw-tooltip-button aw-tooltip-button--start"
+            aria-label={getCopy('match.backLobby')}
+            data-tooltip={getCopy('match.backLobby')}
+            to="/"
+          >
             <ArrowLeft size={18} aria-hidden />
           </Link>
+          {showTrajectoryLink ? (
+            <Link
+              className="aw-button aw-button--square aw-tooltip-button"
+              aria-label={getCopy('match.openTrajectory')}
+              data-tooltip={getCopy('match.openTrajectory')}
+              to={`/matches/${match.id}/trajectory`}
+            >
+              <ArrowsLeftRight size={18} aria-hidden />
+            </Link>
+          ) : null}
           <div>
             <span className="aw-brand">{getCopy('brand')}</span>
             <small>{match.boardName}</small>

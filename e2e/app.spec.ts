@@ -1,5 +1,5 @@
 import { resolve } from 'node:path'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { MatchView } from '@agentwolf/contracts'
 
 test.describe.configure({ mode: 'serial' })
@@ -573,12 +573,25 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     .first()
   await expect(matchRole).toHaveAttribute('data-role-id', firstSeat.roleId!)
   const matchRoleColor = await matchRole.evaluate((element) => getComputedStyle(element).color)
+  await expect(page.getByRole('heading', { name: '对局已暂停' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '切换到玩家行动轨迹' })).toHaveCount(0)
 
   await page.goto('/')
   const matchRow = page.locator(`[data-match-id="${match.id}"]`)
   await expect(matchRow).toBeVisible()
   await matchRow.getByRole('link', { name: '查看轨迹' }).click()
   await expect(page).toHaveURL(new RegExp(`/matches/${match.id}/trajectory$`))
+  const trajectoryNavigation = page.locator('.aw-developer-navigation')
+  const trajectoryBack = trajectoryNavigation.getByRole('link', { name: '返回大厅' })
+  await expect(trajectoryBack).toBeVisible()
+  await expectTooltip(trajectoryBack, '返回大厅')
+  const matchSwitch = page.getByRole('link', { name: '切换到游戏主界面' })
+  await expect(matchSwitch).toBeVisible()
+  await expect(matchSwitch).toHaveCSS(
+    'color',
+    await trajectoryBack.evaluate((element) => getComputedStyle(element).color),
+  )
+  await expectTooltip(matchSwitch, '切换到游戏主界面')
   await expect(page.getByRole('combobox', { name: '选择对局' })).toHaveCount(0)
   await expect(page.getByText('上下文审计通过')).toBeVisible()
   await expect(page.getByRole('button', { name: '添加仿真' })).toHaveCount(0)
@@ -658,11 +671,18 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     .click()
   await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('当前身份')
   await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('Player ID')
+  await page.getByRole('link', { name: '切换到游戏主界面' }).click()
+  await expect(page).toHaveURL(new RegExp(`/matches/${match.id}$`))
+  await expect(page.getByRole('heading', { name: '对局已暂停' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '切换到玩家行动轨迹' })).toHaveCount(0)
 })
 
 test('keeps the match viewport fixed and animates a real thinking state', async ({ page }) => {
   const match = thinkingMatchFixture()
   const closedEyeMatch = closedEyeFixture(match)
+  await page.route('**/api/runtime-config', async (route) =>
+    route.fulfill({ json: { developerMode: false } }),
+  )
   await page.route(`**/api/matches/${match.id}?*`, async (route) => {
     const requestedView = new URL(route.request().url()).searchParams.get('view')
     if (requestedView === 'closed-eye') {
@@ -694,6 +714,7 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
   await page.goto(`/matches/${match.id}`)
   const shell = page.locator('.aw-match-shell')
   await expect(shell).toHaveAttribute('data-presence-state', 'thinking')
+  await expect(page.getByRole('link', { name: '切换到玩家行动轨迹' })).toHaveCount(0)
   const rightCardAlignment = await page
     .locator('.aw-stage-grid > .aw-player-rail--right .aw-player-card')
     .first()
@@ -1562,6 +1583,23 @@ async function speechStubState(page: Page, _key: 'spoken'): Promise<string[]> {
   return page.evaluate(() => [
     ...(window as unknown as { speechTest: { spoken: string[] } }).speechTest.spoken,
   ])
+}
+
+async function expectTooltip(locator: Locator, label: string): Promise<void> {
+  await locator.hover()
+  await expect
+    .poll(async () =>
+      locator.evaluate((element) => {
+        const style = getComputedStyle(element, '::after')
+        return style.content.replace(/^"(.*)"$/u, '$1')
+      }),
+    )
+    .toBe(label)
+  await expect
+    .poll(async () =>
+      locator.evaluate((element) => Number(getComputedStyle(element, '::after').opacity)),
+    )
+    .toBeGreaterThan(0.95)
 }
 
 async function finishSpeech(page: Page): Promise<void> {

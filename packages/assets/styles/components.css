@@ -27,6 +27,52 @@
   padding: 0;
 }
 
+.aw-tooltip-button {
+  position: relative;
+}
+
+.aw-tooltip-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: calc(var(--aw-layer-modal) + 1);
+  top: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: min(220px, 70vw);
+  padding: 6px 8px;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text);
+  background: var(--aw-color-surface-raised);
+  box-shadow: var(--aw-shadow-panel);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -4px);
+  transition:
+    opacity var(--aw-duration-fast) var(--aw-ease-out),
+    transform var(--aw-duration-fast) var(--aw-ease-out);
+  white-space: nowrap;
+}
+
+.aw-tooltip-button:hover::after,
+.aw-tooltip-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.aw-tooltip-button--start::after {
+  left: 0;
+  transform: translateY(-4px);
+}
+
+.aw-tooltip-button--start:hover::after,
+.aw-tooltip-button--start:focus-visible::after {
+  transform: translateY(0);
+}
+
 .aw-button--danger {
   border-color: rgb(208 90 78 / 48%);
   color: #f2b4ad;

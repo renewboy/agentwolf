@@ -263,7 +263,6 @@
   },
   "trajectory": {
     "title": "玩家行动轨迹",
-    "backToMatches": "返回对局记录",
     "matchMeta": "{{board}} · {{count}} 人 · 第 {{day}} 天 · {{phase}}",
     "unavailable": "无法读取本局运行轨迹。",
     "owners": "参与者",
@@ -288,6 +287,7 @@
     "expandTurns": "展开全部阶段",
     "detail": "记录详情",
     "selectRecord": "选择任意一条记录查看完整内容。",
+    "openMatch": "切换到游戏主界面",
     "status": "状态",
     "duration": "耗时",
     "sequence": "事件范围",
@@ -576,6 +576,7 @@
     "sessionFailed": "Agent 连接异常",
     "eventEmpty": "等待裁判公布事件",
     "backLobby": "返回大厅",
+    "openTrajectory": "切换到玩家行动轨迹",
     "resume": "继续对局",
     "resuming": "正在恢复",
     "delete": "删除对局",
