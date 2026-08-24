@@ -12,6 +12,8 @@ watcher_pid=''
 timer_pid=''
 runtime_dir=''
 stdin_fifo=''
+node_path=${AGENTWOLF_GUARDIAN_NODE:-node}
+unset AGENTWOLF_GUARDIAN_NODE
 
 cleanup_paths() {
   if [ -n "$stdin_fifo" ]; then rm -f "$stdin_fifo"; fi
@@ -66,7 +68,19 @@ mkfifo "$stdin_fifo" || exit 70
 exec 4<&0
 
 (
-  if cat <&4 > "$stdin_fifo"; then
+  if "$node_path" -e '
+    const { once } = require("node:events")
+
+    void (async () => {
+      for await (const chunk of process.stdin) {
+        for (let offset = 0; offset < chunk.length; offset += 4096) {
+          if (!process.stdout.write(chunk.subarray(offset, offset + 4096))) {
+            await once(process.stdout, "drain")
+          }
+        }
+      }
+    })()
+  ' <&4 > "$stdin_fifo"; then
     kill -HUP "$guardian_pid" 2>/dev/null || true
   fi
 ) &

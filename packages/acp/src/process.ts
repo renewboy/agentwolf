@@ -30,7 +30,7 @@ export class AgentProcess {
       const guardian = fileURLToPath(new URL('../process-guardian.sh', import.meta.url))
       const child = spawn('/bin/sh', [guardian, options.launch.command, ...options.launch.args], {
         cwd: options.cwd,
-        env: options.launch.env,
+        env: { ...options.launch.env, AGENTWOLF_GUARDIAN_NODE: process.execPath },
         detached: true,
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: false,

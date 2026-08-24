@@ -35,6 +35,22 @@ describe('AcpPlayerSession', () => {
     await session.close()
   })
 
+  it('forwards prompts larger than the guardian stdin FIFO capacity', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-large-prompt-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: { command: process.execPath, args: [fixture], env: { ...process.env } },
+    })
+
+    const result = await session.prompt('x'.repeat(32 * 1024), 5_000)
+
+    expect(result.text).toBe('你好')
+    expect(result.stopReason).toBe('end_turn')
+    await session.close()
+  })
+
   it('resumes one durable Session ID in a new ACP process without session/new', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-resume-'))
     temporaryDirectories.push(cwd)
