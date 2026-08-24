@@ -10,12 +10,7 @@ import {
   type MatchView,
   type SpectatorView,
 } from '@agentwolf/contracts'
-import {
-  GameEngine,
-  createV1RoleRegistry,
-  replayGame,
-  type GameState,
-} from '@agentwolf/game-engine'
+import { GameEngine, replayGame, type GameState } from '@agentwolf/game-engine'
 import type { AgentCatalogService } from './agent-catalog.js'
 import { ActionMailbox } from './action-mailbox.js'
 import type { BoardCatalogService } from './board-catalog.js'
@@ -26,6 +21,7 @@ import type { LiveConnection, LiveSubscriber } from './live-hub.js'
 import { MatchRuntime } from './match-runtime.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
 import type { TrajectoryService } from './trajectory-service.js'
+import type { RulesetCatalog } from './ruleset-catalog.js'
 
 export class MatchNotFoundError extends Error {
   public constructor(id: MatchId) {
@@ -42,6 +38,7 @@ export interface MatchManagerOptions {
   readonly boards: BoardCatalogService
   readonly characters: CharacterCatalogService
   readonly trajectories: TrajectoryService
+  readonly rulesets: RulesetCatalog
   readonly config: ServerConfig
   readonly mailbox?: ActionMailbox
   readonly sessionFactory?: PlayerSessionFactory
@@ -99,7 +96,7 @@ export class MatchManager {
       }
     })
     const matchId = MatchIdSchema.parse(createReadableId('match', board.id))
-    const roles = createV1RoleRegistry()
+    const ruleset = this.#options.rulesets.current()
     const engine = GameEngine.create({
       matchId,
       board,
@@ -112,7 +109,7 @@ export class MatchManager {
       })),
       roleAssignment: request.roleAssignment,
       seed: Number.parseInt(matchId.slice(-12), 16),
-      roles,
+      ruleset,
     })
     const timestamp = new Date().toISOString()
     const settings = this.#options.repository.getGlobalSettings()
@@ -144,6 +141,7 @@ export class MatchManager {
       config: this.#options.config,
       mailbox: this.#mailbox,
       trajectory,
+      ruleset,
       ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
     })
     this.#active.set(matchId, runtime)
@@ -164,12 +162,14 @@ export class MatchManager {
       if (!record) throw new MatchNotFoundError(id)
       const resolvedBoard = this.#resolvedRecordBoard(record)
       const board = resolvedBoard.manifest
+      const ruleset = this.#options.rulesets.forSnapshot(resolvedBoard.snapshot)
       const engine = GameEngine.restore({
         matchId: id,
         board,
         events: this.#options.repository.listMatchEvents(id),
         status: record.status,
         pausedReason: record.pausedReason,
+        ruleset,
       })
       runtime = new MatchRuntime({
         record,
@@ -182,6 +182,7 @@ export class MatchManager {
         mailbox: this.#mailbox,
         trajectory: this.#options.trajectories.recorder(id),
         restored: true,
+        ruleset,
         ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
       })
       this.#active.set(id, runtime)
@@ -210,8 +211,9 @@ export class MatchManager {
     if (!record) throw new MatchNotFoundError(id)
     const resolvedBoard = this.#resolvedRecordBoard(record)
     const board = resolvedBoard.manifest
+    const ruleset = this.#options.rulesets.forSnapshot(resolvedBoard.snapshot)
     const events = this.#options.repository.listMatchEvents(id)
-    const replayed = replayGame(id, board, events)
+    const replayed = replayGame(id, board, events, ruleset)
     const state: GameState = {
       ...replayed,
       status: record.status,
@@ -224,7 +226,7 @@ export class MatchManager {
       state,
       events,
       view: parsedView,
-      roles: createV1RoleRegistry(),
+      roles: ruleset.roles,
       model: (playerId) => {
         const profileId = state.players.get(playerId)?.profileId
         return profileId ? (this.#options.catalog.getProfile(profileId)?.model ?? null) : null

@@ -3,13 +3,17 @@ import { PlayerActionSchema } from './actions.js'
 import {
   AbilityIdSchema,
   BoardIdSchema,
+  CapabilityIdSchema,
   EventSequenceSchema,
   AgentProfileIdSchema,
   MatchIdSchema,
   PhaseIdSchema,
+  PluginEventTypeSchema,
+  PluginIdSchema,
   PlayerIdSchema,
   RoleIdSchema,
 } from './ids.js'
+import { JsonValueSchema } from './plugins.js'
 
 export const FactionSchema = z.enum(['village', 'werewolf', 'independent'])
 export type Faction = z.infer<typeof FactionSchema>
@@ -114,6 +118,13 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     action: PlayerActionSchema,
   }),
   z.object({
+    type: z.literal('plugin.event'),
+    pluginId: PluginIdSchema,
+    eventType: PluginEventTypeSchema,
+    schemaVersion: z.number().int().positive(),
+    data: JsonValueSchema,
+  }),
+  z.object({
     type: z.literal('sheriff.candidacy'),
     playerId: PlayerIdSchema,
     standing: z.boolean(),
@@ -178,6 +189,11 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     reason: z.string(),
   }),
   z.object({
+    type: z.literal('exile.prevented'),
+    playerId: PlayerIdSchema,
+    reason: z.string(),
+  }),
+  z.object({
     type: z.literal('death.window-closed'),
   }),
   z.object({
@@ -194,10 +210,24 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     announced: z.boolean(),
   }),
   z.object({
+    type: z.literal('players.eliminated-publicly'),
+    playerIds: z.array(PlayerIdSchema).min(1),
+  }),
+  z.object({
     type: z.literal('ability.used'),
     playerId: PlayerIdSchema,
     abilityId: AbilityIdSchema,
     count: z.number().int().positive(),
+  }),
+  z.object({
+    type: z.literal('capability.granted'),
+    playerId: PlayerIdSchema,
+    capabilityId: CapabilityIdSchema,
+  }),
+  z.object({
+    type: z.literal('capability.revoked'),
+    playerId: PlayerIdSchema,
+    capabilityId: CapabilityIdSchema,
   }),
   z.object({
     type: z.literal('player.saved'),

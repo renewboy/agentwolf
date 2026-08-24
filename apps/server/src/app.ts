@@ -38,6 +38,7 @@ import type { PlayerSessionFactory } from './player-runtime.js'
 import { SqliteRepository } from './repository.js'
 import { SimulationService } from './simulation-service.js'
 import { TrajectoryService } from './trajectory-service.js'
+import { RulesetCatalog } from './ruleset-catalog.js'
 import { auditTrajectory } from './trajectory-audit.js'
 
 export interface BuildServerOptions {
@@ -64,7 +65,8 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   const repository = options.repository ?? new SqliteRepository(options.config.databasePath)
   const catalog = new AgentCatalogService(repository)
   const characters = new CharacterCatalogService(repository, options.config)
-  const boards = new BoardCatalogService(repository, characters)
+  const rulesets = new RulesetCatalog()
+  const boards = new BoardCatalogService(repository, characters, rulesets)
   boards.backfillMatchSnapshots()
   const trajectories = new TrajectoryService(repository)
   const simulations = new SimulationService(repository, boards, options.config)
@@ -74,6 +76,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     boards,
     characters,
     trajectories,
+    rulesets,
     config: options.config,
     ...(options.sessionFactory ? { sessionFactory: options.sessionFactory } : {}),
   })

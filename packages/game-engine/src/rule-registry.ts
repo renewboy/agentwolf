@@ -1,18 +1,28 @@
-import type {
-  EventVisibility,
-  GameEvent,
-  GameEventPayload,
-  PhaseId,
-  PlayerId,
+import {
+  CapabilityIdSchema,
+  type CapabilityId,
+  type EventVisibility,
+  type GameEvent,
+  type GameEventPayload,
+  type PhaseId,
+  type PlayerId,
 } from '@agentwolf/contracts'
 import type { BoardManifest, GameState } from './types.js'
 import type { RoleRegistry } from './roles/registry.js'
+import type { ResolutionRegistry } from './plugins/resolution-registry.js'
+import type { VictoryRegistry } from './plugins/victory-registry.js'
+import type { QueryRegistry } from './plugins/query-registry.js'
+import type { TriggerRegistry } from './plugins/trigger-registry.js'
 
 export interface RuleRuntime {
   readonly state: GameState
   readonly board: BoardManifest
   readonly events: readonly GameEvent[]
   readonly roles: RoleRegistry
+  readonly resolution: ResolutionRegistry
+  readonly victories: VictoryRegistry
+  readonly queries: QueryRegistry
+  readonly triggers: TriggerRegistry
   append(payload: GameEventPayload, visibility: EventVisibility): GameEvent
 }
 
@@ -20,10 +30,23 @@ export type ActorSelector = (runtime: RuleRuntime) => readonly PlayerId[]
 export type RulePredicate = (runtime: RuleRuntime) => boolean
 export type PhaseCompletionHandler = (runtime: RuleRuntime) => void
 
+export interface PhaseHandlerOptions {
+  readonly id?: string
+  readonly order?: number
+}
+
+interface RegisteredPhaseHandler {
+  readonly id: string
+  readonly order: number
+  readonly sequence: number
+  readonly handler: PhaseCompletionHandler
+}
+
 export class RuleRegistry {
   readonly #actors = new Map<string, ActorSelector>()
   readonly #predicates = new Map<string, RulePredicate>()
-  readonly #phaseHandlers = new Map<PhaseId, PhaseCompletionHandler>()
+  readonly #phaseHandlers = new Map<PhaseId, RegisteredPhaseHandler[]>()
+  #phaseHandlerSequence = 0
 
   public registerActorSelector(name: string, selector: ActorSelector): void {
     if (this.#actors.has(name)) throw new Error(`Duplicate actor selector ${name}`)
@@ -35,24 +58,39 @@ export class RuleRegistry {
     this.#predicates.set(name, predicate)
   }
 
-  public registerPhaseHandler(phaseId: PhaseId, handler: PhaseCompletionHandler): void {
-    if (this.#phaseHandlers.has(phaseId)) throw new Error(`Duplicate phase handler ${phaseId}`)
-    this.#phaseHandlers.set(phaseId, handler)
+  public registerPhaseHandler(
+    phaseId: PhaseId,
+    handler: PhaseCompletionHandler,
+    options: PhaseHandlerOptions = {},
+  ): void {
+    const handlers = this.#phaseHandlers.get(phaseId) ?? []
+    const id = options.id ?? `${phaseId}:handler-${handlers.length + 1}`
+    if (handlers.some((entry) => entry.id === id)) {
+      throw new Error(`Duplicate phase handler ${id} for ${phaseId}`)
+    }
+    handlers.push({
+      id,
+      order: options.order ?? 0,
+      sequence: ++this.#phaseHandlerSequence,
+      handler,
+    })
+    this.#phaseHandlers.set(phaseId, handlers)
   }
 
   public selectActors(name: string | undefined, runtime: RuleRuntime): readonly PlayerId[] {
     if (!name) return []
-    const dynamicRole = name.match(/^role:(role-[a-z0-9-]+)$/)?.[1]
-    if (dynamicRole) {
-      return [...runtime.state.players.values()]
-        .filter((player) => player.alive && player.roleId === dynamicRole)
-        .sort((left, right) => left.seat - right.seat)
-        .map((player) => player.id)
-    }
     const dynamicFaction = name.match(/^faction-alive:(village|werewolf|independent)$/)?.[1]
     if (dynamicFaction) {
       return [...runtime.state.players.values()]
         .filter((player) => player.alive && player.faction === dynamicFaction)
+        .sort((left, right) => left.seat - right.seat)
+        .map((player) => player.id)
+    }
+    const dynamicCapability = name.match(/^(?:capability-alive:)(capability-[a-z0-9-]+)$/)?.[1]
+    if (dynamicCapability) {
+      const capabilityId = CapabilityIdSchema.parse(dynamicCapability) as CapabilityId
+      return [...runtime.state.players.values()]
+        .filter((player) => player.alive && runtime.roles.hasCapability(player, capabilityId))
         .sort((left, right) => left.seat - right.seat)
         .map((player) => player.id)
     }
@@ -63,10 +101,11 @@ export class RuleRegistry {
 
   public evaluate(name: string | undefined, runtime: RuleRuntime): boolean {
     if (!name) return true
-    const dynamicRole = name.match(/^role-alive:(role-[a-z0-9-]+)$/)?.[1]
-    if (dynamicRole) {
+    const dynamicCapability = name.match(/^(?:capability-active:)(capability-[a-z0-9-]+)$/)?.[1]
+    if (dynamicCapability) {
+      const capabilityId = CapabilityIdSchema.parse(dynamicCapability) as CapabilityId
       return [...runtime.state.players.values()].some(
-        (player) => player.alive && player.roleId === dynamicRole,
+        (player) => player.alive && runtime.roles.hasCapability(player, capabilityId),
       )
     }
     const predicate = this.#predicates.get(name)
@@ -75,7 +114,10 @@ export class RuleRegistry {
   }
 
   public complete(phaseId: PhaseId, runtime: RuleRuntime): void {
-    this.#phaseHandlers.get(phaseId)?.(runtime)
+    const handlers = [...(this.#phaseHandlers.get(phaseId) ?? [])].sort(
+      (left, right) => left.order - right.order || left.sequence - right.sequence,
+    )
+    for (const entry of handlers) entry.handler(runtime)
   }
 }
 

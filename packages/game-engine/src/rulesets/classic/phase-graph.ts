@@ -1,5 +1,6 @@
-import { AbilityIdSchema, PhaseIdSchema, RoleIdSchema } from '@agentwolf/contracts'
-import type { PhaseGraph, PhaseNode } from './types.js'
+import { AbilityIdSchema, PhaseIdSchema } from '@agentwolf/contracts'
+import type { PhaseGraph, PhaseNode } from '../../types.js'
+import { classicCapabilities } from './capabilities.js'
 
 function phase(value: string): ReturnType<typeof PhaseIdSchema.parse> {
   return PhaseIdSchema.parse(value)
@@ -7,42 +8,34 @@ function phase(value: string): ReturnType<typeof PhaseIdSchema.parse> {
 
 const ability = (value: string) => AbilityIdSchema.parse(value)
 const werewolfKillAbilityId = ability('ability-werewolf-kill')
-const werewolfSelfDestructAbilityId = ability('ability-werewolf-self-destruct')
 const sheriffElectionInterrupts = [
   {
-    kind: 'werewolf-self-destruct',
-    abilityId: werewolfSelfDestructAbilityId,
+    handlerId: 'classic-day-detonation',
+    capabilityIds: [classicCapabilities.wolfSelfDestruct, classicCapabilities.whiteWolfDetonate],
     context: 'sheriff-election',
+    visibility: 'public',
   },
 ] as const
 const daytimeInterrupts = [
   {
-    kind: 'werewolf-self-destruct',
-    abilityId: werewolfSelfDestructAbilityId,
+    handlerId: 'classic-day-detonation',
+    capabilityIds: [classicCapabilities.wolfSelfDestruct, classicCapabilities.whiteWolfDetonate],
     context: 'daytime',
+    visibility: 'public',
   },
 ] as const
 
 const nodes: PhaseNode[] = [
   {
-    id: phase('phase-night-guard'),
-    labelKey: 'phases.nightGuard',
-    mode: 'parallel',
-    action: {
-      type: 'night-action',
-      abilityIds: [ability('ability-guard-protect')],
-      visibility: 'actor',
-    },
-    actorSelector: `role:${RoleIdSchema.parse('role-guard')}`,
-    activeWhen: `role-alive:${RoleIdSchema.parse('role-guard')}`,
-    edges: [{ to: phase('phase-night-wolf-council') }],
-  },
-  {
     id: phase('phase-night-wolf-council'),
     labelKey: 'phases.nightWolfCouncil',
     mode: 'sequential',
-    action: { type: 'speech', kind: 'wolf-council', visibility: 'werewolf-faction' },
-    actorSelector: 'faction-alive:werewolf',
+    action: {
+      type: 'speech',
+      kind: 'wolf-council',
+      visibility: { kind: 'faction', faction: 'werewolf' },
+    },
+    actorSelector: `capability-alive:${classicCapabilities.wolfCouncil}`,
     edges: [{ to: phase('phase-night-wolf-vote') }],
   },
   {
@@ -52,36 +45,10 @@ const nodes: PhaseNode[] = [
     action: {
       type: 'vote',
       kind: 'wolf-kill',
-      visibility: 'werewolf-faction',
+      visibility: { kind: 'faction', faction: 'werewolf' },
       abilityId: werewolfKillAbilityId,
     },
-    actorSelector: 'faction-alive:werewolf',
-    edges: [{ to: phase('phase-night-witch') }],
-  },
-  {
-    id: phase('phase-night-witch'),
-    labelKey: 'phases.nightWitch',
-    mode: 'parallel',
-    action: {
-      type: 'night-action',
-      abilityIds: [ability('ability-witch-antidote'), ability('ability-witch-poison')],
-      visibility: 'actor',
-    },
-    actorSelector: `role:${RoleIdSchema.parse('role-witch')}`,
-    activeWhen: `role-alive:${RoleIdSchema.parse('role-witch')}`,
-    edges: [{ to: phase('phase-night-seer') }],
-  },
-  {
-    id: phase('phase-night-seer'),
-    labelKey: 'phases.nightSeer',
-    mode: 'parallel',
-    action: {
-      type: 'night-action',
-      abilityIds: [ability('ability-seer-inspect')],
-      visibility: 'actor',
-    },
-    actorSelector: `role:${RoleIdSchema.parse('role-seer')}`,
-    activeWhen: `role-alive:${RoleIdSchema.parse('role-seer')}`,
+    actorSelector: `capability-alive:${classicCapabilities.wolfKill}`,
     edges: [{ to: phase('phase-night-resolve') }],
   },
   {
@@ -209,7 +176,9 @@ const nodes: PhaseNode[] = [
     mode: 'sequential',
     action: {
       type: 'skill-trigger',
-      abilityIds: [ability('ability-hunter-shot')],
+      abilityIds: [],
+      abilitySource: 'decision-trigger',
+      triggerSignal: 'player-death',
       validation: 'role-ability',
       visibility: 'actor',
     },
@@ -306,8 +275,8 @@ const nodes: PhaseNode[] = [
   },
 ]
 
-export const classicPhaseGraph: PhaseGraph = {
+export const classicBasePhaseGraph: PhaseGraph = {
   id: 'classic-sheriff-v1',
-  entry: phase('phase-night-guard'),
+  entry: phase('phase-night-wolf-council'),
   nodes: new Map(nodes.map((node) => [node.id, node])),
 }

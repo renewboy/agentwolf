@@ -1,12 +1,29 @@
-import type { AbilityId, Faction, PlayerAction, RoleId } from '@agentwolf/contracts'
-import type { ActionValidationContext, ResolutionEffect } from '../types.js'
+import type {
+  AbilityId,
+  CapabilityId,
+  EventVisibility,
+  Faction,
+  GameEventPayload,
+  PlayerAction,
+  RoleId,
+} from '@agentwolf/contracts'
+import type { ActionValidationContext, ResolutionEffect, ResolutionResult } from '../types.js'
+
+export interface AbilityOutcome {
+  readonly stage: 'before-usage' | 'after-usage'
+  readonly payload: GameEventPayload
+  readonly visibility: EventVisibility
+}
 
 export interface AbilityDefinition {
   readonly id: AbilityId
+  readonly requiredCapability?: CapabilityId
   readonly labelKey: string
+  readonly interruptInstructionKey?: string
   readonly actionTypes: readonly PlayerAction['type'][]
   validate(context: ActionValidationContext): void
   effects(context: ActionValidationContext): readonly ResolutionEffect[]
+  outcomes?(context: ActionValidationContext, result: ResolutionResult): readonly AbilityOutcome[]
 }
 
 export abstract class Role {
@@ -15,9 +32,7 @@ export abstract class Role {
   public abstract readonly publicRulesKey: string
   public abstract readonly faction: Faction
   public abstract readonly kind: 'villager' | 'god' | 'werewolf' | 'independent'
+  public readonly sharesFactionKnowledge: boolean = false
+  public readonly capabilities: readonly CapabilityId[] = []
   public abstract readonly abilities: readonly AbilityDefinition[]
-
-  public seerResult(): 'village' | 'werewolf' {
-    return this.faction === 'werewolf' ? 'werewolf' : 'village'
-  }
 }

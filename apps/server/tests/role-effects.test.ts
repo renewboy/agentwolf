@@ -1,10 +1,10 @@
 import { passiveRoleIds, roleEffectCatalog } from '@agentwolf/assets'
-import { createV1RoleRegistry } from '@agentwolf/game-engine'
+import { createClassicRuleset } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
 
 describe('role effect catalog', () => {
   it('covers every V1 role and active ability with bounded feedback definitions', () => {
-    const roles = createV1RoleRegistry().list()
+    const roles = createClassicRuleset().roles.list()
     const definitions = Object.values(roleEffectCatalog)
     for (const role of roles) {
       const roleDefinitions = definitions.filter((definition) => definition.roleId === role.id)

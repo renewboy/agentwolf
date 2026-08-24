@@ -9,6 +9,7 @@ import {
 } from './ids.js'
 import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
 import { RoleEffectCueSchema } from './effects.js'
+import { RulesetLockSchema } from './plugins.js'
 import { SpeechCharacterLimitSchema } from './settings.js'
 
 export const MatchStatusSchema = z.enum(['draft', 'starting', 'running', 'paused', 'ended'])
@@ -68,7 +69,7 @@ export type BoardCharacterSlot = z.infer<typeof BoardCharacterSlotSchema>
 export const CustomBoardInputSchema = z.object({
   name: z.string().trim().min(1).max(48),
   description: z.string().trim().max(240).default(''),
-  roles: z.array(BoardRoleSlotSchema).min(2).max(7),
+  roles: z.array(BoardRoleSlotSchema).min(2).max(24),
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
@@ -104,20 +105,48 @@ export const BoardSummarySchema = z.object({
 })
 export type BoardSummary = z.infer<typeof BoardSummarySchema>
 
-export const MatchBoardSnapshotSchema = z.object({
-  schemaVersion: z.literal(1),
-  rulesetId: z.literal('classic-v1'),
+const MatchBoardSnapshotFields = {
   id: BoardIdSchema,
   name: z.string().min(1),
   description: z.string(),
-  roles: z.array(BoardRoleSlotSchema).min(2).max(7),
+  roles: z.array(BoardRoleSlotSchema).min(2).max(24),
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   playerCount: z.number().int().min(6).max(24),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
   source: z.enum(['built-in', 'custom']),
   revision: z.number().int().positive(),
+} as const
+
+export const BoardPolicySnapshotSchema = z.object({
+  witchSelfSave: z.enum(['never', 'first-night', 'always']),
+  witchPotionsPerNight: z.union([z.literal(1), z.literal(2)]),
+  guardAntidoteCollision: z.enum(['death', 'survive']),
+  guardCanSelfProtect: z.boolean(),
+  sheriffExplosion: z.enum(['single-explosion-loses-badge', 'double-explosion-loses-badge']),
+  nightLastWords: z.enum(['first-night-only', 'every-night', 'none']),
+  victory: BoardVictorySchema,
 })
+export type BoardPolicySnapshot = z.infer<typeof BoardPolicySnapshotSchema>
+
+const MatchBoardSnapshotV1Schema = z.object({
+  schemaVersion: z.literal(1),
+  rulesetId: z.literal('classic-v1'),
+  ...MatchBoardSnapshotFields,
+})
+
+const MatchBoardSnapshotV2Schema = z.object({
+  schemaVersion: z.literal(2),
+  rulesetId: z.enum(['classic-v1', 'classic-v2']),
+  ruleset: RulesetLockSchema,
+  policies: BoardPolicySnapshotSchema,
+  ...MatchBoardSnapshotFields,
+})
+
+export const MatchBoardSnapshotSchema = z.discriminatedUnion('schemaVersion', [
+  MatchBoardSnapshotV1Schema,
+  MatchBoardSnapshotV2Schema,
+])
 export type MatchBoardSnapshot = z.infer<typeof MatchBoardSnapshotSchema>
 
 export const RoleSummarySchema = z.object({

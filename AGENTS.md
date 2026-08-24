@@ -23,7 +23,7 @@ AgentWolf is a TypeScript workspace for running Werewolf matches between long-li
 ## Workspace map
 
 - `packages/contracts`: branded IDs, API schemas, event envelopes, action schemas, Agent and Character schemas, and view DTOs.
-- `packages/game-engine`: deterministic boards, phase graph, roles, resolution, victory, replay, and visibility. It performs no IO.
+- `packages/game-engine`: deterministic kernel, plugin SDK, versioned rulesets, boards, phase composition, resolution, replay, and visibility. It performs no IO.
 - `packages/acp`: Agent tool catalog, ACP process/session lifecycle, streamed updates, and delivery ledgers.
 - `packages/assets`: prompts, localized copy, narration, Character cards and portraits, nickname words, design tokens, and all CSS.
 - `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery. See its [local instructions](apps/server/AGENTS.md).
@@ -73,8 +73,13 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 
 ## Runtime invariants
 
-- Roles are concrete classes registered through the role registry. Rule modules and policies own phase flow, actions, visibility, resolution, and victory.
+- Roles and system rules are compile-time plugins composed by a versioned Ruleset manifest. The
+  kernel contains no concrete Role or Ability IDs. Capabilities authorize shared and dynamic
+  abilities; plugin registries own phases, effects, events, queries, triggers, interrupts, and
+  victory.
 - Every game change is an append-only domain event, and model-visible state is reconstructable from events.
+- Schema-two Match board snapshots freeze ruleset and plugin versions, configuration hashes,
+  fingerprint, and resolved policies. Restore rejects a mismatched installed fingerprint.
 - Each seat completes `session/new` once and owns one durable ACP Session ID for the Match lifetime. ACP processes may restart, but reconnect through `session/resume` with that persisted ID. Delivery uses a per-player acknowledged event cursor.
 - A foundation source history covers its cursor and renders every visible bootstrap fact exactly once, including private faction membership.
 - One uncertain ACP transport failure per player and phase may continue the existing connection or resume that player's persisted Session ID. Recovery never creates another Session or disturbs another player. A repeated failure pauses for operator action.

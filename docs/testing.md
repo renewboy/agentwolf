@@ -2,7 +2,7 @@
 
 ## Test layers
 
-- Unit tests cover role classes, production ability-effect dispatch, resolution priorities, wolf
+- Unit tests cover versioned plugin dependency loading, synthetic role/effect/event/phase/trigger/query/victory registration, capability authorization, named-lane settlement, role classes, production ability-effect dispatch, wolf
   no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
   changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
   role-effect catalog coverage, custom-board validation, phase transitions, speech
@@ -81,7 +81,7 @@ buckets, and paths outside the dated directory format.
    does not receive its own already-known speech again in an incremental Prompt.
 4. God, closed-eye, and player projections return distinct allowed fields from the server.
 5. Speech chunks appear live, while committed text contains no Player IDs.
-6. Guard, Witch, Hunter, and Idiot interactions match the selected board policies. A Witch with an
+6. Guard, Witch, Hunter, Idiot, Magic Mirror Girl, and White Wolf King interactions match the selected board policies. A Witch with an
    available antidote sees only the regular Werewolf attack target; after losing the antidote she
    receives no death target through either events or action instructions.
 7. A killed or timed-out ACP process continues or resumes the same persisted Session ID without resending an in-flight envelope; a repeated failure pauses the Match.
@@ -107,7 +107,7 @@ buckets, and paths outside the dated directory format.
     developer restart reads the same records and streams later logical updates by revision.
 24. Every completed deterministic Turn has one exact Prompt, a matching delivery range and
     acknowledgement, no duplicate stream records, and a successful reconstruction audit.
-25. Private Seer, Witch, Guard, and night-attack cues appear only in permitted projections; full,
+25. Private Seer, Magic Mirror Girl, Witch, Guard, and night-attack cues appear only in permitted projections; public White Wolf King detonation cues appear in every public projection; full,
     reduced, and off effect modes play each newly visible cue at most once and leave no residual
     transform.
 26. Normal speech rejects the compatibility `submit_speech` tool and commits the ACP response;
@@ -166,3 +166,11 @@ buckets, and paths outside the dated directory format.
     nicknames to the Character name, blocks creation until the nicknames are unique, permits
     per-Match Character overrides, snapshots every selected card, injects only the owning card with
     the full-ability boundary, and projects Character portraits without changing game-role secrecy.
+43. A schema-two Match board snapshot freezes the installed ruleset ID, version, plugin versions,
+    configuration hashes, fingerprint, and complete board policies. A modified fingerprint rejects
+    restore, while schema-one `classic-v1` simulations retain their reviewed event digests.
+44. Magic Mirror Girl receives an actor-private exact-role result, cannot inspect the same target
+    twice, and contributes its night phase through the plugin phase registry. White Wolf King joins
+    the shared wolf council and attack ballot, receives no ordinary Werewolf self-destruct ability,
+    and settles a targeted detonation plus any eligible Hunter reaction through the common trigger
+    pipeline.

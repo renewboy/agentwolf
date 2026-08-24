@@ -29,6 +29,10 @@ export function publiclyEliminatedPlayerIds(events: readonly GameEvent[]): Reado
   const eliminated = new Set<PlayerId>()
   for (const event of events) {
     if (event.visibility.kind !== 'public') continue
+    if (event.payload.type === 'players.eliminated-publicly') {
+      for (const playerId of event.payload.playerIds) eliminated.add(playerId)
+      continue
+    }
     if (
       event.payload.type === 'public.announcement' &&
       (event.payload.code === 'night-deaths' ||

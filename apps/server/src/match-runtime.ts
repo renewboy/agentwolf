@@ -11,10 +11,10 @@ import type {
 import type { AcpPromptCallbacks } from '@agentwolf/acp'
 import {
   canViewEvent,
-  createV1RoleRegistry,
   type BoardManifest,
   type GameEngine,
   type RoleRegistry,
+  type RulesetRuntime,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
 import type { AgentCatalogService } from './agent-catalog.js'
@@ -50,6 +50,7 @@ export interface MatchRuntimeOptions {
   readonly config: ServerConfig
   readonly mailbox: ActionMailbox
   readonly trajectory: MatchTrajectoryRecorder
+  readonly ruleset: RulesetRuntime
   readonly sessionFactory?: PlayerSessionFactory
   readonly sessionConcurrency?: number
   readonly restored?: boolean
@@ -71,7 +72,7 @@ export class MatchRuntime {
 
   public constructor(options: MatchRuntimeOptions) {
     this.#options = options
-    this.#roles = createV1RoleRegistry()
+    this.#roles = options.ruleset.roles
     this.#renderer = new ContextRenderer(this.#roles)
     this.#playback = new SpeechPlaybackCoordinator({
       isVisible: (event, view) => canViewEvent(event, view, this.engine.state),
@@ -365,7 +366,7 @@ export class MatchRuntime {
       ...(turn.speechKind ? { speechKind: turn.speechKind } : {}),
       ...(turn.voteKind ? { voteKind: turn.voteKind } : {}),
       ...(turn.allowedAbilityIds ? { allowedAbilityIds: turn.allowedAbilityIds } : {}),
-      ...interruptAbilityExpectation(this.engine.state, playerId, turn),
+      ...interruptAbilityExpectation(this.engine.state, playerId, turn, this.#roles),
       validate: (action) => this.engine.validateAction(action),
     }
     const envelope = await this.#renderer.turn(
@@ -378,6 +379,7 @@ export class MatchRuntime {
         board: this.#options.board,
         state: this.engine.state,
         playerId,
+        roles: this.#roles,
         speechCharacterLimit: this.#options.record.setup.speechCharacterLimit,
       }),
       promptContractVersion,

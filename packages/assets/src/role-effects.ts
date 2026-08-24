@@ -13,9 +13,22 @@ export interface RoleEffectDefinition {
   readonly labelKey: string
   readonly tier: 'medium' | 'large'
   readonly durationMs: number
+  readonly icon:
+    | 'moon'
+    | 'skull'
+    | 'eye'
+    | 'sparkle'
+    | 'drop'
+    | 'crosshair'
+    | 'smile'
+    | 'shield'
+    | 'crown'
+    | 'transfer'
+    | 'mirror'
+    | 'burst'
 }
 
-export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefinition>> = {
+export const roleEffectCatalog: Readonly<Record<string, RoleEffectDefinition>> = {
   'werewolf-attack': {
     id: 'werewolf-attack',
     roleId: RoleIdSchema.parse('role-werewolf'),
@@ -23,6 +36,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.werewolfAttack',
     tier: 'large',
     durationMs: 720,
+    icon: 'moon',
   },
   'werewolf-self-destruct': {
     id: 'werewolf-self-destruct',
@@ -31,6 +45,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.werewolfSelfDestruct',
     tier: 'large',
     durationMs: 760,
+    icon: 'skull',
   },
   'seer-inspect': {
     id: 'seer-inspect',
@@ -39,6 +54,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.seerInspect',
     tier: 'medium',
     durationMs: 560,
+    icon: 'eye',
   },
   'witch-antidote': {
     id: 'witch-antidote',
@@ -47,6 +63,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.witchAntidote',
     tier: 'medium',
     durationMs: 580,
+    icon: 'sparkle',
   },
   'witch-poison': {
     id: 'witch-poison',
@@ -55,6 +72,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.witchPoison',
     tier: 'large',
     durationMs: 680,
+    icon: 'drop',
   },
   'hunter-shot': {
     id: 'hunter-shot',
@@ -63,6 +81,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.hunterShot',
     tier: 'large',
     durationMs: 720,
+    icon: 'crosshair',
   },
   'idiot-reveal': {
     id: 'idiot-reveal',
@@ -71,6 +90,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.idiotReveal',
     tier: 'large',
     durationMs: 720,
+    icon: 'smile',
   },
   'guard-protect': {
     id: 'guard-protect',
@@ -79,6 +99,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.guardProtect',
     tier: 'medium',
     durationMs: 560,
+    icon: 'shield',
   },
   'sheriff-elected': {
     id: 'sheriff-elected',
@@ -87,6 +108,7 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.sheriffElected',
     tier: 'large',
     durationMs: 680,
+    icon: 'crown',
   },
   'sheriff-transferred': {
     id: 'sheriff-transferred',
@@ -95,7 +117,32 @@ export const roleEffectCatalog: Readonly<Record<RoleEffectId, RoleEffectDefiniti
     labelKey: 'effects.sheriffTransferred',
     tier: 'large',
     durationMs: 720,
+    icon: 'transfer',
+  },
+  'magic-mirror-inspect': {
+    id: 'magic-mirror-inspect',
+    roleId: RoleIdSchema.parse('role-magic-mirror-girl'),
+    abilityId: AbilityIdSchema.parse('ability-magic-mirror-inspect'),
+    labelKey: 'effects.magicMirrorInspect',
+    tier: 'medium',
+    durationMs: 620,
+    icon: 'mirror',
+  },
+  'white-wolf-detonate': {
+    id: 'white-wolf-detonate',
+    roleId: RoleIdSchema.parse('role-white-wolf-king'),
+    abilityId: AbilityIdSchema.parse('ability-white-wolf-detonate'),
+    labelKey: 'effects.whiteWolfDetonate',
+    tier: 'large',
+    durationMs: 760,
+    icon: 'burst',
   },
 }
 
 export const passiveRoleIds = [RoleIdSchema.parse('role-villager')] as const
+
+export function getRoleEffectDefinition(id: RoleEffectId): RoleEffectDefinition {
+  const definition = roleEffectCatalog[id]
+  if (!definition) throw new Error(`Unknown role effect ${id}`)
+  return definition
+}

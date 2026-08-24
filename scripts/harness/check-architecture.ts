@@ -61,6 +61,25 @@ const gameEngineSource = (
 if (/\b(?:CharacterId|CharacterCard|CharacterCardSnapshot)\b/.test(gameEngineSource)) {
   errors.push('game-engine must not depend on Character persona data')
 }
+for (const path of files.filter((candidate) => {
+  const relative = localPath(candidate)
+  return (
+    relative.startsWith('packages/game-engine/src/') &&
+    !relative.startsWith('packages/game-engine/src/rulesets/classic/') &&
+    relative !== 'packages/game-engine/src/index.ts'
+  )
+})) {
+  const content = await text(path)
+  if (
+    /(?:RoleIdSchema|AbilityIdSchema)\.parse\(['"](?:role|ability)-/.test(content) ||
+    /(?:===|!==)\s*['"](?:role|ability)-/.test(content)
+  ) {
+    errors.push(`${localPath(path)} kernel code must not contain concrete Role or Ability IDs`)
+  }
+}
+if (files.some((path) => localPath(path) === 'packages/game-engine/src/classic-rules.ts')) {
+  errors.push('classic-rules.ts must not exist; classic behavior is composed from ruleset plugins')
+}
 const actionValidator = await text(
   files.find((path) => localPath(path) === 'packages/game-engine/src/action-validator.ts')!,
 )
@@ -85,16 +104,20 @@ const damageAuthorityFiles = await Promise.all(
       content: await text(path),
     })),
 )
-for (const cause of ['werewolf', 'self-destruct']) {
+for (const [cause, expectedOwner] of [
+  ['werewolf', 'packages/game-engine/src/rulesets/classic/roles/werewolf.ts'],
+  ['self-destruct', 'packages/game-engine/src/rulesets/classic/roles/werewolf.ts'],
+  ['white-wolf-detonate', 'packages/game-engine/src/rulesets/classic/roles/white-wolf-king.ts'],
+] as const) {
   const owners = damageAuthorityFiles
     .filter(({ content }) => new RegExp(`cause\\s*:\\s*['"]${cause}['"]`).test(content))
     .map(({ path }) => path)
-  if (owners.length !== 1 || owners[0] !== 'packages/game-engine/src/roles/werewolf.ts') {
-    errors.push(`${cause} damage effects must be defined only by roles/werewolf.ts`)
+  if (owners.length !== 1 || owners[0] !== expectedOwner) {
+    errors.push(`${cause} damage effects must be defined only by ${expectedOwner}`)
   }
 }
 const roleFiles = files.filter((path) =>
-  /packages\/game-engine\/src\/roles\/(?!base|helpers|registry)[^/]+\.ts$/.test(localPath(path)),
+  /packages\/game-engine\/src\/rulesets\/classic\/roles\/[^/]+\.ts$/.test(localPath(path)),
 )
 const copyCatalog = JSON.parse(
   await text(resolve(projectRoot, 'packages/assets/copy/zh-CN.json')),

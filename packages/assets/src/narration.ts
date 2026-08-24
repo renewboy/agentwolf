@@ -1,5 +1,7 @@
 import type { Faction, GameEvent, PlayerId, RoleId } from '@agentwolf/contracts'
 import { formatCopy, getCopy } from './catalog.js'
+import { renderPluginEventNarration } from './plugin-events.js'
+import { registeredEventNarration } from './classic-event-presentations.js'
 
 export interface NarrationPlayer {
   readonly playerId: PlayerId
@@ -34,6 +36,7 @@ function announcement(event: GameEvent, catalog: NarrationCatalog): string | nul
     'no-exile': 'announcements.noExile',
     'idiot-survived': 'announcements.idiotSurvived',
     'werewolf-self-destruct': 'announcements.werewolfSelfDestruct',
+    'white-wolf-detonation': 'announcements.whiteWolfDetonation',
   }
   const key = keys[event.payload.code]
   if (!key) return null
@@ -51,6 +54,10 @@ export function renderEventNarration(event: GameEvent, catalog: NarrationCatalog
   const payload = event.payload
   const renderedAnnouncement = announcement(event, catalog)
   if (renderedAnnouncement) return renderedAnnouncement
+  const renderedPluginEvent = renderPluginEventNarration(event, catalog)
+  if (renderedPluginEvent) return renderedPluginEvent
+  const registeredNarration = registeredEventNarration(event, catalog)
+  if (registeredNarration) return registeredNarration
   switch (payload.type) {
     case 'night.started':
       return formatCopy(getCopy('narration.nightStarted'), { night: payload.night })
@@ -62,27 +69,6 @@ export function renderEventNarration(event: GameEvent, catalog: NarrationCatalog
       return formatCopy(getCopy('narration.speechOrder'), {
         players: playerList(payload.playerIds, catalog),
       })
-    case 'night.attack-selected':
-      return payload.targetId
-        ? formatCopy(getCopy('narration.nightAttackSelected'), {
-            player: playerLabel(payload.targetId, catalog),
-          })
-        : getCopy('narration.nightAttackPassed')
-    case 'guard.protected':
-      return payload.targetId
-        ? formatCopy(getCopy('narration.guardProtected'), {
-            player: playerLabel(payload.targetId, catalog),
-          })
-        : getCopy('narration.guardPassed')
-    case 'witch.potion-used':
-      return formatCopy(
-        getCopy(
-          payload.potion === 'antidote'
-            ? 'narration.witchAntidoteUsed'
-            : 'narration.witchPoisonUsed',
-        ),
-        { player: playerLabel(payload.targetId, catalog) },
-      )
     case 'speech.committed':
       return formatCopy(getCopy('narration.speech'), {
         player: playerLabel(payload.playerId, catalog),
@@ -138,15 +124,6 @@ export function renderEventNarration(event: GameEvent, catalog: NarrationCatalog
         totals: totals || getCopy('narration.noVotes'),
       })
     }
-    case 'seer.inspected':
-      return formatCopy(
-        getCopy(
-          payload.result === 'werewolf'
-            ? 'narration.seerResultWerewolf'
-            : 'narration.seerResultVillage',
-        ),
-        { player: playerLabel(payload.targetId, catalog) },
-      )
     case 'faction.members':
       if (payload.faction !== 'werewolf') return null
       if (catalog.viewerPlayerId && payload.playerIds.includes(catalog.viewerPlayerId)) {
@@ -178,11 +155,6 @@ export function renderEventNarration(event: GameEvent, catalog: NarrationCatalog
       return formatCopy(getCopy('narration.roleRevealed'), {
         player: playerLabel(payload.playerId, catalog),
         role: catalog.roleName(payload.roleId),
-      })
-    case 'hunter.shot':
-      return formatCopy(getCopy('narration.hunterShot'), {
-        player: playerLabel(payload.playerId, catalog),
-        target: playerLabel(payload.targetId, catalog),
       })
     case 'match.ended':
       return formatCopy(getCopy('narration.matchEnded'), { winner: factionName(payload.winner) })

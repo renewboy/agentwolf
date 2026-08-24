@@ -1,12 +1,17 @@
 import type { Faction } from '@agentwolf/contracts'
-import type { BoardManifest, GameState } from './types.js'
+import type { BoardManifest, GameState } from '../../types.js'
+import type { RoleRegistry } from '../../roles/registry.js'
 
 export interface VictoryResult {
   readonly winner: Faction
   readonly reason: string
 }
 
-export function evaluateVictory(state: GameState, board: BoardManifest): VictoryResult | null {
+export function evaluateVictory(
+  state: GameState,
+  board: BoardManifest,
+  roles: RoleRegistry,
+): VictoryResult | null {
   const living = [...state.players.values()].filter((player) => player.alive)
   const wolves = living.filter((player) => player.faction === 'werewolf')
   if (wolves.length === 0) {
@@ -22,11 +27,11 @@ export function evaluateVictory(state: GameState, board: BoardManifest): Victory
 
   const livingVillagers = living.filter((player) => {
     if (!player.roleId) return false
-    return player.roleId === 'role-villager'
+    return roles.role(player.roleId).kind === 'villager'
   })
   const livingGods = living.filter((player) => {
     if (!player.roleId || player.faction !== 'village') return false
-    return player.roleId !== 'role-villager'
+    return roles.role(player.roleId).kind === 'god'
   })
   if (livingVillagers.length === 0) {
     return { winner: 'werewolf', reason: 'all-villagers-eliminated' }

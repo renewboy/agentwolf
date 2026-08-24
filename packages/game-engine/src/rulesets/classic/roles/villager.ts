@@ -1,5 +1,5 @@
 import { RoleIdSchema } from '@agentwolf/contracts'
-import { Role } from './base.js'
+import { Role } from '../../../roles/base.js'
 
 export class VillagerRole extends Role {
   public readonly id = RoleIdSchema.parse('role-villager')

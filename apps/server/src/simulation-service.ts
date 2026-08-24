@@ -159,7 +159,12 @@ export class SimulationService {
       })
     })
     const canonicalEvents = canonicalizeSimulationEvents(events, normalization)
-    const replayed = replayGame(matchId, manifest, events)
+    const replayed = replayGame(
+      matchId,
+      manifest,
+      events,
+      this.#boards.rulesetForSnapshot(match.boardSnapshot),
+    )
     const observed = {
       events: canonicalEvents,
       checkpoint: simulationCheckpoint(replayed, match.status, canonicalEvents.length),

@@ -1,10 +1,12 @@
 import type { SimulationCapture, SimulationFixture } from '@agentwolf/contracts'
 import { boardManifestFromSnapshot, GameEngine } from '@agentwolf/game-engine'
+import { RulesetCatalog } from './ruleset-catalog.js'
 
 type SimulationInput = SimulationCapture | SimulationFixture
 
 export function createSimulationEngine(simulation: SimulationInput) {
   const board = boardManifestFromSnapshot(simulation.setup.board)
+  const ruleset = new RulesetCatalog().forSnapshot(simulation.setup.board)
   let tick = 0
   const clock = (): Date => new Date(Date.UTC(2000, 0, 1, 0, 0, tick++))
   const engine = GameEngine.create({
@@ -20,6 +22,7 @@ export function createSimulationEngine(simulation: SimulationInput) {
     roleAssignment: 'manual',
     seed: 1,
     clock,
+    ruleset,
   })
-  return { board, clock, engine }
+  return { board, clock, engine, ruleset }
 }

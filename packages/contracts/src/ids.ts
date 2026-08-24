@@ -62,6 +62,54 @@ export const PhaseIdSchema = z
   .transform((value) => value as PhaseId)
 export type PhaseId = Brand<string, 'PhaseId'>
 
+export const PluginIdSchema = z
+  .string()
+  .regex(/^plugin-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as PluginId)
+export type PluginId = Brand<string, 'PluginId'>
+
+export const RulesetIdSchema = z
+  .string()
+  .regex(/^ruleset-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as RulesetId)
+export type RulesetId = Brand<string, 'RulesetId'>
+
+export const CapabilityIdSchema = z
+  .string()
+  .regex(/^capability-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as CapabilityId)
+export type CapabilityId = Brand<string, 'CapabilityId'>
+
+export const EffectTypeSchema = z
+  .string()
+  .regex(/^effect-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as EffectType)
+export type EffectType = Brand<string, 'EffectType'>
+
+export const PluginEventTypeSchema = z
+  .string()
+  .regex(/^event-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as PluginEventType)
+export type PluginEventType = Brand<string, 'PluginEventType'>
+
+export const QueryTypeSchema = z
+  .string()
+  .regex(/^query-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as QueryType)
+export type QueryType = Brand<string, 'QueryType'>
+
+export const TriggerIdSchema = z
+  .string()
+  .regex(/^trigger-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as TriggerId)
+export type TriggerId = Brand<string, 'TriggerId'>
+
+export const DecisionWindowIdSchema = z
+  .string()
+  .regex(/^window-[a-z0-9][a-z0-9-]{1,95}$/)
+  .transform((value) => value as DecisionWindowId)
+export type DecisionWindowId = Brand<string, 'DecisionWindowId'>
+
 export const EventSequenceSchema = z.number().int().positive()
 export type EventSequence = number
 

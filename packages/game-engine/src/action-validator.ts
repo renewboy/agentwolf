@@ -1,6 +1,7 @@
 import type { EventVisibility, PlayerAction, PlayerId } from '@agentwolf/contracts'
 import { assertRule } from './errors.js'
 import type { RoleRegistry } from './roles/registry.js'
+import type { TriggerRegistry } from './plugins/trigger-registry.js'
 import { sanitizeSpeech } from './speech.js'
 import type {
   BoardManifest,
@@ -29,6 +30,7 @@ export function validateTurnAction(
   state: GameState,
   board: BoardManifest,
   roles: RoleRegistry,
+  triggers: TriggerRegistry,
 ): void {
   const definition = node.action
   assertRule(definition, `${node.id} does not accept player actions`)
@@ -60,9 +62,16 @@ export function validateTurnAction(
       return
     case 'night-action': {
       assertRule(action.type === 'night-action', `${node.id} requires a night action`)
-      assertAllowedAbility(node, definition.abilityIds, action.abilityId)
+      assertAllowedAbility(
+        node,
+        phaseAbilityIdsForActor(definition, actor, state, board, roles),
+        action.abilityId,
+      )
       const entry = roles.ability(action.abilityId)
-      assertRule(entry.role.id === actor.roleId, `${actor.name} does not own ${action.abilityId}`)
+      assertRule(
+        roles.canUseAbility(actor, action.abilityId),
+        `${actor.name} cannot use ${action.abilityId}`,
+      )
       assertRule(
         entry.ability.actionTypes.includes(action.type),
         `${action.abilityId} does not accept ${action.type}`,
@@ -76,7 +85,11 @@ export function validateTurnAction(
     }
     case 'skill-trigger':
       assertRule(action.type === 'skill-trigger', `${node.id} requires a skill trigger`)
-      assertAllowedAbility(node, definition.abilityIds, action.abilityId)
+      assertAllowedAbility(
+        node,
+        allowedSkillAbilityIds(definition, actor, state, board, roles, triggers),
+        action.abilityId,
+      )
       if (definition.validation === 'sheriff-transfer') {
         if (action.targetId) {
           const target = state.players.get(action.targetId)
@@ -88,6 +101,36 @@ export function validateTurnAction(
       validateRoleSkill(action, state, board, roles, actor)
       return
   }
+}
+
+function allowedSkillAbilityIds(
+  definition: Extract<PhaseActionDefinition, { type: 'skill-trigger' }>,
+  actor: PlayerState,
+  state: GameState,
+  board: BoardManifest,
+  roles: RoleRegistry,
+  triggers: TriggerRegistry,
+): readonly Extract<PlayerAction, { type: 'skill-trigger' }>['abilityId'][] {
+  return definition.abilitySource === 'decision-trigger'
+    ? triggers.abilityIdsFor(definition.triggerSignal ?? '', actor, state, board, roles)
+    : phaseAbilityIdsForActor(definition, actor, state, board, roles)
+}
+
+export function phaseAbilityIdsForActor(
+  definition: Extract<PhaseActionDefinition, { type: 'night-action' | 'skill-trigger' }>,
+  actor: PlayerState,
+  _state: GameState,
+  _board: BoardManifest,
+  roles: RoleRegistry,
+): readonly Extract<PlayerAction, { type: 'night-action' }>['abilityId'][] {
+  const capabilityAbilityIds = (definition.capabilityIds ?? []).flatMap((capabilityId) =>
+    roles.abilityIdsForCapability(capabilityId),
+  )
+  return [...new Set([...definition.abilityIds, ...capabilityAbilityIds])].filter(
+    (abilityId) =>
+      roles.canUseAbility(actor, abilityId) &&
+      roles.ability(abilityId).ability.actionTypes.includes(definition.type),
+  )
 }
 
 function assertAllowedAbility(
@@ -114,7 +157,10 @@ function validateVote(
   if (definition.abilityId) {
     assertRule(actor.roleId, `${actor.name} has no role`)
     const entry = roles.ability(definition.abilityId)
-    assertRule(entry.role.id === actor.roleId, `${actor.name} does not own ${definition.abilityId}`)
+    assertRule(
+      roles.canUseAbility(actor, definition.abilityId),
+      `${actor.name} cannot use ${definition.abilityId}`,
+    )
     assertRule(
       entry.ability.actionTypes.includes(action.type),
       `${definition.abilityId} does not accept ${action.type}`,
@@ -141,7 +187,10 @@ function validateRoleSkill(
 ): void {
   assertRule(actor.roleId, `${actor.name} has no role`)
   const entry = roles.ability(action.abilityId)
-  assertRule(entry.role.id === actor.roleId, `${actor.name} does not own ${action.abilityId}`)
+  assertRule(
+    roles.canUseAbility(actor, action.abilityId),
+    `${actor.name} cannot use ${action.abilityId}`,
+  )
   assertRule(
     entry.ability.actionTypes.includes(action.type),
     `${action.abilityId} does not accept ${action.type}`,
@@ -174,16 +223,25 @@ export function phaseActionVisibility(node: PhaseNode, actorId: PlayerId): Event
   const actionVisibility = node.action?.visibility
   assertRule(actionVisibility, `${node.id} does not define action visibility`)
   if (actionVisibility === 'public') return { kind: 'public' }
-  if (actionVisibility === 'werewolf-faction') {
-    return { kind: 'faction', faction: 'werewolf' }
-  }
+  if (typeof actionVisibility === 'object') return actionVisibility
   return { kind: 'players', playerIds: [actorId] }
 }
 
 export function phaseInterruptForAction(
   node: PhaseNode,
   action: PlayerAction,
+  state: GameState,
+  roles: RoleRegistry,
 ): PhaseInterruptDefinition | null {
   if (action.type !== 'skill-trigger') return null
-  return node.interrupts?.find((interrupt) => interrupt.abilityId === action.abilityId) ?? null
+  const actor = state.players.get(action.actorId)
+  if (!actor || !roles.canUseAbility(actor, action.abilityId)) return null
+  const ability = roles.ability(action.abilityId).ability
+  return (
+    node.interrupts?.find(
+      (interrupt) =>
+        ability.requiredCapability !== undefined &&
+        interrupt.capabilityIds.includes(ability.requiredCapability),
+    ) ?? null
+  )
 }

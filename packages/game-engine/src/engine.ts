@@ -3,6 +3,7 @@ import {
   PhaseIdSchema,
   PlayerActionSchema,
   type EventVisibility,
+  type Faction,
   type GameEvent,
   type GameEventPayload,
   type PlayerAction,
@@ -13,12 +14,12 @@ import {
   normalizeTurnAction,
   phaseActionVisibility,
   phaseInterruptForAction,
+  phaseAbilityIdsForActor,
   phaseSpeechKind,
   turnActionVisibility,
   validateTurnAction,
 } from './action-validator.js'
 import { appendActionOutcome } from './action-outcome.js'
-import { registerClassicRules } from './classic-rules.js'
 import type {
   GameEngineOptions,
   GameEngineRestoreOptions,
@@ -27,9 +28,11 @@ import type {
 } from './engine-contracts.js'
 import { assertRule } from './errors.js'
 import { prepareMatchSetup } from './match-setup.js'
-import { ResolutionAgenda } from './resolution.js'
+import { appendAbilityOutcomes, effectsForActions } from './resolution.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
-import { createV1RoleRegistry, type RoleRegistry } from './roles/registry.js'
+import type { RoleRegistry } from './roles/registry.js'
+import { RulesetRuntime } from './plugins/ruleset.js'
+import { createClassicRuleset } from './rulesets/classic/ruleset.js'
 import { emptyGameState, reduceGameEvent } from './state.js'
 import type {
   BoardManifest,
@@ -44,20 +47,41 @@ export class GameEngine {
   readonly #clock: () => Date
   readonly #roles: RoleRegistry
   readonly #rules: RuleRegistry
+  readonly #ruleset: RulesetRuntime
   readonly #events: GameEvent[] = []
   #state: GameState
 
   private constructor(options: GameEngineOptions, restored?: GameEngineRestoreOptions) {
-    this.#board = options.board
     this.#clock = options.clock ?? (() => new Date())
-    this.#roles = options.roles ?? createV1RoleRegistry()
-    this.#rules = options.rules ?? new RuleRegistry()
-    if (!options.rules) registerClassicRules(this.#rules)
-    this.#state = emptyGameState(options.matchId, options.board)
+    const defaultRuleset = options.ruleset ?? createClassicRuleset()
+    this.#ruleset =
+      options.roles || options.rules
+        ? new RulesetRuntime(
+            defaultRuleset.id,
+            defaultRuleset.version,
+            defaultRuleset.plugins,
+            options.roles ?? defaultRuleset.roles,
+            options.rules ?? defaultRuleset.rules,
+            defaultRuleset.resolution,
+            defaultRuleset.victories,
+            defaultRuleset.interrupts,
+            defaultRuleset.events,
+            defaultRuleset.phases,
+            defaultRuleset.queries,
+            defaultRuleset.triggers,
+          )
+        : defaultRuleset
+    this.#board = { ...options.board, phases: this.#ruleset.phases }
+    this.#roles = this.#ruleset.roles
+    this.#rules = this.#ruleset.rules
+    this.#state = emptyGameState(options.matchId, this.#board)
     if (restored) {
       const events = GameEventSchema.array().parse(restored.events)
       this.#events.push(...events)
-      this.#state = events.reduce(reduceGameEvent, this.#state)
+      this.#state = events.reduce(
+        (state, event) => reduceGameEvent(state, event, this.#ruleset.events),
+        this.#state,
+      )
       this.#state = {
         ...this.#state,
         status: restored.status,
@@ -79,6 +103,7 @@ export class GameEngine {
         roleAssignment: 'manual',
         seed: 0,
         ...(options.clock ? { clock: options.clock } : {}),
+        ...(options.ruleset ? { ruleset: options.ruleset } : {}),
         ...(options.roles ? { roles: options.roles } : {}),
         ...(options.rules ? { rules: options.rules } : {}),
       },
@@ -142,10 +167,42 @@ export class GameEngine {
     const abilityId = definition.type === 'vote' ? definition.abilityId : undefined
     const allowedAbilityIds =
       definition.type === 'night-action' || definition.type === 'skill-trigger'
-        ? definition.abilityIds
+        ? definition.type === 'skill-trigger' && definition.abilitySource === 'decision-trigger'
+          ? actors.flatMap((playerId) => {
+              const actor = this.#state.players.get(playerId)
+              return actor
+                ? this.#ruleset.triggers.abilityIdsFor(
+                    definition.triggerSignal ?? '',
+                    actor,
+                    this.#state,
+                    this.#board,
+                    this.#roles,
+                  )
+                : []
+            })
+          : actors.flatMap((playerId) => {
+              const actor = this.#state.players.get(playerId)
+              return actor
+                ? phaseAbilityIdsForActor(definition, actor, this.#state, this.#board, this.#roles)
+                : []
+            })
         : abilityId
           ? [abilityId]
           : []
+    const interruptAbilityIds = [
+      ...new Set(
+        (node.interrupts ?? []).flatMap((interrupt) =>
+          interrupt.capabilityIds.flatMap((capabilityId) =>
+            this.#roles.abilityIdsForCapability(capabilityId).filter((candidate) =>
+              actors.some((playerId) => {
+                const actor = this.#state.players.get(playerId)
+                return actor ? this.#roles.canUseAbility(actor, candidate) : false
+              }),
+            ),
+          ),
+        ),
+      ),
+    ]
     return {
       phaseId: node.id,
       labelKey: node.labelKey,
@@ -156,9 +213,7 @@ export class GameEngine {
       ...(definition.type === 'vote' ? { voteKind: expectedVoteKind(node) } : {}),
       ...(abilityId ? { abilityId } : {}),
       ...(allowedAbilityIds.length > 0 ? { allowedAbilityIds } : {}),
-      ...(node.interrupts?.length
-        ? { interruptAbilityIds: node.interrupts.map((interrupt) => interrupt.abilityId) }
-        : {}),
+      ...(interruptAbilityIds.length > 0 ? { interruptAbilityIds } : {}),
     }
   }
 
@@ -204,7 +259,7 @@ export class GameEngine {
     )
     if (interrupt) {
       assertRule(action.type === 'skill-trigger', 'An ability interrupt requires a skill trigger')
-      this.#submitSelfDestruct(interrupt, action)
+      this.#submitInterrupt(interrupt, action)
       this.#drive()
       return this.#events.slice(from)
     }
@@ -275,7 +330,7 @@ export class GameEngine {
       visibility.public,
     )
 
-    const factionMembers = new Map<'village' | 'werewolf' | 'independent', PlayerId[]>()
+    const factionMembers = new Map<Faction, PlayerId[]>()
     setup.players.forEach((player, index) => {
       const roleId = setup.assignments[index]!
       const role = this.#roles.role(roleId)
@@ -287,11 +342,17 @@ export class GameEngine {
       members.push(player.id)
       factionMembers.set(role.faction, members)
     })
-    const wolves = factionMembers.get('werewolf') ?? []
-    this.#append(
-      { type: 'faction.members', faction: 'werewolf', playerIds: wolves },
-      visibility.faction('werewolf'),
-    )
+    for (const [faction, playerIds] of factionMembers) {
+      const sharesKnowledge =
+        playerIds.length > 0 &&
+        playerIds.every((playerId) => {
+          const roleId = this.#state.players.get(playerId)?.roleId
+          return roleId ? this.#roles.role(roleId).sharesFactionKnowledge : false
+        })
+      if (sharesKnowledge) {
+        this.#append({ type: 'faction.members', faction, playerIds }, visibility.faction(faction))
+      }
+    }
   }
 
   #append(payload: GameEventPayload, eventVisibility: EventVisibility): GameEvent {
@@ -303,16 +364,26 @@ export class GameEngine {
       payload,
     })
     this.#events.push(event)
-    this.#state = reduceGameEvent(this.#state, event)
+    if (payload.type === 'plugin.event') {
+      this.#ruleset.events.validate(payload)
+    }
+    this.#state = reduceGameEvent(this.#state, event, this.#ruleset.events)
     return event
   }
 
   #runtime(): RuleRuntime {
+    const currentState = () => this.#state
     return {
-      state: this.#state,
+      get state() {
+        return currentState()
+      },
       board: this.#board,
       events: this.#events,
       roles: this.#roles,
+      resolution: this.#ruleset.resolution,
+      victories: this.#ruleset.victories,
+      queries: this.#ruleset.queries,
+      triggers: this.#ruleset.triggers,
       append: (payload, eventVisibility) => this.#append(payload, eventVisibility),
     }
   }
@@ -418,81 +489,84 @@ export class GameEngine {
     assertRule(this.#state.phaseId, 'Match has no active phase')
     const node = this.#phaseNode(this.#state.phaseId)
     this.#validateActor(node, action.actorId)
-    const interrupt = phaseInterruptForAction(node, action)
+    const interrupt = phaseInterruptForAction(node, action, this.#state, this.#roles)
     if (interrupt) {
       assertRule(action.type === 'skill-trigger', 'An ability interrupt requires a skill trigger')
       const actor = this.#state.players.get(action.actorId)
-      assertRule(actor?.roleId, `Self-destruct actor ${action.actorId} has no role`)
+      assertRule(actor?.roleId, `Interrupt actor ${action.actorId} has no role`)
       const entry = this.#roles.ability(action.abilityId)
-      assertRule(entry.role.id === actor.roleId, `${actor.name} cannot self-destruct`)
+      assertRule(
+        this.#roles.canUseAbility(actor, action.abilityId),
+        `${actor.name} cannot interrupt`,
+      )
       assertRule(
         entry.ability.actionTypes.includes(action.type),
         `${action.abilityId} does not accept ${action.type}`,
       )
       entry.ability.validate({ state: this.#state, board: this.#board, action, actor })
     } else {
-      validateTurnAction(node, action, this.#state, this.#board, this.#roles)
+      validateTurnAction(
+        node,
+        action,
+        this.#state,
+        this.#board,
+        this.#roles,
+        this.#ruleset.triggers,
+      )
     }
     return { node, interrupt }
   }
 
-  #submitSelfDestruct(
+  #submitInterrupt(
     interrupt: PhaseInterruptDefinition,
     action: Extract<PlayerAction, { type: 'skill-trigger' }>,
   ): void {
     const actor = this.#state.players.get(action.actorId)
-    assertRule(actor?.roleId, `Self-destruct actor ${action.actorId} has no role`)
-    const entry = this.#roles.ability(action.abilityId)
-    assertRule(entry.role.id === actor.roleId, `${actor.name} cannot self-destruct`)
-    this.#append({ type: 'action.submitted', playerId: actor.id, action }, visibility.public)
+    assertRule(actor?.roleId, `Interrupt actor ${action.actorId} has no role`)
+    assertRule(this.#roles.canUseAbility(actor, action.abilityId), `${actor.name} cannot interrupt`)
+    const { agenda } = effectsForActions(
+      this.#state,
+      this.#board,
+      this.#roles,
+      [action],
+      this.#ruleset.resolution,
+      this.#ruleset.queries,
+    )
+    const result = agenda.settle(this.#state, this.#board, this.#roles)
+    this.#append(
+      { type: 'action.submitted', playerId: actor.id, action },
+      this.#interruptVisibility(interrupt, actor.id),
+    )
     const count = (actor.roleState.abilityUses[action.abilityId] ?? 0) + 1
     this.#append(
       { type: 'ability.used', playerId: actor.id, abilityId: action.abilityId, count },
       visibility.players([actor.id]),
     )
-    const agenda = new ResolutionAgenda()
-    agenda.addAll(entry.ability.effects({ state: this.#state, board: this.#board, action, actor }))
-    const result = agenda.settle(this.#state, this.#board, this.#roles)
-    const death = result.pendingDeaths.find((pending) => pending.playerId === actor.id)
-    assertRule(death, 'Self-destruct ability must resolve the actor death')
-    this.#append(
-      {
-        type: 'player.died',
-        playerId: actor.id,
-        causes: [...death.causes],
-        announced: true,
-      },
-      visibility.god,
-    )
-    this.#append(
-      {
-        type: 'public.announcement',
-        code: 'werewolf-self-destruct',
-        playerIds: [actor.id],
-        params: {},
-      },
-      visibility.public,
-    )
-    this.#append({ type: 'day.interrupted', reason: 'self-destruct' }, visibility.public)
-    if (
-      interrupt.context === 'sheriff-election' &&
-      this.#board.policies.sheriffExplosion === 'single-explosion-loses-badge'
-    ) {
+    for (const death of result.pendingDeaths) {
       this.#append(
-        { type: 'sheriff.badge-lost', reason: 'self-destruct-during-election' },
-        visibility.public,
+        {
+          type: 'player.died',
+          playerId: death.playerId,
+          causes: [...death.causes],
+          announced: true,
+        },
+        visibility.god,
       )
     }
-
-    if (this.#rules.evaluate('has-winner', this.#runtime())) {
-      this.#enterPhase(PhaseIdSchema.parse('phase-match-ended'))
-    } else if (interrupt.context === 'sheriff-election') {
-      this.#enterPhase(PhaseIdSchema.parse('phase-day-announcement'))
-    } else if (this.#state.sheriff.holderId === actor.id) {
-      this.#enterPhase(PhaseIdSchema.parse('phase-sheriff-transfer'))
-    } else {
-      this.#enterPhase(PhaseIdSchema.parse('phase-last-words'))
+    appendAbilityOutcomes(this.#runtime(), action, result)
+    const handler = this.#ruleset.interrupts.handler(interrupt.handlerId)
+    for (const event of handler.events?.(this.#runtime(), interrupt, result) ?? []) {
+      this.#append(event.payload, event.visibility)
     }
+    this.#enterPhase(handler.nextPhase(this.#runtime(), interrupt, result))
+  }
+
+  #interruptVisibility(interrupt: PhaseInterruptDefinition, actorId: PlayerId): EventVisibility {
+    if (interrupt.visibility === 'public') return visibility.public
+    if (typeof interrupt.visibility === 'object') {
+      return visibility.faction(interrupt.visibility.faction)
+    }
+    return visibility.players([actorId])
   }
 
   #announceActiveSpeech(node: PhaseNode): void {

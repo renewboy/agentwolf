@@ -20,6 +20,7 @@ import { BoardCatalogService } from './board-catalog.js'
 import type { ServerConfig } from './config.js'
 import type { LiveConnection, LiveSubscriber } from './live-hub.js'
 import { MatchRuntime } from './match-runtime.js'
+import { RulesetCatalog } from './ruleset-catalog.js'
 import { describeError } from './match-runtime-helpers.js'
 import { SqliteRepository, type MatchRecord } from './repository.js'
 import {
@@ -61,7 +62,8 @@ export async function runOrchestrationSimulation(
   try {
     const mailbox = new ActionMailbox()
     const catalog = new AgentCatalogService(repository)
-    const boards = new BoardCatalogService(repository)
+    const rulesets = new RulesetCatalog()
+    const boards = new BoardCatalogService(repository, null, rulesets)
     saveSimulationAgents(repository, simulation)
     const { board, engine } = createSimulationEngine(simulation)
     const timestamp = '2000-01-01T00:00:00.000Z'
@@ -108,6 +110,7 @@ export async function runOrchestrationSimulation(
       config,
       mailbox,
       trajectory: new TrajectoryService(repository).recorder(simulation.setup.matchId),
+      ruleset: rulesets.forSnapshot(simulation.setup.board),
       sessionFactory,
       sessionConcurrency: simulation.setup.players.length,
     })

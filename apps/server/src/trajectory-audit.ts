@@ -7,7 +7,7 @@ import {
   type TrajectoryTurn,
 } from '@agentwolf/contracts'
 import { getCopy } from '@agentwolf/assets'
-import { GameEngine, createV1RoleRegistry, replayGame } from '@agentwolf/game-engine'
+import { GameEngine, replayGame, type RulesetRuntime } from '@agentwolf/game-engine'
 import { playerBootstrapContextBudget } from '@agentwolf/acp'
 import type { BoardCatalogService } from './board-catalog.js'
 import { ContextRenderer } from './context-renderer.js'
@@ -22,10 +22,11 @@ export async function auditTrajectory(
   const match = repository.getMatch(matchId)
   if (!match?.boardSnapshot) throw new Error(`Match ${matchId} has no board snapshot`)
   const board = boards.resolveSnapshot(match.boardSnapshot).manifest
+  const ruleset = boards.rulesetForSnapshot(match.boardSnapshot)
   const allEvents = repository.listMatchEvents(matchId)
   const turns = repository.listTrajectoryTurns(matchId).filter((turn) => turn.ownerId !== 'system')
   const records = repository.listTrajectoryRecords(matchId)
-  const renderer = new ContextRenderer(createV1RoleRegistry())
+  const renderer = new ContextRenderer(ruleset.roles)
   const issues: TrajectoryAuditIssue[] = []
 
   for (const turn of turns) {
@@ -85,7 +86,7 @@ export async function auditTrajectory(
 
     try {
       const history = allEvents.filter((event) => event.sequence <= turn.toSequence)
-      const replayed = replayGame(matchId, board, history)
+      const replayed = replayGame(matchId, board, history, ruleset)
       const state = turn.gameStatus
         ? {
             ...replayed,
@@ -115,6 +116,7 @@ export async function auditTrajectory(
                 issues,
                 turn.turnId,
                 turn.continuation,
+                ruleset,
               )
       if (expected && turn.visibleEventSequences.length > 0) {
         const actualSequences = expected.visibleEvents.map((event) => event.sequence)
@@ -174,6 +176,7 @@ async function expectedActionPrompt(
   issues: TrajectoryAuditIssue[],
   turnId: string,
   continuation: boolean,
+  ruleset: RulesetRuntime,
 ) {
   const engine = GameEngine.restore({
     matchId,
@@ -181,6 +184,7 @@ async function expectedActionPrompt(
     events: history,
     status,
     pausedReason,
+    ruleset,
   })
   const descriptor = engine.currentTurn()
   if (!descriptor || !descriptor.actors.includes(ownerId)) {
@@ -195,7 +199,13 @@ async function expectedActionPrompt(
     promptAssetFor(descriptor, promptVersion),
     actionInstructionFor(
       descriptor,
-      { board, state: engine.state, playerId: ownerId, speechCharacterLimit },
+      {
+        board,
+        state: engine.state,
+        playerId: ownerId,
+        roles: ruleset.roles,
+        speechCharacterLimit,
+      },
       promptVersion,
     ),
     promptVersion,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { PhaseIdSchema } from '@agentwolf/contracts'
-import { classicPhaseGraph, expectedVoteKind, phaseSpeechKind } from '../src/index.js'
+import { createClassicRuleset, expectedVoteKind, phaseSpeechKind } from '../src/index.js'
+
+const classicPhaseGraph = createClassicRuleset().phases
 
 describe('terminal phase priority', () => {
   it('skips first-day sheriff setup when night resolution already has a winner', () => {

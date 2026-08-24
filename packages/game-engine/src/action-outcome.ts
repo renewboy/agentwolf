@@ -1,5 +1,6 @@
 import type { EventVisibility, GameEventPayload, PlayerAction } from '@agentwolf/contracts'
 import { visibility } from './rule-registry.js'
+import { phaseActionVisibility } from './action-validator.js'
 import { sanitizeSpeech } from './speech.js'
 import type { GameState, PhaseNode } from './types.js'
 
@@ -30,7 +31,7 @@ export function appendActionOutcome({
         text: result.text,
         sanitized: result.replacements > 0,
       },
-      action.kind === 'wolf-council' ? visibility.faction('werewolf') : visibility.public,
+      phaseActionVisibility(node, action.actorId),
     )
     return
   }

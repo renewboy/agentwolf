@@ -1,18 +1,7 @@
 import { z } from 'zod'
 import { AbilityIdSchema, PlayerIdSchema, RoleIdSchema } from './ids.js'
 
-export const RoleEffectIdSchema = z.enum([
-  'werewolf-attack',
-  'werewolf-self-destruct',
-  'seer-inspect',
-  'witch-antidote',
-  'witch-poison',
-  'hunter-shot',
-  'idiot-reveal',
-  'guard-protect',
-  'sheriff-elected',
-  'sheriff-transferred',
-])
+export const RoleEffectIdSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{2,95}$/)
 export type RoleEffectId = z.infer<typeof RoleEffectIdSchema>
 
 export const RoleEffectCueSchema = z.object({
