@@ -15,7 +15,7 @@ Fastify API and view projector ---- SQLite event/profile/board/Character/setting
           +---- Board catalog ---- immutable Match board snapshots
           +---- Character catalog ---- built-ins / custom cards / managed portraits
           |
-          +---- Rule engine ---- role registry / phase graph / resolution agenda
+          +---- Ruleset catalog ---- plugin manifests / phase graph / resolution queue
 ```
 
 ## Package direction
@@ -36,22 +36,48 @@ contracts  <- game-engine
 
 ## Rules and roles
 
-A board manifest selects a phase graph, role IDs, and policy modules. The server Board Catalog
-combines read-only built-ins with persisted custom definitions and compiles both into the same
-classic manifest. Match creation stores the resolved name, composition, sheriff setting, victory
-policy, revision, and ruleset ID as an immutable snapshot; replay and recovery compile that
-snapshot rather than consulting the mutable catalog. A role is a concrete class implementing role
-metadata and ability definitions. Each ability validates every action form that invokes it and
-produces effects for the shared resolution agenda. The grouped Werewolf ballot selects the regular
-attack target; the registered Werewolf kill ability validates that target and produces its damage
-effect. Immediate abilities such as self-destruct also settle their effects through the agenda
-before domain events are appended.
+A Ruleset Catalog resolves one immutable, compile-time plugin manifest for every Match. A manifest
+contains the ruleset ID and version plus an ordered lock of plugin IDs, versions, configurations,
+configuration hashes, and a canonical fingerprint. Schema-two board snapshots store that lock,
+the resolved board policies, composition, Sheriff setting, revision, and presentation metadata.
+Restore, trajectory reconstruction, and simulation require the installed fingerprint to match.
+Schema-one `classic-v1` snapshots resolve through their registered compatibility ruleset.
 
-Each interactive phase node declares one discriminated action contract containing its action type,
-speech or vote kind, allowed ability IDs or Sheriff actions, event visibility, and permitted
-ability interrupts. The engine and server turn descriptor consume that contract directly; phase
-IDs identify graph nodes and handler registration only. Rule modules register phase transitions,
-resolution handlers, visibility rules, and victory evaluators.
+The deterministic kernel owns phase barriers, event application, settlement execution, replay,
+and bounded continuation. It contains no concrete Role or Ability IDs. Ruleset plugins register:
+
+- Role metadata and static capabilities;
+- abilities and their input validation, effects, outcomes, and model-facing instruction keys;
+- phase-graph bases and ordered phase insertions;
+- schema-validated effect handlers and finalizers;
+- plugin event schemas and event-sourced plugin-state reducers;
+- capability grants and revocations;
+- identity queries and ordered result modifiers;
+- interactive trigger eligibility;
+- interrupt settlement and continuation handlers;
+- victory evaluators.
+
+Abilities are authorized by capabilities. The regular attack is registered once and every eligible
+Werewolf role receives `wolf-kill`; ordinary Werewolf and White Wolf King retain separate daytime
+detonation capabilities. Dynamic capability events participate in the same authorization check.
+Interactive phase nodes declare action type, visibility, capability or ability requirements, and
+interrupt windows. Role plugins insert Guard, Witch, Seer, and Magic Mirror Girl action phases into
+the classic night graph without changing the kernel or base flow.
+
+Submitted actions become immutable intents. Effect definitions select one named resolution lane:
+targeting, prevention, protection, damage, information, death, reaction, announcement, or victory.
+The queue orders effects by lane, validated definition ordering, and stable enqueue sequence. An
+effect handler may enqueue more effects; settlement continues to quiescence with a bounded cycle
+guard. Registered finalizers merge pending deaths, saves, inspections, exact-role inspections, and
+ability consumption. Interactive death reactions resolve through trigger-selected skill phases
+before victory. Interrupt handlers commit every resulting death, publish registered outcomes, and
+select the next phase after the same terminal checks.
+
+Magic Mirror Girl uses the exact-role identity query and records inspected targets in its private
+plugin event state. White Wolf King receives the shared council and attack capabilities; its
+targeted detonation produces two damage effects and enters the common death-trigger pipeline.
+Presentation registries map visible legacy and plugin events to narration, player references, and
+semantic effect cues outside the game kernel.
 
 A Character is public presentation metadata and is distinct from a game role. Custom boards store
 nullable Character IDs by seat; Match creation resolves board defaults and request overrides into
@@ -67,25 +93,6 @@ Prompt rendering and trajectory reconstruction both read that immutable per-Matc
 The Agent Profile catalog stores one explicit SQLite order. Reorder requests contain every current
 profile ID exactly once and commit in one transaction. Profile edits preserve their position, new
 profiles append to the catalog, and the ordered list is the source for new-Match seat defaults.
-
-Submitted actions become immutable intents. The resolution agenda orders effects by named priority and stable sequence:
-
-1. target mapping and redirection;
-2. action prevention and ability state;
-3. protection, attack, antidote, and poison effects;
-4. collision policies;
-5. pending deaths;
-6. death prevention and replacement;
-7. death triggers and chained effects;
-8. badge transfer and public announcements;
-9. victory evaluation after the agenda reaches quiescence.
-
-Future roles use these extension points:
-
-- Magician registers temporary target mappings.
-- Miracle Merchant grants an ability instance with its own usage state.
-- Cupid registers a relationship and a chained-death handler plus dynamic allegiance.
-- Piper registers status markers and an independent victory evaluator.
 
 ## Events, visibility, and synchronization
 
@@ -207,11 +214,12 @@ outcomes. A stable fixture-and-variant seed identifies every run.
 
 ## Role-effect projection
 
-Domain events contain game semantics only. After visibility filtering, the server projects
-recognized role and Sheriff events into `RoleEffectCue` DTOs. The browser consumes each sequence once through
-the role-effect catalog and GSAP adapter. A view change establishes a new sequence baseline, so a
-newly selected projection cannot replay historical private cues. The effect overlay is
-pointer-transparent and cannot alter rule timing or state.
+Domain events contain game semantics only. After visibility filtering, registered classic and
+plugin event presentations project `RoleEffectCue` DTOs with open effect IDs and stable visual
+primitives. The browser consumes each sequence once through the role-effect catalog and GSAP
+adapter. A view change establishes a new sequence baseline, so a newly selected projection cannot
+replay historical private cues. The effect overlay is pointer-transparent and cannot alter rule
+timing or state.
 
 ## ACP and action transport
 
@@ -257,10 +265,12 @@ The MCP server is bound to one player token. It exposes speech, vote, night acti
 and skill trigger tools. Normal Match speech is committed from the ACP response; `submit_speech`
 is a compatibility surface that requires an explicit expectation opt-in which the Match runtime
 does not grant. Before acceptance, the action gateway validates actor, phase, ability, target Player
-IDs, cardinality, role state, and single-submission rules without changing engine state. A rejected
+IDs, cardinality, capabilities, role state, and single-submission rules without changing engine state. A rejected
 call returns its reason as a failed tool result inside the same Agent turn and leaves the expectation
-open for a corrected call. Werewolf self-destruct is offered only during the sheriff election and
-daytime speech or vote phases declared by the phase graph. Wolf council accepts natural discussion only and
+open for a corrected call. Each eligible daytime role receives only the interrupt abilities granted
+by its capabilities: ordinary Werewolf receives self-destruct and White Wolf King receives targeted
+detonation. These abilities are offered only during the Sheriff election and daytime speech or vote
+phases declared by the phase graph. Wolf council accepts natural discussion only and
 opens its structured `submit_vote` attack action in the following phase. The regular attack is not
 advertised as a callable night-action ability, and that vote phase explicitly rejects
 `submit_night_action`. Acceptance stores the action inside the current phase barrier and broadcasts

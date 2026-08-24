@@ -8,10 +8,13 @@ import {
 import { getCopy } from '@agentwolf/assets'
 import {
   GameEngine,
+  createClassicRuleset,
   createV1RoleRegistry,
   sixPlayerBoard,
   standardBoard,
   v1AbilityIds,
+  whiteWolfAbilityIds,
+  whiteWolfKingBoard,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
@@ -23,6 +26,50 @@ import {
 } from '../src/match-runtime-helpers.js'
 
 describe('model action instructions', () => {
+  it('derives role-specific public interrupts from registered capabilities', () => {
+    const ruleset = createClassicRuleset()
+    const roleIds = whiteWolfKingBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId: MatchIdSchema.parse('match-white-wolf-instructions'),
+      board: whiteWolfKingBoard,
+      ruleset,
+      roleAssignment: 'manual',
+      seed: 1,
+      players: roleIds.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `White Wolf instruction player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-white-wolf-${index + 1}`),
+        roleId,
+      })),
+    })
+    const actor = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-white-wolf-king',
+    )!
+    const turn: TurnDescriptor = {
+      phaseId: PhaseIdSchema.parse('phase-day-speech'),
+      labelKey: 'phases.daySpeech',
+      mode: 'sequential',
+      actionType: 'speech',
+      actors: [actor.id],
+      speechKind: 'day',
+      interruptAbilityIds: [v1AbilityIds.werewolfSelfDestruct, whiteWolfAbilityIds.detonate],
+    }
+    expect(interruptAbilityExpectation(engine.state, actor.id, turn, ruleset.roles)).toEqual({
+      interruptAbilityIds: [whiteWolfAbilityIds.detonate],
+    })
+    const instruction = actionInstructionFor(turn, {
+      board: whiteWolfKingBoard,
+      state: engine.state,
+      playerId: actor.id,
+      roles: ruleset.roles,
+    })
+    expect(instruction).toContain('ability-white-wolf-detonate')
+    expect(instruction).not.toContain('ability-werewolf-self-destruct')
+  })
+
   it('binds campaign privacy and live skill targets to the current prompt contract', () => {
     const campaign: TurnDescriptor = {
       phaseId: PhaseIdSchema.parse('phase-sheriff-speech'),
@@ -36,16 +83,17 @@ describe('model action instructions', () => {
     expect(actionInstructionFor(campaign)).toContain('不可改写的公开事实')
     expect(actionInstructionFor(campaign, undefined, 7)).not.toContain('不可改写的公开事实')
 
-    const roles = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+    const roleIds = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
       Array.from({ length: count }, () => roleId),
     )
+    const roleRegistry = createV1RoleRegistry()
     const engine = GameEngine.create({
       matchId: MatchIdSchema.parse('match-action-instructions'),
       board: sixPlayerBoard,
       roleAssignment: 'manual',
       seed: 1,
-      roles: createV1RoleRegistry(),
-      players: roles.map((roleId, index) => ({
+      roles: roleRegistry,
+      players: roleIds.map((roleId, index) => ({
         id: PlayerIdSchema.parse(`player-${index + 1}`),
         seat: index + 1,
         name: `Instruction player ${index + 1}`,
@@ -74,6 +122,7 @@ describe('model action instructions', () => {
       board: sixPlayerBoard,
       state,
       playerId: actorId,
+      roles: roleRegistry,
     })
     expect(promptContractVersion).toBeGreaterThanOrEqual(17)
     expect(instruction).toContain('`player-2`')
@@ -89,6 +138,7 @@ describe('model action instructions', () => {
       board: sixPlayerBoard,
       state: engine.state,
       playerId: actorId,
+      roles: roleRegistry,
       speechCharacterLimit: 360,
     })
     expect(werewolfSpeech).toContain('ability-werewolf-self-destruct')
@@ -100,6 +150,7 @@ describe('model action instructions', () => {
           board: sixPlayerBoard,
           state: engine.state,
           playerId: actorId,
+          roles: roleRegistry,
           speechCharacterLimit: 360,
         },
         14,
@@ -115,6 +166,7 @@ describe('model action instructions', () => {
       board: sixPlayerBoard,
       state: engine.state,
       playerId: actorId,
+      roles: roleRegistry,
     })
     expect(councilInstruction).toContain('不调用任何行动工具')
     expect(councilInstruction).not.toContain('ability-werewolf-self-destruct')
@@ -130,15 +182,18 @@ describe('model action instructions', () => {
       board: sixPlayerBoard,
       state: engine.state,
       playerId: actorId,
+      roles: roleRegistry,
     })
     expect(wolfKillInstruction).toContain('submit_night_action')
     expect(wolfKillInstruction).toContain('不得')
     expect(actionInstructionFor(wolfKill, undefined, 12)).toBe('')
-    expect(interruptAbilityExpectation(engine.state, actorId, wolfCouncil)).toEqual({})
-    expect(interruptAbilityExpectation(engine.state, actorId, daySpeech)).toEqual({
+    expect(interruptAbilityExpectation(engine.state, actorId, wolfCouncil, roleRegistry)).toEqual(
+      {},
+    )
+    expect(interruptAbilityExpectation(engine.state, actorId, daySpeech, roleRegistry)).toEqual({
       interruptAbilityIds: ['ability-werewolf-self-destruct'],
     })
-    expect(interruptAbilityExpectation(engine.state, actorId, transfer)).toEqual({})
+    expect(interruptAbilityExpectation(engine.state, actorId, transfer, roleRegistry)).toEqual({})
   })
 
   it('hides every death target from a Witch after the antidote is unavailable', () => {

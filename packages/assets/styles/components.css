@@ -169,6 +169,16 @@
   --aw-role-background: var(--aw-role-guard-soft);
 }
 
+.aw-role-badge[data-role-id='role-magic-mirror-girl'] {
+  --aw-role-color: var(--aw-role-magic-mirror);
+  --aw-role-background: var(--aw-role-magic-mirror-soft);
+}
+
+.aw-role-badge[data-role-id='role-white-wolf-king'] {
+  --aw-role-color: var(--aw-role-white-wolf);
+  --aw-role-background: var(--aw-role-white-wolf-soft);
+}
+
 .aw-field {
   display: grid;
   gap: 8px;

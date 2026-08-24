@@ -8,6 +8,8 @@
     "hunter": "猎人",
     "idiot": "白痴",
     "guard": "守卫",
+    "magicMirrorGirl": "魔镜少女",
+    "whiteWolfKing": "白狼王",
     "sheriff": "警长"
   },
   "abilities": {
@@ -17,7 +19,9 @@
     "witchAntidote": "使用解药",
     "witchPoison": "使用毒药",
     "hunterShot": "开枪带走玩家",
-    "guardProtect": "守护玩家"
+    "guardProtect": "守护玩家",
+    "magicMirrorInspect": "查验具体身份",
+    "whiteWolfDetonate": "自爆带走玩家"
   },
   "effects": {
     "werewolfAttack": "狼人夜袭",
@@ -28,6 +32,8 @@
     "hunterShot": "猎人开枪",
     "idiotReveal": "白痴翻牌",
     "guardProtect": "守卫守护",
+    "magicMirrorInspect": "魔镜查验",
+    "whiteWolfDetonate": "白狼王自爆",
     "sheriffElected": "获得警徽",
     "sheriffTransferred": "移交警徽",
     "mode": "技能特效",
@@ -51,6 +57,14 @@
     "guard12": {
       "name": "12 人守卫场",
       "description": "预言家、女巫、猎人、守卫，四狼四民，上警屠边。"
+    },
+    "magicMirror12": {
+      "name": "12 人魔镜场",
+      "description": "魔镜少女、女巫、猎人、守卫，四狼四民，上警屠边。"
+    },
+    "whiteWolfKing12": {
+      "name": "12 人白狼王场",
+      "description": "三名狼人和白狼王对阵预言家、女巫、猎人、守卫与四名平民。"
     }
   },
   "phases": {
@@ -59,6 +73,7 @@
     "nightWolfVote": "狼人袭击",
     "nightWitch": "女巫行动",
     "nightSeer": "预言家查验",
+    "nightMagicMirror": "魔镜少女查验",
     "nightResolve": "夜间结算",
     "sheriffSignup": "警长竞选报名",
     "sheriffSpeech": "警上发言",
@@ -85,7 +100,8 @@
     "nightDeaths": "昨夜死亡：{{players}}。",
     "noExile": "本轮无人被放逐。",
     "idiotSurvived": "{{players}}翻开白痴身份，免疫放逐并失去投票权。",
-    "werewolfSelfDestruct": "{{players}}自爆出局。"
+    "werewolfSelfDestruct": "{{players}}自爆出局。",
+    "whiteWolfDetonation": "{{players}}因白狼王自爆一同出局。"
   },
   "narration": {
     "playerLabel": "{{seat}} 号玩家 {{name}}",
@@ -115,6 +131,8 @@
     "noVotes": "无人得票",
     "seerResultVillage": "查验结果：{{player}}属于好人阵营。",
     "seerResultWerewolf": "查验结果：{{player}}属于狼人阵营。",
+    "magicMirrorResult": "查验结果：{{player}}的具体身份是{{role}}。",
+    "whiteWolfDetonation": "{{actor}}发动白狼王技能，带走{{target}}。",
     "factionMembers": "你的狼人队友是：{{players}}。",
     "factionNoTeammates": "你没有狼人队友。",
     "werewolfMembers": "狼人阵营成员：{{players}}。",
@@ -174,7 +192,9 @@
       "witch": "拥有解药和毒药各一瓶。解药可用时，夜间只能得知狼队常规袭击的目标，且解药只能用于该目标；解药失去后不再获得任何死亡信息。毒药可以使一名其他存活玩家死亡。{{witchPotionLimit}}{{witchSelfSave}}",
       "hunter": "因狼队常规袭击或白天放逐死亡时，可以选择一名其他存活玩家开枪带走；因毒药等其他原因死亡时不能开枪，开枪机会全局只有一次。",
       "idiot": "被白天放逐时翻开身份并免疫该次放逐，但此后失去投票权；因夜间伤害或其他效果死亡时不会触发放逐免疫。",
-      "guard": "每夜守护一名存活玩家，可阻止狼队常规袭击造成的死亡。{{guardSelfProtect}}{{guardCollision}}"
+      "guard": "每夜守护一名存活玩家，可阻止狼队常规袭击造成的死亡。{{guardSelfProtect}}{{guardCollision}}",
+      "magicMirrorGirl": "每夜查验一名其他存活玩家的具体身份，不可重复查验同一名玩家；结果仅魔镜少女可见。",
+      "whiteWolfKing": "参与狼队夜间商议和常规袭击；白天可自爆并选择一名其他存活玩家一同出局，其他出局方式不能发动该技能。"
     },
     "villageVictory": "好人阵营需要让所有狼人出局。",
     "werewolfVictorySlaughterEdge": "狼人阵营需要让所有平民或所有神职出局。",
@@ -207,6 +227,7 @@
     "daySpeechOrderPeacefulNight": "昨夜为平安夜，没有死者锚点。选择警左时提交 `action: speech-counterclockwise`，从你左边第一名存活玩家开始；选择警右时提交 `action: speech-clockwise`，从你右边第一名存活玩家开始。按所选方向依次发言，你作为警长最后总结归票。",
     "daySpeechOrderMultipleDeaths": "昨夜有 {{count}} 名玩家死亡，没有唯一死者锚点。选择警左时提交 `action: speech-counterclockwise`，从你左边第一名存活玩家开始；选择警右时提交 `action: speech-clockwise`，从你右边第一名存活玩家开始。按所选方向依次发言，你作为警长最后总结归票。",
     "werewolfSpeechSelfDestruct": "若你要在本次公开回合自爆，只能调用 `trigger_skill`，并使用正式能力 ID `ability-werewolf-self-destruct`、空目标。若不自爆，直接输出本轮自然语言发言；不得猜测或创造其他能力 ID。",
+    "whiteWolfDetonate": "若你要在本次公开回合自爆带人，只能调用 `trigger_skill`，使用正式能力 ID `ability-white-wolf-detonate`，并选择一名其他存活玩家作为目标。若不自爆，继续完成当前公开行动。",
     "nightFixedAbility": "通过 `submit_night_action` 工具行动。`abilityId` 必须是 `{{abilityId}}`，`targetPlayerIds` 必须包含一名合法目标。不得使用其他能力 ID，也不要用文字代替工具提交。",
     "nightWitch": "通过 `submit_night_action` 工具行动。`abilityId` 只能是 `ability-witch-antidote` 或 `ability-witch-poison`；放弃用药时提交其中一个能力 ID、空的 `targetPlayerIds` 和 `option: pass`。",
     "nightWitchSelfSaveBlocked": "当前狼人袭击目标就是你自己（`{{playerId}}`），本局禁止女巫自救，因此本回合不得提交解药。你只能对其他存活玩家使用毒药，或选择 `option: pass`。",

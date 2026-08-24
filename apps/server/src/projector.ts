@@ -14,6 +14,12 @@ import {
 import {
   formatCopy,
   getCopy,
+  getRoleEffectDefinition,
+  pluginEventEffect,
+  pluginEventPlayerIds,
+  registeredEventEffect,
+  registeredEventPlayerIds,
+  registeredTimelineNarration,
   renderEventNarration,
   roleEffectCatalog,
   type NarrationCatalog,
@@ -156,7 +162,7 @@ export function projectRoleEffectCues(events: readonly GameEvent[]): RoleEffectC
       targetPlayerIds: readonly PlayerId[],
       variant: string | null = null,
     ): void => {
-      const definition = roleEffectCatalog[effectId]
+      const definition = getRoleEffectDefinition(effectId)
       cues.push(
         RoleEffectCueSchema.parse({
           cueId: `${event.sequence}:${effectId}`,
@@ -172,35 +178,17 @@ export function projectRoleEffectCues(events: readonly GameEvent[]): RoleEffectC
         }),
       )
     }
+    const registeredEffect = registeredEventEffect(event)
+    if (registeredEffect) {
+      append(
+        registeredEffect.effectId,
+        registeredEffect.sourcePlayerIds,
+        registeredEffect.targetPlayerIds,
+        registeredEffect.variant,
+      )
+      continue
+    }
     switch (payload.type) {
-      case 'night.attack-selected':
-        if (payload.targetId) append('werewolf-attack', [], [payload.targetId])
-        break
-      case 'player.died':
-        if (payload.causes.includes('self-destruct')) {
-          append('werewolf-self-destruct', [payload.playerId], [payload.playerId])
-        }
-        break
-      case 'seer.inspected':
-        append('seer-inspect', [payload.actorId], [payload.targetId], payload.result)
-        break
-      case 'witch.potion-used':
-        append(
-          payload.potion === 'antidote' ? 'witch-antidote' : 'witch-poison',
-          [payload.actorId],
-          [payload.targetId],
-          payload.potion,
-        )
-        break
-      case 'hunter.shot':
-        append('hunter-shot', [payload.playerId], [payload.targetId])
-        break
-      case 'idiot.revealed':
-        append('idiot-reveal', [payload.playerId], [payload.playerId])
-        break
-      case 'guard.protected':
-        if (payload.targetId) append('guard-protect', [payload.actorId], [payload.targetId])
-        break
       case 'sheriff.elected':
         append('sheriff-elected', [], [payload.playerId])
         break
@@ -209,6 +197,13 @@ export function projectRoleEffectCues(events: readonly GameEvent[]): RoleEffectC
           append('sheriff-transferred', [payload.fromPlayerId], [payload.toPlayerId])
         }
         break
+      case 'plugin.event': {
+        const effect = pluginEventEffect(event)
+        if (effect) {
+          append(effect.effectId, effect.sourcePlayerIds, effect.targetPlayerIds, effect.variant)
+        }
+        break
+      }
       default:
         break
     }
@@ -351,41 +346,17 @@ export function projectTimeline(
 
 function timelineNarration(event: GameEvent, catalog: NarrationCatalog): string | null {
   const payload = event.payload
+  const registered = registeredTimelineNarration(event, catalog)
+  if (registered) return registered
   switch (payload.type) {
     case 'speech.committed':
       return payload.text
-    case 'night.attack-selected':
-      return payload.targetId
-        ? formatCopy(getCopy('timeline.nightAttack'), {
-            player: timelinePlayerLabel(payload.targetId, catalog),
-          })
-        : getCopy('timeline.nightAttackPassed')
-    case 'guard.protected':
-      return payload.targetId
-        ? formatCopy(getCopy('timeline.guardProtected'), {
-            player: timelinePlayerLabel(payload.targetId, catalog),
-          })
-        : getCopy('timeline.guardPassed')
-    case 'witch.potion-used':
-      return formatCopy(
-        getCopy(payload.potion === 'antidote' ? 'timeline.witchAntidote' : 'timeline.witchPoison'),
-        { player: timelinePlayerLabel(payload.targetId, catalog) },
-      )
     case 'player.saved':
       return formatCopy(getCopy('timeline.playerSaved'), {
         player: timelinePlayerLabel(payload.playerId, catalog),
       })
     case 'death.pending':
       return formatCopy(getCopy('timeline.deathPending'), {
-        player: timelinePlayerLabel(payload.playerId, catalog),
-      })
-    case 'hunter.shot':
-      return formatCopy(getCopy('timeline.hunterShot'), {
-        player: timelinePlayerLabel(payload.playerId, catalog),
-        target: timelinePlayerLabel(payload.targetId, catalog),
-      })
-    case 'idiot.revealed':
-      return formatCopy(getCopy('timeline.idiotRevealed'), {
         player: timelinePlayerLabel(payload.playerId, catalog),
       })
     default:
@@ -425,6 +396,8 @@ function uniquePlayerIds(playerIds: readonly PlayerId[]): PlayerId[] {
 
 function playerIdsForEvent(event: GameEvent): PlayerId[] {
   const payload = event.payload
+  const registered = registeredEventPlayerIds(event)
+  if (registered) return registered
   switch (payload.type) {
     case 'role.assigned':
     case 'speech.started':
@@ -433,14 +406,16 @@ function playerIdsForEvent(event: GameEvent): PlayerId[] {
     case 'sheriff.candidacy':
     case 'sheriff.elected':
     case 'player.saved':
-    case 'idiot.revealed':
     case 'role.revealed':
     case 'ability.used':
+    case 'capability.granted':
+    case 'capability.revoked':
       return [payload.playerId]
     case 'faction.members':
     case 'phase.actors-set':
     case 'speech.order-set':
     case 'public.announcement':
+    case 'players.eliminated-publicly':
       return [...payload.playerIds]
     case 'phase.actor-completed':
       return [payload.playerId]
@@ -457,16 +432,11 @@ function playerIdsForEvent(event: GameEvent): PlayerId[] {
       ]
     case 'night.attack-selected':
       return payload.targetId ? [payload.targetId] : []
-    case 'guard.protected':
-    case 'witch.potion-used':
-    case 'seer.inspected':
-      return [payload.actorId, ...(payload.targetId ? [payload.targetId] : [])]
     case 'death.pending':
     case 'death.cancelled':
+    case 'exile.prevented':
     case 'player.died':
       return [payload.playerId]
-    case 'hunter.shot':
-      return [payload.playerId, payload.targetId]
     case 'delivery.started':
     case 'delivery.acknowledged':
       return [payload.playerId]
@@ -485,10 +455,9 @@ function playerIdsForEvent(event: GameEvent): PlayerId[] {
     case 'day.completed':
     case 'match.resumed':
     case 'match.ended':
+    case 'plugin.event':
+      return pluginEventPlayerIds(event)
+    default:
       return []
-    default: {
-      const exhaustive: never = payload
-      return exhaustive
-    }
   }
 }

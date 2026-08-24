@@ -16,16 +16,19 @@ import { getCopy } from '@agentwolf/assets'
 import {
   RuleViolation,
   boardManifestFromSnapshot,
-  createV1RoleRegistry,
+  classicBoardPolicyDefaults,
   guardBoard,
+  magicMirrorBoard,
   ninePlayerBoard,
   sixPlayerBoard,
   standardBoard,
+  whiteWolfKingBoard,
   type BoardManifest,
 } from '@agentwolf/game-engine'
 import { createReadableId } from './ids.js'
 import type { SqliteRepository } from './repository.js'
 import type { CharacterCatalogService } from './character-catalog.js'
+import { RulesetCatalog } from './ruleset-catalog.js'
 
 interface BuiltInBoardDefinition {
   readonly manifest: BoardManifest
@@ -54,6 +57,16 @@ const builtInBoards: readonly BuiltInBoardDefinition[] = [
     nameKey: 'boards.guard12.name',
     descriptionKey: 'boards.guard12.description',
   },
+  {
+    manifest: magicMirrorBoard,
+    nameKey: 'boards.magicMirror12.name',
+    descriptionKey: 'boards.magicMirror12.description',
+  },
+  {
+    manifest: whiteWolfKingBoard,
+    nameKey: 'boards.whiteWolfKing12.name',
+    descriptionKey: 'boards.whiteWolfKing12.description',
+  },
 ]
 
 export interface ResolvedBoard {
@@ -64,15 +77,17 @@ export interface ResolvedBoard {
 
 export class BoardCatalogService {
   readonly #repository: SqliteRepository
-  readonly #roles = createV1RoleRegistry()
   readonly #characters: CharacterCatalogService | null
+  readonly #rulesets: RulesetCatalog
 
   public constructor(
     repository: SqliteRepository,
     characters: CharacterCatalogService | null = null,
+    rulesets: RulesetCatalog = new RulesetCatalog(),
   ) {
     this.#repository = repository
     this.#characters = characters
+    this.#rulesets = rulesets
   }
 
   public listBoards(): BoardSummary[] {
@@ -83,14 +98,16 @@ export class BoardCatalogService {
   }
 
   public listRoles(): RoleSummary[] {
-    return this.#roles.list().map((role) =>
-      RoleSummarySchema.parse({
-        id: role.id,
-        name: getCopy(role.displayNameKey),
-        faction: role.faction,
-        kind: role.kind,
-      }),
-    )
+    return this.#roles()
+      .list()
+      .map((role) =>
+        RoleSummarySchema.parse({
+          id: role.id,
+          name: getCopy(role.displayNameKey),
+          faction: role.faction,
+          kind: role.kind,
+        }),
+      )
   }
 
   public resolve(id: BoardId): ResolvedBoard {
@@ -102,15 +119,20 @@ export class BoardCatalogService {
 
   public resolveSnapshot(snapshot: MatchBoardSnapshot): ResolvedBoard {
     const parsed = MatchBoardSnapshotSchema.parse(snapshot)
+    this.#rulesets.forSnapshot(parsed)
     const summary = BoardSummarySchema.parse({
       ...parsed,
       roles: parsed.roles.map((slot) => ({
         ...slot,
-        name: getCopy(this.#roles.role(slot.roleId).displayNameKey),
+        name: getCopy(this.#roles().role(slot.roleId).displayNameKey),
       })),
       editable: false,
     })
     return { summary, snapshot: parsed, manifest: boardManifestFromSnapshot(parsed) }
+  }
+
+  public rulesetForSnapshot(snapshot: MatchBoardSnapshot) {
+    return this.#rulesets.forSnapshot(snapshot)
   }
 
   public create(input: CustomBoardInput): BoardSummary {
@@ -173,7 +195,7 @@ export class BoardCatalogService {
 
     const resolved = parsed.roles.map((slot) => ({
       slot,
-      role: this.#roles.role(slot.roleId),
+      role: this.#roles().role(slot.roleId),
     }))
     const werewolves = resolved
       .filter(({ role }) => role.faction === 'werewolf')
@@ -182,7 +204,9 @@ export class BoardCatalogService {
       throw new RuleViolation('Board requires at least one Werewolf and one non-Werewolf')
     }
     if (parsed.victory === 'slaughter-edge') {
-      const villagers = parsed.roles.find((slot) => slot.roleId === 'role-villager')?.count ?? 0
+      const villagers = resolved
+        .filter(({ role }) => role.faction === 'village' && role.kind === 'villager')
+        .reduce((total, { slot }) => total + slot.count, 0)
       const gods = resolved
         .filter(({ role }) => role.faction === 'village' && role.kind === 'god')
         .reduce((total, { slot }) => total + slot.count, 0)
@@ -233,15 +257,16 @@ export class BoardCatalogService {
       ),
       roles: input.roles.map((slot) => ({
         ...slot,
-        name: getCopy(this.#roles.role(slot.roleId).displayNameKey),
+        name: getCopy(this.#roles().role(slot.roleId).displayNameKey),
       })),
     })
   }
 
   #snapshot(summary: BoardSummary): MatchBoardSnapshot {
     return MatchBoardSnapshotSchema.parse({
-      schemaVersion: 1,
-      rulesetId: 'classic-v1',
+      schemaVersion: 2,
+      rulesetId: this.#rulesets.currentSnapshotId(),
+      ruleset: this.#rulesets.lock(),
       id: summary.id,
       name: summary.name,
       description: summary.description,
@@ -250,6 +275,7 @@ export class BoardCatalogService {
       playerCount: summary.playerCount,
       sheriff: summary.sheriff,
       victory: summary.victory,
+      policies: { ...classicBoardPolicyDefaults, victory: summary.victory },
       source: summary.source,
       revision: summary.revision,
     })
@@ -283,5 +309,9 @@ export class BoardCatalogService {
       seat: index + 1,
       characterId: bySeat.get(index + 1) ?? null,
     }))
+  }
+
+  #roles() {
+    return this.#rulesets.current().roles
   }
 }

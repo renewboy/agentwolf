@@ -1,30 +1,27 @@
-import {
-  AbilityIdSchema,
-  type AbilityId,
-  type PlayerAction,
-  type PlayerId,
-} from '@agentwolf/contracts'
+import type { AbilityId, PlayerAction, PlayerId } from '@agentwolf/contracts'
 import { assertRule } from './errors.js'
+import { ResolutionRegistry } from './plugins/resolution-registry.js'
+import type { QueryRegistry } from './plugins/query-registry.js'
 import { RoleRegistry } from './roles/registry.js'
-import type {
-  BoardManifest,
-  DamageEffect,
-  GameState,
-  ProtectEffect,
-  ResolutionEffect,
-  ResolutionResult,
-} from './types.js'
-
-function redirectedTarget(targetId: PlayerId, mappings: ReadonlyMap<PlayerId, PlayerId>): PlayerId {
-  return mappings.get(targetId) ?? targetId
-}
+import { createClassicResolutionRegistry } from './rulesets/classic/resolution-registry.js'
+import type { RuleRuntime } from './rule-registry.js'
+import type { BoardManifest, GameState, ResolutionEffect, ResolutionResult } from './types.js'
 
 export class ResolutionAgenda {
-  readonly #effects: Array<ResolutionEffect & { sequence: number }> = []
-  #sequence = 0
+  readonly #effects: ResolutionEffect[] = []
+  readonly #registry: ResolutionRegistry
+  readonly #queries: QueryRegistry | undefined
+
+  public constructor(
+    registry: ResolutionRegistry = createClassicResolutionRegistry(),
+    queries?: QueryRegistry,
+  ) {
+    this.#registry = registry
+    this.#queries = queries
+  }
 
   public add(effect: ResolutionEffect): void {
-    this.#effects.push({ ...effect, sequence: ++this.#sequence })
+    this.#effects.push(effect)
   }
 
   public addAll(effects: readonly ResolutionEffect[]): void {
@@ -32,72 +29,12 @@ export class ResolutionAgenda {
   }
 
   public settle(state: GameState, board: BoardManifest, roles: RoleRegistry): ResolutionResult {
-    const effects = [...this.#effects].sort(
-      (left, right) => left.priority - right.priority || left.sequence - right.sequence,
-    )
-    const mappings = new Map<PlayerId, PlayerId>()
-    for (const effect of effects) {
-      if (effect.kind === 'target-map') mappings.set(effect.fromTargetId, effect.toTargetId)
-    }
-
-    const protections = new Map<PlayerId, Set<ProtectEffect['protection']>>()
-    const damages = new Map<PlayerId, DamageEffect[]>()
-    const preventedExiles = new Set<PlayerId>()
-    const inspections: ResolutionResult['inspections'][number][] = []
-
-    for (const effect of effects) {
-      if (effect.kind === 'protect') {
-        const targetId = redirectedTarget(effect.targetId, mappings)
-        const targetProtections = protections.get(targetId) ?? new Set()
-        targetProtections.add(effect.protection)
-        protections.set(targetId, targetProtections)
-      } else if (effect.kind === 'damage') {
-        const targetId = redirectedTarget(effect.targetId, mappings)
-        const targetDamages = damages.get(targetId) ?? []
-        targetDamages.push({ ...effect, targetId })
-        damages.set(targetId, targetDamages)
-      } else if (effect.kind === 'inspect') {
-        const targetId = redirectedTarget(effect.targetId, mappings)
-        const target = state.players.get(targetId)
-        assertRule(target?.roleId, `Cannot inspect unknown role for ${targetId}`)
-        inspections.push({
-          sourceId: effect.sourceId,
-          targetId,
-          result: roles.role(target.roleId).seerResult(),
-        })
-      } else if (effect.kind === 'prevent-death') {
-        preventedExiles.add(redirectedTarget(effect.targetId, mappings))
-      }
-    }
-
-    const pendingDeaths: ResolutionResult['pendingDeaths'][number][] = []
-    const savedPlayerIds: PlayerId[] = []
-    for (const [targetId, targetDamages] of damages) {
-      const protection = protections.get(targetId) ?? new Set()
-      const survivingDamages = targetDamages.filter((damage) => {
-        if (damage.cause === 'exile') return !preventedExiles.has(targetId)
-        if (damage.cause !== 'werewolf') return true
-        const guarded = protection.has('guard')
-        const healed = protection.has('antidote')
-        if (guarded && healed) return board.policies.guardAntidoteCollision === 'death'
-        return !guarded && !healed
-      })
-      if (survivingDamages.length > 0) {
-        pendingDeaths.push({
-          playerId: targetId,
-          causes: [...new Set(survivingDamages.map((damage) => damage.cause))],
-        })
-      } else if (targetDamages.some((damage) => damage.cause === 'werewolf')) {
-        savedPlayerIds.push(targetId)
-      }
-    }
-
-    return {
-      pendingDeaths,
-      savedPlayerIds,
-      inspections,
-      consumedAbilityIds: [],
-    }
+    return this.#registry.settle(this.#effects, {
+      state,
+      board,
+      roles,
+      ...(this.#queries ? { queries: this.#queries } : {}),
+    })
   }
 }
 
@@ -110,8 +47,11 @@ export function addAbilityEffects(
 ): void {
   const actor = state.players.get(action.actorId)
   assertRule(actor?.roleId, `Action actor ${action.actorId} has no role`)
-  const { role, ability } = roles.ability(action.abilityId)
-  assertRule(role.id === actor.roleId, `${actor.name} does not own ${action.abilityId}`)
+  const { ability } = roles.ability(action.abilityId)
+  assertRule(
+    roles.canUseAbility(actor, action.abilityId),
+    `${actor.name} cannot use ${action.abilityId}`,
+  )
   assertRule(
     ability.actionTypes.includes(action.type),
     `${action.abilityId} does not accept ${action.type}`,
@@ -121,16 +61,34 @@ export function addAbilityEffects(
   agenda.addAll(ability.effects(context))
 }
 
+export function appendAbilityOutcomes(
+  runtime: RuleRuntime,
+  action: Extract<PlayerAction, { type: 'night-action' | 'skill-trigger' }>,
+  result: ResolutionResult,
+  stage: import('./roles/base.js').AbilityOutcome['stage'] = 'after-usage',
+): void {
+  const actor = runtime.state.players.get(action.actorId)
+  assertRule(actor?.roleId, `Action actor ${action.actorId} has no role`)
+  const { ability } = runtime.roles.ability(action.abilityId)
+  const context = { state: runtime.state, board: runtime.board, action, actor }
+  for (const outcome of ability.outcomes?.(context, result) ?? []) {
+    if (outcome.stage !== stage) continue
+    runtime.append(outcome.payload, outcome.visibility)
+  }
+}
+
 export function effectsForActions(
   state: GameState,
   board: BoardManifest,
   roles: RoleRegistry,
   actions: readonly PlayerAction[],
+  registry: ResolutionRegistry = createClassicResolutionRegistry(),
+  queries?: QueryRegistry,
 ): {
   agenda: ResolutionAgenda
   consumedAbilityIds: readonly { playerId: PlayerId; abilityId: AbilityId }[]
 } {
-  const agenda = new ResolutionAgenda()
+  const agenda = new ResolutionAgenda(registry, queries)
   const consumedAbilityIds: Array<{ playerId: PlayerId; abilityId: AbilityId }> = []
   for (const action of actions) {
     if (action.type !== 'night-action' && action.type !== 'skill-trigger') continue
@@ -139,13 +97,3 @@ export function effectsForActions(
   }
   return { agenda, consumedAbilityIds }
 }
-
-export const v1AbilityIds = {
-  werewolfKill: AbilityIdSchema.parse('ability-werewolf-kill'),
-  guardProtect: AbilityIdSchema.parse('ability-guard-protect'),
-  witchAntidote: AbilityIdSchema.parse('ability-witch-antidote'),
-  witchPoison: AbilityIdSchema.parse('ability-witch-poison'),
-  seerInspect: AbilityIdSchema.parse('ability-seer-inspect'),
-  hunterShot: AbilityIdSchema.parse('ability-hunter-shot'),
-  werewolfSelfDestruct: AbilityIdSchema.parse('ability-werewolf-self-destruct'),
-} as const

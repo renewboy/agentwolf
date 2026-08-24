@@ -1,8 +1,9 @@
 import { AbilityIdSchema, RoleIdSchema } from '@agentwolf/contracts'
-import { assertRule } from '../errors.js'
-import type { AbilityDefinition } from './base.js'
-import { Role } from './base.js'
-import { abilityUseCount, requireAliveTarget, requireTargetCount } from './helpers.js'
+import { assertRule } from '../../../errors.js'
+import type { AbilityDefinition } from '../../../roles/base.js'
+import { Role } from '../../../roles/base.js'
+import { abilityUseCount, requireAliveTarget, requireTargetCount } from '../../../roles/helpers.js'
+import { classicCapabilities } from '../capabilities.js'
 
 const antidoteAbilityId = AbilityIdSchema.parse('ability-witch-antidote')
 const poisonAbilityId = AbilityIdSchema.parse('ability-witch-poison')
@@ -13,9 +14,14 @@ export class WitchRole extends Role {
   public readonly publicRulesKey = 'promptContext.roleRules.witch'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public override readonly capabilities = [
+    classicCapabilities.witchAntidote,
+    classicCapabilities.witchPoison,
+  ] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: antidoteAbilityId,
+      requiredCapability: classicCapabilities.witchAntidote,
       labelKey: 'abilities.witchAntidote',
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -51,9 +57,31 @@ export class WitchRole extends Role {
           },
         ]
       },
+      outcomes: (context) => {
+        if (
+          context.action.type !== 'night-action' ||
+          context.action.option === 'pass' ||
+          !context.action.targetIds[0]
+        ) {
+          return []
+        }
+        return [
+          {
+            payload: {
+              type: 'witch.potion-used',
+              actorId: context.actor.id,
+              potion: 'antidote',
+              targetId: context.action.targetIds[0],
+            },
+            stage: 'before-usage',
+            visibility: { kind: 'players', playerIds: [context.actor.id] },
+          },
+        ]
+      },
     },
     {
       id: poisonAbilityId,
+      requiredCapability: classicCapabilities.witchPoison,
       labelKey: 'abilities.witchPoison',
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -81,6 +109,27 @@ export class WitchRole extends Role {
             sourceId: context.actor.id,
             targetId,
             cause: 'poison',
+          },
+        ]
+      },
+      outcomes: (context) => {
+        if (
+          context.action.type !== 'night-action' ||
+          context.action.option === 'pass' ||
+          !context.action.targetIds[0]
+        ) {
+          return []
+        }
+        return [
+          {
+            payload: {
+              type: 'witch.potion-used',
+              actorId: context.actor.id,
+              potion: 'poison',
+              targetId: context.action.targetIds[0],
+            },
+            stage: 'before-usage',
+            visibility: { kind: 'players', playerIds: [context.actor.id] },
           },
         ]
       },

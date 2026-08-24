@@ -1,5 +1,7 @@
 export * from './catalog.js'
 export * from './characters.js'
+export * from './classic-event-presentations.js'
 export * from './narration.js'
 export * from './nicknames.js'
+export * from './plugin-events.js'
 export * from './role-effects.js'

@@ -98,6 +98,8 @@ describe('Fastify API', () => {
       'board-standard-9',
       'board-standard-12',
       'board-guard-12',
+      'board-magic-mirror-12',
+      'board-white-wolf-king-12',
     ])
 
     const matchResponse = await server.app.inject({
@@ -319,6 +321,20 @@ describe('Fastify API', () => {
     expect(matchResponse.statusCode).toBe(201)
     const match = matchResponse.json()
     expect(match.boardName).toBe('六人预女场')
+    const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
+    expect(snapshot).toMatchObject({
+      schemaVersion: 2,
+      rulesetId: 'classic-v2',
+      ruleset: { id: 'ruleset-classic-v2', version: 2 },
+      policies: { victory: 'slaughter-all' },
+    })
+    if (!snapshot || snapshot.schemaVersion !== 2) throw new Error('Expected ruleset lock snapshot')
+    expect(() =>
+      server.boards.resolveSnapshot({
+        ...snapshot,
+        ruleset: { ...snapshot.ruleset, fingerprint: '0'.repeat(64) },
+      }),
+    ).toThrow(/fingerprint mismatch/)
 
     const updatedResponse = await server.app.inject({
       method: 'PUT',

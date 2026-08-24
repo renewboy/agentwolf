@@ -2,6 +2,7 @@ import type {
   AbilityId,
   AgentProfileId,
   BoardId,
+  CapabilityId,
   EventSequence,
   Faction,
   GameEvent,
@@ -10,6 +11,8 @@ import type {
   PlayerAction,
   PlayerId,
   RoleId,
+  JsonValue,
+  PluginId,
 } from '@agentwolf/contracts'
 
 export interface RoleSlot {
@@ -34,7 +37,10 @@ export interface PhaseEdge {
 
 export type PhaseMode = 'automatic' | 'parallel' | 'sequential'
 
-export type PhaseActionVisibility = 'public' | 'actor' | 'werewolf-faction'
+export type PhaseActionVisibility =
+  | 'public'
+  | 'actor'
+  | { readonly kind: 'faction'; readonly faction: Faction }
 
 export type PhaseActionDefinition =
   | {
@@ -51,6 +57,7 @@ export type PhaseActionDefinition =
   | {
       readonly type: 'night-action'
       readonly abilityIds: readonly AbilityId[]
+      readonly capabilityIds?: readonly CapabilityId[]
       readonly visibility: PhaseActionVisibility
     }
   | {
@@ -61,14 +68,18 @@ export type PhaseActionDefinition =
   | {
       readonly type: 'skill-trigger'
       readonly abilityIds: readonly AbilityId[]
+      readonly capabilityIds?: readonly CapabilityId[]
+      readonly abilitySource?: 'decision-trigger'
+      readonly triggerSignal?: string
       readonly validation: 'role-ability' | 'sheriff-transfer'
       readonly visibility: PhaseActionVisibility
     }
 
 export interface PhaseInterruptDefinition {
-  readonly kind: 'werewolf-self-destruct'
-  readonly abilityId: AbilityId
+  readonly handlerId: string
+  readonly capabilityIds: readonly CapabilityId[]
   readonly context: 'sheriff-election' | 'daytime'
+  readonly visibility: PhaseActionVisibility
 }
 
 export interface PhaseNode {
@@ -99,6 +110,7 @@ export interface BoardManifest {
 
 export interface PlayerRoleState {
   readonly abilityUses: Readonly<Record<string, number>>
+  readonly capabilities: ReadonlySet<CapabilityId>
   readonly memory: Readonly<Record<string, string | number | boolean | null>>
 }
 
@@ -136,6 +148,7 @@ export interface GameState {
   readonly phaseId: PhaseId | null
   readonly phaseLabelKey: string
   readonly players: ReadonlyMap<PlayerId, PlayerState>
+  readonly pluginState: ReadonlyMap<PluginId, JsonValue>
   readonly sheriff: SheriffState
   readonly pendingDeaths: ReadonlyMap<PlayerId, PendingDeath>
   readonly recentDeaths: ReadonlyMap<PlayerId, PendingDeath>
@@ -151,6 +164,7 @@ export interface GameState {
   } | null
   readonly nightAttackTargetId: PlayerId | null
   readonly interruptToNight: boolean
+  readonly preventedExilePlayerId: PlayerId | null
   readonly lastSequence: EventSequence
   readonly winner: Faction | null
   readonly pausedReason: string | null
@@ -189,11 +203,25 @@ export interface DamageEffect {
   readonly priority: 400 | 700
   readonly sourceId: PlayerId | null
   readonly targetId: PlayerId
-  readonly cause: 'werewolf' | 'poison' | 'shot' | 'exile' | 'self-destruct' | 'linked'
+  readonly cause:
+    | 'werewolf'
+    | 'poison'
+    | 'shot'
+    | 'exile'
+    | 'self-destruct'
+    | 'white-wolf-detonate'
+    | 'linked'
 }
 
 export interface InspectEffect {
   readonly kind: 'inspect'
+  readonly priority: 500
+  readonly sourceId: PlayerId
+  readonly targetId: PlayerId
+}
+
+export interface ExactInspectEffect {
+  readonly kind: 'inspect-role'
   readonly priority: 500
   readonly sourceId: PlayerId
   readonly targetId: PlayerId
@@ -208,12 +236,20 @@ export interface PreventDeathEffect {
   readonly reason: string
 }
 
-export type ResolutionEffect =
+export type KnownResolutionEffect =
   | TargetEffect
   | ProtectEffect
   | DamageEffect
   | InspectEffect
+  | ExactInspectEffect
   | PreventDeathEffect
+
+export interface ExtensibleResolutionEffect {
+  readonly kind: string
+  readonly priority: number
+}
+
+export type ResolutionEffect = KnownResolutionEffect | ExtensibleResolutionEffect
 
 export interface ResolvedInspection {
   readonly sourceId: PlayerId
@@ -221,9 +257,16 @@ export interface ResolvedInspection {
   readonly result: 'village' | 'werewolf'
 }
 
+export interface ResolvedExactInspection {
+  readonly sourceId: PlayerId
+  readonly targetId: PlayerId
+  readonly roleId: RoleId
+}
+
 export interface ResolutionResult {
   readonly pendingDeaths: readonly PendingDeath[]
   readonly savedPlayerIds: readonly PlayerId[]
   readonly inspections: readonly ResolvedInspection[]
+  readonly exactInspections: readonly ResolvedExactInspection[]
   readonly consumedAbilityIds: readonly { playerId: PlayerId; abilityId: AbilityId }[]
 }

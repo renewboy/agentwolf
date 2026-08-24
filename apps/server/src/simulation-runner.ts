@@ -30,7 +30,7 @@ export function runEngineSimulation(
   const expected = simulation.stage === 'candidate' ? simulation.observed : simulation.expected
   const failures: string[] = []
   const created = createSimulationEngine(simulation)
-  const { board, clock } = created
+  const { board, clock, ruleset } = created
   let engine = created.engine
   const consumed = new Set<number>()
   let restarted = false
@@ -105,6 +105,7 @@ export function runEngineSimulation(
           status: engine.state.status,
           pausedReason: engine.state.pausedReason,
           clock,
+          ruleset,
         })
         restarted = true
       }

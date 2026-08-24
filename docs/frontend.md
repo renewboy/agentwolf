@@ -18,7 +18,7 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - Selection controls use the portal-backed `GameSelect` listbox. Destructive actions use the application `ConfirmDialog`; browser-native prompts are not part of the product surface.
 - Visible identities use one labeled role badge system across board management, Match setup,
   spectator, and developer surfaces: silver Villager, red Werewolf, blue Seer, purple Witch, green
-  Hunter, amber Idiot, and cyan Guard. Hidden identities use a neutral badge with no role-specific
+  Hunter, amber Idiot, cyan Guard, pink Magic Mirror Girl, and white White Wolf King. Hidden identities use a neutral badge with no role-specific
   color.
 
 ## Layouts

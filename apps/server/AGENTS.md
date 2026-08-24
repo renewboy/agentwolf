@@ -8,6 +8,9 @@ Read [the architecture](../../docs/architecture.md) before changing ownership or
 
 - The server composes Fastify, SQLite, the game engine, ACP sessions, MCP actions, and live projections. Deterministic game rules stay in `packages/game-engine`, wire schemas and DTOs stay in `packages/contracts`, model-facing text stays in `packages/assets`, and generic ACP process lifecycle stays in `packages/acp`.
 - `app.ts` owns HTTP and WebSocket assembly, `repository.ts` owns durable SQLite access, `match-runtime.ts` owns live orchestration, `projector.ts` owns visibility-safe views, and `mcp.ts` owns player-bound structured action transport. Keep new behavior with the narrowest existing owner.
+- `ruleset-catalog.ts` is the only server composition root for installed Rulesets. Board catalog,
+  Match creation and restore, runtime Prompt rendering, trajectory audit, and simulation use the
+  same resolved Ruleset and verify schema-two fingerprints.
 - `player-session-repository.ts` owns durable per-seat ACP Session bindings and accepted-action recovery state. `player-runtime.ts` owns one logical Session's create/resume, delivery cursor, continuation, and connection state.
 - `character-catalog.ts` owns built-in/custom Character resolution, immutable snapshots, copy/edit/delete policy, and managed portrait files. Character persistence remains separate from game-engine state and events.
 - `database-schema.ts` owns schema creation and migration, `trajectory.ts` owns capture and pre-persistence redaction, `trajectory-service.ts` owns Match-scoped reads and live deltas, and `trajectory-audit.ts` owns reconstruction checks.

@@ -5,6 +5,7 @@ import {
   v1AbilityIds,
   type BoardManifest,
   type GameState,
+  type RoleRegistry,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
 import type { SpeechCommittedEvent } from './speech-playback-coordinator.js'
@@ -42,15 +43,22 @@ export function interruptAbilityExpectation(
   state: GameState,
   playerId: PlayerId,
   turn: Pick<TurnDescriptor, 'interruptAbilityIds'>,
+  roles: RoleRegistry,
 ) {
-  return state.players.get(playerId)?.roleId === 'role-werewolf' &&
-    supportsWerewolfSelfDestruct(turn)
-    ? { interruptAbilityIds: [v1AbilityIds.werewolfSelfDestruct] }
-    : {}
+  const interruptAbilityIds = interruptAbilityIdsFor(state, playerId, turn, roles)
+  return interruptAbilityIds.length > 0 ? { interruptAbilityIds } : {}
 }
 
-function supportsWerewolfSelfDestruct(turn: Pick<TurnDescriptor, 'interruptAbilityIds'>): boolean {
-  return turn.interruptAbilityIds?.includes(v1AbilityIds.werewolfSelfDestruct) ?? false
+export function interruptAbilityIdsFor(
+  state: GameState,
+  playerId: PlayerId,
+  turn: Pick<TurnDescriptor, 'interruptAbilityIds'>,
+  roles: RoleRegistry,
+) {
+  const player = state.players.get(playerId)
+  return player
+    ? (turn.interruptAbilityIds ?? []).filter((abilityId) => roles.canUseAbility(player, abilityId))
+    : []
 }
 
 export async function settleActions(
@@ -95,10 +103,17 @@ export function actionInstructionFor(
     readonly board: BoardManifest
     readonly state: GameState
     readonly playerId: PlayerId
+    readonly roles?: RoleRegistry
     readonly speechCharacterLimit?: number
   },
   promptVersion = promptContractVersion,
 ): string {
+  const interruptInstructions = context?.roles
+    ? interruptAbilityIdsFor(context.state, context.playerId, turn, context.roles)
+        .map((abilityId) => context.roles!.ability(abilityId).ability.interruptInstructionKey)
+        .filter((key): key is string => Boolean(key))
+        .map((key) => getCopy(key))
+    : []
   if (turn.actionType === 'speech') {
     const instructions: string[] = []
     if (promptVersion >= 8) {
@@ -117,13 +132,7 @@ export function actionInstructionFor(
         }),
       )
     }
-    if (
-      promptVersion >= 6 &&
-      context?.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
-      (promptVersion < 9 || supportsWerewolfSelfDestruct(turn))
-    ) {
-      instructions.push(getCopy('promptActions.werewolfSpeechSelfDestruct'))
-    }
+    if (promptVersion >= 6) instructions.push(...interruptInstructions)
     return instructions.join('\n')
   }
   if (
@@ -133,21 +142,15 @@ export function actionInstructionFor(
     context
   ) {
     const instructions = [daySpeechOrderInstruction(context.state)]
-    if (
-      context.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
-      supportsWerewolfSelfDestruct(turn)
-    ) {
-      instructions.push(getCopy('promptActions.werewolfSpeechSelfDestruct'))
-    }
+    instructions.push(...interruptInstructions)
     return instructions.join('\n')
   }
   if (
     promptVersion >= 9 &&
     (turn.actionType === 'vote' || turn.actionType === 'sheriff-action') &&
-    context?.state.players.get(context.playerId)?.roleId === 'role-werewolf' &&
-    supportsWerewolfSelfDestruct(turn)
+    interruptInstructions.length > 0
   ) {
-    return getCopy('promptActions.werewolfSpeechSelfDestruct')
+    return interruptInstructions.join('\n')
   }
   if (promptVersion >= 13 && turn.actionType === 'vote' && turn.voteKind === 'wolf-kill') {
     return getCopy('promptActions.wolfKillVoteOnly')

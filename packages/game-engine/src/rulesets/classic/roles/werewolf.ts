@@ -1,8 +1,9 @@
 import { AbilityIdSchema, RoleIdSchema, type PlayerId } from '@agentwolf/contracts'
-import { assertRule } from '../errors.js'
-import type { AbilityDefinition } from './base.js'
-import { Role } from './base.js'
-import { requireAliveTarget, requireTargetCount } from './helpers.js'
+import { assertRule } from '../../../errors.js'
+import type { AbilityDefinition } from '../../../roles/base.js'
+import { Role } from '../../../roles/base.js'
+import { requireAliveTarget, requireTargetCount } from '../../../roles/helpers.js'
+import { classicCapabilities } from '../capabilities.js'
 
 const killAbilityId = AbilityIdSchema.parse('ability-werewolf-kill')
 const selfDestructAbilityId = AbilityIdSchema.parse('ability-werewolf-self-destruct')
@@ -13,9 +14,16 @@ export class WerewolfRole extends Role {
   public readonly publicRulesKey = 'promptContext.roleRules.werewolf'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
+  public override readonly sharesFactionKnowledge = true
+  public override readonly capabilities = [
+    classicCapabilities.wolfCouncil,
+    classicCapabilities.wolfKill,
+    classicCapabilities.wolfSelfDestruct,
+  ] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: killAbilityId,
+      requiredCapability: classicCapabilities.wolfKill,
       labelKey: 'abilities.werewolfKill',
       actionTypes: ['vote', 'night-action'],
       validate: (context) => {
@@ -49,7 +57,9 @@ export class WerewolfRole extends Role {
     },
     {
       id: selfDestructAbilityId,
+      requiredCapability: classicCapabilities.wolfSelfDestruct,
       labelKey: 'abilities.werewolfSelfDestruct',
+      interruptInstructionKey: 'promptActions.werewolfSpeechSelfDestruct',
       actionTypes: ['skill-trigger'],
       validate: (context) => {
         assertRule(context.action.type === 'skill-trigger', 'Self-destruct is a skill trigger')
@@ -62,6 +72,23 @@ export class WerewolfRole extends Role {
           sourceId: context.actor.id,
           targetId: context.actor.id,
           cause: 'self-destruct',
+        },
+      ],
+      outcomes: (context) => [
+        {
+          stage: 'after-usage',
+          payload: {
+            type: 'public.announcement',
+            code: 'werewolf-self-destruct',
+            playerIds: [context.actor.id],
+            params: {},
+          },
+          visibility: { kind: 'public' },
+        },
+        {
+          stage: 'after-usage',
+          payload: { type: 'day.interrupted', reason: 'self-destruct' },
+          visibility: { kind: 'public' },
         },
       ],
     },

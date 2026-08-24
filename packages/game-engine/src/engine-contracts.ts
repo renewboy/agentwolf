@@ -10,6 +10,7 @@ import type {
 } from '@agentwolf/contracts'
 import type { RuleRegistry } from './rule-registry.js'
 import type { RoleRegistry } from './roles/registry.js'
+import type { RulesetRuntime } from './plugins/ruleset.js'
 import type { BoardManifest, GameState, PhaseNode } from './types.js'
 
 export interface EnginePlayerInput {
@@ -27,6 +28,7 @@ export interface GameEngineOptions {
   readonly roleAssignment: 'random' | 'manual'
   readonly seed: number
   readonly clock?: () => Date
+  readonly ruleset?: RulesetRuntime
   readonly roles?: RoleRegistry
   readonly rules?: RuleRegistry
 }
@@ -38,6 +40,7 @@ export interface GameEngineRestoreOptions {
   readonly status: GameState['status']
   readonly pausedReason: string | null
   readonly clock?: () => Date
+  readonly ruleset?: RulesetRuntime
   readonly roles?: RoleRegistry
   readonly rules?: RuleRegistry
 }

@@ -1,0 +1,24 @@
+import { PluginIdSchema } from '@agentwolf/contracts'
+
+export const classicPluginIds = {
+  resolution: PluginIdSchema.parse('plugin-classic-resolution'),
+  phases: PluginIdSchema.parse('plugin-classic-phases'),
+  legacyEvents: PluginIdSchema.parse('plugin-classic-legacy-events'),
+  identityQueries: PluginIdSchema.parse('plugin-classic-identity-queries'),
+  victory: PluginIdSchema.parse('plugin-classic-victory'),
+  wolfTeam: PluginIdSchema.parse('plugin-classic-wolf-team'),
+  night: PluginIdSchema.parse('plugin-classic-night'),
+  sheriff: PluginIdSchema.parse('plugin-classic-sheriff'),
+  death: PluginIdSchema.parse('plugin-classic-death'),
+  day: PluginIdSchema.parse('plugin-classic-day'),
+  terminal: PluginIdSchema.parse('plugin-classic-terminal'),
+  villager: PluginIdSchema.parse('plugin-role-villager'),
+  werewolf: PluginIdSchema.parse('plugin-role-werewolf'),
+  seer: PluginIdSchema.parse('plugin-role-seer'),
+  witch: PluginIdSchema.parse('plugin-role-witch'),
+  hunter: PluginIdSchema.parse('plugin-role-hunter'),
+  idiot: PluginIdSchema.parse('plugin-role-idiot'),
+  guard: PluginIdSchema.parse('plugin-role-guard'),
+  magicMirrorGirl: PluginIdSchema.parse('plugin-role-magic-mirror-girl'),
+  whiteWolfKing: PluginIdSchema.parse('plugin-role-white-wolf-king'),
+} as const

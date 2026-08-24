@@ -85,16 +85,26 @@ test('creates, edits, selects, and deletes a custom six-player board', async ({ 
   const boardName = `E2E Board ${testRunId}`
   await page.goto('/boards')
   const roleBadges = page.locator('.aw-board-role-row .aw-role-badge')
-  await expect(roleBadges).toHaveCount(7)
+  await expect(roleBadges).toHaveCount(9)
   expect(
     new Set(
       await roleBadges.evaluateAll((elements) =>
         elements.map((element) => getComputedStyle(element).color),
       ),
     ).size,
-  ).toBe(7)
+  ).toBe(9)
   await expect(roleBadges.filter({ hasText: '女巫' })).toHaveCSS('color', 'rgb(189, 134, 223)')
   await expect(roleBadges.filter({ hasText: '猎人' })).toHaveCSS('color', 'rgb(114, 198, 154)')
+  await expect(roleBadges.filter({ hasText: '魔镜少女' })).toHaveCSS('color', 'rgb(233, 159, 208)')
+  await expect(roleBadges.filter({ hasText: '白狼王' })).toHaveCSS('color', 'rgb(232, 237, 243)')
+  await page.getByRole('button', { name: /12 人魔镜场/ }).click()
+  await expect(
+    page.locator('.aw-board-role-row').filter({ hasText: '魔镜少女' }).locator('output'),
+  ).toHaveText('1')
+  await page.getByRole('button', { name: /12 人白狼王场/ }).click()
+  await expect(
+    page.locator('.aw-board-role-row').filter({ hasText: '白狼王' }).locator('output'),
+  ).toHaveText('1')
   await page.getByRole('button', { name: '新建板子' }).click()
   await page.getByLabel('板子名称').fill(boardName)
   await page.getByLabel('板子说明').fill('E2E six-player Seer and Witch board')

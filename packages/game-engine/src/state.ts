@@ -1,5 +1,7 @@
 import type { AgentProfileId, GameEvent, MatchId, PlayerId } from '@agentwolf/contracts'
 import type { BoardManifest, GameState, PlayerState } from './types.js'
+import type { PluginEventRegistry } from './plugins/event-registry.js'
+import type { RulesetRuntime } from './plugins/ruleset.js'
 
 export function emptyGameState(matchId: MatchId, board: BoardManifest): GameState {
   return {
@@ -11,6 +13,7 @@ export function emptyGameState(matchId: MatchId, board: BoardManifest): GameStat
     phaseId: null,
     phaseLabelKey: '',
     players: new Map(),
+    pluginState: new Map(),
     sheriff: {
       enabled: board.sheriff,
       holderId: null,
@@ -27,6 +30,7 @@ export function emptyGameState(matchId: MatchId, board: BoardManifest): GameStat
     lastVote: null,
     nightAttackTargetId: null,
     interruptToNight: false,
+    preventedExilePlayerId: null,
     lastSequence: 0,
     winner: null,
     pausedReason: null,
@@ -47,9 +51,15 @@ function updatePlayer(
   return next
 }
 
-export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
+export function reduceGameEvent(
+  state: GameState,
+  event: GameEvent,
+  pluginEvents?: PluginEventRegistry,
+): GameState {
   const payload = event.payload
   let next: GameState = { ...state, lastSequence: event.sequence }
+  const legacy = pluginEvents?.applyLegacy(next, event)
+  if (legacy) return legacy
   switch (payload.type) {
     case 'match.created': {
       const players = new Map<PlayerId, PlayerState>()
@@ -63,7 +73,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
           faction: null,
           alive: true,
           canVote: true,
-          roleState: { abilityUses: {}, memory: {} },
+          roleState: { abilityUses: {}, capabilities: new Set(), memory: {} },
         })
       }
       next = { ...next, players }
@@ -107,6 +117,7 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
         phaseActions: [],
         phaseActors: [],
         completedActors: new Set(),
+        preventedExilePlayerId: null,
       }
       break
     case 'phase.actors-set':
@@ -123,6 +134,10 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
       break
     case 'action.submitted':
       next = { ...next, phaseActions: [...next.phaseActions, payload.action] }
+      break
+    case 'plugin.event':
+      if (!pluginEvents) throw new Error(`Plugin event ${payload.eventType} has no event registry`)
+      next = { ...next, pluginState: pluginEvents.apply(next.pluginState, payload) }
       break
     case 'sheriff.candidacy': {
       const initialCandidates = new Set(next.sheriff.initialCandidates)
@@ -171,6 +186,9 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
       next = { ...next, pendingDeaths }
       break
     }
+    case 'exile.prevented':
+      next = { ...next, preventedExilePlayerId: payload.playerId }
+      break
     case 'death.window-closed':
       next = { ...next, recentDeaths: new Map() }
       break
@@ -197,31 +215,6 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
       }
       break
     }
-    case 'idiot.revealed':
-      next = {
-        ...next,
-        players: updatePlayer(next.players, payload.playerId, (player) => ({
-          ...player,
-          canVote: false,
-          roleState: {
-            ...player.roleState,
-            memory: { ...player.roleState.memory, 'idiot.revealed': true },
-          },
-        })),
-      }
-      break
-    case 'guard.protected':
-      next = {
-        ...next,
-        players: updatePlayer(next.players, payload.actorId, (player) => ({
-          ...player,
-          roleState: {
-            ...player.roleState,
-            memory: { ...player.roleState.memory, 'guard.lastTarget': payload.targetId },
-          },
-        })),
-      }
-      break
     case 'ability.used':
       next = {
         ...next,
@@ -235,6 +228,28 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
             },
           },
         })),
+      }
+      break
+    case 'capability.granted':
+      next = {
+        ...next,
+        players: updatePlayer(next.players, payload.playerId, (player) => ({
+          ...player,
+          roleState: {
+            ...player.roleState,
+            capabilities: new Set([...player.roleState.capabilities, payload.capabilityId]),
+          },
+        })),
+      }
+      break
+    case 'capability.revoked':
+      next = {
+        ...next,
+        players: updatePlayer(next.players, payload.playerId, (player) => {
+          const capabilities = new Set(player.roleState.capabilities)
+          capabilities.delete(payload.capabilityId)
+          return { ...player, roleState: { ...player.roleState, capabilities } }
+        }),
       }
       break
     case 'match.paused':
@@ -266,18 +281,13 @@ export function reduceGameEvent(state: GameState, event: GameEvent): GameState {
     case 'faction.members':
     case 'role.revealed':
     case 'vote.cast':
-    case 'witch.potion-used':
-    case 'seer.inspected':
     case 'player.saved':
-    case 'hunter.shot':
     case 'public.announcement':
     case 'delivery.started':
     case 'delivery.acknowledged':
       break
-    default: {
-      const exhaustive: never = payload
-      return exhaustive
-    }
+    default:
+      break
   }
   return next
 }
@@ -286,8 +296,12 @@ export function replayGame(
   matchId: MatchId,
   board: BoardManifest,
   events: readonly GameEvent[],
+  ruleset?: RulesetRuntime,
 ): GameState {
-  return events.reduce(reduceGameEvent, emptyGameState(matchId, board))
+  return events.reduce(
+    (state, event) => reduceGameEvent(state, event, ruleset?.events),
+    emptyGameState(matchId, board),
+  )
 }
 
 export interface CreatePlayerInput {
