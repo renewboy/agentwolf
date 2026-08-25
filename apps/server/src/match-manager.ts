@@ -20,6 +20,7 @@ import { createReadableId } from './ids.js'
 import type { LiveConnection, LiveSubscriber } from './live-hub.js'
 import { MatchRuntime } from './match-runtime.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
+import { removeMatchPlayerWorkspaces } from './player-workspace.js'
 import type { TrajectoryService } from './trajectory-service.js'
 import type { RulesetCatalog } from './ruleset-catalog.js'
 
@@ -201,6 +202,7 @@ export class MatchManager {
     for (const connection of this.#inactiveConnections.get(id) ?? []) connection.close()
     this.#inactiveConnections.delete(id)
     if (!this.#options.repository.deleteMatch(id)) throw new MatchNotFoundError(id)
+    await removeMatchPlayerWorkspaces(this.#options.config.dataDirectory, id)
   }
 
   public getMatch(id: MatchId, view: SpectatorView): MatchView {

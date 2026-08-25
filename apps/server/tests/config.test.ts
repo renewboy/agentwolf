@@ -1,7 +1,8 @@
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, lstat, mkdtemp, readFile, readdir, readlink, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import { copyPlayerSkills } from '@agentwolf/assets/player-skills'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadServerConfig } from '../src/config.js'
@@ -24,14 +25,28 @@ describe('server project root', () => {
 
     const dataDirectory = await mkdtemp(resolve(tmpdir(), 'agentwolf-workspace-'))
     temporaryDirectories.push(dataDirectory)
+    const builtSkills = await copyPlayerSkills({
+      dataDirectory,
+      sourceRoot: resolve(repositoryRoot, 'packages/assets/player-skills'),
+    })
+    expect(
+      (await readdir(dataDirectory)).filter((name) => name.startsWith('.skills-build-')),
+    ).toEqual([])
     const workspace = await preparePlayerWorkspace(
       dataDirectory,
-      config.projectRoot,
       MatchIdSchema.parse('match-config-test'),
       PlayerIdSchema.parse('player-1'),
     )
     await access(resolve(workspace, '.agents/skills/agentwolf-player/SKILL.md'))
     await access(resolve(workspace, '.claude/skills/agentwolf-player/SKILL.md'))
+    await access(resolve(workspace, '.trae/skills/werewolf-strategy/SKILL.md'))
+    const builtSkillsRealPath = await realpath(builtSkills)
+    for (const directory of ['.agents', '.claude', '.trae']) {
+      const linkPath = resolve(workspace, directory, 'skills')
+      expect((await lstat(linkPath)).isSymbolicLink()).toBe(true)
+      expect((await readlink(linkPath)).startsWith('/')).toBe(false)
+      expect(await realpath(linkPath)).toBe(builtSkillsRealPath)
+    }
     const expectedContract = `${loadPromptCore().playerContract()}\n`
     expect(
       await readFile(resolve(workspace, '.agents/skills/agentwolf-player/SKILL.md'), 'utf8'),
@@ -39,6 +54,20 @@ describe('server project root', () => {
     expect(
       await readFile(resolve(workspace, '.claude/skills/agentwolf-player/SKILL.md'), 'utf8'),
     ).toBe(expectedContract)
+    expect(
+      await readFile(
+        resolve(workspace, '.agents/skills/werewolf-strategy/references/articles/2023080801.md'),
+        'utf8',
+      ),
+    ).toBe(
+      await readFile(
+        resolve(
+          repositoryRoot,
+          'packages/assets/player-skills/werewolf-strategy/references/articles/2023080801.md',
+        ),
+        'utf8',
+      ),
+    )
   })
 
   it('enables developer mode only through an explicit loopback startup setting', () => {

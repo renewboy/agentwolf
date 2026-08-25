@@ -12,6 +12,10 @@
       "types": "./dist/prompts.d.ts",
       "default": "./dist/prompts.js"
     },
+    "./player-skills": {
+      "types": "./dist/player-skills.d.ts",
+      "default": "./dist/player-skills.js"
+    },
     "./styles/index.css": "./styles/index.css"
   },
   "scripts": {

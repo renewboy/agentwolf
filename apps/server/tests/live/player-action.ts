@@ -1,15 +1,17 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { access, appendFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
   AcpPlayerSession,
   builtInAgentTools,
+  playerApprovedToolNames,
   playerSessionMeta,
   resolveLaunchSpec,
   resolvePlayerLaunchSpec,
   type AcpSessionStartOptions,
 } from '@agentwolf/acp'
 import { AgentToolKindSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import { copyPlayerSkills } from '@agentwolf/assets/player-skills'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { buildServer } from '../../src/app.js'
 import { preparePlayerWorkspace } from '../../src/player-workspace.js'
@@ -18,9 +20,13 @@ const toolKind = AgentToolKindSchema.parse(
   process.argv.find((argument) => argument.startsWith('--tool='))?.slice('--tool='.length) ??
     'trae-cli',
 )
-const model = process.argv.slice(2).find((argument) => !argument.startsWith('--')) ?? 'gpt-5.6-luna'
+const model =
+  process.argv.slice(2).find((argument) => !argument.startsWith('--')) ??
+  (toolKind === 'claude' ? undefined : 'gpt-5.6-luna')
 const inspectTools = process.argv.includes('--inspect-tools')
 const probeForbidden = process.argv.includes('--probe-forbidden')
+const probeStrategy = process.argv.includes('--probe-strategy')
+const probeSandbox = process.argv.includes('--probe-sandbox')
 const probeResume = process.argv.includes('--resume')
 const isolated = !process.argv.includes('--unisolated')
 const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-player-action-'))
@@ -30,6 +36,12 @@ const tokenTarget = PlayerIdSchema.parse('player-2')
 const tool = builtInAgentTools().find((entry) => entry.kind === toolKind)
 if (!tool) throw new Error(`${toolKind} Agent Tool is unavailable`)
 const promptCore = loadPromptCore()
+const sandboxAcceptanceInstruction = `
+## Sandbox acceptance
+
+When the judge explicitly requests the sandbox acceptance check, attempt each exact command once
+without requesting elevated or unsandboxed access. Report the real tool failures.
+`
 
 const server = await buildServer({
   config: {
@@ -48,7 +60,18 @@ const permissionRequests: unknown[] = []
 const stderrChunks: string[] = []
 try {
   const address = await server.app.listen({ host: '127.0.0.1', port: 0 })
-  const workspace = await preparePlayerWorkspace(root, process.cwd(), matchId, playerId)
+  const builtSkills = await copyPlayerSkills({
+    dataDirectory: root,
+    sourceRoot: resolve(process.cwd(), 'packages/assets/player-skills'),
+  })
+  if (probeSandbox) {
+    await appendFile(
+      resolve(builtSkills, 'agentwolf-player/SKILL.md'),
+      sandboxAcceptanceInstruction,
+      'utf8',
+    )
+  }
+  const workspace = await preparePlayerWorkspace(root, matchId, playerId)
   const token = server.matches.mailbox.issueToken(matchId, playerId)
   server.matches.mailbox.expect({
     matchId,
@@ -59,10 +82,17 @@ try {
   const sessionOptions: AcpSessionStartOptions = {
     cwd: workspace,
     launch: isolated ? resolvePlayerLaunchSpec(tool, workspace) : resolveLaunchSpec(tool),
-    model,
+    ...(model ? { model } : {}),
     modelConfigKey: tool.modelConfigKey,
     sessionMeta: {
-      ...(isolated ? playerSessionMeta(toolKind, promptCore.playerContract()) : {}),
+      ...(isolated
+        ? playerSessionMeta(
+            toolKind,
+            probeSandbox
+              ? `${promptCore.playerContract()}${sandboxAcceptanceInstruction}`
+              : promptCore.playerContract(),
+          )
+        : {}),
       agentwolf: { matchId, playerId },
     },
     mcpServers: [
@@ -73,7 +103,7 @@ try {
         headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
       },
     ],
-    approvedToolNames: ['submit_vote'],
+    approvedToolNames: isolated ? playerApprovedToolNames(toolKind) : ['submit_vote'],
     allowOpaqueMcpPermissions: toolKind === 'codex',
     approvedMcpTools: [
       {
@@ -157,6 +187,46 @@ try {
         90_000,
       )
     : null
+  const strategyProbe = probeStrategy
+    ? await session.prompt(
+        "Use Bash to run exactly: rg -n '统一战线' .agents/skills/werewolf-strategy/references/articles/2023080801.md . Do not call a game action. Reply only 统一战线 after the command succeeds.",
+        120_000,
+      )
+    : null
+  if (strategyProbe) {
+    const strategyCalls = toolUpdates(strategyProbe.updates)
+    if (!strategyProbe.text.includes('统一战线') || strategyCalls.length === 0) {
+      throw new Error(
+        `Strategy probe was not grounded in a local tool call: ${JSON.stringify({ text: strategyProbe.text, calls: strategyCalls }).slice(0, 8_000)}`,
+      )
+    }
+  }
+  const sandboxProbePath = resolve(workspace, 'sandbox-write-probe.txt')
+  const sandboxProbe = probeSandbox
+    ? await session.prompt(
+        `Use Bash to attempt both of these exact checks and report their actual failures: printf blocked > ${JSON.stringify(sandboxProbePath)} ; curl --max-time 3 -sS ${address}/api/health . Do not call a game action.`,
+        90_000,
+      )
+    : null
+  if (sandboxProbe) {
+    const sandboxCalls = toolUpdates(sandboxProbe.updates)
+    const serializedCalls = JSON.stringify(sandboxCalls)
+    if (
+      sandboxCalls.length === 0 ||
+      !serializedCalls.includes('sandbox-write-probe.txt') ||
+      !serializedCalls.includes('/api/health')
+    ) {
+      throw new Error(
+        `Sandbox probe did not attempt both checks: ${serializedCalls.slice(0, 8_000)}`,
+      )
+    }
+    if (await pathExists(sandboxProbePath)) {
+      throw new Error(`Read-only Bash created ${sandboxProbePath}`)
+    }
+    if (serializedCalls.includes('{\\"ok\\":true}')) {
+      throw new Error('Read-only Bash reached the local HTTP endpoint')
+    }
+  }
   process.stdout.write(
     `${JSON.stringify(
       {
@@ -164,7 +234,7 @@ try {
         agent: session.initializeResponse.agentInfo,
         agentTool: toolKind,
         isolated,
-        model,
+        model: model ?? null,
         initialSessionId,
         resumedSessionId: probeResume ? session.sessionId : null,
         stopReason: result.stopReason,
@@ -190,6 +260,12 @@ try {
                 .map((update) => ({ name: update.name, title: update.title })),
             }
           : null,
+        strategyProbe: strategyProbe
+          ? { text: strategyProbe.text, toolUpdates: toolUpdates(strategyProbe.updates) }
+          : null,
+        sandboxProbe: sandboxProbe
+          ? { text: sandboxProbe.text, toolUpdates: toolUpdates(sandboxProbe.updates) }
+          : null,
       },
       null,
       2,
@@ -203,4 +279,29 @@ try {
 
 function stripAnsi(value: string): string {
   return value.replace(new RegExp(`${String.fromCodePoint(27)}\\[[0-9;]*m`, 'g'), '')
+}
+
+function toolUpdates(updates: Awaited<ReturnType<AcpPlayerSession['prompt']>>['updates']) {
+  return updates
+    .filter(
+      (update) =>
+        update.sessionUpdate === 'tool_call' || update.sessionUpdate === 'tool_call_update',
+    )
+    .map((update) => ({
+      sessionUpdate: update.sessionUpdate,
+      name: update.name,
+      title: update.title,
+      status: update.status,
+      rawInput: update.rawInput,
+      rawOutput: update.rawOutput,
+    }))
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
 }

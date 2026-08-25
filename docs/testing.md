@@ -6,7 +6,8 @@
   no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
   changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
   role-effect catalog coverage, custom-board validation, phase transitions, speech
-  sanitization, nickname uniqueness, event reduction, and visibility projection.
+  sanitization, nickname uniqueness, event reduction, visibility projection, player Skill source
+  coverage, provider tool policies, and pre-speech or mid-speech knowledge tool boundaries.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
 - Integration tests run the API with an in-memory repository and fake ACP processes. They cover
   Character upload/copy/CRUD and reference protection, board Character defaults and Match
@@ -38,8 +39,9 @@
 - Browser fixtures use a per-run name namespace and remove every created Match, custom board,
   custom Character, Agent Profile, and custom Agent Tool during suite teardown, including after
   failed assertions.
-- Optional live ACP smokes verify installed adapters, game-only tool visibility, bootstrap usage,
-  and a real structured action with a one-turn fake Match. They never run in keyless CI.
+- Optional live ACP smokes verify installed adapters, a real structured action with a one-turn fake
+  Match, local strategy search through the shared Skill links, and sandbox rejection of file writes
+  and shell network access. They never run in keyless CI.
 
 ## Required commands
 
@@ -55,8 +57,9 @@ pnpm check:skills
 pnpm test:e2e
 pnpm test:simulation
 pnpm simulation:check
-pnpm smoke:player-action -- gpt-5.6-luna --tool=trae-cli
-pnpm smoke:player-action -- gpt-5.6-luna --tool=codex
+pnpm smoke:player-action -- --tool=trae-cli gpt-5.6-luna --probe-strategy --probe-sandbox
+pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --probe-strategy --probe-sandbox
+pnpm smoke:player-action -- --tool=claude --probe-strategy --probe-sandbox
 ```
 
 `pnpm check` is the deterministic local and CI gate. It excludes live model calls and credentialed adapter smokes.
@@ -90,13 +93,14 @@ buckets, and paths outside the dated directory format.
 9. Agent Tool selection discovers its ACP model list, and only an advertised model can be selected in the settings UI.
 10. A rejected six-player Seer action returns its rule error to the same Agent turn, accepts a corrected tool call, reaches a settled inspection, and emits no pause or resume event.
 11. Recovery after server restart restores the event-sourced engine, resumes every original Session ID without another foundation, and continues the interrupted turn.
-12. A paused match exposes continue and delete controls; deletion removes the match, events, delivery ledgers, and Session bindings.
+12. A paused match exposes continue and delete controls; deletion removes the match, events, delivery ledgers, Session bindings, and player workspaces.
 13. A simulated uncertain ACP speech delivery continues the affected Session once, commits the retried speech, leaves every other Session untouched, and does not emit a transient pause event.
 14. A transient spectator WebSocket closure keeps the last snapshot, refreshes over HTTP, and reconnects instead of replacing the page with an error.
 15. A daytime exile with last words completes the day and enters the next night before another day speech can begin.
 16. Every bootstrap prompt covers its delivery cursor, includes one detailed public rules entry for
-    each role on the selected board without seat assignments, gives each Werewolf exactly its other
-    teammates, and gives non-Werewolves no faction roster.
+    each role on the selected board without seat assignments, includes the source Role introduction
+    identically for every player, gives each Werewolf exactly its other teammates, and gives
+    non-Werewolves no faction roster.
 17. Death and exile keep identities hidden in running closed-eye and player projections; `match.ended` precedes one final public identity event per seat, and every terminal projection exposes all roles.
 18. An ended page closes continuous presence motion and live reconnection, while a 404 Match page stops further GET and WebSocket attempts.
 19. A valid structured action immediately projects `submitted` to god and actor views while remaining hidden from other player and closed-eye views.
@@ -112,9 +116,10 @@ buckets, and paths outside the dated directory format.
     reduced, and off effect modes play each newly visible cue at most once and leave no residual
     transform.
 26. Normal speech rejects the compatibility `submit_speech` tool and commits only the clean direct
-    response around embedded role and action-tool boundaries. A clean same-turn correction remains
-    valid when no speech preceded a rejected tool; other generated text stays outside the live
-    stream and Match event. Bundle-rendered speech prompts contain current public facts and the
+    response around embedded role and tool boundaries. A local strategy lookup may finish before
+    speech starts. Once speech starts, later lookup output and rewritten speech stay outside the
+    live stream and Match event. A clean same-turn correction remains valid when no speech preceded
+    a rejected tool. Bundle-rendered speech prompts contain current public facts and the
     phase-specific action contract.
 27. Wolf council and post-death Sheriff transfer expose no self-destruct interrupt or premature
     night-action contract, while sheriff-election and daytime speech or vote turns for living
@@ -158,10 +163,12 @@ buckets, and paths outside the dated directory format.
 38. Every Match player card shows its configured model. Role badges use the same semantic color for
     the same identity on Match and trajectory screens, while closed-eye projections retain model
     metadata and expose only the neutral `身份未公开` badge.
-39. Trae player launch enables only the code-mode MCP host while retaining the five-action MCP
-    allowlist and every shell, file, browser, network-search, plugin, and Agent prohibition. An
-    isolated `gpt-5.6-luna` smoke submits a real vote, while a request to run `pwd` reports the tool
-    unavailable and emits no call.
+39. The build copies both complete player Skills to `.agentwolf/skills`; every player workspace
+    exposes that shared directory through relative `.agents`, `.claude`, and `.trae` Skill links.
+    Trae, Codex, and Claude expose local Skill reads and read-only Bash while withholding editing,
+    browser, web-search, plugin, memory, hook, and Agent capabilities. Live adapter smokes submit a
+    real vote, find a known strategy phrase through the linked files, leave a requested marker file
+    absent, and cannot reach a local HTTP endpoint from Bash.
 40. Normal Session close, a hung protocol close, development shutdown, descendant processes that
     ignore TERM, and an AgentWolf parent killed by SIGKILL all leave no guarded Agent process.
 41. The complete 14-variant simulation corpus preserves its reviewed events, checkpoints, audits,

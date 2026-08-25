@@ -71,8 +71,9 @@ announced deaths, living state, vote results, and phase results as fixed public 
 allowing strategic claims about identity, private information, and judgment. Wolf council prompts
 accept discussion only; the attack target is requested later through the parallel vote barrier.
 The direct-speech stream ends at an embedded ACP role boundary or, once clean speech exists, the
-first action-tool update. Only one clean speech segment is broadcast and committed; a rejected tool
-may be followed by a clean same-turn correction when no speech preceded it. Other generated text
+first tool update. A strategy lookup may finish before speech starts; lookup output remains outside
+the visible stream. Only one clean speech segment is broadcast and committed; a rejected tool may
+be followed by a clean same-turn correction when no speech preceded it. Other generated text
 remains available in the raw trajectory but cannot enter a Match event.
 No-kill is represented by a null wolf ballot and wins only when it strictly outpolls every player
 target. A highest-vote tie selects one of the tied player targets with a replay-stable random
@@ -95,9 +96,10 @@ uses the single death or lowest-seat death as anchor with a replay-stable random
 replay-stable random start and direction after a peaceful night.
 
 The player process contributes no ambient user Memory, unrelated Skill catalog, repository
-development instructions, or general-purpose tool schema. Its provider adapter publishes only the
-AgentWolf player contract and five game-action tools. A new Match audit fails when a reported
-bootstrap context exceeds 12,000 tokens.
+development instructions, or general-purpose mutation tool schema. Its provider adapter publishes
+the player contract, two shared player Skills, local reads and read-only shell search, and five
+game-action tools. Shell commands cannot write files, access the network, or request unsandboxed
+execution. A new Match audit fails when a reported bootstrap context exceeds 12,000 tokens.
 
 ## Failure semantics
 
@@ -121,7 +123,8 @@ the Match; an interrupted foundation continues the preparation stage inside the 
 
 Every foundation source history ends at the same sequence as its delivery cursor. The foundation
 renders each visible bootstrap fact exactly once: own role and abilities, complete roster, one
-detailed public rules entry for every role present on the selected board, global board policies,
+detailed public rules and role-introduction entry for every role present on the selected board,
+global board policies,
 private faction membership where applicable, and the owning seat's immutable Character card when
 selected. Character portrayal changes public expression only and cannot lower reasoning or action
 quality. Public role rules contain no seat assignments. A

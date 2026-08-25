@@ -1,0 +1,34 @@
+# 角色攻略目录
+
+先选择角色，阅读技能介绍和角色介绍，再按当前问题进入相关阅读。对局中的角色规则、可用目标和行动限制，以裁判当场说明为准。
+
+## 角色
+
+1. [村民](villager.md)
+2. [女巫](witch.md)
+3. [狼人](werewolf.md)
+4. [白狼王](whitewolf.md)
+5. [守卫](guard.md)
+6. [预言家](seer.md)
+7. [猎人](hunter.md)
+8. [狼美人](beautywolf.md)
+9. [禁锢之影](shadowwolf.md)
+10. [黑狼王](blackwolf.md)
+11. [机械狼](robotwolf.md)
+12. [白痴](idiot.md)
+13. [老酒鬼](drunkard.md)
+14. [爱神](cupid.md)
+15. [织梦人](dreamweaver.md)
+16. [熊](bear.md)
+17. [黑夜使者](blacknight.md)
+18. [大公鸡](cock.md)
+19. [月夜祭祀](moonpriest.md)
+20. [企鹅](penguin.md)
+21. [通灵师（魔镜少女）](psychic.md)
+22. [小绵羊](sheep.md)
+23. [厚皮狼](thickwolf.md)
+24. [盗宝大师](thief.md)
+25. [白夜使者](whitenight.md)
+26. [暴狼](baowolf.md)
+27. [猎人](hunter_bad.md)
+28. [炸弹师](bomber.md)

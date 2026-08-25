@@ -1,32 +1,78 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { access, lstat, mkdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
+import { dirname, relative, resolve } from 'node:path'
 import type { MatchId, PlayerId } from '@agentwolf/contracts'
-import { loadPromptCore } from '@agentwolf/assets/prompts'
+
+const playerSkillNames = ['agentwolf-player', 'werewolf-strategy'] as const
 
 export async function preparePlayerWorkspace(
   dataDirectory: string,
-  projectRoot: string,
   matchId: MatchId,
   playerId: PlayerId,
 ): Promise<string> {
+  const sharedSkills = await requireBuiltPlayerSkills(dataDirectory)
   const workspace = resolve(dataDirectory, 'matches', matchId, 'players', playerId, 'workspace')
-  const agentSkill = resolve(workspace, '.agents', 'skills', 'agentwolf-player')
-  const claudeSkill = resolve(workspace, '.claude', 'skills', 'agentwolf-player')
-  await Promise.all([
-    mkdir(agentSkill, { recursive: true }),
-    mkdir(claudeSkill, { recursive: true }),
-  ])
-  let contract: string
-  try {
-    contract = `${loadPromptCore({ root: resolve(projectRoot, 'packages/assets/prompts') }).playerContract()}\n`
-  } catch (error) {
-    throw new Error(`agentwolf-player Prompt assets are unavailable under ${projectRoot}`, {
-      cause: error,
-    })
-  }
-  await Promise.all([
-    writeFile(resolve(agentSkill, 'SKILL.md'), contract, 'utf8'),
-    writeFile(resolve(claudeSkill, 'SKILL.md'), contract, 'utf8'),
-  ])
+  await mkdir(workspace, { recursive: true })
+  await Promise.all(
+    ['.agents', '.claude', '.trae'].map((directory) =>
+      ensureRelativeDirectoryLink(resolve(workspace, directory, 'skills'), sharedSkills),
+    ),
+  )
   return workspace
+}
+
+export async function removeMatchPlayerWorkspaces(
+  dataDirectory: string,
+  matchId: MatchId,
+): Promise<void> {
+  const matchesRoot = resolve(dataDirectory, 'matches')
+  const matchRoot = resolve(matchesRoot, matchId)
+  const localPath = relative(matchesRoot, matchRoot)
+  if (localPath !== matchId) {
+    throw new Error(`Invalid Match workspace path: ${matchRoot}`)
+  }
+  await rm(matchRoot, { recursive: true, force: true })
+}
+
+async function requireBuiltPlayerSkills(dataDirectory: string): Promise<string> {
+  const root = resolve(dataDirectory, 'skills')
+  for (const name of playerSkillNames) {
+    try {
+      await access(resolve(root, name, 'SKILL.md'))
+    } catch (error) {
+      throw new Error(`Player Skills have not been built under ${root}`, { cause: error })
+    }
+  }
+  return realpath(root)
+}
+
+async function ensureRelativeDirectoryLink(linkPath: string, targetPath: string): Promise<void> {
+  await mkdir(dirname(linkPath), { recursive: true })
+  const relativeTarget = relative(await realpath(dirname(linkPath)), targetPath)
+  try {
+    const status = await lstat(linkPath)
+    if (
+      status.isSymbolicLink() &&
+      (await readlink(linkPath)) === relativeTarget &&
+      (await realpath(linkPath)) === targetPath
+    ) {
+      return
+    }
+    await rm(linkPath, { recursive: true, force: true })
+  } catch (error) {
+    if (!isMissingPath(error)) throw error
+  }
+  await symlink(relativeTarget, linkPath, 'dir')
+  if ((await realpath(linkPath)) !== targetPath) {
+    await rm(linkPath, { force: true })
+    throw new Error(`Player Skill link does not resolve to ${targetPath}`)
+  }
+}
+
+function isMissingPath(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'ENOENT'
+  )
 }

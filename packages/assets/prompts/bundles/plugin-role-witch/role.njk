@@ -1,6 +1,7 @@
 {% if section == 'public' %}
 - {{ role.label }}（{{ helpers.faction(role.faction) }}）：拥有解药和毒药各一瓶。解药尚未使用时，夜间只能得知狼队常规袭击目标，且只能对该目标使用解药；解药使用后不再获得袭击目标。毒药可以使一名其他存活玩家死亡。每夜最多使用 {{ board.policies.witchPotionsPerNight }} 瓶药。
 自救规则：{% if board.policies.witchSelfSave == 'never' %}不可自救{% elif board.policies.witchSelfSave == 'first-night' %}仅首夜可以自救{% else %}可以自救{% endif %}。
+角色介绍：女巫是狼人杀神职角色之一，归属好人阵营，她的技能是拥有解药和毒药，解药可以用于解救夜晚狼人刀杀的玩家，而毒药则可以毒杀存活的任意一名玩家。女巫是狼人杀绝大多数板子都要用到的角色，在标准的预女猎白12人局中，女巫通常需要在首夜使用解药来解救被刀玩家避免强神出局，而毒药则需要谨慎使用，否则极容易误伤好人甚至可能是强神。女巫的解药和守卫的技能是有冲突的，如果女巫与守卫同场，一般在首轮女巫会选择救人而守卫则选择空守避免冲突。
 {% elif section == 'owner' %}
 你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
 你的药剂状态：

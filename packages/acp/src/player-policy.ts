@@ -10,6 +10,14 @@ export const playerActionToolNames = [
   'trigger_skill',
 ] as const
 
+export const playerKnowledgeToolNames = ['Read', 'Grep', 'Glob', 'Bash', 'Skill'] as const
+
+export function playerApprovedToolNames(kind: AgentToolKind): readonly string[] {
+  return kind === 'trae-cli'
+    ? [...playerActionToolNames, ...playerKnowledgeToolNames]
+    : playerActionToolNames
+}
+
 export const playerBootstrapContextBudget = 12_000
 
 const playerMcpFunctionNames = playerActionToolNames.map(
@@ -35,7 +43,13 @@ const traeCodingToolNames = [
   'WebSearch',
   'WebFetch',
 ] as const
-const playerMcpToolSelection = `tools.enabled_tools=[${playerMcpFunctionNames
+const traeDisallowedCodingToolNames = traeCodingToolNames.filter(
+  (tool) => !playerKnowledgeToolNames.includes(tool as (typeof playerKnowledgeToolNames)[number]),
+)
+const playerMcpToolSelection = `tools.enabled_tools=[${[
+  ...playerKnowledgeToolNames,
+  ...playerMcpFunctionNames,
+]
   .map((tool) => JSON.stringify(tool))
   .join(',')}]`
 
@@ -71,9 +85,12 @@ const disabledCodingFeatures = [
 ] as const
 
 const traeDisabledCodingFeatures = disabledCodingFeatures.filter(
-  (feature) => feature !== 'code_mode_host',
+  (feature) => feature !== 'code_mode_host' && feature !== 'shell_tool',
 )
-const traeRequiredFeatures = ['code_mode_host'] as const
+const traeRequiredFeatures = ['code_mode_host', 'shell_tool'] as const
+const codexDisabledCodingFeatures = disabledCodingFeatures.filter(
+  (feature) => feature !== 'shell_tool',
+)
 
 const sharedContextConfig = {
   include_apps_instructions: false,
@@ -108,13 +125,17 @@ const traePlayerContextArgs = [
 ] as const
 
 const traePlayerToolArgs = [
-  ...traeCodingToolNames.flatMap((tool) => ['--disallowed-tool', tool]),
+  ...traeDisallowedCodingToolNames.flatMap((tool) => ['--disallowed-tool', tool]),
+  ...playerKnowledgeToolNames.flatMap((tool) => ['--allowed-tool', tool]),
   ...playerMcpFunctionNames.flatMap((tool) => ['--allowed-tool', tool]),
 ] as const
 
 const codexPlayerConfig = {
   ...sharedContextConfig,
-  features: Object.fromEntries(disabledCodingFeatures.map((feature) => [feature, false])),
+  features: {
+    ...Object.fromEntries(codexDisabledCodingFeatures.map((feature) => [feature, false])),
+    shell_tool: true,
+  },
   skills: { include_instructions: false },
   tools: { enabled_tools: playerMcpFunctionNames },
   view_image: false,
@@ -134,6 +155,8 @@ export function resolvePlayerLaunchSpec(tool: AgentTool, workspace: string): Pro
         ...traePlayerContextArgs,
         '-c',
         `model_instructions_file=${JSON.stringify(modelInstructions)}`,
+        '--ask-for-approval',
+        'never',
         ...launch.args.slice(insertionIndex),
         ...traePlayerToolArgs,
       ],
@@ -159,12 +182,28 @@ export function playerSessionMeta(
 ): Readonly<Record<string, unknown>> {
   if (kind !== 'claude') return {}
   return {
-    disableBuiltInTools: true,
     claudeCode: {
       options: {
         settingSources: [],
         systemPrompt: playerContract,
-        tools: [],
+        tools: [...playerKnowledgeToolNames],
+        allowedTools: [...playerKnowledgeToolNames],
+        skills: ['agentwolf-player', 'werewolf-strategy'],
+        sandbox: {
+          enabled: true,
+          failIfUnavailable: true,
+          autoAllowBashIfSandboxed: true,
+          allowUnsandboxedCommands: false,
+          network: {
+            allowedDomains: [],
+            deniedDomains: ['*'],
+            strictAllowlist: true,
+            allowUnixSockets: [],
+            allowAllUnixSockets: false,
+            allowLocalBinding: false,
+          },
+          filesystem: { denyWrite: ['/**'] },
+        },
       },
     },
   }

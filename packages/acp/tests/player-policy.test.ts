@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   builtInAgentTools,
   playerActionToolNames,
+  playerApprovedToolNames,
   playerBootstrapContextBudget,
+  playerKnowledgeToolNames,
   playerSessionMeta,
   resolvePlayerLaunchSpec,
 } from '../src/index.js'
@@ -11,9 +13,15 @@ import {
 describe('game-only player process policy', () => {
   it('keeps a mechanical bootstrap context budget below the former ambient baseline', () => {
     expect(playerBootstrapContextBudget).toBe(12_000)
+    expect(playerApprovedToolNames('trae-cli')).toEqual([
+      ...playerActionToolNames,
+      ...playerKnowledgeToolNames,
+    ])
+    expect(playerApprovedToolNames('codex')).toEqual(playerActionToolNames)
+    expect(playerApprovedToolNames('claude')).toEqual(playerActionToolNames)
   })
 
-  it('starts Trae with only AgentWolf skills and action tools', () => {
+  it('starts Trae with local strategy tools and structured game actions', () => {
     const tool = builtInAgentTools().find((entry) => entry.kind === 'trae-cli')!
     const launch = resolvePlayerLaunchSpec(tool, '/runtime/player-1')
     const disabled = optionValues(launch.args, '--disable')
@@ -25,29 +33,24 @@ describe('game-only player process policy', () => {
         'memories',
         'multi_agent',
         'plugins',
-        'shell_tool',
         'tool_search',
         'unified_exec',
       ]),
     )
     expect(disabled).not.toContain('code_mode_host')
-    expect(optionValues(launch.args, '--enable')).toEqual(['code_mode_host'])
-    expect(optionValues(launch.args, '--allowed-tool')).toEqual(
-      playerActionToolNames.map((name) => `mcp__agentwolf_player_actions__${name}`),
-    )
+    expect(optionValues(launch.args, '--enable')).toEqual(['code_mode_host', 'shell_tool'])
+    expect(optionValues(launch.args, '--allowed-tool')).toEqual([
+      ...playerKnowledgeToolNames,
+      ...playerActionToolNames.map((name) => `mcp__agentwolf_player_actions__${name}`),
+    ])
     expect(optionValues(launch.args, '--disallowed-tool')).toEqual([
-      'Read',
       'Write',
       'Edit',
-      'Grep',
-      'Glob',
-      'Bash',
       'Monitor',
       'Agent',
       'ListAgents',
       'SendMessage',
       'TodoWrite',
-      'Skill',
       'TaskStop',
       'TaskOutput',
       'EnterPlanMode',
@@ -57,8 +60,9 @@ describe('game-only player process policy', () => {
     ])
     expect(launch.args).toContain('skills.include_instructions=false')
     expect(launch.args).toContain(
-      'tools.enabled_tools=["mcp__agentwolf_player_actions__submit_speech","mcp__agentwolf_player_actions__submit_vote","mcp__agentwolf_player_actions__submit_night_action","mcp__agentwolf_player_actions__submit_sheriff_action","mcp__agentwolf_player_actions__trigger_skill"]',
+      'tools.enabled_tools=["Read","Grep","Glob","Bash","Skill","mcp__agentwolf_player_actions__submit_speech","mcp__agentwolf_player_actions__submit_vote","mcp__agentwolf_player_actions__submit_night_action","mcp__agentwolf_player_actions__submit_sheriff_action","mcp__agentwolf_player_actions__trigger_skill"]',
     )
+    expect(optionValues(launch.args, '--ask-for-approval')).toEqual(['never'])
     expect(launch.args).toContain('project_doc_max_bytes=0')
     expect(launch.args).toContain(
       'model_instructions_file="/runtime/player-1/.agents/skills/agentwolf-player/SKILL.md"',
@@ -105,7 +109,7 @@ describe('game-only player process policy', () => {
       code_mode_host: false,
       memories: false,
       multi_agent: false,
-      shell_tool: false,
+      shell_tool: true,
       unified_exec: false,
     })
     expect(config.memories).toEqual({ generate_memories: false, use_memories: false })
@@ -115,14 +119,30 @@ describe('game-only player process policy', () => {
     )
   })
 
-  it('disables Claude built-ins and every ambient settings source', () => {
+  it('gives Claude only sandboxed local strategy tools and no ambient settings source', () => {
     expect(playerSessionMeta('claude', 'PLAYER CONTRACT')).toEqual({
-      disableBuiltInTools: true,
       claudeCode: {
         options: {
           settingSources: [],
           systemPrompt: 'PLAYER CONTRACT',
-          tools: [],
+          tools: ['Read', 'Grep', 'Glob', 'Bash', 'Skill'],
+          allowedTools: ['Read', 'Grep', 'Glob', 'Bash', 'Skill'],
+          skills: ['agentwolf-player', 'werewolf-strategy'],
+          sandbox: {
+            enabled: true,
+            failIfUnavailable: true,
+            autoAllowBashIfSandboxed: true,
+            allowUnsandboxedCommands: false,
+            network: {
+              allowedDomains: [],
+              deniedDomains: ['*'],
+              strictAllowlist: true,
+              allowUnixSockets: [],
+              allowAllUnixSockets: false,
+              allowLocalBinding: false,
+            },
+            filesystem: { denyWrite: ['/**'] },
+          },
         },
       },
     })

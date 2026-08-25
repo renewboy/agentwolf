@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
@@ -974,6 +974,8 @@ describe('match orchestration', () => {
       ),
     ])
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
+    const matchWorkspace = resolve(root, 'matches', created.id)
+    await access(matchWorkspace)
     const thinkingSnapshot = [...liveMessages]
       .reverse()
       .find(
@@ -1007,6 +1009,7 @@ describe('match orchestration', () => {
 
     expect(server.repository.getMatch(created.id)).toBeNull()
     expect(server.repository.playerSessions.list(created.id)).toEqual([])
+    await expect(access(matchWorkspace)).rejects.toMatchObject({ code: 'ENOENT' })
     expect(
       liveMessages.some(
         (message) =>

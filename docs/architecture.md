@@ -34,7 +34,7 @@ contracts  <- game-engine
              web
 ```
 
-`contracts` owns branded identifiers, API schemas, event envelopes, action schemas, Character schemas, and view DTOs. `game-engine` owns deterministic state transitions and cannot perform IO. `acp` owns process and protocol lifecycle but does not know game rules. `assets` owns non-localized Prompt bundles, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and CSS. `server` composes the packages, persistence, orchestration, MCP endpoint, REST, managed Character media, and live streams. `web` consumes projected DTOs only and cannot import the server-only Prompt runtime.
+`contracts` owns branded identifiers, API schemas, event envelopes, action schemas, Character schemas, and view DTOs. `game-engine` owns deterministic state transitions and cannot perform IO. `acp` owns process and protocol lifecycle but does not know game rules. `assets` owns non-localized Prompt bundles, player Skill sources, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and CSS. `server` composes the packages, persistence, orchestration, MCP endpoint, REST, managed Character media, and live streams. `web` consumes projected DTOs only and cannot import the server-only Prompt runtime.
 
 ## Rules and roles
 
@@ -92,8 +92,10 @@ matcher ambiguity before the first render.
 
 `_core` owns the canonical provider player contract, session framing, foundation and continuation
 layouts, generic speech and action layouts, Character framing, reference helpers, and the five MCP
-tool declarations. Player workspaces and Claude Session metadata receive that same rendered
-contract. Functional and
+tool declarations. The build copies both complete Skill source directories from
+`packages/assets/player-skills` to `.agentwolf/skills`. Each player workspace exposes that one
+shared directory through relative `.agents/skills`, `.claude/skills`, and `.trae/skills` symlinks.
+Player workspaces and Claude Session metadata receive the same player contract. Functional and
 Role bundles own their labels, complete Role presentation, Phase templates, visible-event
 presentation, announcements, and interrupt wording. Structured or conditional Prompt content is a
 repository-owned Nunjucks template. One-line labels, transitions, tool titles, and receipts are
@@ -162,6 +164,8 @@ does not define Session lifetime. The uncertain attempt advances through its del
 the same Session then receives only newly visible events and a current-stage continuation contract.
 An accepted pending action is consumed without another Prompt. Server restart restores the rule
 engine from the event log and resumes every persisted Session ID before incremental delivery.
+Deleting a Match closes its runtime, removes its database-owned records, and removes that Match's
+player workspace directory under the configured data directory.
 
 An uncertain ACP transport failure receives one automatic continuation attempt per player and
 phase. Only that player's connection can change. A second failure, missing binding, unsupported
@@ -269,9 +273,10 @@ the connection, requires the stable `session.resume` capability, and creates one
 seat workspace and AgentWolf MCP server. It persists the returned ID before the single foundation
 Prompt. Later processes call `session/resume` with that ID and replace the Session's MCP connection
 configuration with the current player-bound endpoint and token. ACP permission requests are
-approved only when their structured MCP server and tool identity matches one of the five AgentWolf
-action tools. `session/update` is the streaming source; the final `session/prompt` response closes
-the turn.
+approved for the five structured game actions and the provider's local read-only knowledge tools.
+The provider sandbox blocks filesystem mutation, network access from shell commands, and
+unsandboxed escalation. `session/update` is the streaming source; the final `session/prompt`
+response closes the turn.
 
 On macOS and Linux, every ACP command runs inside a lightweight guardian-owned process group. The
 guardian relays stdio without interpreting ACP data, observes the AgentWolf parent through a
@@ -281,16 +286,17 @@ from TERM to KILL. Development server and Web process groups use the same bounde
 
 Every built-in player process uses a provider-specific game-only launch policy. Trae receives
 per-process config overrides plus ACP tool allow/deny flags after the `acp serve` subcommand. Codex
-receives an isolated `CODEX_CONFIG`. Claude receives session metadata with an empty built-in tool
-set and no ambient setting sources. These policies remove user memories, global skill catalogs,
-plugins, hooks, repository development instructions, shell/file/browser/search tools, and
-sub-agents. The AgentWolf player contract is the model instruction source, and the only external
-tools are the five actions on `agentwolf-player-actions`.
+receives an isolated `CODEX_CONFIG`. Claude receives session metadata with an explicit local-tool
+set and no ambient setting sources. These policies remove user memories, unrelated Skill catalogs,
+plugins, hooks, repository development instructions, browser/search tools, mutation tools, and
+sub-agents. The player contract is the model instruction source. The available capabilities are
+the two shared Skills, local reads and read-only shell search, and the five actions on
+`agentwolf-player-actions`.
 
-Trae explicitly enables its code-mode host as the dispatch surface for those allowlisted MCP
-actions. Its `tools.enabled_tools` catalog still contains only the five AgentWolf functions;
-`shell_tool`, `unified_exec`, file tools, browser/search, plugins, hooks, and Agent features remain
-disabled. The host therefore supplies MCP call transport without restoring a coding environment.
+Trae exposes Read, Grep, Glob, Bash, and Skill in a read-only, non-networked sandbox. Codex exposes
+its native shell tool under the same read-only mode. Claude exposes the same five local tools with
+fail-closed sandbox startup, no write paths, and no network domains. Provider-specific editing,
+browser, web search, plugin, hook, memory, and Agent features remain disabled.
 
 Every bootstrap trajectory audits a 12,000-token context budget. The budget includes the Agent
 runtime's model instructions and tool schemas as reported by ACP usage, not only the visible judge

@@ -1,0 +1,4 @@
+interface:
+  display_name: '狼人杀攻略'
+  short_description: '按角色和局面提供狼人杀打法参考'
+  default_prompt: '使用 $werewolf-strategy 检查当前决策最相关的打法。'

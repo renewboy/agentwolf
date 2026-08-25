@@ -7,6 +7,9 @@ export default defineConfig({
       '@agentwolf/contracts': fileURLToPath(
         new URL('./packages/contracts/src/index.ts', import.meta.url),
       ),
+      '@agentwolf/assets/player-skills': fileURLToPath(
+        new URL('./packages/assets/src/player-skills.ts', import.meta.url),
+      ),
       '@agentwolf/assets/prompts': fileURLToPath(
         new URL('./packages/assets/src/prompts.ts', import.meta.url),
       ),

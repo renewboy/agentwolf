@@ -18,18 +18,18 @@ AgentWolf is a TypeScript workspace for running Werewolf matches between long-li
 - Read `docs/information-sync.md` before changing visibility, phase delivery, voting barriers, speech order, or recovery semantics.
 - Read `docs/testing.md` before changing test infrastructure, coverage, fixtures, or acceptance evidence.
 - Read `docs/frontend.md` before changing layout, interaction controls, motion, responsive behavior, or visual tokens.
-- Read `.agents/skills/agentwolf-player/SKILL.md` before changing the player-agent workflow.
+- Read `packages/assets/player-skills/agentwolf-player/SKILL.md` before changing the player-agent workflow.
 
 ## Workspace map
 
 - `packages/contracts`: branded IDs, API schemas, event envelopes, action schemas, Agent and Character schemas, and view DTOs.
 - `packages/game-engine`: deterministic kernel, plugin SDK, versioned rulesets, boards, phase composition, resolution, replay, and visibility. It performs no IO.
 - `packages/acp`: Agent tool catalog, ACP process/session lifecycle, streamed updates, and delivery ledgers.
-- `packages/assets`: non-localized Nunjucks Prompt bundles, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and all CSS.
+- `packages/assets`: non-localized Nunjucks Prompt bundles, player Skill sources, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and all CSS.
 - `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery. See its [local instructions](apps/server/AGENTS.md).
 - `apps/web`: React application, validated API client, setup, settings, lobby, and spectator UI. See its [local instructions](apps/web/AGENTS.md).
 - `scripts`: architecture, artifact, documentation, skill, formatting, coverage, and CI gates.
-- `.agentwolf/`: runtime-only databases, workspaces, sessions, logs, and local acceptance evidence.
+- `.agentwolf/`: runtime-only databases, built player Skills, workspaces, sessions, logs, and local acceptance evidence.
 
 ## Dependency direction
 
@@ -69,6 +69,7 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Use ESM, strict TypeScript, branded cross-boundary IDs, Zod at wire/config/user-input boundaries, and exhaustive switches for closed unions.
 - Do not interpolate shell strings for subprocess execution.
 - Model Prompt templates and MCP tool text belong in `packages/assets/prompts`; UI copy, CSS, colors, nicknames, and other reusable presentation assets belong in their corresponding `packages/assets` subtree.
+- Player Skill sources belong in `packages/assets/player-skills`. The build copies the complete directory to `.agentwolf/skills`; repository-root `.agents/skills` is reserved for coding-agent Skills and must not contain player Skills.
 - Runtime skill and secret material never enters browser bundles or durable match events.
 
 ## Runtime invariants
@@ -86,6 +87,8 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Structured actions enter through the action gateway. Natural speech streams, is sanitized, and commits through the same gateway.
 - Player IDs are valid in prompts and structured actions. Public speech and last words contain nicknames or seats, never `player-N` identifiers.
 - Parallel vote/action stages use one barrier snapshot and publish results only after all eligible turns settle.
+- Every installed Role has one mapped strategy Role page and one source-matched public introduction. Adding a Role without both fails `pnpm check:skills`.
+- Player workspaces link `.agents/skills`, `.claude/skills`, and `.trae/skills` to the shared `.agentwolf/skills` build output. Player agents may read and search those Skills with read-only Bash; file writes, shell network access, and unsandboxed escalation remain unavailable.
 - Character cards are public presentation metadata outside the game engine and domain events. They
   affect expression only; every player retains full reasoning quality, and nicknames remain the
   only natural-language Match identity.

@@ -151,9 +151,19 @@ for (const relativePath of [
 }
 
 for (const path of files.filter((candidate) => localPath(candidate).startsWith('apps/web/src/'))) {
-  if ((await text(path)).includes('@agentwolf/assets/prompts')) {
+  const content = await text(path)
+  if (content.includes('@agentwolf/assets/prompts')) {
     errors.push(`${localPath(path)} must not import the server-only Prompt runtime`)
   }
+  if (content.includes('@agentwolf/assets/player-skills')) {
+    errors.push(`${localPath(path)} must not import the server-only Player Skill builder`)
+  }
+}
+const assetsIndex = await text(
+  files.find((path) => localPath(path) === 'packages/assets/src/index.ts')!,
+)
+if (assetsIndex.includes('./player-skills')) {
+  errors.push('packages/assets main entry must not export the server-only Player Skill builder')
 }
 
 const playerRuntime = await text(

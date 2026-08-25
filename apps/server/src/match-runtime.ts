@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import type {
   GameEvent,
   LiveClientMessage,
@@ -9,6 +10,7 @@ import type {
   SpectatorView,
 } from '@agentwolf/contracts'
 import type { AcpPromptCallbacks } from '@agentwolf/acp'
+import { ensurePlayerSkills } from '@agentwolf/assets/player-skills'
 import {
   canViewEvent,
   type BoardManifest,
@@ -176,6 +178,10 @@ export class MatchRuntime {
   }
 
   async #startPlayerSessions(historyEvents: readonly GameEvent[]): Promise<void> {
+    await ensurePlayerSkills({
+      dataDirectory: this.#options.config.dataDirectory,
+      sourceRoot: resolve(this.#options.config.projectRoot, 'packages/assets/player-skills'),
+    })
     const setupBySeat = new Map(this.#options.record.setup.seats.map((seat) => [seat.seat, seat]))
     const entries = [...this.engine.state.players.values()]
       .filter((player) => !this.#players.has(player.id))
@@ -195,7 +201,6 @@ export class MatchRuntime {
       if (!tool) throw new Error(`Unknown Agent Tool ${profile.toolId}`)
       const workspace = await preparePlayerWorkspace(
         this.#options.config.dataDirectory,
-        this.#options.config.projectRoot,
         this.engine.state.matchId,
         player.id,
       )

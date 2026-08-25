@@ -7,6 +7,7 @@
     "pnpm-lock.yaml",
     "artifacts_rules.md",
     "docs/design/reference/**",
+    "packages/assets/player-skills/werewolf-strategy/references/**",
     "**/dist/**",
     "**/dist-types/**",
     "dist-scripts/**",

@@ -374,6 +374,11 @@ async function createPausedSource(developerMode = true): Promise<{
     resolve(root, 'packages/assets/prompts'),
     { recursive: true },
   )
+  for (const name of ['agentwolf-player', 'werewolf-strategy']) {
+    const skillRoot = resolve(root, 'packages/assets/player-skills', name)
+    await mkdir(skillRoot, { recursive: true })
+    await writeFile(resolve(skillRoot, 'SKILL.md'), `# ${name}\n`, 'utf8')
+  }
   const repository = new SqliteRepository(':memory:')
   repositories.push(repository)
   const boards = new BoardCatalogService(repository)

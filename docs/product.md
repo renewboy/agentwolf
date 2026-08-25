@@ -40,11 +40,13 @@ store their background, personality, social posture, public reasoning presentati
 portrayal boundaries, and a managed local portrait. Character cards affect expression only: every
 Agent continues to use its full reasoning ability and strongest available game judgment.
 
-Match player Sessions run in a game-only configuration. Their model context contains the
-AgentWolf player contract, the selected board and visible Match history, and the five structured
-game actions. A seat with a Character receives only its own immutable card plus an explicit
-full-ability boundary; other seats' Character cards are not added to its roster. User memories,
-unrelated skills, repository development rules, coding tools,
+Match player Sessions run in a game-only configuration. Their model context contains the player
+contract, the selected board and visible Match history, two player Skills, and the five structured
+game actions. The strategy Skill provides a role index and linked articles to every player. Local
+reads and read-only shell search can inspect those Skills before an action or before visible
+speech; file writes and shell network access are blocked. A seat with a Character receives only
+its own immutable card plus an explicit full-ability boundary; other seats' Character cards are
+not added to its roster. User memories, unrelated Skills, repository development rules,
 browser/search tools, plugins, hooks, and sub-agents are excluded.
 
 The global settings screen stores one speech-length preference shared by every Agent. It defaults
@@ -66,7 +68,8 @@ the same labeled role colors.
 
 Every player's initial Match prompt includes one detailed public introduction for each role on the
 selected board. Each entry states the role's faction, skill timing, legal targets, usage limits,
-key board-policy interactions, and public outcome without revealing which seat owns that role.
+key board-policy interactions, public outcome, and the indexed public role introduction without
+revealing which seat owns that role. The same role introduction is visible to every player.
 When a Character is selected, the same foundation distinguishes its fixed Character name from the
 player nickname and forbids deliberate mistakes, omitted evidence, or weaker actions for portrayal.
 Every daytime Prompt begins with the current day and the complete publicly living roster, including
@@ -180,8 +183,8 @@ envelope and sends a compact current-stage continuation Prompt. A structured act
 transport loss is consumed from durable state without prompting or submitting it again. A repeated
 failure, an unavailable Session binding, an Agent without `session.resume`, or a failed resume
 pauses with an operator-visible reason and continue action. Recovery never issues another
-`session/new` or sends another foundation. Matches can be deleted with their events, delivery
-ledgers, and Session bindings.
+`session/new` or sends another foundation. Deleting a Match removes its events, delivery ledgers,
+Session bindings, and player workspaces.
 
 Closing a Match or server bounds Session shutdown and reclaims each Agent process tree. On macOS
 and Linux, parent-process loss also triggers process-tree termination without waiting for the next
