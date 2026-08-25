@@ -1,0 +1,52 @@
+{
+  "pluginId": "plugin-classic-wolf-team",
+  "imports": [],
+  "phases": [
+    {
+      "id": "phase-night-wolf-council",
+      "label": "狼队商议",
+      "audience": "faction",
+      "daytime": false,
+      "template": "council-turn.njk"
+    },
+    {
+      "id": "phase-night-wolf-vote",
+      "label": "狼队袭击投票",
+      "audience": "faction",
+      "daytime": false,
+      "template": "vote-turn.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "faction.members",
+      "where": { "faction": "werewolf" },
+      "audience": "faction",
+      "template": "events/members.njk"
+    },
+    {
+      "eventType": "speech.committed",
+      "where": { "kind": "wolf-council" },
+      "audience": "faction",
+      "template": "events/council-speech.njk",
+      "paragraphAfter": true
+    },
+    {
+      "eventType": "vote.cast",
+      "where": { "kind": "wolf-kill" },
+      "audience": "faction",
+      "template": "events/vote-cast.njk"
+    },
+    {
+      "eventType": "vote.resolved",
+      "where": { "kind": "wolf-kill" },
+      "audience": "faction",
+      "template": "events/vote-resolved.njk"
+    },
+    {
+      "eventType": "night.attack-selected",
+      "audience": "player",
+      "template": "events/attack-selected.njk"
+    }
+  ]
+}

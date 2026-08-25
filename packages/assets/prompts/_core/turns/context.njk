@@ -1,0 +1,2 @@
+{% if currentPhase.daytime %}当前是第 {{ game.day }} 天。当前公开存活玩家：{{ helpers.playerList(helpers.livingPlayerIds()) }}。
+{% endif %}{% for line in narration %}{{ line }}{% endfor -%}

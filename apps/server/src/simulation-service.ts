@@ -148,7 +148,6 @@ export class SimulationService {
         expectedActors: descriptor?.actors ?? [],
         fromSequence: turn.fromSequence,
         toSequence: turn.toSequence,
-        promptVersion: turn.promptVersion,
         visibleEventSequences: turn.visibleEventSequences,
         sessionGeneration: turn.sessionGeneration,
         attempt: turn.attempt,

@@ -5,7 +5,6 @@ import { classicCapabilities } from '../capabilities.js'
 export class IdiotRole extends Role {
   public readonly id = RoleIdSchema.parse('role-idiot')
   public readonly displayNameKey = 'roles.idiot'
-  public readonly publicRulesKey = 'promptContext.roleRules.idiot'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public override readonly capabilities = [classicCapabilities.idiotExilePrevention] as const

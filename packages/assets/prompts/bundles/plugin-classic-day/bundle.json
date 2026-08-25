@@ -1,0 +1,57 @@
+{
+  "pluginId": "plugin-classic-day",
+  "imports": [],
+  "phases": [
+    {
+      "id": "phase-day-speech-order",
+      "label": "决定发言顺序",
+      "audience": "public",
+      "daytime": true,
+      "template": "speech-order-turn.njk"
+    },
+    {
+      "id": "phase-day-speech",
+      "label": "白天发言",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/speech.njk"
+    },
+    {
+      "id": "phase-day-vote",
+      "label": "放逐投票",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/vote.njk"
+    },
+    {
+      "id": "phase-day-runoff-speech",
+      "label": "放逐平票发言",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/speech.njk"
+    },
+    {
+      "id": "phase-day-runoff-vote",
+      "label": "放逐平票重投",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/vote.njk"
+    },
+    {
+      "id": "phase-day-resolve",
+      "label": "白天结算",
+      "audience": "public",
+      "daytime": true,
+      "template": null
+    }
+  ],
+  "events": [
+    {
+      "eventType": "day.interrupted",
+      "audience": "public",
+      "text": "白天流程因自爆中断。"
+    },
+    { "eventType": "day.completed", "audience": "god", "omit": true }
+  ],
+  "announcements": [{ "code": "no-exile", "audience": "public", "text": "本轮没有玩家被放逐。" }]
+}

@@ -2,6 +2,7 @@ import type { JsonValue, QueryType } from '@agentwolf/contracts'
 import type { z } from 'zod'
 import type { BoardManifest, GameState } from '../types.js'
 import type { RoleRegistry } from '../roles/registry.js'
+import type { SemanticOwnershipRecorder } from './semantic-ownership.js'
 
 export interface QueryContext {
   readonly state: GameState
@@ -44,12 +45,15 @@ export class QueryRegistry {
   readonly #modifiers: StoredQueryModifier[] = []
   #sequence = 0
 
+  public constructor(private readonly ownership?: SemanticOwnershipRecorder) {}
+
   public register<Input extends JsonValue, Result extends JsonValue>(
     definition: QueryDefinition<Input, Result>,
   ): void {
     if (this.#definitions.has(definition.type)) {
       throw new Error(`Duplicate query definition ${definition.type}`)
     }
+    this.ownership?.query(definition.type)
     this.#definitions.set(definition.type, {
       type: definition.type,
       parseInput: (value) => definition.inputSchema.parse(value),

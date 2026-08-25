@@ -69,7 +69,6 @@ selected board. Each entry states the role's faction, skill timing, legal target
 key board-policy interactions, and public outcome without revealing which seat owns that role.
 When a Character is selected, the same foundation distinguishes its fixed Character name from the
 player nickname and forbids deliberate mistakes, omitted evidence, or weaker actions for portrayal.
-
 Every daytime Prompt begins with the current day and the complete publicly living roster, including
 each nickname, seat, and Player ID. During the first-day election, the first campaign speaker is
 chosen randomly. A living Sheriff chooses dead-left or dead-right after one night death, and
@@ -145,7 +144,9 @@ judgment without rewriting announced deaths, votes, or phase results.
 
 A Witch receives the regular Werewolf attack target only while her antidote remains available.
 That target is the only legal antidote target. Once the antidote is unavailable, the Witch receives
-no death target information while retaining any remaining poison action.
+no death target information. Each Witch turn states antidote and poison status independently and
+lists only the potion actions currently legal; if neither potion is usable, the only action is a
+pass. Poison guidance is present only while poison remains available.
 
 Werewolves choose the regular night attack through the dedicated wolf vote stage. Each Werewolf
 votes for one living non-Werewolf or submits `null` as the explicit no-kill option. No-kill wins

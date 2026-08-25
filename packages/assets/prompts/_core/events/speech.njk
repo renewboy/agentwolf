@@ -1,0 +1,1 @@
+{% if payload.playerId != actor.playerId %}{{ helpers.speaker(payload.playerId) }}发言：{{ payload.text }}{% endif %}

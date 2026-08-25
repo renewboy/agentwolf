@@ -1,0 +1,4 @@
+{% include "_core/turns/context.njk" %}
+当前进入警长竞选报名。请通过 `submit_sheriff_action` 提交一次动作：参与竞选使用 `action: join`；不上警使用 `action: decline`。本阶段不提交竞选发言。工具返回接受回执后结束本回合。
+{% for instruction in interruptInstructions %}{{ instruction }}
+{% endfor %}

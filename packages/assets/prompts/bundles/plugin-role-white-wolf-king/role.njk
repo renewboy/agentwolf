@@ -1,0 +1,6 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：参与狼队夜间商议和常规袭击；白天可自爆并选择一名其他存活玩家一同出局，其他出局方式不能发动该技能。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你在狼队常规袭击阶段通过 `submit_vote` 投票；在允许的公开回合可使用{{ role.abilities[0].label }}（正式能力 ID：`{{ role.abilities[0].id }}`）。
+{% endif %}

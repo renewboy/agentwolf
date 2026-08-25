@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
@@ -369,9 +369,11 @@ async function createPausedSource(developerMode = true): Promise<{
 }> {
   const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-simulation-'))
   roots.push(root)
-  const skillDirectory = resolve(root, '.agents', 'skills', 'agentwolf-player')
-  await mkdir(skillDirectory, { recursive: true })
-  await writeFile(resolve(skillDirectory, 'SKILL.md'), '# Simulation player\n')
+  await cp(
+    resolve(process.cwd(), 'packages/assets/prompts'),
+    resolve(root, 'packages/assets/prompts'),
+    { recursive: true },
+  )
   const repository = new SqliteRepository(':memory:')
   repositories.push(repository)
   const boards = new BoardCatalogService(repository)
@@ -440,7 +442,6 @@ async function createPausedSource(developerMode = true): Promise<{
     fromSequence: 0,
     toSequence: engine.state.lastSequence,
     prompt: 'fake prompt with private data',
-    promptVersion: 9,
     visibleEventSequences: engine.events.map((event) => event.sequence),
     gameStatus: engine.state.status,
     pausedReasonAtRender: engine.state.pausedReason,

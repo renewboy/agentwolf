@@ -2,7 +2,23 @@ import { describe, expect, it } from 'vitest'
 import { PhaseIdSchema } from '@agentwolf/contracts'
 import { createClassicRuleset, expectedVoteKind, phaseSpeechKind } from '../src/index.js'
 
-const classicPhaseGraph = createClassicRuleset().phases
+const classicRuleset = createClassicRuleset()
+const classicPhaseGraph = classicRuleset.phases
+
+describe('phase plugin ownership', () => {
+  it('keeps graph infrastructure empty and assigns phases to functional or Role plugins', () => {
+    const contribution = (pluginId: string) =>
+      classicRuleset.contributions.find((entry) => entry.pluginId === pluginId)?.phaseIds
+    expect(contribution('plugin-classic-phases')).toEqual([])
+    expect(contribution('plugin-classic-wolf-team')).toEqual([
+      'phase-night-wolf-council',
+      'phase-night-wolf-vote',
+    ])
+    expect(contribution('plugin-role-witch')).toEqual(['phase-night-witch'])
+    expect(contribution('plugin-classic-day')).toContain('phase-day-speech')
+    expect(contribution('plugin-classic-terminal')).toEqual(['phase-match-ended'])
+  })
+})
 
 describe('terminal phase priority', () => {
   it('skips first-day sheriff setup when night resolution already has a winner', () => {

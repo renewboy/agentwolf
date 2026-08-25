@@ -3,13 +3,122 @@ import type { RulesetBuilder } from '../../../plugins/ruleset.js'
 import { visibility, type RuleRuntime } from '../../../rule-registry.js'
 import { sheriffCampaignOrder } from '../../../speech-order.js'
 import { emitVoteResolution } from '../../../vote-resolution.js'
+import { classicCapabilities } from '../capabilities.js'
 import { classicPluginIds } from './ids.js'
 import { bySeat, phase } from './shared.js'
 
 export const classicSheriffPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.sheriff,
   version: 1,
-  register: ({ rules }) => {
+  register: ({ phases, rules }) => {
+    const interrupts = [
+      {
+        handlerId: 'classic-day-detonation',
+        capabilityIds: [
+          classicCapabilities.wolfSelfDestruct,
+          classicCapabilities.whiteWolfDetonate,
+        ],
+        context: 'sheriff-election' as const,
+        visibility: 'public' as const,
+      },
+    ]
+    phases.registerAll([
+      {
+        id: phase('phase-sheriff-signup'),
+        labelKey: 'phases.sheriffSignup',
+        mode: 'parallel',
+        action: {
+          type: 'sheriff-action',
+          actions: ['join', 'decline'],
+          visibility: 'public',
+        },
+        interrupts,
+        actorSelector: 'publicly-alive',
+        edges: [
+          { to: phase('phase-sheriff-speech'), when: 'multiple-standing-candidates' },
+          { to: phase('phase-sheriff-resolve') },
+        ],
+      },
+      {
+        id: phase('phase-sheriff-speech'),
+        labelKey: 'phases.sheriffSpeech',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'sheriff', visibility: 'public' },
+        interrupts,
+        actorSelector: 'standing-sheriff-candidates',
+        edges: [{ to: phase('phase-sheriff-withdraw') }],
+      },
+      {
+        id: phase('phase-sheriff-withdraw'),
+        labelKey: 'phases.sheriffWithdraw',
+        mode: 'parallel',
+        action: {
+          type: 'sheriff-action',
+          actions: ['withdraw', 'keep-running'],
+          visibility: 'public',
+        },
+        interrupts,
+        actorSelector: 'standing-sheriff-candidates',
+        edges: [
+          { to: phase('phase-sheriff-vote'), when: 'multiple-standing-candidates' },
+          { to: phase('phase-sheriff-resolve') },
+        ],
+      },
+      {
+        id: phase('phase-sheriff-vote'),
+        labelKey: 'phases.sheriffVote',
+        mode: 'parallel',
+        action: { type: 'vote', kind: 'sheriff', visibility: 'actor' },
+        interrupts,
+        actorSelector: 'original-sheriff-noncandidates',
+        edges: [
+          { to: phase('phase-sheriff-runoff-speech'), when: 'sheriff-vote-tied' },
+          { to: phase('phase-sheriff-resolve') },
+        ],
+      },
+      {
+        id: phase('phase-sheriff-runoff-speech'),
+        labelKey: 'phases.sheriffRunoffSpeech',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'runoff', visibility: 'public' },
+        interrupts,
+        actorSelector: 'sheriff-tied-candidates',
+        edges: [{ to: phase('phase-sheriff-runoff-vote') }],
+      },
+      {
+        id: phase('phase-sheriff-runoff-vote'),
+        labelKey: 'phases.sheriffRunoffVote',
+        mode: 'parallel',
+        action: { type: 'vote', kind: 'sheriff-runoff', visibility: 'actor' },
+        interrupts,
+        actorSelector: 'original-sheriff-noncandidates',
+        edges: [{ to: phase('phase-sheriff-resolve') }],
+      },
+      {
+        id: phase('phase-sheriff-resolve'),
+        labelKey: 'phases.sheriffResolve',
+        mode: 'automatic',
+        edges: [{ to: phase('phase-day-announcement') }],
+      },
+      {
+        id: phase('phase-sheriff-transfer'),
+        labelKey: 'phases.sheriffTransfer',
+        mode: 'parallel',
+        action: {
+          type: 'sheriff-action',
+          actions: ['transfer', 'destroy-badge'],
+          visibility: 'public',
+        },
+        actorSelector: 'dead-sheriff',
+        edges: [
+          { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
+          { to: phase('phase-match-ended'), when: 'has-winner' },
+          { to: phase('phase-last-words'), when: 'has-last-words' },
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ],
+      },
+    ])
     rules.registerActorSelector('publicly-alive', (runtime) =>
       bySeat(
         runtime,

@@ -11,7 +11,6 @@ const selfDestructAbilityId = AbilityIdSchema.parse('ability-werewolf-self-destr
 export class WerewolfRole extends Role {
   public readonly id = RoleIdSchema.parse('role-werewolf')
   public readonly displayNameKey = 'roles.werewolf'
-  public readonly publicRulesKey = 'promptContext.roleRules.werewolf'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
   public override readonly sharesFactionKnowledge = true
@@ -24,7 +23,6 @@ export class WerewolfRole extends Role {
     {
       id: killAbilityId,
       requiredCapability: classicCapabilities.wolfKill,
-      labelKey: 'abilities.werewolfKill',
       actionTypes: ['vote', 'night-action'],
       validate: (context) => {
         let targetId: PlayerId | null
@@ -58,8 +56,6 @@ export class WerewolfRole extends Role {
     {
       id: selfDestructAbilityId,
       requiredCapability: classicCapabilities.wolfSelfDestruct,
-      labelKey: 'abilities.werewolfSelfDestruct',
-      interruptInstructionKey: 'promptActions.werewolfSpeechSelfDestruct',
       actionTypes: ['skill-trigger'],
       validate: (context) => {
         assertRule(context.action.type === 'skill-trigger', 'Self-destruct is a skill trigger')

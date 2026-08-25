@@ -10,6 +10,7 @@ import {
   type AcpSessionStartOptions,
 } from '@agentwolf/acp'
 import { AgentToolKindSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { buildServer } from '../../src/app.js'
 import { preparePlayerWorkspace } from '../../src/player-workspace.js'
 
@@ -28,6 +29,7 @@ const playerId = PlayerIdSchema.parse('player-1')
 const tokenTarget = PlayerIdSchema.parse('player-2')
 const tool = builtInAgentTools().find((entry) => entry.kind === toolKind)
 if (!tool) throw new Error(`${toolKind} Agent Tool is unavailable`)
+const promptCore = loadPromptCore()
 
 const server = await buildServer({
   config: {
@@ -60,7 +62,7 @@ try {
     model,
     modelConfigKey: tool.modelConfigKey,
     sessionMeta: {
-      ...(isolated ? playerSessionMeta(toolKind) : {}),
+      ...(isolated ? playerSessionMeta(toolKind, promptCore.playerContract()) : {}),
       agentwolf: { matchId, playerId },
     },
     mcpServers: [
@@ -74,7 +76,11 @@ try {
     approvedToolNames: ['submit_vote'],
     allowOpaqueMcpPermissions: toolKind === 'codex',
     approvedMcpTools: [
-      { server: 'agentwolf-player-actions', tool: 'submit_vote', title: '提交投票' },
+      {
+        server: 'agentwolf-player-actions',
+        tool: 'submit_vote',
+        title: promptCore.tool('submit_vote').title,
+      },
     ],
     onStderr: (chunk) => stderrChunks.push(chunk),
     onPermissionRequest: (request) => permissionRequests.push(request),

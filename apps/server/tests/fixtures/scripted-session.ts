@@ -1,13 +1,16 @@
 import type { McpServer } from '@agentclientprotocol/sdk'
-import type { PlayerId } from '@agentwolf/contracts'
+import { PhaseIdSchema, type PlayerId } from '@agentwolf/contracts'
 import {
   AcpDeliveryUncertainError,
   type AcpPromptCallbacks,
   type AcpPromptResult,
 } from '@agentwolf/acp'
-import { getCopy } from '@agentwolf/assets'
+import { createClassicRuleset } from '@agentwolf/game-engine'
 import type { ActionMailbox } from '../../src/action-mailbox.js'
 import type { PlayerSession, PlayerSessionFactory } from '../../src/player-runtime.js'
+import { promptRegistryFor } from '../../src/prompt-registry.js'
+
+const promptRegistry = promptRegistryFor(createClassicRuleset())
 
 export interface ScriptedSessionOptions {
   readonly prompts: Map<PlayerId, string[]>
@@ -69,6 +72,7 @@ export class ScriptedSession implements PlayerSession {
   }
   readonly #sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean }
   #night = 1
+  #playerCount = 0
   #closed = false
 
   public get connected(): boolean {
@@ -105,6 +109,10 @@ export class ScriptedSession implements PlayerSession {
     history.push(prompt)
     this.#prompts.set(this.#playerId, history)
     this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
+    this.#playerCount = Math.max(
+      this.#playerCount,
+      ...[...prompt.matchAll(/player-(\d+)/g)].map((match) => Number(match[1])),
+    )
     if (
       prompt.includes('只回复“准备就绪”') &&
       this.#uncertainBootstrapOnce?.value &&
@@ -154,7 +162,10 @@ export class ScriptedSession implements PlayerSession {
     } else if (phase === 'sheriffTransfer') {
       this.#mailbox().submitSheriffAction(this.#token, 'destroy-badge', null)
     } else if (phase === 'nightWolfVote') {
-      this.#mailbox().submitVote(this.#token, `player-${4 + this.#night}`)
+      const quickTargets = [5, 6, 3, 4]
+      const targetSeat = this.#playerCount === 6 ? quickTargets[this.#night - 1] : 4 + this.#night
+      if (!targetSeat) throw new Error(`No scripted wolf target for night ${this.#night}`)
+      this.#mailbox().submitVote(this.#token, `player-${targetSeat}`)
     } else if (phase === 'dayVote') this.#mailbox().submitVote(this.#token, null)
     else if (phase === 'nightWitch') {
       this.#mailbox().submitNightAction(this.#token, 'ability-witch-antidote', [], 'pass')
@@ -174,6 +185,8 @@ export class ScriptedSession implements PlayerSession {
       } else {
         this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', ['player-1'])
       }
+    } else if (phase === 'hunterShot') {
+      this.#mailbox().submitSkillTrigger(this.#token, 'ability-hunter-shot', null, 'pass')
     }
     if (phase) return { text: '', stopReason: 'end_turn', updates: [] }
     throw new Error(`Unhandled scripted prompt for ${this.#playerId}: ${prompt}`)
@@ -199,19 +212,23 @@ function lastNumber(text: string, pattern: RegExp): number | null {
 }
 
 function latestPhase(prompt: string): string | null {
+  if (prompt.includes('ability-hunter-shot')) return 'hunterShot'
   if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
   if (prompt.includes('ability-witch-antidote')) return 'nightWitch'
   const phases = [
-    'sheriffSignup',
-    'sheriffWithdraw',
-    'sheriffTransfer',
-    'nightWolfVote',
-    'dayVote',
-    'nightWitch',
-    'nightSeer',
+    ['sheriffSignup', 'phase-sheriff-signup'],
+    ['sheriffWithdraw', 'phase-sheriff-withdraw'],
+    ['sheriffTransfer', 'phase-sheriff-transfer'],
+    ['nightWolfVote', 'phase-night-wolf-vote'],
+    ['dayVote', 'phase-day-vote'],
+    ['nightWitch', 'phase-night-witch'],
+    ['nightSeer', 'phase-night-seer'],
   ] as const
   const ranked = phases
-    .map((phase) => ({ phase, index: prompt.lastIndexOf(getCopy(`phases.${phase}`)) }))
+    .map(([phase, phaseId]) => ({
+      phase,
+      index: prompt.lastIndexOf(promptRegistry.phaseLabel(PhaseIdSchema.parse(phaseId))),
+    }))
     .filter((entry) => entry.index >= 0)
     .sort((left, right) => right.index - left.index)
   return ranked[0]?.phase ?? null

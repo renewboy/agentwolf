@@ -1,7 +1,8 @@
-import { access, mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadServerConfig } from '../src/config.js'
 import { preparePlayerWorkspace } from '../src/player-workspace.js'
@@ -31,6 +32,13 @@ describe('server project root', () => {
     )
     await access(resolve(workspace, '.agents/skills/agentwolf-player/SKILL.md'))
     await access(resolve(workspace, '.claude/skills/agentwolf-player/SKILL.md'))
+    const expectedContract = `${loadPromptCore().playerContract()}\n`
+    expect(
+      await readFile(resolve(workspace, '.agents/skills/agentwolf-player/SKILL.md'), 'utf8'),
+    ).toBe(expectedContract)
+    expect(
+      await readFile(resolve(workspace, '.claude/skills/agentwolf-player/SKILL.md'), 'utf8'),
+    ).toBe(expectedContract)
   })
 
   it('enables developer mode only through an explicit loopback startup setting', () => {

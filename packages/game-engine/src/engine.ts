@@ -69,6 +69,7 @@ export class GameEngine {
             defaultRuleset.phases,
             defaultRuleset.queries,
             defaultRuleset.triggers,
+            defaultRuleset.contributions,
           )
         : defaultRuleset
     this.#board = { ...options.board, phases: this.#ruleset.phases }
@@ -214,6 +215,7 @@ export class GameEngine {
       ...(abilityId ? { abilityId } : {}),
       ...(allowedAbilityIds.length > 0 ? { allowedAbilityIds } : {}),
       ...(interruptAbilityIds.length > 0 ? { interruptAbilityIds } : {}),
+      ...(definition.type === 'sheriff-action' ? { sheriffActions: [...definition.actions] } : {}),
     }
   }
 

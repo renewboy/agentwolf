@@ -1,0 +1,6 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：被白天放逐时翻开身份并免疫该次放逐，但此后失去投票权；因夜间伤害或其他效果死亡时不会触发放逐免疫。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你的身份没有主动提交的技能；首次被白天放逐时由规则自动结算身份效果。
+{% endif %}

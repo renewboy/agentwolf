@@ -1,5 +1,6 @@
 import type { PhaseId } from '@agentwolf/contracts'
 import type { PhaseGraph, PhaseNode } from '../types.js'
+import type { SemanticOwnershipRecorder } from './semantic-ownership.js'
 
 export interface PhaseInsertion {
   readonly node: PhaseNode
@@ -8,32 +9,58 @@ export interface PhaseInsertion {
 }
 
 export class PhaseGraphRegistry {
-  #base: PhaseGraph | null = null
+  #graphId: string | null = null
+  #entry: PhaseId | null = null
+  readonly #nodes = new Map<PhaseId, PhaseNode>()
   readonly #insertions: PhaseInsertion[] = []
 
+  public constructor(private readonly ownership?: SemanticOwnershipRecorder) {}
+
+  public configure(options: { readonly id: string; readonly entry: PhaseId }): void {
+    if (this.#graphId) throw new Error(`Duplicate phase graph ${options.id}`)
+    this.#graphId = options.id
+    this.#entry = options.entry
+  }
+
+  public register(node: PhaseNode): void {
+    if (this.#nodes.has(node.id) || this.#insertions.some((entry) => entry.node.id === node.id)) {
+      throw new Error(`Duplicate phase node ${node.id}`)
+    }
+    this.ownership?.phase(node.id)
+    this.#nodes.set(node.id, { ...node, edges: [...node.edges] })
+  }
+
+  public registerAll(nodes: readonly PhaseNode[]): void {
+    for (const node of nodes) this.register(node)
+  }
+
   public registerBase(graph: PhaseGraph): void {
-    if (this.#base) throw new Error(`Duplicate base phase graph ${graph.id}`)
-    this.#base = graph
+    this.configure({ id: graph.id, entry: graph.entry })
+    this.registerAll([...graph.nodes.values()])
   }
 
   public insert(insertion: PhaseInsertion): void {
-    if (this.#insertions.some((entry) => entry.node.id === insertion.node.id)) {
+    if (
+      this.#nodes.has(insertion.node.id) ||
+      this.#insertions.some((entry) => entry.node.id === insertion.node.id)
+    ) {
       throw new Error(`Duplicate phase insertion ${insertion.node.id}`)
     }
+    this.ownership?.phase(insertion.node.id)
     this.#insertions.push(insertion)
   }
 
   public build(): PhaseGraph {
-    if (!this.#base) throw new Error('Ruleset has no base phase graph')
+    if (!this.#graphId || !this.#entry) throw new Error('Ruleset has no configured phase graph')
     const nodes = new Map<PhaseId, PhaseNode>(
-      [...this.#base.nodes].map(([id, node]) => [id, { ...node, edges: [...node.edges] }]),
+      [...this.#nodes].map(([id, node]) => [id, { ...node, edges: [...node.edges] }]),
     )
     for (const insertion of this.#insertions) {
       if (nodes.has(insertion.node.id)) throw new Error(`Duplicate phase node ${insertion.node.id}`)
       nodes.set(insertion.node.id, { ...insertion.node, edges: [{ to: insertion.before }] })
     }
 
-    let entry = this.#base.entry
+    let entry = this.#entry
     for (const insertion of orderedInsertions(this.#insertions)) {
       if (!nodes.has(insertion.before)) {
         throw new Error(`Phase ${insertion.node.id} targets missing ${insertion.before}`)
@@ -66,7 +93,26 @@ export class PhaseGraphRegistry {
         if (!nodes.has(edge.to)) throw new Error(`Phase ${node.id} targets missing ${edge.to}`)
       }
     }
-    return { id: this.#base.id, entry, nodes }
+    validateReachability(entry, nodes)
+    return { id: this.#graphId, entry, nodes }
+  }
+}
+
+function validateReachability(entry: PhaseId, nodes: ReadonlyMap<PhaseId, PhaseNode>): void {
+  if (!nodes.has(entry)) throw new Error(`Phase graph entry ${entry} is missing`)
+  const reachable = new Set<PhaseId>()
+  const pending = [entry]
+  while (pending.length > 0) {
+    const phaseId = pending.pop()!
+    if (reachable.has(phaseId)) continue
+    reachable.add(phaseId)
+    const node = nodes.get(phaseId)
+    if (!node) throw new Error(`Phase graph references missing ${phaseId}`)
+    for (const edge of node.edges) pending.push(edge.to)
+  }
+  const unreachable = [...nodes.keys()].filter((phaseId) => !reachable.has(phaseId))
+  if (unreachable.length > 0) {
+    throw new Error(`Phase graph has unreachable nodes: ${unreachable.join(', ')}`)
   }
 }
 

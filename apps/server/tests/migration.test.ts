@@ -5,6 +5,7 @@ import Database from 'better-sqlite3'
 import { AgentProfileSchema } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
+import { migrateDatabase } from '../src/database-schema.js'
 import { SqliteRepository } from '../src/repository.js'
 
 const roots: string[] = []
@@ -155,7 +156,7 @@ describe('database migration', () => {
     expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
     reopened.close()
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(7)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(8)
     expect(
       migrated
         .prepare(
@@ -197,7 +198,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(7)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(8)
     const indexes = migrated
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
       .all('trajectory_records') as Array<{ name: string }>
@@ -252,7 +253,7 @@ describe('database migration', () => {
       repository.close()
 
       const migrated = new Database(databasePath)
-      expect(migrated.pragma('user_version', { simple: true })).toBe(7)
+      expect(migrated.pragma('user_version', { simple: true })).toBe(8)
       const tables = migrated
         .prepare(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
@@ -282,7 +283,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(7)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(8)
     expect(
       migrated
         .prepare(
@@ -298,5 +299,53 @@ describe('database migration', () => {
       expect.arrayContaining([expect.objectContaining({ table: 'matches', on_delete: 'CASCADE' })]),
     )
     migrated.close()
+  })
+
+  it('removes legacy Prompt metadata without changing exact stored Prompt records', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-prompt-metadata-migration-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const database = new Database(databasePath)
+    database.exec(`
+      CREATE TABLE trajectory_turns (
+        match_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
+        json TEXT NOT NULL,
+        PRIMARY KEY(match_id, turn_id)
+      );
+      CREATE TABLE trajectory_records (
+        match_id TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        json TEXT NOT NULL,
+        PRIMARY KEY(match_id, record_id)
+      );
+      PRAGMA user_version = 7;
+    `)
+    const promptRecordJson = JSON.stringify({
+      kind: 'prompt',
+      text: '原样保留的精确 Prompt。\n第二行也保持不变。',
+    })
+    database
+      .prepare('INSERT INTO trajectory_turns (match_id, turn_id, json) VALUES (?, ?, ?)')
+      .run(
+        'match-prompt-metadata',
+        'delivery-prompt-metadata',
+        JSON.stringify({ status: 'completed', promptVersion: 20 }),
+      )
+    database
+      .prepare('INSERT INTO trajectory_records (match_id, record_id, json) VALUES (?, ?, ?)')
+      .run('match-prompt-metadata', 'prompt-record', promptRecordJson)
+
+    migrateDatabase(database)
+    const turn = database
+      .prepare('SELECT json FROM trajectory_turns WHERE turn_id = ?')
+      .get('delivery-prompt-metadata') as { json: string }
+    const prompt = database
+      .prepare('SELECT json FROM trajectory_records WHERE record_id = ?')
+      .get('prompt-record') as { json: string }
+    expect(database.pragma('user_version', { simple: true })).toBe(8)
+    expect(JSON.parse(turn.json)).toEqual({ status: 'completed' })
+    expect(prompt.json).toBe(promptRecordJson)
+    database.close()
   })
 })

@@ -1,0 +1,1 @@
+{% if payload.targetId %}{{ helpers.player(payload.voterId) }}的狼队袭击票投给{{ helpers.player(payload.targetId) }}。{% else %}{{ helpers.player(payload.voterId) }}选择空刀。{% endif %}

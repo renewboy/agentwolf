@@ -30,7 +30,6 @@ const inspectAbilityId = AbilityIdSchema.parse('ability-magic-mirror-inspect')
 export class MagicMirrorGirlRole extends Role {
   public readonly id = RoleIdSchema.parse('role-magic-mirror-girl')
   public readonly displayNameKey = 'roles.magicMirrorGirl'
-  public readonly publicRulesKey = 'promptContext.roleRules.magicMirrorGirl'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public override readonly capabilities = [classicCapabilities.exactRoleInspect] as const
@@ -38,7 +37,6 @@ export class MagicMirrorGirlRole extends Role {
     {
       id: inspectAbilityId,
       requiredCapability: classicCapabilities.exactRoleInspect,
-      labelKey: 'abilities.magicMirrorInspect',
       actionTypes: ['night-action'],
       validate: (context) => {
         assertRule(context.action.type === 'night-action', 'Exact inspection is a night action')

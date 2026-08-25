@@ -22,6 +22,11 @@ export interface InstalledPlugin {
   readonly order: number
 }
 
+export interface PluginInstallScope {
+  beginPluginInstall(pluginId: PluginId): void
+  endPluginInstall(pluginId: PluginId): void
+}
+
 export function installRulePlugins<Registrar>(
   registrar: Registrar,
   plugins: readonly RulePlugin<Registrar>[],
@@ -72,7 +77,13 @@ export function installRulePlugins<Registrar>(
     if (plugin.config !== undefined && !plugin.configSchema) {
       throw new Error(`Plugin ${plugin.id} provides config without a schema`)
     }
-    plugin.register(registrar)
+    const scope = pluginInstallScope(registrar)
+    scope?.beginPluginInstall(plugin.id)
+    try {
+      plugin.register(registrar)
+    } finally {
+      scope?.endPluginInstall(plugin.id)
+    }
     return {
       id: plugin.id,
       version: plugin.version,
@@ -80,4 +91,13 @@ export function installRulePlugins<Registrar>(
       order,
     }
   })
+}
+
+function pluginInstallScope(value: unknown): PluginInstallScope | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as Partial<PluginInstallScope>
+  return typeof candidate.beginPluginInstall === 'function' &&
+    typeof candidate.endPluginInstall === 'function'
+    ? (candidate as PluginInstallScope)
+    : null
 }

@@ -11,7 +11,9 @@ import {
   type PlayerAction,
   type PlayerId,
 } from '@agentwolf/contracts'
-import { getCopy } from '@agentwolf/assets'
+import { loadPromptCore } from '@agentwolf/assets/prompts'
+
+const promptCore = loadPromptCore()
 
 export interface ActionExpectation {
   readonly matchId: MatchId
@@ -59,7 +61,9 @@ export class ActionMailbox {
   public submitSpeech(token: string, text: string): ActionReceipt {
     const expectation = this.#expectation(token, 'speech')
     if (!expectation.allowSpeechTool) {
-      throw new Error(getCopy('tools.speechDirectReplyRequired'))
+      throw new Error(
+        promptCore.tool('submit_speech').unavailable ?? 'Direct speech response required',
+      )
     }
     if (!expectation.speechKind) throw new Error('Speech kind is missing from the expectation')
     return this.#accept(
@@ -198,7 +202,7 @@ export class ActionMailbox {
     return ActionReceiptSchema.parse({
       accepted: true,
       actionId: `action-${randomBytes(8).toString('hex')}`,
-      message: getCopy('tools.accepted'),
+      message: promptCore.acceptedReceipt(),
     })
   }
 

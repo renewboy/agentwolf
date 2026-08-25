@@ -20,16 +20,14 @@ import {
 import type { AgentCatalogService } from './agent-catalog.js'
 import { ActionMailbox, type ActionExpectation } from './action-mailbox.js'
 import type { ServerConfig } from './config.js'
-import { ContextRenderer, promptContractVersion } from './context-renderer.js'
+import { ContextRenderer } from './context-renderer.js'
 import { LiveHub, type LiveConnection, type LiveSubscriber } from './live-hub.js'
 import {
-  actionInstructionFor,
   describeError,
   findCommittedSpeech,
   hasUncertainDelivery,
   interruptAbilityExpectation,
   mapWithConcurrency,
-  promptAssetFor,
   settleActions,
 } from './match-runtime-helpers.js'
 import type { PreparedActorTurn } from './match-runtime-types.js'
@@ -73,7 +71,7 @@ export class MatchRuntime {
   public constructor(options: MatchRuntimeOptions) {
     this.#options = options
     this.#roles = options.ruleset.roles
-    this.#renderer = new ContextRenderer(this.#roles)
+    this.#renderer = new ContextRenderer(options.ruleset)
     this.#playback = new SpeechPlaybackCoordinator({
       isVisible: (event, view) => canViewEvent(event, view, this.engine.state),
       onControl: (title, input) => this.#options.trajectory.recordRuntimeControl(title, input),
@@ -258,7 +256,6 @@ export class MatchRuntime {
             this.#options.board,
             player.id,
             historyEvents,
-            promptContractVersion,
             setupBySeat.get(player.seat)?.character ?? null,
           ),
         })),
@@ -376,18 +373,12 @@ export class MatchRuntime {
     }
     const envelope = await this.#renderer.turn(
       this.engine.state,
+      this.#options.board,
       this.engine.events,
       playerId,
       runtime.acknowledgedSequence,
-      promptAssetFor(turn),
-      actionInstructionFor(turn, {
-        board: this.#options.board,
-        state: this.engine.state,
-        playerId,
-        roles: this.#roles,
-        speechCharacterLimit: this.#options.record.setup.speechCharacterLimit,
-      }),
-      promptContractVersion,
+      turn,
+      this.#options.record.setup.speechCharacterLimit,
       runtime.continuationPending,
     )
     return { playerId, runtime, envelope, expectation }

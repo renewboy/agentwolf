@@ -25,7 +25,7 @@ AgentWolf is a TypeScript workspace for running Werewolf matches between long-li
 - `packages/contracts`: branded IDs, API schemas, event envelopes, action schemas, Agent and Character schemas, and view DTOs.
 - `packages/game-engine`: deterministic kernel, plugin SDK, versioned rulesets, boards, phase composition, resolution, replay, and visibility. It performs no IO.
 - `packages/acp`: Agent tool catalog, ACP process/session lifecycle, streamed updates, and delivery ledgers.
-- `packages/assets`: prompts, localized copy, narration, Character cards and portraits, nickname words, design tokens, and all CSS.
+- `packages/assets`: non-localized Nunjucks Prompt bundles, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and all CSS.
 - `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery. See its [local instructions](apps/server/AGENTS.md).
 - `apps/web`: React application, validated API client, setup, settings, lobby, and spectator UI. See its [local instructions](apps/web/AGENTS.md).
 - `scripts`: architecture, artifact, documentation, skill, formatting, coverage, and CI gates.
@@ -68,7 +68,7 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 
 - Use ESM, strict TypeScript, branded cross-boundary IDs, Zod at wire/config/user-input boundaries, and exhaustive switches for closed unions.
 - Do not interpolate shell strings for subprocess execution.
-- Prompts, copy, CSS, colors, nicknames, and reusable user/model-facing text belong in `packages/assets`.
+- Model Prompt templates and MCP tool text belong in `packages/assets/prompts`; UI copy, CSS, colors, nicknames, and other reusable presentation assets belong in their corresponding `packages/assets` subtree.
 - Runtime skill and secret material never enters browser bundles or durable match events.
 
 ## Runtime invariants

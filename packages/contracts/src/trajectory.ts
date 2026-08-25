@@ -46,7 +46,6 @@ export const TrajectoryTurnSchema = z.object({
   timelineGroup: TrajectoryTimelineGroupSchema.default({ kind: 'setup', index: null }),
   fromSequence: z.number().int().nonnegative(),
   toSequence: z.number().int().nonnegative(),
-  promptVersion: z.number().int().positive().default(1),
   visibleEventSequences: z.array(z.number().int().positive()).default([]),
   gameStatus: z.enum(['draft', 'starting', 'running', 'paused', 'ended']).nullable().default(null),
   pausedReasonAtRender: z.string().nullable().default(null),

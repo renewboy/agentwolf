@@ -1,0 +1,6 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：因狼队常规袭击、白天放逐或白狼王爆炸死亡时，可以选择一名其他存活玩家开枪带走；因毒药等其他原因死亡时不能开枪，开枪机会全局只有一次。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+符合死亡触发条件时，你可使用{{ role.abilities[0].label }}（正式能力 ID：`{{ role.abilities[0].id }}`）。
+{% endif %}

@@ -1,0 +1,6 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：每夜查验一名其他存活玩家；结果只说明目标属于狼人阵营还是好人阵营，并且仅预言家可见。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你可使用{{ role.abilities[0].label }}（正式能力 ID：`{{ role.abilities[0].id }}`）。
+{% endif %}

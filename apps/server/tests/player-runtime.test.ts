@@ -271,7 +271,6 @@ describe('PlayerRuntime action status', () => {
     const action = await runtime.takeTurn(
       {
         prompt: '现在轮到你发言。',
-        promptVersion: 19,
         toSequence: 1,
         visibleEvents: [],
         gameStatus: 'running',
@@ -412,7 +411,6 @@ describe('PlayerRuntime action status', () => {
       runtime.takeTurn(
         {
           prompt: '提交投票。',
-          promptVersion: 19,
           toSequence: 1,
           visibleEvents: [],
           gameStatus: 'running',
@@ -443,7 +441,6 @@ describe('PlayerRuntime action status', () => {
       runtime.takeTurn(
         {
           prompt: '提交当前投票。',
-          promptVersion: 19,
           toSequence: 2,
           visibleEvents: [],
           gameStatus: 'running',

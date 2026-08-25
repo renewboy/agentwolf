@@ -42,7 +42,6 @@ interface SyntheticEffect extends ExtensibleResolutionEffect {
 class SyntheticRole extends Role {
   public readonly id = roleId
   public readonly displayNameKey = 'roles.villager'
-  public readonly publicRulesKey = 'promptContext.roleRules.villager'
   public readonly faction = 'independent' as const
   public readonly kind = 'independent' as const
   public override readonly capabilities = [capabilityId] as const
@@ -50,7 +49,6 @@ class SyntheticRole extends Role {
     {
       id: abilityId,
       requiredCapability: capabilityId,
-      labelKey: 'abilities.seerInspect',
       actionTypes: ['night-action' as const],
       validate: () => undefined,
       effects: (context: Parameters<Role['abilities'][number]['effects']>[0]) => [
@@ -63,7 +61,6 @@ class SyntheticRole extends Role {
 class SyntheticReceiverRole extends Role {
   public readonly id = receiverRoleId
   public readonly displayNameKey = 'roles.villager'
-  public readonly publicRulesKey = 'promptContext.roleRules.villager'
   public readonly faction = 'village' as const
   public readonly kind = 'villager' as const
   public readonly abilities = []
@@ -173,6 +170,19 @@ describe('ruleset plugin runtime', () => {
       plugins: [rolePlugin, basePlugin],
     }).build()
     expect(runtime.phases.entry).toBe(insertedPhaseId)
+    expect(runtime.contributions.find((entry) => entry.pluginId === basePlugin.id)).toMatchObject({
+      roleIds: [],
+      abilityIds: [],
+      phaseIds: [endPhaseId],
+    })
+    expect(runtime.contributions.find((entry) => entry.pluginId === pluginId)).toMatchObject({
+      roleIds: [roleId, receiverRoleId],
+      abilityIds: [abilityId],
+      phaseIds: [insertedPhaseId],
+      pluginEvents: [{ pluginId, eventType }],
+      queryTypes: [queryType],
+      triggerIds: ['trigger-synthetic-decision'],
+    })
     expect(runtime.roles.role(roleId)).toBeInstanceOf(SyntheticRole)
     expect(runtime.roles.role(receiverRoleId)).toBeInstanceOf(SyntheticReceiverRole)
 

@@ -31,7 +31,6 @@ export function recordTrajectoryRuntimeControl(options: {
       actionType: 'runtime-control',
       fromSequence: 0,
       toSequence: 0,
-      promptVersion: 1,
       visibleEventSequences: [],
       gameStatus: null,
       pausedReasonAtRender: null,

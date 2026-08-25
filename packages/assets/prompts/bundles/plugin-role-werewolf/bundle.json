@@ -1,0 +1,31 @@
+{
+  "pluginId": "plugin-role-werewolf",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-werewolf",
+      "label": "狼人",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-werewolf-kill",
+          "label": "狼队常规袭击",
+          "foundation": false
+        },
+        {
+          "id": "ability-werewolf-self-destruct",
+          "label": "狼人自爆",
+          "foundation": true,
+          "interruptTemplate": "self-destruct.njk"
+        }
+      ]
+    }
+  ],
+  "announcements": [
+    {
+      "code": "werewolf-self-destruct",
+      "audience": "public",
+      "text": "{{ helpers.player(payload.playerIds[0]) }}发动自爆。"
+    }
+  ]
+}

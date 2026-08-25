@@ -15,9 +15,8 @@ import {
 } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { builtInAgentTools } from '@agentwolf/acp'
-import { getCopy } from '@agentwolf/assets'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
-import { bootstrapContextBudgetIssue, equivalentPrompt } from '../src/trajectory-audit.js'
+import { bootstrapContextBudgetIssue } from '../src/trajectory-audit.js'
 
 const roots: string[] = []
 const servers: AgentWolfServer[] = []
@@ -28,7 +27,7 @@ afterEach(async () => {
 })
 
 describe('trajectory capture', () => {
-  it('audits the game-only bootstrap context budget from prompt contract 16 onward', () => {
+  it('audits the game-only bootstrap context budget for every foundation', () => {
     const turn = TrajectoryTurnSchema.parse({
       matchId: 'match-context-budget',
       turnId: 'delivery-context-budget',
@@ -42,7 +41,6 @@ describe('trajectory capture', () => {
       actionType: 'bootstrap',
       fromSequence: 1,
       toSequence: 1,
-      promptVersion: 16,
       status: 'completed',
       startedAt: '2026-08-23T00:00:00.000Z',
       completedAt: '2026-08-23T00:00:01.000Z',
@@ -53,7 +51,6 @@ describe('trajectory capture', () => {
       revision: 1,
     })
     expect(bootstrapContextBudgetIssue(turn)).toContain('12001')
-    expect(bootstrapContextBudgetIssue({ ...turn, promptVersion: 15 })).toBeNull()
     expect(bootstrapContextBudgetIssue({ ...turn, kind: 'action' })).toBeNull()
     expect(
       bootstrapContextBudgetIssue({
@@ -189,28 +186,6 @@ describe('trajectory capture', () => {
     expect(page.records.some((record) => record.kind === 'permission')).toBe(true)
     expect(page.records.some((record) => record.kind === 'action')).toBe(true)
 
-    const versionTwelveWolfVote = {
-      ...page.turns[0]!,
-      phaseId: PhaseIdSchema.parse('phase-night-wolf-vote'),
-      promptVersion: 12,
-    }
-    const wolfVotePrompt = '裁判：进入狼人袭击。\n\n狼队商议结束。'
-    const optionalConstraint = getCopy('promptActions.wolfKillVoteOnly')
-    expect(
-      equivalentPrompt(
-        versionTwelveWolfVote,
-        wolfVotePrompt,
-        `${wolfVotePrompt}\n\n${optionalConstraint}`,
-      ),
-    ).toBe(true)
-    expect(
-      equivalentPrompt(
-        { ...versionTwelveWolfVote, promptVersion: 13 },
-        wolfVotePrompt,
-        `${wolfVotePrompt}\n\n${optionalConstraint}`,
-      ),
-    ).toBe(false)
-
     targetedRecordReads.mockClear()
     const deltas: TrajectoryDelta[] = []
     const unsubscribe = server.trajectories.subscribe(
@@ -335,7 +310,6 @@ describe('trajectory capture', () => {
         fromSequence: 0,
         toSequence,
         prompt: `Prompt ${turnId}`,
-        promptVersion: 10,
         visibleEventSequences: [],
         gameStatus: 'running',
         pausedReasonAtRender: null,
@@ -372,7 +346,6 @@ describe('trajectory capture', () => {
       fromSequence: 0,
       toSequence: initialSequence + 5,
       prompt: 'Day speech prompt',
-      promptVersion: 10,
       visibleEventSequences: [],
       gameStatus: 'running',
       pausedReasonAtRender: null,

@@ -16,6 +16,8 @@ Fastify API and view projector ---- SQLite event/profile/board/Character/setting
           +---- Character catalog ---- built-ins / custom cards / managed portraits
           |
           +---- Ruleset catalog ---- plugin manifests / phase graph / resolution queue
+          |             |
+          |             +---- Prompt bundle registry ---- strict Nunjucks rendering
 ```
 
 ## Package direction
@@ -32,7 +34,7 @@ contracts  <- game-engine
              web
 ```
 
-`contracts` owns branded identifiers, API schemas, event envelopes, action schemas, Character schemas, and view DTOs. `game-engine` owns deterministic state transitions and cannot perform IO. `acp` owns process and protocol lifecycle but does not know game rules. `assets` owns prompts, copy, Character cards and portraits, nickname words, design tokens, and CSS. `server` composes the packages, persistence, orchestration, MCP endpoint, REST, managed Character media, and live streams. `web` consumes projected DTOs only.
+`contracts` owns branded identifiers, API schemas, event envelopes, action schemas, Character schemas, and view DTOs. `game-engine` owns deterministic state transitions and cannot perform IO. `acp` owns process and protocol lifecycle but does not know game rules. `assets` owns non-localized Prompt bundles, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and CSS. `server` composes the packages, persistence, orchestration, MCP endpoint, REST, managed Character media, and live streams. `web` consumes projected DTOs only and cannot import the server-only Prompt runtime.
 
 ## Rules and roles
 
@@ -47,8 +49,8 @@ The deterministic kernel owns phase barriers, event application, settlement exec
 and bounded continuation. It contains no concrete Role or Ability IDs. Ruleset plugins register:
 
 - Role metadata and static capabilities;
-- abilities and their input validation, effects, outcomes, and model-facing instruction keys;
-- phase-graph bases and ordered phase insertions;
+- abilities and their input validation, effects, and outcomes;
+- function-owned phase nodes, graph entry configuration, and ordered Role-phase insertions;
 - schema-validated effect handlers and finalizers;
 - plugin event schemas and event-sourced plugin-state reducers;
 - capability grants and revocations;
@@ -79,6 +81,37 @@ targeted detonation produces two damage effects and enters the common death-trig
 Presentation registries map visible legacy and plugin events to narration, player references, and
 semantic effect cues outside the game kernel.
 
+## Model Prompt composition
+
+Every installed Rule plugin produces one immutable semantic contribution record containing its
+Role, Ability, Phase, and plugin-event IDs. The server adapts those records into plain Prompt
+inventory data; `packages/assets` does not import the game engine. The Prompt loader resolves
+`packages/assets/prompts/_core` plus one exact companion bundle per installed plugin and validates
+semantic ownership, complete coverage, imports, audience direction, path containment, and event
+matcher ambiguity before the first render.
+
+`_core` owns the canonical provider player contract, session framing, foundation and continuation
+layouts, generic speech and action layouts, Character framing, reference helpers, and the five MCP
+tool declarations. Player workspaces and Claude Session metadata receive that same rendered
+contract. Functional and
+Role bundles own their labels, complete Role presentation, Phase templates, visible-event
+presentation, announcements, and interrupt wording. Structured or conditional Prompt content is a
+repository-owned Nunjucks template. One-line labels, transitions, tool titles, and receipts are
+typed atomic fields on their semantic owner. Prompt bundles have one schema, contain no locale
+axis, and are absent from the browser dependency graph.
+
+`ContextRenderer` passes strict visible facts: public roster and board policy, acting-player Role
+and Ability use counts, the current action descriptor, Character snapshot, and events already
+filtered for that player. It does not pass `GameState`, pending hidden deaths, secret events, raw
+plugin state, runtime paths, or template source. Event presentations are selected by declarative
+scalar matchers and rendered after visibility filtering. A more specific private matcher wins over
+a generic public matcher; equal specificity fails as ambiguous.
+
+The Witch template derives antidote and poison legality independently. It receives no raw death
+state, sees the regular attack target only through a visible event, lists only legal potion choices,
+and presents `pass` as the sole choice when neither potion is usable. Structured-action validation
+remains the same-turn correction boundary.
+
 A Character is public presentation metadata and is distinct from a game role. Custom boards store
 nullable Character IDs by seat; Match creation resolves board defaults and request overrides into
 complete immutable Character snapshots. The Character Catalog combines read-only asset-backed
@@ -88,7 +121,8 @@ Character IDs or card data.
 
 Global Match preferences are persisted separately from Agent Profiles. Match creation reads the
 current global settings and stores the speech-character preference in its setup snapshot; runtime
-Prompt rendering and trajectory reconstruction both read that immutable per-Match value.
+Prompt rendering and simulation capture read that immutable per-Match value, while trajectory
+stores the exact rendered Prompt.
 
 The Agent Profile catalog stores one explicit SQLite order. Reorder requests contain every current
 profile ID exactly once and commit in one transaction. Profile edits preserve their position, new
@@ -165,9 +199,10 @@ projected for its final message Record, including when older captured stream tex
 Secret-key fields, HTTP credentials, ACP metadata, and environment material are removed before
 SQLite receives a record. Content fields retain an explicit truncation marker. A monotonic
 trajectory revision supports catch-up and live WebSocket upserts. The audit service reconstructs
-the engine at every Turn's `toSequence`, renders the expected foundation or incremental Prompt,
-and compares it with the persisted Prompt while checking delivery ownership, ranges, and final
-acknowledgement.
+the engine at every Turn's `toSequence` and checks Prompt-record cardinality, visibility-safe event
+ranges, actor and action boundaries, delivery ownership, acknowledgement, continuation state, and
+bootstrap context budget. The exact Prompt sent remains an immutable trajectory Record; audit does
+not render current templates against historical text.
 
 The developer ledger derives `开局`, `第 N 夜`, `上警`, `第 N 天`, and `对局结束` from
 the game event sequence at each delivery boundary. These shared periods group every player's
@@ -208,8 +243,8 @@ requires the complete recorded actor barrier and validates it against production
 The engine runner creates a fresh rule engine with fixed roles and resubmits the captured decisions.
 The orchestration runner uses in-memory persistence and deterministic fake Player Sessions through
 the production Match runtime and Action Mailbox. Both runners validate event invariants and the
-reviewed expectation; the orchestration runner also reconstructs every Prompt, checks delivery
-acknowledgements and parallel barriers, and exercises bounded delivery recovery and playback
+reviewed expectation; the orchestration runner also checks every Prompt delivery boundary,
+acknowledgement and parallel barrier, and exercises bounded delivery recovery and playback
 outcomes. A stable fixture-and-variant seed identifies every run.
 
 ## Role-effect projection
@@ -257,7 +292,7 @@ actions. Its `tools.enabled_tools` catalog still contains only the five AgentWol
 `shell_tool`, `unified_exec`, file tools, browser/search, plugins, hooks, and Agent features remain
 disabled. The host therefore supplies MCP call transport without restoring a coding environment.
 
-Prompt contract 16 audits a 12,000-token bootstrap context budget. The budget includes the Agent
+Every bootstrap trajectory audits a 12,000-token context budget. The budget includes the Agent
 runtime's model instructions and tool schemas as reported by ACP usage, not only the visible judge
 Prompt.
 

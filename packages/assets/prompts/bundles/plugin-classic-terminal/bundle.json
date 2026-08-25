@@ -1,0 +1,20 @@
+{
+  "pluginId": "plugin-classic-terminal",
+  "imports": [],
+  "phases": [
+    {
+      "id": "phase-match-ended",
+      "label": "对局结束",
+      "audience": "public",
+      "daytime": false,
+      "template": null
+    }
+  ],
+  "events": [
+    {
+      "eventType": "match.ended",
+      "audience": "public",
+      "text": "对局结束，{{ helpers.faction(payload.winner) }}获胜。"
+    }
+  ]
+}

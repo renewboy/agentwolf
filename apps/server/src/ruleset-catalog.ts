@@ -6,10 +6,16 @@ import {
   createClassicV1Ruleset,
   type RulesetRuntime,
 } from '@agentwolf/game-engine'
+import { promptRegistryFor } from './prompt-registry.js'
 
 export class RulesetCatalog {
   readonly #classicV1 = createClassicV1Ruleset()
   readonly #classicV2 = createClassicRuleset()
+
+  public constructor() {
+    promptRegistryFor(this.#classicV1)
+    promptRegistryFor(this.#classicV2)
+  }
 
   public current(): RulesetRuntime {
     return this.#classicV2

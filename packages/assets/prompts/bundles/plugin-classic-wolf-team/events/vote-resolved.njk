@@ -1,0 +1,1 @@
+狼队袭击投票：{% if payload.totals | length %}{% for playerId, total in payload.totals | dictsort(false, 'value') | reverse %}{{ helpers.player(playerId) }} {{ total }} 票{% if not loop.last %}、{% endif %}{% endfor %}{% else %}没有玩家目标票{% endif %}。{% if payload.selectedPlayerId %}最终选择{{ helpers.player(payload.selectedPlayerId) }}。{% else %}没有选定玩家目标。{% endif %}

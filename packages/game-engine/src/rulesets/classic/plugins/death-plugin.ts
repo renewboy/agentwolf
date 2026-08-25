@@ -11,7 +11,43 @@ export const classicDeathPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.death,
   version: 1,
   requires: [{ id: classicPluginIds.resolution, version: 1 }],
-  register: ({ rules }) => {
+  register: ({ phases, rules }) => {
+    phases.registerAll([
+      {
+        id: phase('phase-death-triggers'),
+        labelKey: 'phases.deathTriggers',
+        mode: 'sequential',
+        action: {
+          type: 'skill-trigger',
+          abilityIds: [],
+          abilitySource: 'decision-trigger',
+          triggerSignal: 'player-death',
+          validation: 'role-ability',
+          visibility: 'actor',
+        },
+        actorSelector: 'pending-death-trigger-owners',
+        edges: [
+          { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
+          { to: phase('phase-match-ended'), when: 'has-winner' },
+          { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
+          { to: phase('phase-last-words'), when: 'has-last-words' },
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ],
+      },
+      {
+        id: phase('phase-last-words'),
+        labelKey: 'phases.lastWords',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'last-words', visibility: 'public' },
+        actorSelector: 'last-words-eligible',
+        edges: [
+          { to: phase('phase-match-ended'), when: 'has-winner' },
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ],
+      },
+    ])
     rules.registerActorSelector('pending-death-trigger-owners', (runtime) =>
       bySeat(
         runtime,

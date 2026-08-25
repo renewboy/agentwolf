@@ -33,7 +33,6 @@ export interface TrajectoryTurnStart {
   readonly fromSequence: number
   readonly toSequence: number
   readonly prompt: string
-  readonly promptVersion: number
   readonly visibleEventSequences: readonly number[]
   readonly gameStatus: TrajectoryTurn['gameStatus']
   readonly pausedReasonAtRender: string | null
@@ -84,7 +83,6 @@ export class MatchTrajectoryRecorder {
         actionType: input.actionType,
         fromSequence: input.fromSequence,
         toSequence: input.toSequence,
-        promptVersion: input.promptVersion,
         visibleEventSequences: input.visibleEventSequences,
         gameStatus: input.gameStatus,
         pausedReasonAtRender: input.pausedReasonAtRender,
@@ -130,7 +128,6 @@ export class MatchTrajectoryRecorder {
         actionType: 'domain-events',
         fromSequence: first.sequence,
         toSequence: last.sequence,
-        promptVersion: 1,
         visibleEventSequences: [],
         gameStatus: null,
         pausedReasonAtRender: null,

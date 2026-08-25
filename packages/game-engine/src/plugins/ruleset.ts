@@ -1,5 +1,10 @@
 import type { RulesetId } from '@agentwolf/contracts'
-import { installRulePlugins, type InstalledPlugin, type RulePlugin } from './loader.js'
+import {
+  installRulePlugins,
+  type InstalledPlugin,
+  type PluginInstallScope,
+  type RulePlugin,
+} from './loader.js'
 import { ResolutionRegistry } from './resolution-registry.js'
 import { VictoryRegistry } from './victory-registry.js'
 import { RoleRegistry } from '../roles/registry.js'
@@ -9,6 +14,7 @@ import { PluginEventRegistry } from './event-registry.js'
 import { PhaseGraphRegistry } from './phase-registry.js'
 import { QueryRegistry } from './query-registry.js'
 import { TriggerRegistry } from './trigger-registry.js'
+import { SemanticOwnershipRecorder, type PluginSemanticContribution } from './semantic-ownership.js'
 
 export class RulesetRuntime {
   public constructor(
@@ -24,19 +30,21 @@ export class RulesetRuntime {
     public readonly phases: import('../types.js').PhaseGraph,
     public readonly queries: QueryRegistry,
     public readonly triggers: TriggerRegistry,
+    public readonly contributions: readonly PluginSemanticContribution[],
   ) {}
 }
 
-export class RulesetBuilder {
-  public readonly roles = new RoleRegistry()
+export class RulesetBuilder implements PluginInstallScope {
+  readonly #ownership = new SemanticOwnershipRecorder()
+  public readonly roles = new RoleRegistry(this.#ownership)
   public readonly rules = new RuleRegistry()
   public readonly resolution = new ResolutionRegistry()
   public readonly victories = new VictoryRegistry()
   public readonly interrupts = new InterruptRegistry()
-  public readonly events = new PluginEventRegistry()
-  public readonly phases = new PhaseGraphRegistry()
-  public readonly queries = new QueryRegistry()
-  public readonly triggers = new TriggerRegistry()
+  public readonly events = new PluginEventRegistry(this.#ownership)
+  public readonly phases = new PhaseGraphRegistry(this.#ownership)
+  public readonly queries = new QueryRegistry(this.#ownership)
+  public readonly triggers = new TriggerRegistry(this.#ownership)
 
   readonly #id: RulesetId
   readonly #version: number
@@ -54,6 +62,7 @@ export class RulesetBuilder {
 
   public build(): RulesetRuntime {
     const installed = installRulePlugins(this, this.#plugins)
+    const contributions = this.#ownership.contributions(installed.map((plugin) => plugin.id))
     return new RulesetRuntime(
       this.#id,
       this.#version,
@@ -67,6 +76,15 @@ export class RulesetBuilder {
       this.phases.build(),
       this.queries,
       this.triggers,
+      contributions,
     )
+  }
+
+  public beginPluginInstall(pluginId: import('@agentwolf/contracts').PluginId): void {
+    this.#ownership.begin(pluginId)
+  }
+
+  public endPluginInstall(pluginId: import('@agentwolf/contracts').PluginId): void {
+    this.#ownership.end(pluginId)
   }
 }

@@ -3,9 +3,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { z } from 'zod'
-import { formatCopy, getCopy } from '@agentwolf/assets'
+import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { SheriffActionKindSchema } from '@agentwolf/contracts'
 import type { ActionMailbox } from './action-mailbox.js'
+
+const promptCore = loadPromptCore()
 
 function bearerToken(request: FastifyRequest): string | null {
   const authorization = request.headers.authorization
@@ -17,7 +19,7 @@ function toolResult(operation: () => unknown) {
   try {
     const receipt = operation()
     return {
-      content: [{ type: 'text' as const, text: getCopy('tools.accepted') }],
+      content: [{ type: 'text' as const, text: promptCore.acceptedReceipt() }],
       structuredContent: receipt as Record<string, unknown>,
     }
   } catch (error) {
@@ -27,7 +29,7 @@ function toolResult(operation: () => unknown) {
       content: [
         {
           type: 'text' as const,
-          text: formatCopy(getCopy('tools.rejected'), { reason }),
+          text: promptCore.rejectedReceipt(reason),
         },
       ],
     }
@@ -36,11 +38,16 @@ function toolResult(operation: () => unknown) {
 
 function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer {
   const server = new McpServer({ name: 'agentwolf-player-actions', version: '0.1.0' })
+  const speechTool = promptCore.tool('submit_speech')
+  const voteTool = promptCore.tool('submit_vote')
+  const nightTool = promptCore.tool('submit_night_action')
+  const sheriffTool = promptCore.tool('submit_sheriff_action')
+  const skillTool = promptCore.tool('trigger_skill')
   server.registerTool(
     'submit_speech',
     {
-      title: getCopy('tools.speechTitle'),
-      description: getCopy('tools.speechDescription'),
+      title: speechTool.title,
+      description: speechTool.description,
       inputSchema: { text: z.string().min(1).max(8_000) },
     },
     ({ text }) => toolResult(() => mailbox.submitSpeech(token, text)),
@@ -48,10 +55,13 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
   server.registerTool(
     'submit_vote',
     {
-      title: getCopy('tools.voteTitle'),
-      description: getCopy('tools.voteDescription'),
+      title: voteTool.title,
+      description: voteTool.description,
       inputSchema: {
-        targetPlayerId: z.string().nullable().describe(getCopy('tools.voteTargetDescription')),
+        targetPlayerId: z
+          .string()
+          .nullable()
+          .describe(promptCore.toolField('submit_vote', 'targetPlayerId')),
       },
     },
     ({ targetPlayerId }) => toolResult(() => mailbox.submitVote(token, targetPlayerId)),
@@ -59,8 +69,8 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
   server.registerTool(
     'submit_night_action',
     {
-      title: getCopy('tools.nightTitle'),
-      description: getCopy('tools.nightDescription'),
+      title: nightTool.title,
+      description: nightTool.description,
       inputSchema: {
         abilityId: z.string(),
         targetPlayerIds: z.array(z.string()).max(3),
@@ -73,8 +83,8 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
   server.registerTool(
     'submit_sheriff_action',
     {
-      title: getCopy('tools.sheriffTitle'),
-      description: getCopy('tools.sheriffDescription'),
+      title: sheriffTool.title,
+      description: sheriffTool.description,
       inputSchema: {
         action: SheriffActionKindSchema,
         targetPlayerId: z.string().nullable().optional(),
@@ -86,8 +96,8 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
   server.registerTool(
     'trigger_skill',
     {
-      title: getCopy('tools.skillTitle'),
-      description: getCopy('tools.skillDescription'),
+      title: skillTool.title,
+      description: skillTool.description,
       inputSchema: {
         abilityId: z.string(),
         targetPlayerId: z.string().nullable(),

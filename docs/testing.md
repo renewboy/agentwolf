@@ -2,7 +2,7 @@
 
 ## Test layers
 
-- Unit tests cover versioned plugin dependency loading, synthetic role/effect/event/phase/trigger/query/victory registration, capability authorization, named-lane settlement, role classes, production ability-effect dispatch, wolf
+- Unit tests cover versioned Ruleset plugin dependency loading, semantic contribution ownership, strict Prompt bundle loading, synthetic Role/Ability/Phase/plugin-event Prompt extension, audience-safe imports, Nunjucks condition rendering, capability authorization, named-lane settlement, role classes, production ability-effect dispatch, wolf
   no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
   changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
   role-effect catalog coverage, custom-board validation, phase transitions, speech
@@ -13,15 +13,15 @@
   overrides, repeated Characters with unique nicknames, immutable Character snapshots,
   custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
-  redacted trajectories, exact Prompt reconstruction, uncertain-delivery recovery, MCP action
+  redacted trajectories, exact stored Prompt cardinality and semantic delivery audit, Prompt metadata cleanup with byte-preserved Prompt records, uncertain-delivery recovery, MCP action
   authorization, durable Session binding and resume, accepted-action reconciliation, same-turn correction after a rejected structured action, guarded process-tree
   shutdown, parent-process loss, bounded protocol close, sync barriers, clean direct-speech
   boundaries, interrupted parallel-action cleanup, and streamed speech.
-- Contract tests validate REST, WebSocket, event, prompt, and action schemas against fixtures shared by server and web.
+- Contract tests validate REST, WebSocket, event, trajectory, and action schemas against fixtures shared by server and web.
 - Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
   the production Match runtime with deterministic fake Sessions. They check semantic event order,
   vote calculations, visibility, exact parallel actor barriers, current-engine sequential actor
-  routing, Prompt reconstruction, delivery recovery, restart reconstruction, playback completion,
+  routing, Prompt delivery boundaries, delivery recovery, restart reconstruction, playback completion,
   skip and disconnect, and repeated-run determinism.
 - Browser tests cover Agent Profile management, profile metadata layout, whole-row drag feedback,
   keyboard ordering, persisted setup defaults, Character library editing and portrait upload,
@@ -106,16 +106,16 @@ buckets, and paths outside the dated directory format.
     deleting it does not change a Match created from an earlier revision.
 23. Normal startup captures trajectory data while returning 404 for every developer route; a
     developer restart reads the same records and streams later logical updates by revision.
-24. Every completed deterministic Turn has one exact Prompt, a matching delivery range and
-    acknowledgement, no duplicate stream records, and a successful reconstruction audit.
+24. Every completed deterministic Turn has one exact stored Prompt, a matching visibility-safe
+    delivery range and acknowledgement, no duplicate stream records, and a successful semantic audit.
 25. Private Seer, Magic Mirror Girl, Witch, Guard, and night-attack cues appear only in permitted projections; public White Wolf King detonation cues appear in every public projection; full,
     reduced, and off effect modes play each newly visible cue at most once and leave no residual
     transform.
 26. Normal speech rejects the compatibility `submit_speech` tool and commits only the clean direct
     response around embedded role and action-tool boundaries. A clean same-turn correction remains
     valid when no speech preceded a rejected tool; other generated text stays outside the live
-    stream and Match event. Rendered speech prompts contain their versioned public-fact and
-    phase-specific constraints.
+    stream and Match event. Bundle-rendered speech prompts contain current public facts and the
+    phase-specific action contract.
 27. Wolf council and post-death Sheriff transfer expose no self-destruct interrupt or premature
     night-action contract, while sheriff-election and daytime speech or vote turns for living
     Werewolves receive the exact self-destruct ability ID accepted by the engine. The following wolf

@@ -153,15 +153,17 @@ export function resolvePlayerLaunchSpec(tool: AgentTool, workspace: string): Pro
   return launch
 }
 
-export function playerSessionMeta(kind: AgentToolKind): Readonly<Record<string, unknown>> {
+export function playerSessionMeta(
+  kind: AgentToolKind,
+  playerContract: string,
+): Readonly<Record<string, unknown>> {
   if (kind !== 'claude') return {}
   return {
     disableBuiltInTools: true,
     claudeCode: {
       options: {
         settingSources: [],
-        systemPrompt:
-          'You are an AgentWolf game player. Follow only the judge messages in this session and use only the supplied AgentWolf action tools.',
+        systemPrompt: playerContract,
         tools: [],
       },
     },

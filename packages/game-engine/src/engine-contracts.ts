@@ -56,6 +56,7 @@ export interface TurnDescriptor {
   readonly abilityId?: AbilityId
   readonly allowedAbilityIds?: readonly AbilityId[]
   readonly interruptAbilityIds?: readonly AbilityId[]
+  readonly sheriffActions?: readonly Extract<PlayerAction, { type: 'sheriff-action' }>['action'][]
 }
 
 export interface SubmitActionOptions {

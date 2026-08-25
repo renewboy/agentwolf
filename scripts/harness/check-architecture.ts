@@ -80,6 +80,13 @@ for (const path of files.filter((candidate) => {
 if (files.some((path) => localPath(path) === 'packages/game-engine/src/classic-rules.ts')) {
   errors.push('classic-rules.ts must not exist; classic behavior is composed from ruleset plugins')
 }
+if (
+  files.some(
+    (path) => localPath(path) === 'packages/game-engine/src/rulesets/classic/phase-graph.ts',
+  )
+) {
+  errors.push('classic phase nodes must be registered by their functional or Role plugins')
+}
 const actionValidator = await text(
   files.find((path) => localPath(path) === 'packages/game-engine/src/action-validator.ts')!,
 )
@@ -119,19 +126,33 @@ for (const [cause, expectedOwner] of [
 const roleFiles = files.filter((path) =>
   /packages\/game-engine\/src\/rulesets\/classic\/roles\/[^/]+\.ts$/.test(localPath(path)),
 )
-const copyCatalog = JSON.parse(
-  await text(resolve(projectRoot, 'packages/assets/copy/zh-CN.json')),
-) as Record<string, unknown>
 for (const path of roleFiles) {
   const content = await text(path)
   if (!/export class \w+Role extends Role/.test(content)) {
     errors.push(`${localPath(path)} must export a concrete Role class`)
   }
-  const publicRulesKey = content.match(/public readonly publicRulesKey = '([^']+)'/)?.[1]
-  if (!publicRulesKey) {
-    errors.push(`${localPath(path)} must declare a publicRulesKey`)
-  } else if (typeof copyValue(copyCatalog, publicRulesKey) !== 'string') {
-    errors.push(`${localPath(path)} references non-string public rules copy ${publicRulesKey}`)
+  if (/publicRulesKey|interruptInstructionKey|promptContext|promptActions/.test(content)) {
+    errors.push(`${localPath(path)} must not contain Prompt presentation metadata`)
+  }
+}
+
+for (const relativePath of [
+  'packages/assets/src/prompts/runtime.ts',
+  'packages/assets/src/prompts/schema.ts',
+  'packages/assets/src/prompts/facts.ts',
+  'apps/server/src/context-renderer.ts',
+  'apps/server/src/prompt-registry.ts',
+  'apps/server/src/match-runtime-helpers.ts',
+]) {
+  const content = await text(resolve(projectRoot, relativePath))
+  if (/['"](?:role|ability|phase|plugin)-[a-z0-9-]+['"]/.test(content)) {
+    errors.push(`${relativePath} generic Prompt code contains a concrete game semantic ID`)
+  }
+}
+
+for (const path of files.filter((candidate) => localPath(candidate).startsWith('apps/web/src/'))) {
+  if ((await text(path)).includes('@agentwolf/assets/prompts')) {
+    errors.push(`${localPath(path)} must not import the server-only Prompt runtime`)
   }
 }
 
@@ -199,13 +220,4 @@ function packageOwner(path: string): string {
   const match = path.match(/^(?:packages|apps)\/([^/]+)\/src\//)
   if (!match?.[1]) throw new Error(`Cannot determine package owner for ${path}`)
   return match[1]
-}
-
-function copyValue(catalog: Record<string, unknown>, key: string): unknown {
-  let value: unknown = catalog
-  for (const segment of key.split('.')) {
-    if (typeof value !== 'object' || value === null || !(segment in value)) return undefined
-    value = (value as Record<string, unknown>)[segment]
-  }
-  return value
 }

@@ -12,7 +12,32 @@ export const classicNightPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.night,
   version: 1,
   requires: [{ id: classicPluginIds.resolution, version: 1 }],
-  register: ({ rules }) => {
+  register: ({ phases, rules }) => {
+    phases.registerAll([
+      {
+        id: phase('phase-night-resolve'),
+        labelKey: 'phases.nightResolve',
+        mode: 'automatic',
+        edges: [
+          { to: phase('phase-day-announcement'), when: 'has-winner' },
+          { to: phase('phase-sheriff-signup'), when: 'first-day-with-sheriff' },
+          { to: phase('phase-day-announcement') },
+        ],
+      },
+      {
+        id: phase('phase-day-announcement'),
+        labelKey: 'phases.dayAnnouncement',
+        mode: 'automatic',
+        edges: [
+          { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
+          { to: phase('phase-match-ended'), when: 'has-winner' },
+          { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
+          { to: phase('phase-last-words'), when: 'has-last-words' },
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ],
+      },
+    ])
     rules.registerPhaseHandler(phase('phase-night-resolve'), resolveNight, {
       id: 'classic-night-resolve',
     })

@@ -6,529 +6,423 @@ import {
   PhaseIdSchema,
   PlayerIdSchema,
 } from '@agentwolf/contracts'
-import { builtInCharacterCards, formatCopy, getCopy } from '@agentwolf/assets'
+import { builtInCharacterCards } from '@agentwolf/assets'
 import {
   GameEngine,
-  createV1RoleRegistry,
+  createClassicRuleset,
   guardBoard,
   ninePlayerBoard,
   sixPlayerBoard,
   v1AbilityIds,
   type BoardManifest,
   type EnginePlayerInput,
+  type GameState,
+  type TurnDescriptor,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
-import { ContextRenderer, promptContractVersion } from '../src/context-renderer.js'
+import { ContextRenderer } from '../src/context-renderer.js'
 
-describe('ContextRenderer board rules', () => {
-  it('renders the active player-count policies into the foundation prompt', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const sixPlayerPrompt = await foundationPrompt(renderer, sixPlayerBoard)
-    expect(sixPlayerPrompt).toContain('身份配置：狼人 2 名、平民 2 名、预言家 1 名、猎人 1 名。')
-    expect(sixPlayerPrompt).toContain(getCopy('promptContext.werewolfVictorySlaughterAll'))
-    expect(sixPlayerPrompt).toContain(getCopy('promptContext.sheriffDisabled'))
-    expect(sixPlayerPrompt).not.toContain(getCopy('promptContext.witchSelfSaveNever'))
-
-    const ninePlayerPrompt = await foundationPrompt(renderer, ninePlayerBoard)
-    expect(ninePlayerPrompt).toContain(getCopy('promptContext.werewolfVictorySlaughterEdge'))
-    expect(ninePlayerPrompt).toContain(getCopy('promptContext.sheriffEnabledSpeechOrder'))
-    expect(ninePlayerPrompt).toContain(
-      formatCopy(getCopy('promptContext.witchPotionLimit'), { count: 1 }),
-    )
-  })
-
-  it('gives every player one detailed public introduction for each role on the board', async () => {
-    const roles = createV1RoleRegistry()
-    const renderer = new ContextRenderer(roles)
-    const { engine, players } = createBoardEngine(ninePlayerBoard)
-    const sections = new Set<string>()
-    for (const player of players) {
-      const foundation = await renderer.foundation(
-        engine.state,
-        ninePlayerBoard,
-        player.id,
-        engine.events,
+describe('plugin-owned Prompt rendering', () => {
+  it('renders current board policy and exactly the installed board roles', async () => {
+    const six = createBoardEngine(sixPlayerBoard)
+    const sixPrompt = (
+      await six.renderer.foundation(
+        six.engine.state,
+        sixPlayerBoard,
+        six.players[0]!.id,
+        six.engine.events,
       )
-      const section = foundation.prompt
-        .split(getCopy('promptContext.roleRulesIntro').split('{{roles}}')[0]!)[1]
-        ?.split(getCopy('promptContext.villageVictory'))[0]
-        ?.trim()
-      expect(section).toBeTruthy()
+    ).prompt
+    expect(sixPrompt).toContain('身份配置：狼人 2 名、村民 2 名、预言家 1 名、猎人 1 名。')
+    expect(sixPrompt).toContain('屠城是指狼人阵营让所有好人（所有平民和神职）出局')
+    expect(sixPrompt).toContain('屠边是指狼人阵营让所有平民或所有神职出局')
+    expect(sixPrompt).toContain('本局采用屠城规则')
+    expect(sixPrompt).toContain('本局不设警长竞选与警徽')
+    expect(sixPrompt).not.toContain('女巫（好人阵营）')
+
+    const rosterHeading = sixPrompt.indexOf('# 座位名单')
+    const identityHeading = sixPrompt.indexOf('# 当前身份')
+    expect(rosterHeading).toBeGreaterThan(-1)
+    expect(identityHeading).toBeGreaterThan(rosterHeading)
+    const rosterSection = sixPrompt.slice(rosterHeading, identityHeading)
+    for (const player of six.players) {
+      expect(rosterSection).toContain(
+        `${player.name}（${player.seat} 号玩家，Player ID：${player.id}）`,
+      )
+    }
+    const identitySection = sixPrompt.slice(identityHeading, sixPrompt.indexOf('# 板子规则'))
+    expect(identitySection).toContain(
+      `你是${six.players[0]!.name}（${six.players[0]!.seat} 号玩家，Player ID：${six.players[0]!.id}）`,
+    )
+
+    const nine = createBoardEngine(ninePlayerBoard)
+    const sections = new Set<string>()
+    for (const player of nine.players) {
+      const prompt = (
+        await nine.renderer.foundation(
+          nine.engine.state,
+          ninePlayerBoard,
+          player.id,
+          nine.engine.events,
+        )
+      ).prompt
+      const section = prompt.split('本局角色介绍：')[1]!.split('好人阵营需要')[0]!.trim()
       expect(section).not.toMatch(/player-\d+/u)
-      expect(section).not.toContain('号玩家')
-      sections.add(section!)
+      expect(section.match(/^- /gmu)).toHaveLength(ninePlayerBoard.roles.length)
+      expect(prompt).toContain('本局采用屠边规则')
+      sections.add(section)
     }
     expect(sections.size).toBe(1)
-    const section = [...sections][0]!
-    expect(section.split('\n')).toHaveLength(ninePlayerBoard.roles.length)
-    for (const slot of ninePlayerBoard.roles) {
-      expect(section).toContain(getCopy(roles.role(slot.roleId).publicRulesKey).split('。')[0]!)
+    const roleRules = [...sections][0]!
+    for (const label of ['狼人', '村民', '预言家', '女巫', '猎人']) {
+      expect(roleRules).toContain(`- ${label}`)
     }
-    const guardRole = roles.list().find((role) => role.id === 'role-guard')!
-    expect(section).not.toContain(getCopy(guardRole.publicRulesKey).split('。')[0]!)
-
-    const legacy = await renderer.foundation(
-      engine.state,
-      ninePlayerBoard,
-      players[0]!.id,
-      engine.events,
-      10,
-    )
-    expect(legacy.prompt).not.toContain('本局角色介绍')
+    expect(roleRules).toContain('每夜最多使用 1 瓶药')
+    expect(roleRules).not.toContain('守卫（好人阵营）')
   })
 
-  it('states the day and complete publicly living roster in every daytime prompt', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
-    const dead = players[5]!
-    const deadState = engine.state.players.get(dead.id)!
-    const dayStarted = GameEventSchema.parse({
-      matchId: engine.state.matchId,
-      sequence: engine.state.lastSequence + 1,
-      occurredAt: '2026-08-23T00:00:00.000Z',
-      visibility: { kind: 'public' },
-      payload: { type: 'day.started', day: 2 },
-    })
-    const state = {
-      ...engine.state,
-      day: 2,
-      phaseId: PhaseIdSchema.parse('phase-day-speech'),
-      phaseLabelKey: 'phases.daySpeech',
-      lastSequence: dayStarted.sequence,
-      players: new Map(engine.state.players).set(dead.id, { ...deadState, alive: false }),
-    }
-    for (const promptAsset of [
-      'speech-turn',
-      'vote-turn',
-      'sheriff-turn',
-      'sheriff-transfer-turn',
-      'speech-order-turn',
-      'skill-turn',
-    ] as const) {
-      const turn = await renderer.turn(state, [dayStarted], players[0]!.id, 0, promptAsset)
-      expect(turn.prompt.match(/当前是第 2 天/gu)).toHaveLength(1)
-      expect(turn.prompt).not.toContain('天亮了，现在是第 2 天')
-      for (const living of players.filter((player) => player.id !== dead.id)) {
-        expect(turn.prompt).toContain(
-          formatCopy(getCopy('promptContext.rosterEntry'), {
-            name: living.name,
-            playerId: living.id,
-            seat: living.seat,
-          }),
-        )
-      }
-      expect(turn.prompt).not.toContain(
-        formatCopy(getCopy('promptContext.rosterEntry'), {
-          name: dead.name,
-          playerId: dead.id,
-          seat: dead.seat,
-        }),
-      )
-    }
-
-    const campaign = await renderer.turn(
-      {
-        ...state,
-        phaseId: PhaseIdSchema.parse('phase-sheriff-signup'),
-        phaseLabelKey: 'phases.sheriffSignup',
-        players: engine.state.players,
-        pendingDeaths: new Map([[dead.id, { playerId: dead.id, causes: ['werewolf'] }]]),
-      },
-      [dayStarted],
-      players[0]!.id,
-      0,
-      'sheriff-turn',
+  it('gives a Werewolf only its teammates and callable public interrupt', async () => {
+    const setup = createBoardEngine(sixPlayerBoard)
+    const [firstWolf, secondWolf] = setup.players.filter(
+      (player) => player.roleId === 'role-werewolf',
     )
-    expect(campaign.prompt).toContain(
-      formatCopy(getCopy('promptContext.rosterEntry'), {
-        name: dead.name,
-        playerId: dead.id,
-        seat: dead.seat,
-      }),
-    )
-    expect(campaign.prompt).not.toContain('昨夜死亡')
-
-    const legacy = await renderer.turn(state, [dayStarted], players[0]!.id, 0, 'vote-turn', '', 13)
-    expect(legacy.prompt).not.toContain('当前公开存活玩家')
-    expect(legacy.prompt).toContain('天亮了，现在是第 2 天')
-
-    const replacement = await renderer.foundation(state, sixPlayerBoard, players[0]!.id, [
-      ...engine.events,
-      dayStarted,
-    ])
-    expect(replacement.prompt.match(/当前是第 2 天/gu)).toHaveLength(1)
-    expect(replacement.prompt).toContain('当前公开存活玩家')
-    expect(replacement.prompt).not.toContain('天亮了，现在是第 2 天')
-
-    const continuation = await renderer.turn(
-      state,
-      [dayStarted],
-      players[0]!.id,
-      dayStarted.sequence,
-      'speech-turn',
-      '本轮发言请尽量控制在 300 字以内。',
-      promptContractVersion,
-      true,
-    )
-    expect(continuation.continuation).toBe(true)
-    expect(continuation.visibleEvents).toEqual([])
-    expect(continuation.prompt).toContain('继续执行裁判当前阶段')
-    expect(continuation.prompt).toContain('现在轮到你发言')
-    expect(continuation.prompt).not.toContain('# 任务目标')
-  })
-
-  it('delivers exact wolf teammate knowledge in the bootstrap foundation', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
-    const firstWolf = players[0]!
-    const secondWolf = players[1]!
-    const villager = players[2]!
-    const wolfFoundation = await renderer.foundation(
-      engine.state,
+    const villager = setup.players.find((player) => player.roleId === 'role-villager')!
+    const wolfFoundation = await setup.renderer.foundation(
+      setup.engine.state,
       sixPlayerBoard,
-      firstWolf.id,
-      engine.events,
+      firstWolf!.id,
+      setup.engine.events,
     )
-    const teammateLine = wolfFoundation.prompt
-      .split('\n')
-      .find((line) => line.includes('你的狼人队友'))
-    expect(teammateLine).toContain(secondWolf.name)
-    expect(teammateLine).not.toContain(firstWolf.name)
+    expect(wolfFoundation.prompt).toContain(`你的存活狼队友：${secondWolf!.seat} 号玩家`)
+    expect(wolfFoundation.prompt).not.toContain(`存活狼队友：${firstWolf!.seat} 号玩家`)
+    expect(wolfFoundation.prompt).not.toContain(v1AbilityIds.werewolfKill)
+    expect(wolfFoundation.prompt).toContain(v1AbilityIds.werewolfSelfDestruct)
     expect(wolfFoundation.visibleEvents.map((event) => event.payload.type)).toContain(
       'faction.members',
     )
-    expect(wolfFoundation.prompt).not.toContain(
-      formatCopy(getCopy('narration.roleAssigned'), { role: getCopy('roles.werewolf') }),
-    )
-    expect(wolfFoundation.prompt).not.toContain(v1AbilityIds.werewolfKill)
-    expect(wolfFoundation.prompt).toContain(v1AbilityIds.werewolfSelfDestruct)
-    const legacyWolfFoundation = await renderer.foundation(
-      engine.state,
-      sixPlayerBoard,
-      firstWolf.id,
-      engine.events,
-      11,
-    )
-    expect(legacyWolfFoundation.prompt).toContain(v1AbilityIds.werewolfKill)
 
-    const villagerFoundation = await renderer.foundation(
-      engine.state,
+    const villagerFoundation = await setup.renderer.foundation(
+      setup.engine.state,
       sixPlayerBoard,
       villager.id,
-      engine.events,
+      setup.engine.events,
     )
-    expect(villagerFoundation.prompt).not.toContain('你的狼人队友')
+    expect(villagerFoundation.prompt).not.toContain('你的存活狼队友：')
   })
 
-  it('rejects a foundation whose source history does not cover its delivery cursor', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
+  it('requires a foundation source history that covers the delivery cursor', async () => {
+    const setup = createBoardEngine(sixPlayerBoard)
     await expect(
-      renderer.foundation(engine.state, sixPlayerBoard, players[0]!.id, []),
-    ).rejects.toThrow(`Foundation history ends at 0, expected ${engine.state.lastSequence}`)
+      setup.renderer.foundation(setup.engine.state, sixPlayerBoard, setup.players[0]!.id, []),
+    ).rejects.toThrow(`Foundation history ends at 0, expected ${setup.engine.state.lastSequence}`)
   })
 
-  it('delivers the regular wolf target only to wolves and a Witch with an antidote', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(ninePlayerBoard)
-    const wolves = players.filter((player) => player.roleId === 'role-werewolf')
-    const witch = players.find((player) => player.roleId === 'role-witch')!
-    const target = players.find((player) => player.roleId === 'role-villager')!
-    const otherVillager = players.find(
-      (player) => player.roleId === 'role-villager' && player.id !== target.id,
-    )!
+  it('renders antidote and poison legality independently without a condition-string tree', async () => {
+    const setup = createBoardEngine(ninePlayerBoard)
+    const witch = setup.players.find((player) => player.roleId === 'role-witch')!
+    const target = setup.players.find((player) => player.roleId === 'role-villager')!
+    const wolves = setup.players.filter((player) => player.roleId === 'role-werewolf')
     const attack = GameEventSchema.parse({
-      matchId: engine.state.matchId,
-      sequence: engine.state.lastSequence + 1,
-      occurredAt: '2026-08-22T00:00:00.000Z',
+      matchId: setup.engine.state.matchId,
+      sequence: setup.engine.state.lastSequence + 1,
+      occurredAt: '2026-08-25T00:00:00.000Z',
       visibility: { kind: 'players', playerIds: [...wolves.map((player) => player.id), witch.id] },
       payload: { type: 'night.attack-selected', targetId: target.id },
     })
-    const witchTurn = await renderer.turn(engine.state, [attack], witch.id, 0, 'night-turn')
-    const targetLabel = formatCopy(getCopy('narration.playerLabel'), {
-      seat: target.seat,
-      name: target.name,
-    })
-    expect(witchTurn.prompt).toContain(
-      formatCopy(getCopy('narration.nightAttackSelected'), { player: targetLabel }),
-    )
-    const villagerTurn = await renderer.turn(
-      engine.state,
+    const turn = witchTurn(witch.id)
+    const available = await setup.renderer.turn(
+      withEvent(setup.engine.state, attack),
+      ninePlayerBoard,
       [attack],
-      otherVillager.id,
+      witch.id,
       0,
-      'speech-turn',
+      turn,
+      300,
     )
-    expect(villagerTurn.visibleEvents).toHaveLength(0)
-    expect(villagerTurn.prompt).not.toContain(targetLabel)
+    expect(available.prompt).toContain(`解药：可用，只能以${target.seat} 号玩家`)
+    expect(available.prompt).not.toContain(target.id)
+    expect(available.prompt).not.toContain(target.name)
+    expect(available.prompt).toContain('毒药：可用')
+    expect(available.prompt).toContain('使用解药')
+    expect(available.prompt).toContain('使用毒药')
 
-    const guardSetup = createBoardEngine(guardBoard)
-    const guard = guardSetup.players.find((player) => player.roleId === 'role-guard')!
-    const protectedPlayer = guardSetup.players.find((player) => player.id !== guard.id)!
-    const protection = GameEventSchema.parse({
-      matchId: guardSetup.engine.state.matchId,
-      sequence: guardSetup.engine.state.lastSequence + 1,
-      occurredAt: '2026-08-22T00:00:01.000Z',
-      visibility: { kind: 'players', playerIds: [guard.id] },
-      payload: { type: 'guard.protected', actorId: guard.id, targetId: protectedPlayer.id },
-    })
-    const guardTurn = await renderer.turn(
-      guardSetup.engine.state,
-      [protection],
-      guard.id,
-      0,
-      'night-turn',
-    )
-    expect(guardTurn.prompt).toContain(
-      formatCopy(getCopy('narration.guardProtected'), {
-        player: formatCopy(getCopy('narration.playerLabel'), {
-          seat: protectedPlayer.seat,
-          name: protectedPlayer.name,
-        }),
-      }),
-    )
-  })
-
-  it('delivers resolved public actions as natural game narration', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
-    const voter = players[0]!
-    const target = players[2]!
-    const events = [
-      GameEventSchema.parse({
-        matchId: engine.state.matchId,
-        sequence: engine.state.lastSequence + 1,
-        occurredAt: '2026-08-22T00:00:00.000Z',
-        visibility: { kind: 'public' },
-        payload: {
-          type: 'vote.resolved',
-          kind: 'exile',
-          totals: { [target.id]: 2 },
-          tiedPlayerIds: [target.id],
-          selectedPlayerId: target.id,
+    const witchState = setup.engine.state.players.get(witch.id)!
+    const spentPoisonState = {
+      ...withEvent(setup.engine.state, attack),
+      players: new Map(setup.engine.state.players).set(witch.id, {
+        ...witchState,
+        roleState: {
+          ...witchState.roleState,
+          abilityUses: { [v1AbilityIds.witchPoison]: 1 },
         },
       }),
-      GameEventSchema.parse({
-        matchId: engine.state.matchId,
-        sequence: engine.state.lastSequence + 2,
-        occurredAt: '2026-08-22T00:00:01.000Z',
-        visibility: { kind: 'public' },
-        payload: { type: 'hunter.shot', playerId: voter.id, targetId: target.id },
-      }),
-    ]
-    const turn = await renderer.turn(engine.state, events, voter.id, 0, 'speech-turn')
-    expect(turn.prompt).toContain('投票结算')
-    expect(turn.prompt).toContain('发动猎人技能')
-  })
-
-  it('does not send a player their own already-known speech again', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
-    const viewer = players[0]!
-    const other = players[1]!
-    const events = [
-      GameEventSchema.parse({
-        matchId: engine.state.matchId,
-        sequence: engine.state.lastSequence + 1,
-        occurredAt: '2026-08-22T00:00:00.000Z',
-        visibility: { kind: 'public' },
-        payload: {
-          type: 'speech.committed',
-          playerId: viewer.id,
-          kind: 'day',
-          text: '自己的已知发言。',
-          sanitized: false,
-        },
-      }),
-      GameEventSchema.parse({
-        matchId: engine.state.matchId,
-        sequence: engine.state.lastSequence + 2,
-        occurredAt: '2026-08-22T00:00:01.000Z',
-        visibility: { kind: 'public' },
-        payload: {
-          type: 'speech.committed',
-          playerId: other.id,
-          kind: 'day',
-          text: '其他玩家的发言。',
-          sanitized: false,
-        },
-      }),
-    ]
-    const current = await renderer.turn(engine.state, events, viewer.id, 0, 'vote-turn')
-    expect(current.prompt).not.toContain('自己的已知发言。')
-    expect(current.prompt).toContain('其他玩家的发言。')
-    expect(current.visibleEvents).toHaveLength(2)
-
-    const legacy = await renderer.turn(engine.state, events, viewer.id, 0, 'vote-turn', '', 9)
-    expect(legacy.prompt).toContain('自己的已知发言。')
-  })
-
-  it('injects versioned speech constraints while preserving legacy prompt reconstruction', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
-    const instruction = 'VERSIONED_SPEECH_CONSTRAINT'
-    const current = await renderer.turn(
-      engine.state,
-      engine.events,
-      players[0]!.id,
-      0,
-      'speech-turn',
-      instruction,
-    )
-    expect(promptContractVersion).toBeGreaterThanOrEqual(17)
-    expect(current.prompt).toContain(instruction)
-
-    const legacy = await renderer.turn(
-      engine.state,
-      engine.events,
-      players[0]!.id,
-      0,
-      'speech-turn',
-      instruction,
-      7,
-    )
-    expect(legacy.prompt).not.toContain(instruction)
-
-    for (const promptAsset of ['sheriff-turn', 'vote-turn'] as const) {
-      const currentStructured = await renderer.turn(
-        engine.state,
-        engine.events,
-        players[0]!.id,
-        0,
-        promptAsset,
-        instruction,
-      )
-      expect(currentStructured.prompt).toContain(instruction)
-      const legacyStructured = await renderer.turn(
-        engine.state,
-        engine.events,
-        players[0]!.id,
-        0,
-        promptAsset,
-        instruction,
-        8,
-      )
-      expect(legacyStructured.prompt).not.toContain(instruction)
     }
+    const spentPoison = await setup.renderer.turn(
+      spentPoisonState,
+      ninePlayerBoard,
+      [attack],
+      witch.id,
+      0,
+      turn,
+      300,
+    )
+    expect(spentPoison.prompt).toContain('毒药：已使用，本回合不可用')
+    expect(spentPoison.prompt).not.toContain('- 使用毒药')
+    expect(spentPoison.prompt).toContain('- 使用解药')
 
-    const currentWolfVote = await renderer.turn(
-      engine.state,
-      engine.events,
-      players[0]!.id,
-      0,
-      'wolf-vote-turn',
-      instruction,
-    )
-    expect(currentWolfVote.prompt).toContain(instruction)
-    expect(currentWolfVote.prompt).toContain('选择空刀')
-    expect(currentWolfVote.prompt).toContain('`null`')
-    const versionSixteenWolfVote = await renderer.turn(
-      engine.state,
-      engine.events,
-      players[0]!.id,
-      0,
-      'wolf-vote-turn',
-      instruction,
-      16,
-    )
-    expect(versionSixteenWolfVote.prompt).toContain('必须使用一名非狼人玩家')
-    expect(versionSixteenWolfVote.prompt).not.toContain('选择空刀')
-    const legacyWolfVote = await renderer.turn(
-      engine.state,
-      engine.events,
-      players[0]!.id,
-      0,
-      'wolf-vote-turn',
-      instruction,
-      12,
-    )
-    expect(legacyWolfVote.prompt).not.toContain(instruction)
-  })
-
-  it('delivers a final public role reveal as natural game narration', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
-    const viewer = players[0]!
-    const revealed = players[2]!
-    const event = GameEventSchema.parse({
-      matchId: engine.state.matchId,
-      sequence: engine.state.lastSequence + 1,
-      occurredAt: '2026-08-22T00:00:00.000Z',
-      visibility: { kind: 'public' },
-      payload: { type: 'role.revealed', playerId: revealed.id, roleId: revealed.roleId },
-    })
-    const turn = await renderer.turn(engine.state, [event], viewer.id, 0, 'speech-turn')
-    const player = formatCopy(getCopy('narration.playerLabel'), {
-      seat: revealed.seat,
-      name: revealed.name,
-    })
-    expect(turn.prompt).toContain(
-      formatCopy(getCopy('narration.roleRevealed'), {
-        player,
-        role: getCopy('roles.villager'),
+    const bothSpentState = {
+      ...setup.engine.state,
+      players: new Map(setup.engine.state.players).set(witch.id, {
+        ...witchState,
+        roleState: {
+          ...witchState.roleState,
+          abilityUses: {
+            [v1AbilityIds.witchAntidote]: 1,
+            [v1AbilityIds.witchPoison]: 1,
+          },
+        },
       }),
+    }
+    const bothSpent = await setup.renderer.turn(
+      bothSpentState,
+      ninePlayerBoard,
+      [],
+      witch.id,
+      0,
+      turn,
+      300,
     )
+    expect(bothSpent.prompt).toContain('解药：已使用，本回合不可用')
+    expect(bothSpent.prompt).toContain('毒药：已使用，本回合不可用')
+    expect(bothSpent.prompt).toContain('两瓶药都不能使用，只能选择放弃')
+    expect(bothSpent.prompt).not.toContain(target.name)
   })
 
-  it('adds only the acting player Character while preserving full game intelligence', async () => {
-    const renderer = new ContextRenderer(createV1RoleRegistry())
-    const { engine, players } = createBoardEngine(sixPlayerBoard)
+  it('keeps private night facts out of another player Prompt', async () => {
+    const setup = createBoardEngine(ninePlayerBoard)
+    const witch = setup.players.find((player) => player.roleId === 'role-witch')!
+    const viewer = setup.players.find((player) => player.roleId === 'role-villager')!
+    const target = setup.players.find(
+      (player) => player.roleId === 'role-villager' && player.id !== viewer.id,
+    )!
+    const attack = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: setup.engine.state.lastSequence + 1,
+      occurredAt: '2026-08-25T00:00:00.000Z',
+      visibility: { kind: 'players', playerIds: [witch.id] },
+      payload: { type: 'night.attack-selected', targetId: target.id },
+    })
+    const prompt = await setup.renderer.turn(
+      withEvent(setup.engine.state, attack),
+      ninePlayerBoard,
+      [attack],
+      viewer.id,
+      0,
+      daySpeechTurn(viewer.id),
+      300,
+    )
+    expect(prompt.visibleEvents).toEqual([])
+    expect(prompt.prompt).not.toContain(`狼队常规袭击目标是${target.seat} 号玩家`)
+  })
+
+  it('states current daytime facts once and omits the viewer own prior speech', async () => {
+    const setup = createBoardEngine(sixPlayerBoard)
+    const viewer = setup.players[0]!
+    const other = setup.players[1]!
+    const dead = setup.players.at(-1)!
+    const dayStarted = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: setup.engine.state.lastSequence + 1,
+      occurredAt: '2026-08-25T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: { type: 'day.started', day: 2 },
+    })
+    const ownSpeech = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: dayStarted.sequence + 1,
+      occurredAt: '2026-08-25T00:00:01.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'speech.committed',
+        playerId: viewer.id,
+        kind: 'day',
+        text: '自己的已知发言。',
+        sanitized: false,
+      },
+    })
+    const otherSpeech = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: ownSpeech.sequence + 1,
+      occurredAt: '2026-08-25T00:00:02.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'speech.committed',
+        playerId: other.id,
+        kind: 'day',
+        text: '其他玩家的发言。',
+        sanitized: false,
+      },
+    })
+    const state: GameState = {
+      ...setup.engine.state,
+      day: 2,
+      phaseId: PhaseIdSchema.parse('phase-day-vote'),
+      lastSequence: otherSpeech.sequence,
+      players: new Map(setup.engine.state.players).set(dead.id, {
+        ...setup.engine.state.players.get(dead.id)!,
+        alive: false,
+      }),
+    }
+    const prompt = await setup.renderer.turn(
+      state,
+      sixPlayerBoard,
+      [dayStarted, ownSpeech, otherSpeech],
+      viewer.id,
+      0,
+      {
+        phaseId: PhaseIdSchema.parse('phase-day-vote'),
+        labelKey: 'phases.dayVote',
+        mode: 'parallel',
+        actionType: 'vote',
+        actors: [viewer.id],
+        voteKind: 'exile',
+      },
+      360,
+    )
+    expect(prompt.prompt.match(/当前是第 2 天/gu)).toHaveLength(1)
+    expect(prompt.prompt).not.toContain(dead.name)
+    expect(prompt.prompt).not.toMatch(/player-\d+/u)
+    expect(prompt.prompt).not.toContain('自己的已知发言。')
+    expect(prompt.prompt).toContain(
+      `${other.name}（${other.seat} 号玩家）发言：其他玩家的发言。\n\n请通过`,
+    )
+    expect(prompt.prompt.match(new RegExp(other.name, 'gu'))).toHaveLength(1)
+    for (const player of setup.players.filter((candidate) => candidate.id !== other.id)) {
+      expect(prompt.prompt).not.toContain(player.name)
+    }
+    expect(prompt.visibleEvents).toHaveLength(3)
+  })
+
+  it('uses the speaker heading and paragraph break for private wolf speech', async () => {
+    const setup = createBoardEngine(sixPlayerBoard)
+    const [speaker, viewer] = setup.players.filter((player) => player.roleId === 'role-werewolf')
+    const speech = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: setup.engine.state.lastSequence + 1,
+      occurredAt: '2026-08-25T00:00:00.000Z',
+      visibility: { kind: 'faction', faction: 'werewolf' },
+      payload: {
+        type: 'speech.committed',
+        playerId: speaker!.id,
+        kind: 'wolf-council',
+        text: '私密商议内容。',
+        sanitized: false,
+      },
+    })
+    const prompt = await setup.renderer.turn(
+      withEvent(setup.engine.state, speech),
+      sixPlayerBoard,
+      [speech],
+      viewer!.id,
+      0,
+      {
+        phaseId: PhaseIdSchema.parse('phase-night-wolf-council'),
+        labelKey: 'phases.nightWolfCouncil',
+        mode: 'sequential',
+        actionType: 'speech',
+        actors: [viewer!.id],
+        speechKind: 'wolf-council',
+      },
+      300,
+    )
+    expect(prompt.prompt).toContain(
+      `${speaker!.name}（${speaker!.seat} 号玩家）在狼队商议中发言：私密商议内容。\n\n现在轮到你发言`,
+    )
+    expect(prompt.prompt).not.toMatch(/player-\d+/u)
+    expect(prompt.prompt).not.toContain(viewer!.name)
+  })
+
+  it('wraps retries as continuation and adds only the acting Character', async () => {
+    const setup = createBoardEngine(guardBoard)
+    const actor = setup.players[0]!
     const ran = CharacterCardSnapshotSchema.parse(
       builtInCharacterCards.find((character) => character.id === 'character-mouri-ran'),
     )
-    const prompt = (
-      await renderer.foundation(
-        engine.state,
-        sixPlayerBoard,
-        players[0]!.id,
-        engine.events,
-        promptContractVersion,
-        ran,
-      )
-    ).prompt
-    expect(prompt).toContain(ran.name)
-    expect(prompt).toContain(players[0]!.name)
-    expect(prompt).toContain('完整推理能力')
-    expect(prompt).toContain('不得为了符合角色形象而故意漏判')
-    expect(prompt).not.toContain('远山和叶')
-
-    const withoutCharacter = await renderer.foundation(
-      engine.state,
-      sixPlayerBoard,
-      players[0]!.id,
-      engine.events,
+    const foundation = await setup.renderer.foundation(
+      setup.engine.state,
+      guardBoard,
+      actor.id,
+      setup.engine.events,
+      ran,
     )
-    expect(withoutCharacter.prompt).not.toContain('## 扮演角色')
+    expect(foundation.prompt).toContain(ran.name)
+    expect(foundation.prompt).toContain(actor.name)
+    expect(foundation.prompt).toContain('先使用完整推理能力')
+    expect(foundation.prompt).not.toContain('远山和叶')
+
+    const retry = await setup.renderer.turn(
+      setup.engine.state,
+      guardBoard,
+      setup.engine.events,
+      actor.id,
+      setup.engine.state.lastSequence,
+      daySpeechTurn(actor.id),
+      300,
+      true,
+    )
+    expect(retry.continuation).toBe(true)
+    expect(retry.visibleEvents).toEqual([])
+    expect(retry.prompt).toContain('继续执行裁判当前阶段')
+    expect(retry.prompt).toContain('现在轮到你发言')
+    expect(retry.prompt).not.toContain('# 任务目标')
   })
 })
 
-async function foundationPrompt(renderer: ContextRenderer, board: BoardManifest): Promise<string> {
-  const { engine, players } = createBoardEngine(board)
-  return (await renderer.foundation(engine.state, board, players[0]!.id, engine.events)).prompt
-}
-
-function createBoardEngine(board: BoardManifest): {
-  readonly engine: GameEngine
-  readonly players: EnginePlayerInput[]
-} {
-  const roles = board.roles.flatMap(({ roleId, count }) =>
+function createBoardEngine(board: BoardManifest) {
+  const ruleset = createClassicRuleset()
+  const roleIds = board.roles.flatMap(({ roleId, count }) =>
     Array.from({ length: count }, () => roleId),
   )
-  const players: EnginePlayerInput[] = roles.map((roleId, index) => ({
+  const players: EnginePlayerInput[] = roleIds.map((roleId, index) => ({
     id: PlayerIdSchema.parse(`player-${index + 1}`),
     seat: index + 1,
-    name: `Foundation player ${index + 1}`,
-    profileId: AgentProfileIdSchema.parse(`profile-foundation-${index + 1}`),
+    name: `Prompt player ${index + 1}`,
+    profileId: AgentProfileIdSchema.parse(`profile-prompt-${index + 1}`),
     roleId,
   }))
-  return {
-    engine: GameEngine.create({
-      matchId: MatchIdSchema.parse(`match-foundation-${board.playerCount}`),
-      board,
-      players,
-      roleAssignment: 'manual',
-      seed: 1,
-    }),
+  const engine = GameEngine.create({
+    matchId: MatchIdSchema.parse(`match-prompt-${board.playerCount}`),
+    board,
     players,
+    roleAssignment: 'manual',
+    seed: 1,
+    ruleset,
+  })
+  return { engine, players, renderer: new ContextRenderer(ruleset) }
+}
+
+function witchTurn(actorId: ReturnType<typeof PlayerIdSchema.parse>): TurnDescriptor {
+  return {
+    phaseId: PhaseIdSchema.parse('phase-night-witch'),
+    labelKey: 'phases.nightWitch',
+    mode: 'parallel',
+    actionType: 'night-action',
+    actors: [actorId],
+    allowedAbilityIds: [v1AbilityIds.witchAntidote, v1AbilityIds.witchPoison],
   }
+}
+
+function daySpeechTurn(actorId: ReturnType<typeof PlayerIdSchema.parse>): TurnDescriptor {
+  return {
+    phaseId: PhaseIdSchema.parse('phase-day-speech'),
+    labelKey: 'phases.daySpeech',
+    mode: 'sequential',
+    actionType: 'speech',
+    actors: [actorId],
+    speechKind: 'day',
+  }
+}
+
+function withEvent(state: GameState, event: ReturnType<typeof GameEventSchema.parse>): GameState {
+  return { ...state, lastSequence: event.sequence }
 }

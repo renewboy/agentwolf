@@ -1,0 +1,32 @@
+{
+  "pluginId": "plugin-classic-death",
+  "imports": [],
+  "phases": [
+    {
+      "id": "phase-death-triggers",
+      "label": "死亡技能结算",
+      "audience": "player",
+      "daytime": true,
+      "template": "@_core/turns/skill.njk"
+    },
+    {
+      "id": "phase-last-words",
+      "label": "遗言",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/speech.njk"
+    }
+  ],
+  "events": [
+    { "eventType": "death.window-closed", "audience": "god", "omit": true },
+    { "eventType": "player.died", "audience": "god", "omit": true },
+    { "eventType": "players.eliminated-publicly", "audience": "public", "omit": true }
+  ],
+  "announcements": [
+    {
+      "code": "player-eliminated",
+      "audience": "public",
+      "text": "{{ helpers.player(payload.playerIds[0]) }}出局。"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "pluginId": "plugin-role-hunter",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-hunter",
+      "label": "猎人",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-hunter-shot",
+          "label": "开枪",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "eventType": "hunter.shot",
+      "audience": "public",
+      "text": "{{ helpers.player(payload.playerId) }}发动猎人技能，目标为{{ helpers.player(payload.targetId) }}。"
+    }
+  ]
+}

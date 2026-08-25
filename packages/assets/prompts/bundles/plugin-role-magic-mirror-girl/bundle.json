@@ -1,0 +1,38 @@
+{
+  "pluginId": "plugin-role-magic-mirror-girl",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-magic-mirror-girl",
+      "label": "魔镜少女",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-magic-mirror-inspect",
+          "label": "查验具体身份",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-magic-mirror",
+      "label": "魔镜少女行动",
+      "audience": "player",
+      "daytime": false,
+      "template": "@_core/turns/night-action.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-magic-mirror-girl",
+        "eventType": "event-magic-mirror-inspected"
+      },
+      "audience": "player",
+      "template": "inspection-result.njk"
+    }
+  ]
+}

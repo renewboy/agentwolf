@@ -1,0 +1,37 @@
+{
+  "pluginId": "plugin-role-white-wolf-king",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-white-wolf-king",
+      "label": "白狼王",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-white-wolf-detonate",
+          "label": "白狼王自爆带人",
+          "foundation": true,
+          "interruptTemplate": "detonate.njk"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-white-wolf-king",
+        "eventType": "event-white-wolf-detonated"
+      },
+      "audience": "public",
+      "omit": true
+    }
+  ],
+  "announcements": [
+    {
+      "code": "white-wolf-detonation",
+      "audience": "public",
+      "text": "{{ helpers.player(payload.playerIds[0]) }}发动白狼王自爆，并带走{{ helpers.player(payload.playerIds[1]) }}。"
+    }
+  ]
+}

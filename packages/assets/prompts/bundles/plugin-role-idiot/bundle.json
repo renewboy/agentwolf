@@ -1,0 +1,23 @@
+{
+  "pluginId": "plugin-role-idiot",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-idiot",
+      "label": "白痴",
+      "template": "role.njk",
+      "abilities": []
+    }
+  ],
+  "events": [
+    { "eventType": "idiot.revealed", "audience": "public", "omit": true },
+    { "eventType": "exile.prevented", "audience": "god", "omit": true }
+  ],
+  "announcements": [
+    {
+      "code": "idiot-survived",
+      "audience": "public",
+      "text": "{{ helpers.player(payload.playerIds[0]) }}翻开白痴身份，免疫本次放逐并失去投票权。"
+    }
+  ]
+}

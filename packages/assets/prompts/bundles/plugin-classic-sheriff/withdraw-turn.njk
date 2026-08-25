@@ -1,0 +1,4 @@
+{% include "_core/turns/context.njk" %}
+警上发言结束。请通过 `submit_sheriff_action` 提交一次动作：退水使用 `action: withdraw`；继续竞选使用 `action: keep-running`。工具返回接受回执后结束本回合。
+{% for instruction in interruptInstructions %}{{ instruction }}
+{% endfor %}

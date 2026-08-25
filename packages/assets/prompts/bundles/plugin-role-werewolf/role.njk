@@ -1,0 +1,7 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：夜间与存活狼队友私密商议，并通过独立投票共同选择一名玩家作为常规袭击目标或选择空刀；警长竞选和白天阶段可以自爆，自爆后立即出局并中断当前白天流程。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你在狼队常规袭击阶段通过 `submit_vote` 投票，不把常规袭击作为 `submit_night_action` 能力提交。
+你可在允许的公开回合使用{{ role.abilities[1].label }}（正式能力 ID：`{{ role.abilities[1].id }}`）。
+{% endif %}

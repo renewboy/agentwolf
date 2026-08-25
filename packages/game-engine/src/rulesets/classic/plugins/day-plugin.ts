@@ -4,12 +4,89 @@ import { visibility, type RuleRuntime } from '../../../rule-registry.js'
 import { resolveDaySpeechOrder } from '../../../speech-order.js'
 import { emitVoteResolution } from '../../../vote-resolution.js'
 import { classicPluginIds } from './ids.js'
+import { classicCapabilities } from '../capabilities.js'
 import { appendFinalDeath, bySeat, phase } from './shared.js'
 
 export const classicDayPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.day,
   version: 1,
-  register: ({ interrupts, rules }) => {
+  register: ({ interrupts, phases, rules }) => {
+    const daytimeInterrupts = [
+      {
+        handlerId: 'classic-day-detonation',
+        capabilityIds: [
+          classicCapabilities.wolfSelfDestruct,
+          classicCapabilities.whiteWolfDetonate,
+        ],
+        context: 'daytime' as const,
+        visibility: 'public' as const,
+      },
+    ]
+    phases.registerAll([
+      {
+        id: phase('phase-day-speech-order'),
+        labelKey: 'phases.daySpeechOrder',
+        mode: 'parallel',
+        action: {
+          type: 'sheriff-action',
+          actions: ['speech-clockwise', 'speech-counterclockwise'],
+          visibility: 'public',
+        },
+        actorSelector: 'sheriff-or-system',
+        edges: [{ to: phase('phase-day-speech') }],
+      },
+      {
+        id: phase('phase-day-speech'),
+        labelKey: 'phases.daySpeech',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'day', visibility: 'public' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'day-speech-order',
+        edges: [{ to: phase('phase-day-vote') }],
+      },
+      {
+        id: phase('phase-day-vote'),
+        labelKey: 'phases.dayVote',
+        mode: 'parallel',
+        action: { type: 'vote', kind: 'exile', visibility: 'actor' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'eligible-voters',
+        edges: [
+          { to: phase('phase-day-runoff-speech'), when: 'exile-vote-tied' },
+          { to: phase('phase-day-resolve') },
+        ],
+      },
+      {
+        id: phase('phase-day-runoff-speech'),
+        labelKey: 'phases.dayRunoffSpeech',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'runoff', visibility: 'public' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'exile-tied-players',
+        edges: [{ to: phase('phase-day-runoff-vote') }],
+      },
+      {
+        id: phase('phase-day-runoff-vote'),
+        labelKey: 'phases.dayRunoffVote',
+        mode: 'parallel',
+        action: { type: 'vote', kind: 'exile-runoff', visibility: 'actor' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'eligible-runoff-voters',
+        edges: [{ to: phase('phase-day-resolve') }],
+      },
+      {
+        id: phase('phase-day-resolve'),
+        labelKey: 'phases.dayResolve',
+        mode: 'automatic',
+        edges: [
+          { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
+          { to: phase('phase-match-ended'), when: 'has-winner' },
+          { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
+          { to: phase('phase-last-words'), when: 'has-last-words' },
+          { to: phase('phase-night-guard') },
+        ],
+      },
+    ])
     interrupts.register({
       id: 'classic-day-detonation',
       events: (runtime, definition) =>

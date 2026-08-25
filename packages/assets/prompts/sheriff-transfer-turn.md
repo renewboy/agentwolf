@@ -1,5 +1,0 @@
-{{GAME_NARRATION}}
-
-当前由已出局警长处理警徽。
-
-{{ACTION_INSTRUCTION}}

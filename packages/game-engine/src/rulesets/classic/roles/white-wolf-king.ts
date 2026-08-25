@@ -25,7 +25,6 @@ const detonateAbilityId = AbilityIdSchema.parse('ability-white-wolf-detonate')
 export class WhiteWolfKingRole extends Role {
   public readonly id = RoleIdSchema.parse('role-white-wolf-king')
   public readonly displayNameKey = 'roles.whiteWolfKing'
-  public readonly publicRulesKey = 'promptContext.roleRules.whiteWolfKing'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
   public override readonly sharesFactionKnowledge = true
@@ -38,8 +37,6 @@ export class WhiteWolfKingRole extends Role {
     {
       id: detonateAbilityId,
       requiredCapability: classicCapabilities.whiteWolfDetonate,
-      labelKey: 'abilities.whiteWolfDetonate',
-      interruptInstructionKey: 'promptActions.whiteWolfDetonate',
       actionTypes: ['skill-trigger'],
       validate: (context) => {
         assertRule(context.action.type === 'skill-trigger', 'White Wolf detonation is a skill')

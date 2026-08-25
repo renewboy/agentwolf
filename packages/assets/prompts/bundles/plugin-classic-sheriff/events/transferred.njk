@@ -1,0 +1,1 @@
+{% if payload.toPlayerId %}{{ helpers.player(payload.fromPlayerId) }}将警徽移交给{{ helpers.player(payload.toPlayerId) }}。{% else %}{{ helpers.player(payload.fromPlayerId) }}撕毁警徽。{% endif %}

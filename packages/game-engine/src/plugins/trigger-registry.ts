@@ -1,6 +1,7 @@
 import type { AbilityId, TriggerId } from '@agentwolf/contracts'
 import type { RoleRegistry } from '../roles/registry.js'
 import type { BoardManifest, GameState, PlayerState } from '../types.js'
+import type { SemanticOwnershipRecorder } from './semantic-ownership.js'
 
 export interface DecisionTriggerContext {
   readonly state: GameState
@@ -19,10 +20,13 @@ export interface DecisionTriggerDefinition {
 export class TriggerRegistry {
   readonly #decisionTriggers: DecisionTriggerDefinition[] = []
 
+  public constructor(private readonly ownership?: SemanticOwnershipRecorder) {}
+
   public registerDecision(trigger: DecisionTriggerDefinition): void {
     if (this.#decisionTriggers.some((entry) => entry.id === trigger.id)) {
       throw new Error(`Duplicate decision trigger ${trigger.id}`)
     }
+    this.ownership?.trigger(trigger.id)
     this.#decisionTriggers.push(trigger)
   }
 

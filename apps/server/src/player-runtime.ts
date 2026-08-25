@@ -19,12 +19,14 @@ import {
   type PlayerId,
   type PhaseId,
 } from '@agentwolf/contracts'
-import { getCopy } from '@agentwolf/assets'
+import { loadPromptCore } from '@agentwolf/assets/prompts'
 import type { ActionExpectation, ActionMailbox } from './action-mailbox.js'
 import type { ContextEnvelope } from './context-renderer.js'
 import { prepareDirectSpeechResponse } from './direct-speech-response.js'
 import type { SqliteRepository } from './repository.js'
 import type { MatchTrajectoryRecorder, TrajectoryTurnRecorder } from './trajectory.js'
+
+const promptCore = loadPromptCore()
 
 export type PlayerRuntimeStatus =
   | 'idle'
@@ -69,7 +71,7 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
     ...(mode ? { mode } : {}),
     mcpServers: [options.mcpServer],
     sessionMeta: {
-      ...playerSessionMeta(options.tool.kind),
+      ...playerSessionMeta(options.tool.kind, promptCore.playerContract()),
       agentwolf: { matchId: options.matchId, playerId: options.playerId },
     },
     approvedToolNames: playerActionToolNames,
@@ -80,27 +82,27 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
       {
         server: 'agentwolf-player-actions',
         tool: 'submit_speech',
-        title: getCopy('tools.speechTitle'),
+        title: promptCore.tool('submit_speech').title,
       },
       {
         server: 'agentwolf-player-actions',
         tool: 'submit_vote',
-        title: getCopy('tools.voteTitle'),
+        title: promptCore.tool('submit_vote').title,
       },
       {
         server: 'agentwolf-player-actions',
         tool: 'submit_night_action',
-        title: getCopy('tools.nightTitle'),
+        title: promptCore.tool('submit_night_action').title,
       },
       {
         server: 'agentwolf-player-actions',
         tool: 'submit_sheriff_action',
-        title: getCopy('tools.sheriffTitle'),
+        title: promptCore.tool('submit_sheriff_action').title,
       },
       {
         server: 'agentwolf-player-actions',
         tool: 'trigger_skill',
-        title: getCopy('tools.skillTitle'),
+        title: promptCore.tool('trigger_skill').title,
       },
     ],
     ...(options.onStderr ? { onStderr: options.onStderr } : {}),
@@ -417,7 +419,6 @@ export class PlayerRuntime {
       fromSequence: attempt.fromSequence,
       toSequence: attempt.toSequence,
       prompt: envelope.prompt,
-      promptVersion: envelope.promptVersion,
       visibleEventSequences: envelope.visibleEvents.map((event) => event.sequence),
       gameStatus: envelope.gameStatus,
       pausedReasonAtRender: envelope.pausedReason,

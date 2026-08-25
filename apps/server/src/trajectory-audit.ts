@@ -6,12 +6,9 @@ import {
   type TrajectoryAuditReport,
   type TrajectoryTurn,
 } from '@agentwolf/contracts'
-import { getCopy } from '@agentwolf/assets'
-import { GameEngine, replayGame, type RulesetRuntime } from '@agentwolf/game-engine'
 import { playerBootstrapContextBudget } from '@agentwolf/acp'
+import { GameEngine, replayGame, visibleEvents } from '@agentwolf/game-engine'
 import type { BoardCatalogService } from './board-catalog.js'
-import { ContextRenderer } from './context-renderer.js'
-import { actionInstructionFor, promptAssetFor } from './match-runtime-helpers.js'
 import type { SqliteRepository } from './repository.js'
 
 export async function auditTrajectory(
@@ -26,7 +23,6 @@ export async function auditTrajectory(
   const allEvents = repository.listMatchEvents(matchId)
   const turns = repository.listTrajectoryTurns(matchId).filter((turn) => turn.ownerId !== 'system')
   const records = repository.listTrajectoryRecords(matchId)
-  const renderer = new ContextRenderer(ruleset.roles)
   const issues: TrajectoryAuditIssue[] = []
 
   for (const turn of turns) {
@@ -37,19 +33,15 @@ export async function auditTrajectory(
     const prompts = records.filter(
       (record) => record.turnId === turn.turnId && record.kind === 'prompt',
     )
-    if (prompts.length === 0) {
-      issue(issues, turn.turnId, 'missing-prompt', 'Turn has no stored prompt')
+    if (prompts.length === 0 || prompts[0]?.text === null) {
+      issue(issues, turn.turnId, 'missing-prompt', 'Turn has no stored Prompt text')
       continue
     }
     if (prompts.length > 1) {
-      issue(issues, turn.turnId, 'duplicate-prompt', `Turn has ${prompts.length} prompt records`)
+      issue(issues, turn.turnId, 'duplicate-prompt', `Turn has ${prompts.length} Prompt records`)
       continue
     }
-    const prompt = prompts[0]!.text
-    if (prompt === null) {
-      issue(issues, turn.turnId, 'missing-prompt', 'Prompt record has no text')
-      continue
-    }
+
     const delivery = allEvents.find(
       (event) =>
         event.payload.type === 'delivery.started' && event.payload.deliveryId === turn.turnId,
@@ -95,31 +87,14 @@ export async function auditTrajectory(
           }
         : replayed
       const ownerId = turn.ownerId as PlayerId
-      const ownerSeat = state.players.get(ownerId)?.seat
-      const character = match.setup.seats.find((seat) => seat.seat === ownerSeat)?.character ?? null
-      const expected =
-        turn.kind === 'bootstrap'
-          ? await renderer.foundation(state, board, ownerId, history, turn.promptVersion, character)
-          : turn.actionType === 'bootstrap-continuation'
-            ? await renderer.bootstrapContinuation(state)
-            : await expectedActionPrompt(
-                renderer,
-                matchId,
-                board,
-                history,
-                ownerId,
-                turn.fromSequence,
-                turn.promptVersion,
-                state.status,
-                state.pausedReason,
-                match.setup.speechCharacterLimit,
-                issues,
-                turn.turnId,
-                turn.continuation,
-                ruleset,
-              )
-      if (expected && turn.visibleEventSequences.length > 0) {
-        const actualSequences = expected.visibleEvents.map((event) => event.sequence)
+      if (turn.visibleEventSequences.length > 0) {
+        const afterSequence = turn.kind === 'bootstrap' ? 0 : Math.max(0, turn.fromSequence - 1)
+        const actualSequences = visibleEvents(
+          history,
+          { kind: 'player', playerId: ownerId },
+          state,
+          afterSequence,
+        ).map((event) => event.sequence)
         if (!sameNumbers(actualSequences, turn.visibleEventSequences)) {
           issue(
             issues,
@@ -129,8 +104,31 @@ export async function auditTrajectory(
           )
         }
       }
-      if (expected && !equivalentPrompt(turn, expected.prompt, prompt)) {
-        issue(issues, turn.turnId, 'prompt-mismatch', firstDifference(expected.prompt, prompt))
+      if (turn.kind === 'action' && turn.actionType !== 'bootstrap-continuation') {
+        const engine = GameEngine.restore({
+          matchId,
+          board,
+          events: history,
+          status: state.status,
+          pausedReason: state.pausedReason,
+          ruleset,
+        })
+        const descriptor = engine.currentTurn()
+        if (!descriptor || !descriptor.actors.includes(ownerId)) {
+          issue(
+            issues,
+            turn.turnId,
+            'actor-mismatch',
+            'Player is not an expected actor at the stored action boundary',
+          )
+        } else if (descriptor.actionType !== turn.actionType) {
+          issue(
+            issues,
+            turn.turnId,
+            'actor-mismatch',
+            `Stored action type ${turn.actionType} differs from ${descriptor.actionType}`,
+          )
+        }
       }
     } catch (error) {
       issue(
@@ -151,66 +149,10 @@ export async function auditTrajectory(
 }
 
 export function bootstrapContextBudgetIssue(turn: TrajectoryTurn): string | null {
-  if (
-    turn.promptVersion < 16 ||
-    turn.kind !== 'bootstrap' ||
-    !turn.usage ||
-    turn.usage.used <= playerBootstrapContextBudget
-  ) {
+  if (turn.kind !== 'bootstrap' || !turn.usage || turn.usage.used <= playerBootstrapContextBudget) {
     return null
   }
   return `Bootstrap context used ${turn.usage.used} tokens; budget is ${playerBootstrapContextBudget}`
-}
-
-async function expectedActionPrompt(
-  renderer: ContextRenderer,
-  matchId: MatchId,
-  board: ReturnType<BoardCatalogService['resolveSnapshot']>['manifest'],
-  history: ReturnType<SqliteRepository['listMatchEvents']>,
-  ownerId: PlayerId,
-  fromSequence: number,
-  promptVersion: number,
-  status: ReturnType<typeof replayGame>['status'],
-  pausedReason: string | null,
-  speechCharacterLimit: number,
-  issues: TrajectoryAuditIssue[],
-  turnId: string,
-  continuation: boolean,
-  ruleset: RulesetRuntime,
-) {
-  const engine = GameEngine.restore({
-    matchId,
-    board,
-    events: history,
-    status,
-    pausedReason,
-    ruleset,
-  })
-  const descriptor = engine.currentTurn()
-  if (!descriptor || !descriptor.actors.includes(ownerId)) {
-    issue(issues, turnId, 'actor-mismatch', 'Player is not an expected actor at prompt sequence')
-    return null
-  }
-  return renderer.turn(
-    engine.state,
-    history,
-    ownerId,
-    Math.max(0, fromSequence - 1),
-    promptAssetFor(descriptor, promptVersion),
-    actionInstructionFor(
-      descriptor,
-      {
-        board,
-        state: engine.state,
-        playerId: ownerId,
-        roles: ruleset.roles,
-        speechCharacterLimit,
-      },
-      promptVersion,
-    ),
-    promptVersion,
-    continuation,
-  )
 }
 
 function issue(
@@ -220,34 +162,6 @@ function issue(
   detail: string,
 ): void {
   issues.push({ turnId, code, detail })
-}
-
-function firstDifference(expected: string, actual: string): string {
-  const limit = Math.min(expected.length, actual.length)
-  let index = 0
-  while (index < limit && expected[index] === actual[index]) index += 1
-  return `Prompt differs at character ${index}; expected length ${expected.length}, actual length ${actual.length}`
-}
-
-export function equivalentPrompt(turn: TrajectoryTurn, expected: string, actual: string): boolean {
-  if (expected === actual) return true
-  if (turn.promptVersion === 12 && turn.phaseId === 'phase-night-wolf-vote') {
-    const optionalConstraint = getCopy('promptActions.wolfKillVoteOnly')
-    const withoutOptionalConstraint = (value: string) =>
-      value
-        .split('\n')
-        .filter((line) => line !== optionalConstraint)
-        .join('\n')
-        .trim()
-    if (withoutOptionalConstraint(expected) === withoutOptionalConstraint(actual)) return true
-  }
-  if (turn.kind !== 'bootstrap' || turn.promptVersion >= 5) return false
-  const pausedPrefix = getCopy('narration.matchPaused').split('{{')[0]!
-  const withoutSyntheticPause = actual
-    .split('\n')
-    .filter((line) => !line.startsWith(pausedPrefix))
-    .join('\n')
-  return expected === withoutSyntheticPause
 }
 
 function sameNumbers(left: readonly number[], right: readonly number[]): boolean {

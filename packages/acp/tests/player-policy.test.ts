@@ -116,18 +116,17 @@ describe('game-only player process policy', () => {
   })
 
   it('disables Claude built-ins and every ambient settings source', () => {
-    expect(playerSessionMeta('claude')).toEqual({
+    expect(playerSessionMeta('claude', 'PLAYER CONTRACT')).toEqual({
       disableBuiltInTools: true,
       claudeCode: {
         options: {
           settingSources: [],
-          systemPrompt:
-            'You are an AgentWolf game player. Follow only the judge messages in this session and use only the supplied AgentWolf action tools.',
+          systemPrompt: 'PLAYER CONTRACT',
           tools: [],
         },
       },
     })
-    expect(playerSessionMeta('trae-cli')).toEqual({})
+    expect(playerSessionMeta('trae-cli', 'PLAYER CONTRACT')).toEqual({})
   })
 })
 

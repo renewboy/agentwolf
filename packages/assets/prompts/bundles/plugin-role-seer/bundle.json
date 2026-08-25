@@ -1,0 +1,34 @@
+{
+  "pluginId": "plugin-role-seer",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-seer",
+      "label": "预言家",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-seer-inspect",
+          "label": "查验阵营",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-seer",
+      "label": "预言家行动",
+      "audience": "player",
+      "daytime": false,
+      "template": "@_core/turns/night-action.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "seer.inspected",
+      "audience": "player",
+      "template": "inspection-result.njk"
+    }
+  ]
+}

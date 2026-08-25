@@ -63,7 +63,6 @@ export const SimulationTurnSchema = z.object({
   expectedActors: z.array(PlayerIdSchema),
   fromSequence: z.number().int().nonnegative(),
   toSequence: z.number().int().nonnegative(),
-  promptVersion: z.number().int().positive(),
   visibleEventSequences: z.array(z.number().int().positive()),
   sessionGeneration: z.number().int().positive(),
   attempt: z.number().int().positive(),

@@ -1,0 +1,12 @@
+{
+  "pluginId": "plugin-role-villager",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-villager",
+      "label": "村民",
+      "template": "role.njk",
+      "abilities": []
+    }
+  ]
+}

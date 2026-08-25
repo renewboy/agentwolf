@@ -1,0 +1,1 @@
+{% if payload.targetId %}{{ helpers.player(payload.voterId) }}投给{{ helpers.player(payload.targetId) }}。{% else %}{{ helpers.player(payload.voterId) }}选择弃票。{% endif %}

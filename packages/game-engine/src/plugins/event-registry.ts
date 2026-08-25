@@ -2,6 +2,7 @@ import type { JsonValue, PluginEventType, PluginId } from '@agentwolf/contracts'
 import type { z } from 'zod'
 import type { GameEvent } from '@agentwolf/contracts'
 import type { GameState } from '../types.js'
+import type { SemanticOwnershipRecorder } from './semantic-ownership.js'
 
 export interface PluginEventDefinition<State extends JsonValue, Data extends JsonValue> {
   readonly pluginId: PluginId
@@ -34,11 +35,14 @@ export class PluginEventRegistry {
   readonly #definitions = new Map<string, StoredPluginEventDefinition>()
   readonly #legacyReducers = new Map<string, (state: GameState, event: GameEvent) => GameState>()
 
+  public constructor(private readonly ownership?: SemanticOwnershipRecorder) {}
+
   public register<State extends JsonValue, Data extends JsonValue>(
     definition: PluginEventDefinition<State, Data>,
   ): void {
     const key = eventKey(definition.pluginId, definition.eventType, definition.schemaVersion)
     if (this.#definitions.has(key)) throw new Error(`Duplicate plugin event ${key}`)
+    this.ownership?.pluginEvent(definition.pluginId, definition.eventType)
     this.#definitions.set(key, {
       pluginId: definition.pluginId,
       eventType: definition.eventType,

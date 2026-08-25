@@ -1,0 +1,34 @@
+{
+  "pluginId": "plugin-role-guard",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-guard",
+      "label": "守卫",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-guard-protect",
+          "label": "守护",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-guard",
+      "label": "守卫行动",
+      "audience": "player",
+      "daytime": false,
+      "template": "@_core/turns/night-action.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "guard.protected",
+      "audience": "player",
+      "template": "protection.njk"
+    }
+  ]
+}

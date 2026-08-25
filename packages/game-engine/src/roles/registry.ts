@@ -3,16 +3,23 @@ import { assertRule } from '../errors.js'
 import type { AbilityDefinition } from './base.js'
 import type { Role } from './base.js'
 import type { PlayerState } from '../types.js'
+import type { SemanticOwnershipRecorder } from '../plugins/semantic-ownership.js'
 
 export class RoleRegistry {
   readonly #roles = new Map<RoleId, Role>()
   readonly #abilities = new Map<AbilityId, { role: Role; ability: AbilityDefinition }>()
 
+  public constructor(private readonly ownership?: SemanticOwnershipRecorder) {}
+
   public register(role: Role): void {
     assertRule(!this.#roles.has(role.id), `Duplicate role ${role.id}`)
-    this.#roles.set(role.id, role)
     for (const ability of role.abilities) {
       assertRule(!this.#abilities.has(ability.id), `Duplicate ability ${ability.id}`)
+    }
+    this.ownership?.role(role.id)
+    for (const ability of role.abilities) this.ownership?.ability(ability.id)
+    this.#roles.set(role.id, role)
+    for (const ability of role.abilities) {
       this.#abilities.set(ability.id, { role, ability })
     }
   }

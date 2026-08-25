@@ -1,0 +1,9 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：每夜守护一名存活玩家，可阻止狼队常规袭击造成的死亡。
+是否可以守护自己：{% if board.policies.guardCanSelfProtect %}可以{% else %}不可以{% endif %}。
+不可连续两晚守护同一名玩家。
+守护和解药同时落在狼队袭击目标时，{% if board.policies.guardAntidoteCollision == 'death' %}该玩家死亡{% else %}该玩家存活{% endif %}。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你可使用{{ role.abilities[0].label }}（正式能力 ID：`{{ role.abilities[0].id }}`）。
+{% endif %}

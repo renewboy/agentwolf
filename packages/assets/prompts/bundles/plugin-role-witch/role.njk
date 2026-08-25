@@ -1,0 +1,9 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：拥有解药和毒药各一瓶。解药尚未使用时，夜间只能得知狼队常规袭击目标，且只能对该目标使用解药；解药使用后不再获得袭击目标。毒药可以使一名其他存活玩家死亡。每夜最多使用 {{ board.policies.witchPotionsPerNight }} 瓶药。
+自救规则：{% if board.policies.witchSelfSave == 'never' %}不可自救{% elif board.policies.witchSelfSave == 'first-night' %}仅首夜可以自救{% else %}可以自救{% endif %}。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你的药剂状态：
+- {{ role.abilities[0].label }}（正式能力 ID：`{{ role.abilities[0].id }}`）：{% if helpers.abilityUses(role.abilities[0].id) == 0 %}尚未使用{% else %}已使用{% endif %}。
+- {{ role.abilities[1].label }}（正式能力 ID：`{{ role.abilities[1].id }}`）：{% if helpers.abilityUses(role.abilities[1].id) == 0 %}尚未使用{% else %}已使用{% endif %}。
+{% endif %}

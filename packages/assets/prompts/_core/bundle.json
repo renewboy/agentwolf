@@ -1,0 +1,107 @@
+{
+  "pluginId": "_core",
+  "imports": [],
+  "shared": [
+    { "template": "turns/context.njk", "audience": "public" },
+    { "template": "turns/speech.njk", "audience": "public" },
+    { "template": "turns/vote.njk", "audience": "public" },
+    { "template": "turns/night-action.njk", "audience": "player" },
+    { "template": "turns/skill.njk", "audience": "player" }
+  ],
+  "events": [
+    { "eventType": "match.created", "audience": "public", "omit": true },
+    { "eventType": "role.assigned", "audience": "player", "omit": true },
+    { "eventType": "role.revealed", "audience": "public", "template": "events/role-revealed.njk" },
+    { "eventType": "faction.members", "audience": "player", "omit": true },
+    { "eventType": "match.started", "audience": "public", "omit": true },
+    { "eventType": "match.starting", "audience": "public", "omit": true },
+    {
+      "eventType": "night.started",
+      "audience": "public",
+      "text": "进入第 {{ payload.night }} 夜。"
+    },
+    { "eventType": "day.started", "audience": "public", "template": "events/day-started.njk" },
+    { "eventType": "phase.changed", "audience": "public", "template": "events/phase-changed.njk" },
+    { "eventType": "phase.actors-set", "audience": "god", "omit": true },
+    { "eventType": "phase.actor-completed", "audience": "god", "omit": true },
+    {
+      "eventType": "speech.order-set",
+      "audience": "public",
+      "template": "events/speech-order.njk"
+    },
+    { "eventType": "speech.started", "audience": "public", "omit": true },
+    {
+      "eventType": "speech.committed",
+      "audience": "public",
+      "template": "events/speech.njk",
+      "paragraphAfter": true
+    },
+    { "eventType": "speech.sanitized", "audience": "god", "omit": true },
+    { "eventType": "action.submitted", "audience": "god", "omit": true },
+    { "eventType": "vote.cast", "audience": "public", "template": "events/vote-cast.njk" },
+    { "eventType": "vote.resolved", "audience": "public", "template": "events/vote-resolved.njk" },
+    { "eventType": "ability.used", "audience": "player", "omit": true },
+    { "eventType": "capability.granted", "audience": "player", "omit": true },
+    { "eventType": "capability.revoked", "audience": "player", "omit": true },
+    { "eventType": "delivery.started", "audience": "god", "omit": true },
+    { "eventType": "delivery.acknowledged", "audience": "god", "omit": true },
+    { "eventType": "match.paused", "audience": "public", "text": "对局暂停：{{ payload.reason }}" },
+    { "eventType": "match.resumed", "audience": "public", "text": "对局已继续。" }
+  ],
+  "core": {
+    "layouts": {
+      "foundation": "foundation.njk",
+      "continuation": "continuation.njk",
+      "bootstrapContinuation": "bootstrap-continuation.njk",
+      "character": "character.njk",
+      "playerContract": "player-contract.njk"
+    },
+    "factions": {
+      "village": "好人阵营",
+      "werewolf": "狼人阵营",
+      "independent": "第三方阵营"
+    },
+    "receipts": {
+      "accepted": "动作已登记。",
+      "rejected": "动作未登记：{{ reason }}"
+    },
+    "tools": [
+      {
+        "name": "submit_speech",
+        "title": "提交发言",
+        "description": "兼容模式下提交发言正文。正常对局必须直接回复发言，不调用此工具。",
+        "unavailable": "当前回合不接受 submit_speech；请停止调用工具，直接将完整发言正文作为本轮回复。",
+        "fields": []
+      },
+      {
+        "name": "submit_vote",
+        "title": "提交投票",
+        "description": "提交当前投票选择。玩家目标使用 Player ID；允许不选玩家时目标为空，狼人袭击阶段表示空刀。",
+        "fields": [
+          {
+            "name": "targetPlayerId",
+            "text": "玩家目标使用 Player ID；当前阶段允许空选择时使用 null，狼人袭击阶段的 null 表示空刀。"
+          }
+        ]
+      },
+      {
+        "name": "submit_night_action",
+        "title": "提交夜间行动",
+        "description": "提交当前身份允许的夜间行动。所有目标使用 Player ID。",
+        "fields": []
+      },
+      {
+        "name": "submit_sheriff_action",
+        "title": "提交警长动作",
+        "description": "提交上警、退水、警徽移交或警长发言方向动作。",
+        "fields": []
+      },
+      {
+        "name": "trigger_skill",
+        "title": "触发身份技能",
+        "description": "提交当前触发的身份技能或放弃选项。",
+        "fields": []
+      }
+    ]
+  }
+}

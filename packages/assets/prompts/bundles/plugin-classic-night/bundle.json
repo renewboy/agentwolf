@@ -1,0 +1,37 @@
+{
+  "pluginId": "plugin-classic-night",
+  "imports": [],
+  "phases": [
+    {
+      "id": "phase-night-resolve",
+      "label": "夜间结算",
+      "audience": "god",
+      "daytime": false,
+      "template": null
+    },
+    {
+      "id": "phase-day-announcement",
+      "label": "公布昨夜结果",
+      "audience": "public",
+      "daytime": true,
+      "template": null
+    }
+  ],
+  "events": [
+    { "eventType": "death.pending", "audience": "god", "omit": true },
+    { "eventType": "death.cancelled", "audience": "god", "omit": true },
+    { "eventType": "player.saved", "audience": "god", "omit": true }
+  ],
+  "announcements": [
+    {
+      "code": "peaceful-night",
+      "audience": "public",
+      "text": "昨夜平安夜，没有玩家死亡。"
+    },
+    {
+      "code": "night-deaths",
+      "audience": "public",
+      "text": "昨夜死亡玩家：{{ helpers.playerList(payload.playerIds) }}。"
+    }
+  ]
+}

@@ -25,7 +25,6 @@ export function hunterCanFire(context: {
 export class HunterRole extends Role {
   public readonly id = RoleIdSchema.parse('role-hunter')
   public readonly displayNameKey = 'roles.hunter'
-  public readonly publicRulesKey = 'promptContext.roleRules.hunter'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public override readonly capabilities = [classicCapabilities.hunterShot] as const
@@ -33,7 +32,6 @@ export class HunterRole extends Role {
     {
       id: shotAbilityId,
       requiredCapability: classicCapabilities.hunterShot,
-      labelKey: 'abilities.hunterShot',
       actionTypes: ['skill-trigger'],
       validate: (context) => {
         assertRule(context.action.type === 'skill-trigger', 'Hunter shot is a skill trigger')

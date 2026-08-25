@@ -10,7 +10,13 @@ export const classicTerminalPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.terminal,
   version: 1,
   requires: [{ id: classicPluginIds.victory, version: 1 }],
-  register: ({ rules }) => {
+  register: ({ phases, rules }) => {
+    phases.register({
+      id: phase('phase-match-ended'),
+      labelKey: 'phases.matchEnded',
+      mode: 'automatic',
+      edges: [],
+    })
     rules.registerPredicate('has-winner', (runtime) =>
       Boolean(
         runtime.victories.evaluate({

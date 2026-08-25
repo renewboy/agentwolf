@@ -1,0 +1,39 @@
+{
+  "pluginId": "plugin-role-witch",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-witch",
+      "label": "女巫",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-witch-antidote",
+          "label": "解药",
+          "foundation": true
+        },
+        {
+          "id": "ability-witch-poison",
+          "label": "毒药",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-witch",
+      "label": "女巫行动",
+      "audience": "player",
+      "daytime": false,
+      "template": "turn.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "witch.potion-used",
+      "audience": "player",
+      "template": "potion-used.njk"
+    }
+  ]
+}

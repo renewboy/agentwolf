@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 7) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 8) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -55,7 +55,7 @@ export function migrateDatabase(database: Database.Database): void {
       );
       ${playerSessionTables()}
       ${trajectoryTables()}
-      PRAGMA user_version = 7;
+      PRAGMA user_version = 8;
     `)
   }
   if (version === 1) {
@@ -116,6 +116,20 @@ export function migrateDatabase(database: Database.Database): void {
   if (migratedVersion === 6) {
     database.exec(playerSessionTables())
     database.pragma('user_version = 7')
+  }
+  const sessionSchemaVersion = database.pragma('user_version', { simple: true }) as number
+  if (sessionSchemaVersion === 7) {
+    const trajectoryTurnColumns = database
+      .prepare("SELECT name FROM pragma_table_info('trajectory_turns')")
+      .all() as Array<{ name: string }>
+    if (trajectoryTurnColumns.some((column) => column.name === 'json')) {
+      database.exec(`
+        UPDATE trajectory_turns
+        SET json = json_remove(json, '$.promptVersion')
+        WHERE json_type(json, '$.promptVersion') IS NOT NULL;
+      `)
+    }
+    database.pragma('user_version = 8')
   }
 }
 

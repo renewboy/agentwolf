@@ -1,0 +1,6 @@
+{% if section == 'public' %}
+- {{ role.label }}（{{ helpers.faction(role.faction) }}）：没有主动技能；通过发言、投票和判断找出全部狼人。
+{% elif section == 'owner' %}
+你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
+你的身份没有主动技能。
+{% endif %}

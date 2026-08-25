@@ -1,0 +1,1 @@
+投票结果：{% if payload.totals | length %}{% for playerId, total in payload.totals | dictsort(false, 'value') | reverse %}{{ helpers.player(playerId) }} {{ total }} 票{% if not loop.last %}、{% endif %}{% endfor %}{% else %}没有有效票{% endif %}。

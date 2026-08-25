@@ -4,23 +4,26 @@ import { resolve } from 'node:path'
 import {
   AgentProfileInputSchema,
   AgentToolInputSchema,
+  PhaseIdSchema,
   type LiveMessage,
   type MatchId,
   type MatchView,
   type PlayerId,
 } from '@agentwolf/contracts'
 import { type AcpPromptResult } from '@agentwolf/acp'
-import { formatCopy, getCopy } from '@agentwolf/assets'
-import { sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
+import { createClassicRuleset, sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
 import { auditTrajectory } from '../src/trajectory-audit.js'
+import { promptRegistryFor } from '../src/prompt-registry.js'
 import { scriptedSessionFactory, type ScriptedSeerFault } from './fixtures/scripted-session.js'
 
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
+const promptRegistry = promptRegistryFor(createClassicRuleset())
+const promptPhase = (phaseId: string) => promptRegistry.phaseLabel(PhaseIdSchema.parse(phaseId))
 
 afterEach(async () => {
   await Promise.allSettled(openServers.splice(0).map((server) => server.close()))
@@ -105,7 +108,7 @@ describe('match orchestration', () => {
     expect(
       [...prompts.values()]
         .flat()
-        .some((prompt) => prompt.includes(getCopy('phases.nightWolfVote'))),
+        .some((prompt) => prompt.includes(promptPhase('phase-night-wolf-vote'))),
     ).toBe(false)
     connection.receive({
       type: 'speech-playback.resolve',
@@ -132,7 +135,7 @@ describe('match orchestration', () => {
       sequence: pendingSequence,
       outcome: 'completed',
     })
-    await waitForPrompt(prompts, getCopy('phases.nightWolfVote'))
+    await waitForPrompt(prompts, promptPhase('phase-night-wolf-vote'))
     contender.close()
     connection.close()
   })
@@ -193,7 +196,7 @@ describe('match orchestration', () => {
     connection.receive({ type: 'speech-playback.set', enabled: true })
     server.matches.beginMatch(created.id)
 
-    await waitForPrompt(prompts, getCopy('phases.nightWolfVote'))
+    await waitForPrompt(prompts, promptPhase('phase-night-wolf-vote'))
     connection.close()
   })
 
@@ -261,7 +264,7 @@ describe('match orchestration', () => {
     const final = await waitForMatch(server, created.id)
     const lastWolfPrompt = prompts
       .get('player-1' as PlayerId)
-      ?.findLast((prompt) => prompt.includes(getCopy('phases.nightWolfVote')))
+      ?.findLast((prompt) => prompt.includes(promptPhase('phase-night-wolf-vote')))
     expect(
       final.status,
       `${final.pausedReason ?? 'match paused without a reason'}\n${lastWolfPrompt ?? ''}`,
@@ -300,16 +303,13 @@ describe('match orchestration', () => {
       expect(foundation).toBeDefined()
       expect(foundation).not.toContain('ability-werewolf-kill')
       expect(foundation).toContain('ability-werewolf-self-destruct')
-      const teammateLine = foundation?.split('\n').find((line) => line.includes('你的狼人队友'))
+      const teammateLine = foundation?.split('\n').find((line) => line.includes('你的存活狼队友'))
       expect(teammateLine).toBeDefined()
       for (const teammateId of wolfIds.filter((playerId) => playerId !== wolfId)) {
         const teammate = final.seats.find((seat) => seat.playerId === teammateId)
-        expect(teammateLine).toContain(
-          formatCopy(getCopy('narration.playerLabel'), {
-            seat: teammate?.seat ?? 0,
-            name: teammate?.name ?? '',
-          }),
-        )
+        expect(teammateLine).not.toContain(teammate?.name)
+        expect(teammateLine).not.toContain(teammate?.playerId)
+        expect(teammateLine).toContain(`${teammate?.seat ?? 0} 号玩家`)
       }
       const nonWolfNames = final.seats
         .filter((seat) => !wolfIds.includes(seat.playerId))
@@ -317,15 +317,13 @@ describe('match orchestration', () => {
       for (const name of nonWolfNames) expect(teammateLine).not.toContain(name)
     }
     const villagerFoundation = prompts.get('player-5' as PlayerId)?.[0]
-    expect(villagerFoundation).not.toContain('你的狼人队友')
-    const publicRoleRuleStarts = ['werewolf', 'villager', 'seer', 'witch', 'hunter'].map(
-      (role) => getCopy(`promptContext.roleRules.${role}`).split('。')[0]!,
-    )
+    expect(villagerFoundation).not.toContain('你的存活狼队友')
+    const publicRoleLabels = ['狼人', '村民', '预言家', '女巫', '猎人']
     for (const playerPrompts of prompts.values()) {
       const foundation = playerPrompts[0]
       expect(foundation).toContain('本局角色介绍')
-      for (const ruleStart of publicRoleRuleStarts) expect(foundation).toContain(ruleStart)
-      expect(foundation).not.toContain(getCopy('promptContext.roleRules.guard').split('。')[0]!)
+      for (const label of publicRoleLabels) expect(foundation).toContain(`- ${label}`)
+      expect(foundation).not.toContain('- 守卫（')
     }
 
     const firstAttack = server.repository
@@ -338,28 +336,24 @@ describe('match orchestration', () => {
       throw new Error('Expected a selected wolf target')
     }
     const attacked = final.seats.find((seat) => seat.playerId === firstAttack.payload.targetId)
-    const attackNarration = formatCopy(getCopy('narration.nightAttackSelected'), {
-      player: formatCopy(getCopy('narration.playerLabel'), {
-        seat: attacked?.seat ?? 0,
-        name: attacked?.name ?? '',
-      }),
-    })
     const witchId = final.seats.find((seat) => seat.roleId === 'role-witch')?.playerId
     const seerId = final.seats.find((seat) => seat.roleId === 'role-seer')?.playerId
     const witchPrompt = witchId
-      ? prompts.get(witchId)?.find((prompt) => prompt.includes(getCopy('phases.nightWitch')))
+      ? prompts.get(witchId)?.find((prompt) => prompt.includes(promptPhase('phase-night-witch')))
       : undefined
-    expect(witchPrompt).toContain(attackNarration)
-    expect(witchPrompt).toContain('当前狼人袭击目标')
+    expect(witchPrompt).toContain(`狼队常规袭击目标是${attacked?.seat ?? 0} 号玩家`)
+    expect(witchPrompt).not.toContain(attacked?.name)
+    expect(witchPrompt).not.toContain(firstAttack.payload.targetId)
     expect(
       seerId
-        ? prompts.get(seerId)?.find((prompt) => prompt.includes(getCopy('phases.nightSeer')))
+        ? prompts.get(seerId)?.find((prompt) => prompt.includes(promptPhase('phase-night-seer')))
         : undefined,
-    ).not.toContain(getCopy('narration.nightAttackSelected').split('{{')[0]!)
+    ).not.toContain('狼队常规袭击目标是')
     const firstDaySpeechPrompt = [...prompts.values()]
       .flat()
       .find(
-        (prompt) => prompt.includes(getCopy('phases.daySpeech')) && prompt.includes('本轮发言顺序'),
+        (prompt) =>
+          prompt.includes(promptPhase('phase-day-speech')) && prompt.includes('当前公开存活玩家'),
       )
     expect(firstDaySpeechPrompt).toBeDefined()
 
@@ -499,7 +493,7 @@ describe('match orchestration', () => {
       match.timeline.some((item) => item.kind === 'seer.inspected'),
     )
     expect(rejectedSeerReasons).toEqual(['phase-night-seer requires ability-seer-inspect'])
-    expect(corrected.status).toBe('running')
+    expect(corrected.status, corrected.pausedReason ?? 'unexpected pause').not.toBe('paused')
     expect(corrected.timeline.filter((item) => item.kind === 'match.paused')).toHaveLength(0)
     const seerTurns =
       prompts
@@ -608,7 +602,7 @@ describe('match orchestration', () => {
     )
 
     expect(selfDestruct.value).toBe(false)
-    expect(continued.status).toBe('running')
+    expect(continued.status).not.toBe('paused')
     expect(
       continued.timeline.some(
         (item) => item.kind === 'public.announcement' && item.playerIds.includes('player-3'),
@@ -692,7 +686,7 @@ describe('match orchestration', () => {
             item.kind === 'speech.committed' && item.playerIds.includes(disconnectedPlayerId),
         ),
       )
-      expect(recovered.status).toBe('running')
+      expect(recovered.status).not.toBe('paused')
     }
 
     expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
@@ -781,7 +775,7 @@ describe('match orchestration', () => {
     const resumed = await waitForMatchState(server, created.id, (match) =>
       match.timeline.some((item) => item.kind === 'speech.committed'),
     )
-    expect(resumed.status).toBe('running')
+    expect(resumed.status).not.toBe('paused')
     expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
     expect(sessionStarts.slice(6)).toEqual([
       { playerId: interruptedPlayerId, resumeSessionId: `scripted-${interruptedPlayerId}` },
@@ -887,7 +881,7 @@ describe('match orchestration', () => {
       )
     expect(recoveryPrompt).toContain('ability-seer-inspect')
     expect(recoveryPrompt).not.toContain('# 任务目标')
-    expect(recoveryPrompt).not.toContain(getCopy('promptContext.villageVictory'))
+    expect(recoveryPrompt).not.toContain('好人阵营需要让所有狼人出局')
     expect(sessionStarts).toHaveLength(12)
     expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
     expect(

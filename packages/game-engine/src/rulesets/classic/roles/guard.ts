@@ -10,7 +10,6 @@ const protectAbilityId = AbilityIdSchema.parse('ability-guard-protect')
 export class GuardRole extends Role {
   public readonly id = RoleIdSchema.parse('role-guard')
   public readonly displayNameKey = 'roles.guard'
-  public readonly publicRulesKey = 'promptContext.roleRules.guard'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
   public override readonly capabilities = [classicCapabilities.guardProtect] as const
@@ -18,7 +17,6 @@ export class GuardRole extends Role {
     {
       id: protectAbilityId,
       requiredCapability: classicCapabilities.guardProtect,
-      labelKey: 'abilities.guardProtect',
       actionTypes: ['night-action'],
       validate: (context) => {
         assertRule(context.action.type === 'night-action', 'Guard protection is a night action')

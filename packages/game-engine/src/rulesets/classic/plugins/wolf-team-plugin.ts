@@ -3,6 +3,7 @@ import type { RulesetBuilder } from '../../../plugins/ruleset.js'
 import { visibility } from '../../../rule-registry.js'
 import { emitVoteResolution } from '../../../vote-resolution.js'
 import { classicCapabilities } from '../capabilities.js'
+import { v1AbilityIds } from '../ability-ids.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
@@ -10,7 +11,34 @@ export const classicWolfTeamPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.wolfTeam,
   version: 1,
   requires: [{ id: classicPluginIds.werewolf, version: 1 }],
-  register: ({ rules }) => {
+  register: ({ phases, rules }) => {
+    phases.registerAll([
+      {
+        id: phase('phase-night-wolf-council'),
+        labelKey: 'phases.nightWolfCouncil',
+        mode: 'sequential',
+        action: {
+          type: 'speech',
+          kind: 'wolf-council',
+          visibility: { kind: 'faction', faction: 'werewolf' },
+        },
+        actorSelector: `capability-alive:${classicCapabilities.wolfCouncil}`,
+        edges: [{ to: phase('phase-night-wolf-vote') }],
+      },
+      {
+        id: phase('phase-night-wolf-vote'),
+        labelKey: 'phases.nightWolfVote',
+        mode: 'parallel',
+        action: {
+          type: 'vote',
+          kind: 'wolf-kill',
+          visibility: { kind: 'faction', faction: 'werewolf' },
+          abilityId: v1AbilityIds.werewolfKill,
+        },
+        actorSelector: `capability-alive:${classicCapabilities.wolfKill}`,
+        edges: [{ to: phase('phase-night-resolve') }],
+      },
+    ])
     rules.registerPhaseHandler(
       phase('phase-night-wolf-vote'),
       (runtime) => {

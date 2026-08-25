@@ -1,0 +1,84 @@
+{
+  "pluginId": "plugin-classic-sheriff",
+  "imports": [],
+  "phases": [
+    {
+      "id": "phase-sheriff-signup",
+      "label": "报名上警",
+      "audience": "public",
+      "daytime": true,
+      "template": "signup-turn.njk"
+    },
+    {
+      "id": "phase-sheriff-speech",
+      "label": "警上发言",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/speech.njk"
+    },
+    {
+      "id": "phase-sheriff-withdraw",
+      "label": "警上退水",
+      "audience": "public",
+      "daytime": true,
+      "template": "withdraw-turn.njk"
+    },
+    {
+      "id": "phase-sheriff-vote",
+      "label": "警长投票",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/vote.njk"
+    },
+    {
+      "id": "phase-sheriff-runoff-speech",
+      "label": "警长平票发言",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/speech.njk"
+    },
+    {
+      "id": "phase-sheriff-runoff-vote",
+      "label": "警长平票重投",
+      "audience": "public",
+      "daytime": true,
+      "template": "@_core/turns/vote.njk"
+    },
+    {
+      "id": "phase-sheriff-resolve",
+      "label": "警长结果",
+      "audience": "public",
+      "daytime": true,
+      "template": null
+    },
+    {
+      "id": "phase-sheriff-transfer",
+      "label": "警徽处理",
+      "audience": "public",
+      "daytime": true,
+      "template": "transfer-turn.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "sheriff.candidacy",
+      "audience": "public",
+      "template": "events/candidacy.njk"
+    },
+    {
+      "eventType": "sheriff.elected",
+      "audience": "public",
+      "text": "{{ helpers.player(payload.playerId) }}当选警长。"
+    },
+    {
+      "eventType": "sheriff.badge-lost",
+      "audience": "public",
+      "text": "本局警徽流失。"
+    },
+    {
+      "eventType": "sheriff.transferred",
+      "audience": "public",
+      "template": "events/transferred.njk"
+    }
+  ]
+}
