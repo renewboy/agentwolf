@@ -1,5 +1,5 @@
 import { ArrowClockwise, Trash } from '@phosphor-icons/react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import { PlayerIdSchema, type PlayerId, type SpectatorView } from '@agentwolf/contracts'
@@ -14,6 +14,7 @@ import {
   type MatchPresenceState,
 } from '../components/match/MatchMotionController.js'
 import { PlayerRail } from '../components/match/PlayerRail.js'
+import { PostgameReviewPanel } from '../components/match/PostgameReviewPanel.js'
 import { RoleEffectController } from '../components/match/RoleEffectController.js'
 import { useLiveMatch, type LiveConnectionState } from '../hooks/useLiveMatch.js'
 import { useRoleEffectMode } from '../hooks/useRoleEffectMode.js'
@@ -28,6 +29,7 @@ export function MatchPage() {
   const [actionBusy, setActionBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [effectMode, setEffectMode] = useRoleEffectMode()
   const view: SpectatorView =
     viewKind === 'player' ? { kind: 'player', playerId } : { kind: viewKind }
@@ -70,6 +72,16 @@ export function MatchPage() {
     viewPending,
     speechPlayback.automaticPlayerId !== null,
   )
+  const postgameReviewState = match?.postgameReview?.state
+  useEffect(() => {
+    if (
+      !postgameReviewState ||
+      postgameReviewState === 'countdown' ||
+      postgameReviewState === 'skipped'
+    ) {
+      setReviewOpen(false)
+    }
+  }, [match?.id, postgameReviewState])
   const activePlayer = useMemo(
     () => match?.seats.find((seat) => seat.playerId === match.activeSpeech?.playerId) ?? null,
     [match],
@@ -96,6 +108,21 @@ export function MatchPage() {
       void navigate('/')
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : String(cause))
+      setActionBusy(false)
+    }
+  }
+  const runPostgameAction = async (
+    action: (id: NonNullable<typeof match>['id']) => Promise<unknown>,
+  ): Promise<void> => {
+    if (!match) return
+    setActionBusy(true)
+    setActionError(null)
+    try {
+      await action(match.id)
+      await retry()
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
       setActionBusy(false)
     }
   }
@@ -156,11 +183,26 @@ export function MatchPage() {
       />
       <section className="aw-stage-frame">
         <div className="aw-mobile-roster">
-          <PlayerRail compact phaseId={match.phaseId} seats={match.seats} side="mobile" />
+          <PlayerRail
+            compact
+            phaseId={match.phaseId}
+            postgameReview={match.postgameReview}
+            seats={match.seats}
+            side="mobile"
+          />
         </div>
         <div className="aw-stage-grid" aria-hidden={viewPending} inert={viewPending || undefined}>
-          <PlayerRail phaseId={match.phaseId} seats={leftSeats} side="left" />
-          <section className="aw-match-stage" aria-label={getCopy('match.timeline')}>
+          <PlayerRail
+            phaseId={match.phaseId}
+            postgameReview={match.postgameReview}
+            seats={leftSeats}
+            side="left"
+          />
+          <section
+            className="aw-match-stage"
+            data-review-open={reviewOpen}
+            aria-label={getCopy('match.timeline')}
+          >
             <PresenceStage
               activePlayer={
                 presenceState === 'narrating'
@@ -174,6 +216,16 @@ export function MatchPage() {
               state={presenceState}
               thinkingCount={thinkingCount}
             />
+            <PostgameReviewPanel
+              busy={actionBusy}
+              error={actionError}
+              match={match}
+              open={reviewOpen}
+              onOpenChange={setReviewOpen}
+              onResume={() => void runPostgameAction((id) => api.resumePostgameReview(id))}
+              onSkip={() => void runPostgameAction((id) => api.skipPostgameReview(id))}
+              onStart={() => void runPostgameAction((id) => api.startPostgameReview(id))}
+            />
             {speechPlayback.notice || controlError ? (
               <p className="aw-audio-notice" role="status">
                 {speechPlayback.notice ?? controlError}
@@ -182,11 +234,17 @@ export function MatchPage() {
             <MatchFeed
               activeSpeech={match.activeSpeech}
               audio={feedAudio}
+              postgameReview={match.postgameReview}
               seats={match.seats}
               timeline={match.timeline}
             />
           </section>
-          <PlayerRail phaseId={match.phaseId} seats={rightSeats} side="right" />
+          <PlayerRail
+            phaseId={match.phaseId}
+            postgameReview={match.postgameReview}
+            seats={rightSeats}
+            side="right"
+          />
         </div>
         {viewPending ? (
           <div className="aw-projection-veil" role="status">
@@ -296,6 +354,16 @@ function presenceLabel(
   activePlayer: NonNullable<ReturnType<typeof useLiveMatch>['match']>['seats'][number] | null,
   thinkingCount: number,
 ): string {
+  const review = match.postgameReview
+  if (review && !['completed', 'skipped'].includes(review.state)) {
+    if (review.state === 'paused') return getCopy('postgame.paused')
+    if (review.state === 'countdown') return getCopy('postgame.countdownTitle')
+    if (review.state === 'collecting') return getCopy('postgame.collectingPresence')
+    const speaker = match.seats.find((seat) => seat.playerId === review.currentSpeakerId)
+    if (speaker) {
+      return formatCopy(getCopy('postgame.speakingPresence'), { player: speaker.name })
+    }
+  }
   const orderingSheriff =
     match.phaseId === 'phase-day-speech-order'
       ? match.seats.find((seat) => seat.sheriff && seat.alive)

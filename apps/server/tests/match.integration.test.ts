@@ -16,7 +16,11 @@ import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
 import { auditTrajectory } from '../src/trajectory-audit.js'
-import { scriptedSessionFactory, type ScriptedSeerFault } from './fixtures/scripted-session.js'
+import {
+  scriptedSessionFactory,
+  type ScriptedPostgameReviewContext,
+  type ScriptedSeerFault,
+} from './fixtures/scripted-session.js'
 
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
@@ -272,6 +276,26 @@ describe('match orchestration', () => {
       final.status,
       `${final.pausedReason ?? 'match paused without a reason'}\n${lastWolfPrompt ?? ''}`,
     ).toBe('ended')
+    const countdownRemaining =
+      Date.parse(final.postgameReview?.decisionDeadlineAt ?? '') - Date.now()
+    expect(countdownRemaining).toBeGreaterThan(8_500)
+    expect(countdownRemaining).toBeLessThanOrEqual(10_000)
+    expect(final.postgameReview?.startedAt).toBeNull()
+    const firstEndedSnapshot = liveMessages.find(
+      (message) => message.type === 'snapshot' && message.data.status === 'ended',
+    )
+    expect(firstEndedSnapshot?.type).toBe('snapshot')
+    if (firstEndedSnapshot?.type === 'snapshot') {
+      expect(firstEndedSnapshot.data.postgameReview?.state).toBe('countdown')
+    }
+    expect(
+      liveMessages.some(
+        (message) =>
+          message.type === 'snapshot' &&
+          message.data.status === 'ended' &&
+          message.data.postgameReview === null,
+      ),
+    ).toBe(false)
     expect(final.winner).toBe('werewolf')
     expect(final.day).toBe(4)
     expect(liveMessages.some((message) => message.type === 'speech-chunk')).toBe(true)
@@ -369,6 +393,16 @@ describe('match orchestration', () => {
       )
     expect(firstDaySpeechPrompt).toBeDefined()
 
+    server.matches.startPostgameReview(created.id)
+    const reviewed = await waitForMatchState(
+      server,
+      created.id,
+      (match) => match.postgameReview?.state === 'completed',
+    )
+    expect(reviewed.postgameReview?.startedAt).not.toBeNull()
+    expect(reviewed.postgameReview?.submissions).toHaveLength(12)
+    expect(reviewed.postgameReview?.reflections).toHaveLength(12)
+    expect(reviewed.timeline.filter((item) => item.postgame)).toHaveLength(12)
     const closed = server.matches.getMatch(created.id, { kind: 'closed-eye' })
     expect(closed.seats.every((seat) => seat.roleId !== undefined)).toBe(true)
     expect(closed.seats.every((seat) => seat.sessionStatus === 'closed')).toBe(true)
@@ -1031,6 +1065,306 @@ describe('match orchestration', () => {
       ),
     ).toBe(false)
   })
+
+  it('publishes each accepted review sheet before streaming reflections through the speech feed', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-postgame-review-'))
+    temporaryDirectories.push(root)
+    let server: AgentWolfServer
+    let releaseReview!: () => void
+    const reviewRelease = new Promise<void>((resolvePromise) => {
+      releaseReview = resolvePromise
+    })
+    let markReviewStarted!: () => void
+    const reviewStarted = new Promise<void>((resolvePromise) => {
+      markReviewStarted = resolvePromise
+    })
+    const prompts = new Map<PlayerId, string[]>()
+    const sessionFactory = scriptedSessionFactory({
+      prompts,
+      mailbox: () => server.matches.mailbox,
+      postgameReviewGate: {
+        playerId: 'player-1' as PlayerId,
+        started: markReviewStarted,
+        release: reviewRelease,
+      },
+    })
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
+    }
+    server = await buildServer({ config, sessionFactory })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: 'Postgame ACP',
+      kind: 'custom',
+      command: 'postgame-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Postgame player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = server.matches.createMatch({
+      boardId: sixPlayerBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Review player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    const messages: LiveMessage[] = []
+    const connection = server.matches.connect(created.id, {
+      view: { kind: 'god' },
+      send: (message) => messages.push(message),
+    })
+    server.matches.beginMatch(created.id)
+    const terminal = await waitForMatch(server, created.id)
+    const terminalEvents = server.repository
+      .listMatchEvents(created.id)
+      .filter((event) => event.sequence <= terminal.lastSequence)
+    const cursorBeforeReview = new Map(
+      terminal.seats.map((seat) => {
+        const ledger = server.repository.getDeliveryLedger(created.id, seat.playerId)
+        if (!ledger) throw new Error(`Missing delivery ledger for ${seat.playerId}`)
+        return [seat.playerId, ledger.acknowledgedSequence] as const
+      }),
+    )
+    expect(new Set(cursorBeforeReview.values()).size).toBeGreaterThan(1)
+    expect(Math.min(...cursorBeforeReview.values())).toBeLessThan(terminal.lastSequence)
+    server.matches.startPostgameReview(created.id)
+    await reviewStarted
+    const partial = await waitForMatchState(
+      server,
+      created.id,
+      (match) =>
+        (match.postgameReview?.submittedCount ?? 0) > 0 &&
+        (match.postgameReview?.submittedCount ?? 0) < 6,
+    )
+    expect(partial.postgameReview?.result).toBeNull()
+    expect(partial.postgameReview?.startedAt).not.toBeNull()
+    expect(partial.postgameReview?.submissions[0]?.ratings).toHaveLength(5)
+    await expect(server.matches.skipPostgameReview(created.id)).rejects.toThrow(
+      'cannot be skipped after it starts',
+    )
+    expect(
+      messages.some(
+        (message) =>
+          message.type === 'snapshot' &&
+          (message.data.postgameReview?.submittedCount ?? 0) > 0 &&
+          (message.data.postgameReview?.submittedCount ?? 0) < 6,
+      ),
+    ).toBe(true)
+
+    const reflectionMessageOffset = messages.length
+    connection.receive({ type: 'speech-playback.set', enabled: true })
+    releaseReview()
+    const pendingReflectionSequence = await waitForPlaybackSequence(messages)
+    const heldAtFinalReflection = server.matches.getMatch(created.id, { kind: 'god' })
+    expect(heldAtFinalReflection.postgameReview?.state).toBe('speaking')
+    expect(heldAtFinalReflection.postgameReview?.reflections).toHaveLength(6)
+    connection.receive({
+      type: 'speech-playback.resolve',
+      sequence: pendingReflectionSequence,
+      outcome: 'completed',
+    })
+    const completed = await waitForMatchState(
+      server,
+      created.id,
+      (match) => match.postgameReview?.state === 'completed',
+    )
+    expect(completed.postgameReview?.submissions).toHaveLength(6)
+    expect(completed.postgameReview?.reflections).toHaveLength(6)
+    expect(completed.timeline.filter((item) => item.postgame)).toHaveLength(6)
+    expect(
+      messages.slice(reflectionMessageOffset).some((message) => message.type === 'speech-chunk'),
+    ).toBe(true)
+    const terminalSnapshots: string[] = []
+    let missedPublicSpeechCount = 0
+    for (const seat of completed.seats) {
+      const reviewPrompt = prompts
+        .get(seat.playerId)
+        ?.find((prompt) => prompt.includes('submit_postgame_review'))
+      expect(reviewPrompt).toContain('你上次行动后发生的公开对局记录')
+      expect(reviewPrompt).toContain('最终胜负：')
+      expect(reviewPrompt).toContain('获胜玩家：')
+      expect(reviewPrompt).not.toContain('此前感言')
+      expect(reviewPrompt).not.toContain(`${seat.seat} 号玩家的身份是`)
+      const terminalStart = reviewPrompt?.indexOf('终局时点：') ?? -1
+      const terminalEnd = reviewPrompt?.indexOf('请调用 `submit_postgame_review`') ?? -1
+      expect(terminalStart).toBeGreaterThanOrEqual(0)
+      expect(terminalEnd).toBeGreaterThan(terminalStart)
+      terminalSnapshots.push(reviewPrompt?.slice(terminalStart, terminalEnd) ?? '')
+
+      const cursor = cursorBeforeReview.get(seat.playerId)!
+      const expectedPublicEvents = terminalEvents.filter(
+        (event) => event.sequence > cursor && event.visibility.kind === 'public',
+      )
+      const reviewTurn = server.repository
+        .listTrajectoryTurns(created.id, seat.playerId)
+        .find(
+          (turn) =>
+            turn.kind === 'postgame' && turn.actionType === 'postgame-review' && !turn.continuation,
+        )
+      expect(reviewTurn).toMatchObject({
+        fromSequence: cursor + 1,
+        toSequence: terminal.lastSequence,
+        visibleEventSequences: expectedPublicEvents.map((event) => event.sequence),
+      })
+      for (const event of expectedPublicEvents) {
+        if (event.payload.type !== 'speech.committed') continue
+        if (event.payload.playerId === seat.playerId) {
+          expect(reviewPrompt).not.toContain(event.payload.text)
+        } else {
+          expect(reviewPrompt).toContain(event.payload.text)
+          missedPublicSpeechCount += 1
+        }
+      }
+      expect(
+        server.repository.getDeliveryLedger(created.id, seat.playerId)?.acknowledgedSequence,
+      ).toBe(cursor)
+    }
+    expect(new Set(terminalSnapshots).size).toBe(1)
+    expect(missedPublicSpeechCount).toBeGreaterThan(0)
+    connection.close()
+    await server.matches.deleteMatch(created.id)
+    expect(server.repository.postgameReviews.get(created.id)).toBeNull()
+    expect(server.repository.postgameReviews.listSubmissions(created.id)).toEqual([])
+    expect(server.repository.postgameReviews.listReflections(created.id)).toEqual([])
+  })
+
+  it('resumes an interrupted review on the original logical Sessions without repeating accepted sheets', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-postgame-restart-'))
+    temporaryDirectories.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    let firstServer: AgentWolfServer
+    let markReviewStarted!: () => void
+    const reviewStarted = new Promise<void>((resolvePromise) => {
+      markReviewStarted = resolvePromise
+    })
+    const neverRelease = new Promise<void>(() => undefined)
+    const firstPrompts = new Map<PlayerId, string[]>()
+    const postgameReviewContexts = new Map<PlayerId, ScriptedPostgameReviewContext>()
+    const firstSessionStarts: Array<{ playerId: PlayerId; resumeSessionId: string | null }> = []
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath,
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
+    }
+    firstServer = await buildServer({
+      config,
+      sessionFactory: scriptedSessionFactory({
+        prompts: firstPrompts,
+        mailbox: () => firstServer.matches.mailbox,
+        sessionStarts: firstSessionStarts,
+        postgameReviewContexts,
+        postgameReviewGate: {
+          playerId: 'player-1' as PlayerId,
+          started: markReviewStarted,
+          release: neverRelease,
+        },
+      }),
+    })
+    openServers.push(firstServer)
+    const tool = firstServer.catalog.createTool({
+      name: 'Restart postgame ACP',
+      kind: 'custom',
+      command: 'restart-postgame-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = firstServer.catalog.createProfile({
+      name: 'Restart postgame player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = firstServer.matches.createMatch({
+      boardId: sixPlayerBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Restart review player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    firstServer.matches.beginMatch(created.id)
+    await waitForMatch(firstServer, created.id)
+    firstServer.matches.startPostgameReview(created.id)
+    await reviewStarted
+    await waitForMatchState(
+      firstServer,
+      created.id,
+      (match) => (match.postgameReview?.submittedCount ?? 0) === 5,
+    )
+    await firstServer.close()
+    openServers.splice(openServers.indexOf(firstServer), 1)
+
+    let resumedServer: AgentWolfServer
+    const resumedPrompts = new Map<PlayerId, string[]>()
+    const resumedSessionStarts: Array<{ playerId: PlayerId; resumeSessionId: string | null }> = []
+    resumedServer = await buildServer({
+      config,
+      sessionFactory: scriptedSessionFactory({
+        prompts: resumedPrompts,
+        mailbox: () => resumedServer.matches.mailbox,
+        sessionStarts: resumedSessionStarts,
+        postgameReviewContexts,
+      }),
+    })
+    openServers.push(resumedServer)
+    resumedServer.matches.initializePostgameReviews()
+    const completed = await waitForMatchState(
+      resumedServer,
+      created.id,
+      (match) => match.postgameReview?.state === 'completed',
+    )
+    expect(completed.postgameReview?.submissions).toHaveLength(6)
+    expect(
+      [...resumedPrompts.values()]
+        .flat()
+        .filter((prompt) => prompt.includes('submit_postgame_review')),
+    ).toHaveLength(1)
+    const initialReviewPrompt = firstPrompts
+      .get('player-1' as PlayerId)
+      ?.find((prompt) => prompt.includes('submit_postgame_review'))
+    const resumedReviewPrompt = resumedPrompts
+      .get('player-1' as PlayerId)
+      ?.find((prompt) => prompt.includes('submit_postgame_review'))
+    expect(initialReviewPrompt).toContain('你上次行动后发生的公开对局记录')
+    expect(resumedReviewPrompt).toContain('继续当前赛后评审')
+    expect(resumedReviewPrompt).not.toContain('你上次行动后发生的公开对局记录')
+    expect(resumedSessionStarts).toHaveLength(6)
+    expect(
+      resumedSessionStarts.every((entry) => entry.resumeSessionId === `scripted-${entry.playerId}`),
+    ).toBe(true)
+  }, 15_000)
 })
 
 class BlockingSession implements PlayerSession {

@@ -6,7 +6,9 @@
   no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
   changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
   role-effect catalog coverage, custom-board validation, phase transitions, speech
-  sanitization, nickname uniqueness, event reduction, visibility projection, player Skill source
+  sanitization, nickname uniqueness, event reduction, visibility projection, explicit winning-player
+  review eligibility, complete five-dimensional sheets, arithmetic aggregation and deterministic
+  award ties, player Skill source
   coverage, provider tool policies, and pre-speech or mid-speech knowledge tool boundaries.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
 - Integration tests run the API with an in-memory repository and fake ACP processes. They cover
@@ -17,7 +19,11 @@
   redacted trajectories, exact stored Prompt cardinality and semantic delivery audit, Prompt metadata cleanup with byte-preserved Prompt records, uncertain-delivery recovery, MCP action
   authorization, durable Session binding and resume, accepted-action reconciliation, same-turn correction after a rejected structured action, guarded process-tree
   shutdown, parent-process loss, bounded protocol close, sync barriers, clean direct-speech
-  boundaries, interrupted parallel-action cleanup, and streamed speech.
+  boundaries, interrupted parallel-action cleanup, streamed speech, postgame countdown/start/skip,
+  atomic first-ended countdown projection, per-cursor multi-day public-history catch-up, private
+  event exclusion, unchanged regular cursors, audited postgame event ranges, frozen terminal facts,
+  immediate sheet persistence and projection, continuation-only same-Session review restart, and
+  sequential reflection playback.
 - Contract tests validate REST, WebSocket, event, trajectory, and action schemas against fixtures shared by server and web.
 - Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
   the production Match runtime with deterministic fake Sessions. They check semantic event order,
@@ -35,7 +41,9 @@
   view switching, live speech, target-grouped vote results, private wolf-ballot visibility,
   non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
   manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
-  waiting feedback, terminal-state motion cleanup, and missing-Match request settlement.
+  waiting feedback, postgame start messages, review sheets, feed-level award votes and radar values,
+  award badges, streamed reflections,
+  terminal-state motion cleanup, and missing-Match request settlement.
 - Browser fixtures use a per-run name namespace and remove every created Match, custom board,
   custom Character, Agent Profile, and custom Agent Tool during suite teardown, including after
   failed assertions.
@@ -60,6 +68,7 @@ pnpm simulation:check
 pnpm smoke:player-action -- --tool=trae-cli gpt-5.6-luna --probe-strategy --probe-sandbox
 pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --probe-strategy --probe-sandbox
 pnpm smoke:player-action -- --tool=claude --probe-strategy --probe-sandbox
+pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --postgame-review
 ```
 
 `pnpm check` is the deterministic local and CI gate. It excludes live model calls and credentialed adapter smokes.
@@ -191,3 +200,10 @@ buckets, and paths outside the dated directory format.
     ballot events without exposing them to Awakened Hidden Wolf; either side can target the other.
     Learning, copied abilities, isolated attack activation, event restoration, and private phase
     projection follow the Role contract without exposing its identity.
+46. `match.ended` starts one ten-second review gate. Accepted reviewer sheets become visible before
+    the parallel barrier finishes but never enter another reviewer's Prompt. Explicit winning
+    Player IDs define MVP eligibility and every other player defines SVP eligibility. All sheets
+    produce equal-weight radar averages and deterministic awards, then every seat streams one
+    ordinary speech reflection in seat order. The final reflection reuses the playback boundary;
+    completed or skipped review closes the original Sessions, while restart resumes only unfinished
+    work on those same Session IDs.

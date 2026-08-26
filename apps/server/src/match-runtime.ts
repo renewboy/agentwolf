@@ -4,7 +4,6 @@ import type {
   LiveClientMessage,
   LiveMessage,
   MatchView,
-  MatchBoardSnapshot,
   PlayerAction,
   PlayerId,
   SpectatorView,
@@ -13,15 +12,11 @@ import type { AcpPromptCallbacks } from '@agentwolf/acp'
 import { ensurePlayerSkills } from '@agentwolf/assets/player-skills'
 import {
   canViewEvent,
-  type BoardManifest,
   type GameEngine,
   type RoleRegistry,
-  type RulesetRuntime,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
-import type { AgentCatalogService } from './agent-catalog.js'
-import { ActionMailbox, type ActionExpectation } from './action-mailbox.js'
-import type { ServerConfig } from './config.js'
+import type { ActionExpectation } from './action-mailbox.js'
 import { ContextRenderer } from './context-renderer.js'
 import { LiveHub, type LiveConnection, type LiveSubscriber } from './live-hub.js'
 import {
@@ -30,31 +25,17 @@ import {
   hasUncertainDelivery,
   interruptAbilityExpectation,
   mapWithConcurrency,
+  reconcileCommittedPendingAction,
   settleActions,
 } from './match-runtime-helpers.js'
-import type { PreparedActorTurn } from './match-runtime-types.js'
-import { PlayerRuntime, type PlayerSessionFactory } from './player-runtime.js'
+import type { MatchRuntimeOptions, PreparedActorTurn } from './match-runtime-types.js'
+import { createMatchPostgameCoordinator, ensurePostgameCountdown } from './match-postgame.js'
+import { PlayerRuntime } from './player-runtime.js'
+import { PostgameReviewCoordinator } from './postgame-review-coordinator.js'
 import { preparePlayerWorkspace } from './player-workspace.js'
 import { projectMatch } from './projector.js'
-import type { MatchRecord, SqliteRepository } from './repository.js'
 import { SpeechPlaybackCoordinator } from './speech-playback-coordinator.js'
-import type { MatchTrajectoryRecorder } from './trajectory.js'
-
-export interface MatchRuntimeOptions {
-  readonly record: MatchRecord
-  readonly engine: GameEngine
-  readonly board: BoardManifest
-  readonly boardSnapshot: MatchBoardSnapshot
-  readonly repository: SqliteRepository
-  readonly catalog: AgentCatalogService
-  readonly config: ServerConfig
-  readonly mailbox: ActionMailbox
-  readonly trajectory: MatchTrajectoryRecorder
-  readonly ruleset: RulesetRuntime
-  readonly sessionFactory?: PlayerSessionFactory
-  readonly sessionConcurrency?: number
-  readonly restored?: boolean
-}
+export type { MatchRuntimeOptions } from './match-runtime-types.js'
 
 export class MatchRuntime {
   readonly #options: MatchRuntimeOptions
@@ -65,6 +46,7 @@ export class MatchRuntime {
   readonly #players = new Map<PlayerId, PlayerRuntime>()
   readonly #tokens = new Map<PlayerId, string>()
   readonly #automaticRecoveryKeys = new Set<string>()
+  #postgame: PostgameReviewCoordinator | null = null
   #startPromise: Promise<void> | null = null
   #playerClosePromise: Promise<void> | null = null
   #snapshotScheduled = false
@@ -75,10 +57,14 @@ export class MatchRuntime {
     this.#roles = options.ruleset.roles
     this.#renderer = new ContextRenderer(options.ruleset)
     this.#playback = new SpeechPlaybackCoordinator({
-      isVisible: (event, view) => canViewEvent(event, view, this.engine.state),
+      isVisible: (item, view) =>
+        item.event ? canViewEvent(item.event, view, this.engine.state) : true,
       onControl: (title, input) => this.#options.trajectory.recordRuntimeControl(title, input),
       onStateChange: () => this.#broadcastPlaybackState(),
     })
+    if (options.repository.postgameReviews.get(options.record.id)) {
+      this.#postgame = this.#createPostgameCoordinator()
+    }
   }
   public get engine(): GameEngine {
     return this.#options.engine
@@ -122,6 +108,8 @@ export class MatchRuntime {
       characterForSeat: (seat) =>
         this.#options.record.setup.seats.find((entry) => entry.seat === seat)?.character ?? null,
       sessionStatus: (playerId) => this.#players.get(playerId)?.status ?? 'idle',
+      postgameReview: this.#options.repository.postgameReviews.view(this.engine.state.matchId),
+      ...(this.#postgame ? { activeSpeech: this.#postgame.activeSpeech } : {}),
     })
   }
 
@@ -149,7 +137,9 @@ export class MatchRuntime {
   public async close(): Promise<void> {
     this.#disposed = true
     this.#playback.close()
-    await this.#closePlayerSessions()
+    const closingPlayers = this.#closePlayerSessions()
+    await this.#postgame?.close()
+    await closingPlayers
     if (this.#startPromise) await Promise.allSettled([this.#startPromise])
     await this.#closePlayerSessions()
   }
@@ -177,6 +167,25 @@ export class MatchRuntime {
     void this.#run()
   }
 
+  public activatePostgameReview(): void {
+    this.#requirePostgame().activate()
+  }
+
+  public startPostgameReview(): MatchView {
+    this.#requirePostgame().start()
+    return this.project({ kind: 'god' })
+  }
+
+  public async skipPostgameReview(): Promise<MatchView> {
+    await this.#requirePostgame().skip()
+    return this.project({ kind: 'god' })
+  }
+
+  public resumePostgameReview(): MatchView {
+    this.#requirePostgame().resume()
+    return this.project({ kind: 'god' })
+  }
+
   async #startPlayerSessions(historyEvents: readonly GameEvent[]): Promise<void> {
     await ensurePlayerSkills({
       dataDirectory: this.#options.config.dataDirectory,
@@ -188,7 +197,7 @@ export class MatchRuntime {
       .sort((left, right) => left.seat - right.seat)
     await mapWithConcurrency(entries, this.#options.sessionConcurrency ?? 4, async (player) => {
       this.#assertOpen()
-      this.#reconcileCommittedPendingAction(player.id)
+      reconcileCommittedPendingAction(this.#options.repository, this.engine, player.id)
       const setup = setupBySeat.get(player.seat)
       if (!setup) throw new Error(`Missing setup for seat ${player.seat}`)
       const binding = this.#options.repository.playerSessions.get(
@@ -313,7 +322,11 @@ export class MatchRuntime {
           if (deferSpeechBoundary) {
             const committed = findCommittedSpeech(events)
             if (!committed) throw new Error('Speech action did not produce a committed event')
-            await this.#playback.waitFor(committed)
+            await this.#playback.waitFor({
+              sequence: committed.sequence,
+              playerId: committed.payload.playerId,
+              event: committed,
+            })
             if (this.#disposed) return
             this.#record(this.engine.continueAfterDeferredAction())
           }
@@ -321,12 +334,18 @@ export class MatchRuntime {
         for (const action of orderedActions.slice(committedActionCount)) {
           this.#players.get(action.actorId)?.actionSettled()
         }
-        this.#broadcastSnapshot()
+        this.#broadcastSnapshotWhenReady()
       }
       if (this.engine.state.status === 'ended') {
         this.#options.repository.updateMatchStatus(this.engine.state.matchId, 'ended')
+        if (this.#options.postgameReviewEnabled === false) {
+          this.#broadcastSnapshot()
+          await this.close()
+          return
+        }
+        this.#createPostgameCountdown()
         this.#broadcastSnapshot()
-        await this.close()
+        this.#postgame?.activate()
       }
     } catch (error) {
       if (this.#disposed) return
@@ -419,7 +438,15 @@ export class MatchRuntime {
   #record(events: readonly GameEvent[], broadcast = true): void {
     this.#options.repository.appendEvents(events)
     this.#options.trajectory.recordSystemEvents(events)
-    if (broadcast && events.length > 0) this.#broadcastSnapshot()
+    if (broadcast && events.length > 0) this.#broadcastSnapshotWhenReady()
+  }
+
+  #broadcastSnapshotWhenReady(): void {
+    const awaitingPostgameCountdown =
+      this.engine.state.status === 'ended' &&
+      this.#options.postgameReviewEnabled !== false &&
+      this.#options.repository.postgameReviews.get(this.engine.state.matchId) === null
+    if (!awaitingPostgameCountdown) this.#broadcastSnapshot()
   }
 
   #broadcastSnapshot(): void {
@@ -493,7 +520,7 @@ export class MatchRuntime {
     this.#snapshotScheduled = true
     queueMicrotask(() => {
       this.#snapshotScheduled = false
-      if (!this.#disposed) this.#broadcastSnapshot()
+      if (!this.#disposed) this.#broadcastSnapshotWhenReady()
     })
   }
 
@@ -525,30 +552,39 @@ export class MatchRuntime {
     if (this.#disposed) throw new Error(`Match runtime ${this.engine.state.matchId} is closed`)
   }
 
-  #reconcileCommittedPendingAction(playerId: PlayerId): void {
-    const pending = this.#options.repository.playerSessions.get(
-      this.engine.state.matchId,
-      playerId,
-    )?.pendingAction
-    if (!pending) return
-    const deliverySequence = this.engine.events.find(
-      (event) =>
-        event.payload.type === 'delivery.started' &&
-        event.payload.deliveryId === pending.deliveryId,
-    )?.sequence
-    if (!deliverySequence) return
-    const committed = this.engine.events.some(
-      (event) =>
-        event.sequence > deliverySequence &&
-        event.payload.type === 'action.submitted' &&
-        event.payload.playerId === playerId &&
-        JSON.stringify(event.payload.action) === JSON.stringify(pending.action),
-    )
-    if (committed) {
-      this.#options.repository.playerSessions.clearPendingAction(
-        this.engine.state.matchId,
-        playerId,
-      )
+  #createPostgameCountdown(): void {
+    ensurePostgameCountdown({
+      engine: this.engine,
+      board: this.#options.board,
+      ruleset: this.#options.ruleset,
+      repository: this.#options.repository,
+    })
+    this.#postgame ??= this.#createPostgameCoordinator()
+  }
+
+  #createPostgameCoordinator(): PostgameReviewCoordinator {
+    return createMatchPostgameCoordinator({
+      engine: this.engine,
+      board: this.#options.board,
+      ruleset: this.#options.ruleset,
+      repository: this.#options.repository,
+      config: this.#options.config,
+      record: this.#options.record,
+      concurrency: this.#options.sessionConcurrency ?? 4,
+      playerRuntime: (playerId) => this.#players.get(playerId) ?? null,
+      ensurePlayerSessions: async () => this.#startPlayerSessions(this.engine.events),
+      onChanged: () => this.#scheduleSnapshot(),
+      onSpeechChunk: (playerId, text) =>
+        this.#hub.broadcastSpeechChunk(this.engine.state, playerId, 'postgame', text),
+      waitForFinalSpeech: async (item) => this.#playback.waitFor(item),
+      onTerminal: async () => this.#closePlayerSessions(),
+    })
+  }
+
+  #requirePostgame(): PostgameReviewCoordinator {
+    if (!this.#postgame) {
+      throw new Error(`Match ${this.engine.state.matchId} has no postgame review`)
     }
+    return this.#postgame
   }
 }

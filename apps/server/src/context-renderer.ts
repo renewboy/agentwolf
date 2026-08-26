@@ -10,11 +10,19 @@ import { promptRegistryFor } from './prompt-registry.js'
 
 export interface ContextEnvelope {
   readonly prompt: string
+  readonly fromSequence?: number
   readonly toSequence: number
   readonly visibleEvents: readonly GameEvent[]
   readonly gameStatus: GameState['status']
   readonly pausedReason: string | null
   readonly continuation: boolean
+}
+
+export interface PublicHistoryCatchup {
+  readonly fromSequence: number
+  readonly toSequence: number
+  readonly events: readonly GameEvent[]
+  readonly narration: readonly string[]
 }
 
 export class ContextRenderer {
@@ -112,7 +120,46 @@ export class ContextRenderer {
       continuation: true,
     }
   }
+
+  public publicHistorySince(
+    state: GameState,
+    board: BoardManifest,
+    events: readonly GameEvent[],
+    playerId: PlayerId,
+    afterSequence: number,
+  ): PublicHistoryCatchup {
+    if (afterSequence < 0 || afterSequence > state.lastSequence) {
+      throw new Error(
+        `Public history cursor ${afterSequence} is outside terminal sequence ${state.lastSequence}`,
+      )
+    }
+    const actor = state.players.get(playerId)
+    if (!actor) throw new Error(`Public history has no player ${playerId}`)
+    const history = events.filter((event) => event.sequence <= state.lastSequence)
+    const publicEvents = visibleEvents(history, { kind: 'closed-eye' }, state, afterSequence)
+    const narrationEvents = publicEvents.filter(
+      (event) => !commonTerminalFactEventTypes.has(event.payload.type),
+    )
+    return {
+      fromSequence: afterSequence + 1,
+      toSequence: state.lastSequence,
+      events: publicEvents,
+      narration: this.#prompts.renderEventNarration({
+        actor: actorFact(actor),
+        roster: rosterFacts(state),
+        board: boardFacts(board, this.#ruleset),
+        game: gameFacts(state),
+        events: narrationEvents,
+        character: null,
+      }),
+    }
+  }
 }
+
+const commonTerminalFactEventTypes = new Set<GameEvent['payload']['type']>([
+  'match.ended',
+  'role.revealed',
+])
 
 function actorFact(
   player: GameState['players'] extends ReadonlyMap<PlayerId, infer Value> ? Value : never,

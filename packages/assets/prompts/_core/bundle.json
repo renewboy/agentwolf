@@ -101,6 +101,12 @@
         "title": "触发身份技能",
         "description": "提交当前触发的身份技能或放弃选项。",
         "fields": []
+      },
+      {
+        "name": "submit_postgame_review",
+        "title": "提交赛后评审",
+        "description": "提交当前对局的 MVP、SVP 提名以及对其他所有玩家的五维评分。所有玩家目标使用 Player ID。",
+        "fields": []
       }
     ]
   }

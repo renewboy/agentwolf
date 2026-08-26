@@ -5,11 +5,14 @@ import {
   MatchIdSchema,
   PlayerActionSchema,
   PlayerIdSchema,
+  PostgameReviewSubmissionInputSchema,
   type ActionReceipt,
   type AbilityId,
   type MatchId,
   type PlayerAction,
   type PlayerId,
+  type PostgameReviewSubmission,
+  type PostgameReviewSubmissionInput,
 } from '@agentwolf/contracts'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
 
@@ -28,6 +31,13 @@ export interface ActionExpectation {
   readonly allowSpeechTool?: boolean
 }
 
+export interface PostgameReviewExpectation {
+  readonly matchId: MatchId
+  readonly playerId: PlayerId
+  validate(input: PostgameReviewSubmissionInput): PostgameReviewSubmission
+  readonly onAccepted?: (submission: PostgameReviewSubmission) => void
+}
+
 interface PlayerBinding {
   readonly matchId: MatchId
   readonly playerId: PlayerId
@@ -37,6 +47,8 @@ export class ActionMailbox {
   readonly #bindings = new Map<string, PlayerBinding>()
   readonly #expectations = new Map<string, ActionExpectation>()
   readonly #actions = new Map<string, PlayerAction>()
+  readonly #reviewExpectations = new Map<string, PostgameReviewExpectation>()
+  readonly #reviews = new Map<string, PostgameReviewSubmission>()
 
   public issueToken(matchId: MatchId, playerId: PlayerId): string {
     const token = randomBytes(32).toString('base64url')
@@ -45,7 +57,12 @@ export class ActionMailbox {
   }
 
   public revokeToken(token: string): void {
+    const binding = this.#bindings.get(token)
     this.#bindings.delete(token)
+    if (binding) {
+      this.clear(binding.matchId, binding.playerId)
+      this.clearPostgameReview(binding.matchId, binding.playerId)
+    }
   }
 
   public binding(token: string): PlayerBinding | null {
@@ -56,6 +73,12 @@ export class ActionMailbox {
     const key = this.#key(expectation.matchId, expectation.playerId)
     this.#expectations.set(key, expectation)
     this.#actions.delete(key)
+  }
+
+  public expectPostgameReview(expectation: PostgameReviewExpectation): void {
+    const key = this.#key(expectation.matchId, expectation.playerId)
+    this.#reviewExpectations.set(key, expectation)
+    this.#reviews.delete(key)
   }
 
   public submitSpeech(token: string, text: string): ActionReceipt {
@@ -163,6 +186,24 @@ export class ActionMailbox {
     )
   }
 
+  public submitPostgameReview(token: string, input: PostgameReviewSubmissionInput): ActionReceipt {
+    const binding = this.#bindings.get(token)
+    if (!binding) throw new Error('Player action token is invalid')
+    const key = this.#key(binding.matchId, binding.playerId)
+    const expectation = this.#reviewExpectations.get(key)
+    if (!expectation) throw new Error('The judge is not waiting for a postgame review')
+    if (this.#reviews.has(key)) throw new Error('This player already submitted a postgame review')
+    const parsed = PostgameReviewSubmissionInputSchema.parse(input)
+    const submission = expectation.validate(parsed)
+    expectation.onAccepted?.(submission)
+    this.#reviews.set(key, submission)
+    return ActionReceiptSchema.parse({
+      accepted: true,
+      actionId: `action-${randomBytes(8).toString('hex')}`,
+      message: promptCore.acceptedReceipt(),
+    })
+  }
+
   public take(matchId: MatchId, playerId: PlayerId): PlayerAction | null {
     const key = this.#key(matchId, playerId)
     const action = this.#actions.get(key) ?? null
@@ -175,6 +216,24 @@ export class ActionMailbox {
     const key = this.#key(matchId, playerId)
     this.#actions.delete(key)
     this.#expectations.delete(key)
+  }
+
+  public takePostgameReview(matchId: MatchId, playerId: PlayerId): PostgameReviewSubmission | null {
+    const key = this.#key(matchId, playerId)
+    const submission = this.#reviews.get(key) ?? null
+    this.#reviews.delete(key)
+    this.#reviewExpectations.delete(key)
+    return submission
+  }
+
+  public peekPostgameReview(matchId: MatchId, playerId: PlayerId): PostgameReviewSubmission | null {
+    return this.#reviews.get(this.#key(matchId, playerId)) ?? null
+  }
+
+  public clearPostgameReview(matchId: MatchId, playerId: PlayerId): void {
+    const key = this.#key(matchId, playerId)
+    this.#reviews.delete(key)
+    this.#reviewExpectations.delete(key)
   }
 
   #expectation(token: string, actionType: PlayerAction['type']): ActionExpectation {

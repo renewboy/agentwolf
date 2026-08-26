@@ -25,6 +25,8 @@ Read [the frontend direction](../../docs/frontend.md) before changing layout, in
 - The match screen stays at `100dvh`; the document does not scroll and the center feed owns its scroll range.
 - Waiting states remain visibly alive without inventing progress, model reasoning, or completion estimates. Continuous motion uses transform and opacity and pauses for reduced motion.
 - Preserve the last valid snapshot during transient reconnects. Ended and missing matches settle without retry loops, and view switches cannot replay newly visible historical role effects.
+- An ended Match stays live while its postgame review is counting down, collecting sheets,
+  streaming reflections, or paused. Only completed or skipped review state settles the connection.
 
 ## Verification
 

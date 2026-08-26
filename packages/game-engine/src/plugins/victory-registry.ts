@@ -1,9 +1,10 @@
-import type { Faction } from '@agentwolf/contracts'
+import type { Faction, PlayerId } from '@agentwolf/contracts'
 import type { BoardManifest, GameState } from '../types.js'
 import type { RoleRegistry } from '../roles/registry.js'
 
 export interface VictoryCandidate {
   readonly winner: Faction
+  readonly winningPlayerIds: readonly PlayerId[]
   readonly reason: string
 }
 
@@ -34,17 +35,31 @@ export class VictoryRegistry {
       .filter((candidate): candidate is VictoryCandidate => candidate !== null)
     if (candidates.length === 0) return null
     const first = candidates[0]!
+    const firstWinners = canonicalPlayerIds(first.winningPlayerIds)
+    if (firstWinners.length === 0) throw new Error('Victory candidate has no winning players')
     if (
       candidates.some(
-        (candidate) => candidate.winner !== first.winner || candidate.reason !== first.reason,
+        (candidate) =>
+          candidate.winner !== first.winner ||
+          candidate.reason !== first.reason ||
+          canonicalPlayerIds(candidate.winningPlayerIds).join(',') !== firstWinners.join(','),
       )
     ) {
       throw new Error(
         `Conflicting victory candidates: ${candidates
-          .map((candidate) => `${candidate.winner}:${candidate.reason}`)
+          .map(
+            (candidate) =>
+              `${candidate.winner}:${canonicalPlayerIds(candidate.winningPlayerIds).join('+')}:${candidate.reason}`,
+          )
           .join(', ')}`,
       )
     }
-    return first
+    return { ...first, winningPlayerIds: firstWinners }
   }
+}
+
+function canonicalPlayerIds(playerIds: readonly PlayerId[]): PlayerId[] {
+  const unique = [...new Set(playerIds)].sort((left, right) => left.localeCompare(right))
+  if (unique.length !== playerIds.length) throw new Error('Victory candidate repeats a player')
+  return unique
 }

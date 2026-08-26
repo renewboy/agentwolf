@@ -6,6 +6,7 @@ import {
   type GameEvent,
   type MatchId,
   type MatchView,
+  type PostgameReviewView,
   type TimelineItem,
   type PlayerId,
   type RoleEffectCue,
@@ -55,6 +56,8 @@ export interface ProjectMatchOptions {
   readonly model?: (playerId: PlayerId) => string | null
   readonly characterForSeat?: (seat: number) => CharacterCardSnapshot | null
   readonly sessionStatus?: (playerId: PlayerId) => SessionStatus
+  readonly postgameReview?: PostgameReviewView | null
+  readonly activeSpeech?: MatchView['activeSpeech']
 }
 
 function localizePausedReason(reason: string | null): string | null {
@@ -81,15 +84,19 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
     roleName: (roleId: NonNullable<ReturnType<typeof visibleRoleId>>) =>
       getCopy(options.roles.role(roleId).displayNameKey),
   }
-  const activeSpeech = projectedEvents.reduce<MatchView['activeSpeech']>((active, event) => {
-    if (event.payload.type === 'speech.started') {
-      return { playerId: event.payload.playerId, text: '', final: false }
-    }
-    if (event.payload.type === 'speech.committed') {
-      return { playerId: event.payload.playerId, text: event.payload.text, final: true }
-    }
-    return active
-  }, null)
+  const projectedActiveSpeech = projectedEvents.reduce<MatchView['activeSpeech']>(
+    (active, event) => {
+      if (event.payload.type === 'speech.started') {
+        return { playerId: event.payload.playerId, text: '', final: false }
+      }
+      if (event.payload.type === 'speech.committed') {
+        return { playerId: event.payload.playerId, text: event.payload.text, final: true }
+      }
+      return active
+    },
+    null,
+  )
+  const activeSpeech = options.activeSpeech ?? projectedActiveSpeech
   const publiclyRevealedIdiots = new Set(
     options.events
       .filter((event) => event.payload.type === 'idiot.revealed')
@@ -145,11 +152,22 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
           sessionStatus: visibleSessionStatus(options, player.id, activeSpeech),
         }
       }),
-    timeline: projectTimeline(projectedEvents, catalog),
+    timeline: [
+      ...projectTimeline(projectedEvents, catalog),
+      ...(options.postgameReview?.reflections.map((reflection) => ({
+        sequence: reflection.speechSequence,
+        kind: 'speech.committed',
+        title: reflection.text,
+        playerIds: [reflection.playerId],
+        occurredAt: reflection.occurredAt,
+        postgame: true,
+      })) ?? []),
+    ],
     effectCues: projectRoleEffectCues(projectedEvents),
     activeSpeech,
     winner: winnerEvent?.payload.type === 'match.ended' ? winnerEvent.payload.winner : null,
     pausedReason: localizePausedReason(options.state.pausedReason),
+    postgameReview: options.postgameReview ?? null,
   })
 }
 
@@ -243,7 +261,12 @@ function visibleSessionStatus(
   playerId: PlayerId,
   activeSpeech: MatchView['activeSpeech'],
 ): SessionStatus {
-  if (options.state.status === 'ended') return 'closed'
+  if (
+    options.state.status === 'ended' &&
+    (!options.postgameReview || ['completed', 'skipped'].includes(options.postgameReview.state))
+  ) {
+    return 'closed'
+  }
   const status = options.sessionStatus?.(playerId) ?? 'idle'
   if (options.view.kind === 'god') return status
   if (options.view.kind === 'player' && options.view.playerId === playerId) return status
@@ -355,6 +378,7 @@ export function projectTimeline(
         ...(ballotLines.length > 0 ? { detail: ballotLines.join('\n') } : {}),
         playerIds: votePlayerIds,
         occurredAt: event.occurredAt,
+        postgame: false,
       })
       continue
     }
@@ -366,6 +390,7 @@ export function projectTimeline(
       title: text,
       playerIds: playerIdsForEvent(event),
       occurredAt: event.occurredAt,
+      postgame: false,
     })
   }
   return items

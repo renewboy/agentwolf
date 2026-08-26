@@ -42,38 +42,50 @@ export async function auditTrajectory(
       continue
     }
 
-    const delivery = allEvents.find(
-      (event) =>
-        event.payload.type === 'delivery.started' && event.payload.deliveryId === turn.turnId,
-    )
-    if (!delivery || delivery.payload.type !== 'delivery.started') {
-      issue(issues, turn.turnId, 'missing-delivery', 'No matching delivery.started event')
-    } else {
-      if (delivery.payload.playerId !== turn.ownerId) {
-        issue(issues, turn.turnId, 'actor-mismatch', 'Delivery owner differs from trajectory owner')
+    if (turn.kind !== 'postgame') {
+      const delivery = allEvents.find(
+        (event) =>
+          event.payload.type === 'delivery.started' && event.payload.deliveryId === turn.turnId,
+      )
+      if (!delivery || delivery.payload.type !== 'delivery.started') {
+        issue(issues, turn.turnId, 'missing-delivery', 'No matching delivery.started event')
+      } else {
+        if (delivery.payload.playerId !== turn.ownerId) {
+          issue(
+            issues,
+            turn.turnId,
+            'actor-mismatch',
+            'Delivery owner differs from trajectory owner',
+          )
+        }
+        if (
+          delivery.payload.fromSequence !== turn.fromSequence ||
+          delivery.payload.toSequence !== turn.toSequence
+        ) {
+          issue(
+            issues,
+            turn.turnId,
+            'range-mismatch',
+            'Delivery range differs from trajectory range',
+          )
+        }
       }
       if (
-        delivery.payload.fromSequence !== turn.fromSequence ||
-        delivery.payload.toSequence !== turn.toSequence
+        turn.status === 'completed' &&
+        !allEvents.some(
+          (event) =>
+            event.payload.type === 'delivery.acknowledged' &&
+            event.payload.deliveryId === turn.turnId &&
+            event.payload.toSequence === turn.toSequence,
+        )
       ) {
-        issue(issues, turn.turnId, 'range-mismatch', 'Delivery range differs from trajectory range')
+        issue(
+          issues,
+          turn.turnId,
+          'missing-acknowledgement',
+          'Completed turn has no matching delivery acknowledgement',
+        )
       }
-    }
-    if (
-      turn.status === 'completed' &&
-      !allEvents.some(
-        (event) =>
-          event.payload.type === 'delivery.acknowledged' &&
-          event.payload.deliveryId === turn.turnId &&
-          event.payload.toSequence === turn.toSequence,
-      )
-    ) {
-      issue(
-        issues,
-        turn.turnId,
-        'missing-acknowledgement',
-        'Completed turn has no matching delivery acknowledgement',
-      )
     }
 
     try {
@@ -89,12 +101,13 @@ export async function auditTrajectory(
       const ownerId = turn.ownerId as PlayerId
       if (turn.visibleEventSequences.length > 0) {
         const afterSequence = turn.kind === 'bootstrap' ? 0 : Math.max(0, turn.fromSequence - 1)
-        const actualSequences = visibleEvents(
-          history,
-          { kind: 'player', playerId: ownerId },
-          state,
-          afterSequence,
-        ).map((event) => event.sequence)
+        const visibilityView =
+          turn.kind === 'postgame'
+            ? ({ kind: 'closed-eye' } as const)
+            : ({ kind: 'player', playerId: ownerId } as const)
+        const actualSequences = visibleEvents(history, visibilityView, state, afterSequence).map(
+          (event) => event.sequence,
+        )
         if (!sameNumbers(actualSequences, turn.visibleEventSequences)) {
           issue(
             issues,

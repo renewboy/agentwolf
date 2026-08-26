@@ -46,6 +46,14 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   align to the left edge; the same four fields align to the right edge on the right rail. Speech,
   system events, night information, votes, and resolutions use distinct presentation. History folds
   by match day.
+- Postgame review keeps the speech feed primary. A compact strip owns the ten-second controls,
+  progress, current speaker, and final awards. Player ratings and radar details open in a docked
+  inspector: desktop allocates a separate right column without overlap; below 900px, opening the
+  inspector explicitly switches away from the feed and `返回发言` restores it. The player-rating
+  selector always identifies each seat by nickname; completion controls whether that player's
+  rating is available. Player cards show rating progress and MVP/SVP status. The `对局复盘` feed
+  group begins with a persistent system message and, after aggregation, shows both award winners,
+  vote totals, and complete five-axis radar values before the sequential reflection speech bubbles.
 - Below 900px, both rosters become one horizontal player HUD above the center stage. The document remains fixed to the viewport.
 - Paused match: visible failure reason with continue, delete, and lobby actions. The lobby exposes deletion on every match row.
 - Developer: every Match record exposes trajectory and eligible simulation actions in developer
@@ -69,7 +77,9 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - God view can show every seat's runtime status. Player view can show the selected player's private status plus public speech. Closed-eye view receives no hidden night actor status.
 - Switching views covers the current projection before requesting the next one.
 - Reconnecting preserves the last snapshot and displays active connection recovery feedback.
-- An ended snapshot closes live reconnection, publishes a settled connection label, exposes final identities, marks every Session as ended, and clears all presence, waveform, and player-ring loops.
+- An ended game exposes final identities but stays connected while postgame review is active or
+  paused. Completed and skipped review publish the settled connection label, mark every Session as
+  ended, and clear all presence, waveform, and player-ring loops.
 - A missing or deleted Match replaces retained content with the unavailable state and performs no further retry.
 - Waiting feedback never invents percentages, model reasoning, or completion estimates.
 - Role effects use one pointer-transparent overlay and player-card anchors. Full mode adds bounded
@@ -101,3 +111,6 @@ layout. Character coverage includes catalog CRUD, local portrait upload, board d
 overrides, repeated Characters, duplicate nickname blocking, and public portrait projection. Agent
 Profile coverage includes name/model separation, whole-row drag feedback, keyboard
 reordering, reload persistence, and new-Match defaults.
+Postgame coverage includes countdown start/skip, a persistent start message, immediate per-player
+rating visibility, feed-level MVP/SVP vote totals and radar details, badges, active-review reconnect,
+streamed reflections without duplicate committed text, final playback resolution, and completed/skipped settlement.

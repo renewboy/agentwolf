@@ -1,6 +1,6 @@
-import { Crown, HandPalm, Skull } from '@phosphor-icons/react'
+import { Crown, HandPalm, Medal, Skull, Trophy } from '@phosphor-icons/react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
-import type { SeatView } from '@agentwolf/contracts'
+import type { PostgameReviewView, SeatView } from '@agentwolf/contracts'
 import { RoleBadge } from '../RoleBadge.js'
 import { characterPortraitUrl } from '../../character-portraits.js'
 
@@ -8,11 +8,13 @@ export function PlayerRail({
   seats,
   side,
   phaseId,
+  postgameReview = null,
   compact = false,
 }: {
   readonly seats: readonly SeatView[]
   readonly side: 'left' | 'right' | 'mobile'
   readonly phaseId: string
+  readonly postgameReview?: PostgameReviewView | null
   readonly compact?: boolean
 }) {
   return (
@@ -32,6 +34,7 @@ export function PlayerRail({
             compact={compact}
             key={seat.playerId}
             phaseId={phaseId}
+            postgameReview={postgameReview}
             seat={seat}
             side={side}
           />
@@ -45,19 +48,40 @@ function PlayerCard({
   seat,
   side,
   phaseId,
+  postgameReview,
   compact,
 }: {
   readonly seat: SeatView
   readonly side: 'left' | 'right' | 'mobile'
   readonly phaseId: string
+  readonly postgameReview: PostgameReviewView | null
   readonly compact: boolean
 }) {
   const initial = Array.from(seat.name)[0] ?? String(seat.seat)
-  const statusLabel = getCopy(
-    seat.sessionStatus === 'thinking' && phaseId.includes('vote')
-      ? 'match.playerVoting'
-      : `sessionStatuses.${seat.sessionStatus}`,
+  const submittedReview = postgameReview?.submissions.some(
+    (submission) => submission.reviewerId === seat.playerId,
   )
+  const award =
+    postgameReview?.result?.mvp.playerId === seat.playerId
+      ? 'mvp'
+      : postgameReview?.result?.svp.playerId === seat.playerId
+        ? 'svp'
+        : null
+  const statusLabel = postgameReview
+    ? getCopy(
+        postgameReview.state === 'collecting'
+          ? submittedReview
+            ? 'postgame.submitted'
+            : 'postgame.waiting'
+          : postgameReview.currentSpeakerId === seat.playerId
+            ? 'postgame.reflection'
+            : `sessionStatuses.${seat.sessionStatus}`,
+      )
+    : getCopy(
+        seat.sessionStatus === 'thinking' && phaseId.includes('vote')
+          ? 'match.playerVoting'
+          : `sessionStatuses.${seat.sessionStatus}`,
+      )
   return (
     <article
       className="aw-player-card"
@@ -66,6 +90,7 @@ function PlayerCard({
       data-compact={compact}
       data-player-id={seat.playerId}
       data-session={seat.sessionStatus}
+      data-review-submitted={submittedReview}
       data-sheriff-candidate={seat.sheriffCandidate}
       data-side={side}
       data-tone={(seat.seat - 1) % 6}
@@ -100,6 +125,16 @@ function PlayerCard({
             </span>
           ) : null}
           {!seat.alive ? <Skull size={15} aria-label={getCopy('match.eliminated')} /> : null}
+          {award ? (
+            <span className="aw-postgame-player-award" data-award={award}>
+              {award === 'mvp' ? (
+                <Trophy size={13} weight="fill" aria-hidden />
+              ) : (
+                <Medal size={13} weight="fill" aria-hidden />
+              )}
+              {award.toUpperCase()}
+            </span>
+          ) : null}
         </div>
         {seat.character ? (
           <span className="aw-player-card__character">{seat.character.name}</span>

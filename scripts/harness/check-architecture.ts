@@ -202,13 +202,16 @@ if (assetsIndex.includes('./player-skills')) {
 const playerRuntime = await text(
   files.find((path) => localPath(path) === 'apps/server/src/player-runtime.ts')!,
 )
+const playerSessionFactory = await text(
+  files.find((path) => localPath(path) === 'apps/server/src/player-session-factory.ts')!,
+)
 for (const required of [
   'requireSessionResume: true',
   'resumeSessionId',
   'repository.playerSessions.reserve',
   'repository.playerSessions.activate',
 ]) {
-  if (!playerRuntime.includes(required)) {
+  if (!`${playerRuntime}\n${playerSessionFactory}`.includes(required)) {
     errors.push(`player-runtime.ts must preserve durable Session invariant: ${required}`)
   }
 }
@@ -219,6 +222,20 @@ for (const forbidden of ['replacePlayerSessions', 'resetDeliveryLedger']) {
   if (matchRuntime.includes(forbidden)) {
     errors.push(`match-runtime.ts must not recreate player Sessions through ${forbidden}`)
   }
+}
+for (const path of files.filter((candidate) =>
+  localPath(candidate).startsWith('apps/server/src/postgame-'),
+)) {
+  const content = await text(path)
+  if (/['"](?:village|werewolf|role-[a-z0-9-]+)['"]/.test(content)) {
+    errors.push(`${localPath(path)} must consume explicit winning players, not faction or Role IDs`)
+  }
+}
+const matchPostgame = await text(
+  files.find((path) => localPath(path) === 'apps/server/src/match-postgame.ts')!,
+)
+if (!matchPostgame.includes('victory.winningPlayerIds')) {
+  errors.push('match-postgame.ts must freeze explicit winning Player IDs for postgame review')
 }
 const sessionNewLocations: string[] = []
 for (const path of files) {

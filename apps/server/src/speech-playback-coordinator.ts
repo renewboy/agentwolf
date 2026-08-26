@@ -5,15 +5,21 @@ export type SpeechCommittedEvent = GameEvent & {
   readonly payload: Extract<GameEvent['payload'], { type: 'speech.committed' }>
 }
 
+export interface CommittedSpeechPlaybackItem {
+  readonly sequence: number
+  readonly playerId: SpeechCommittedEvent['payload']['playerId']
+  readonly event: SpeechCommittedEvent | null
+}
+
 export type SpeechPlaybackOutcome = 'completed' | 'skipped' | 'not-required'
 
 interface PendingPlayback {
-  readonly event: SpeechCommittedEvent
+  readonly item: CommittedSpeechPlaybackItem
   readonly resolve: (outcome: Exclude<SpeechPlaybackOutcome, 'not-required'>) => void
 }
 
 export interface SpeechPlaybackCoordinatorOptions {
-  readonly isVisible: (event: SpeechCommittedEvent, view: SpectatorView) => boolean
+  readonly isVisible: (item: CommittedSpeechPlaybackItem, view: SpectatorView) => boolean
   readonly onStateChange: () => void
   readonly onControl?: (title: string, input: unknown) => void
 }
@@ -33,8 +39,8 @@ export class SpeechPlaybackCoordinator {
       enabled: this.#owner !== null,
       controlledByThisClient: this.#owner === subscriber,
       pendingSequence:
-        this.#pending && this.#options.isVisible(this.#pending.event, subscriber.view)
-          ? this.#pending.event.sequence
+        this.#pending && this.#options.isVisible(this.#pending.item, subscriber.view)
+          ? this.#pending.item.sequence
           : null,
     }
   }
@@ -59,20 +65,20 @@ export class SpeechPlaybackCoordinator {
     if (
       this.#owner === subscriber &&
       this.#pending &&
-      !this.#options.isVisible(this.#pending.event, subscriber.view)
+      !this.#options.isVisible(this.#pending.item, subscriber.view)
     ) {
       this.#settlePending('skipped')
     }
     this.#options.onStateChange()
   }
 
-  public waitFor(event: SpeechCommittedEvent): Promise<SpeechPlaybackOutcome> {
-    if (!this.#owner || !this.#options.isVisible(event, this.#owner.view)) {
+  public waitFor(item: CommittedSpeechPlaybackItem): Promise<SpeechPlaybackOutcome> {
+    if (!this.#owner || !this.#options.isVisible(item, this.#owner.view)) {
       return Promise.resolve('not-required')
     }
     if (this.#pending) throw new Error('A speech playback barrier is already pending')
     return new Promise<Exclude<SpeechPlaybackOutcome, 'not-required'>>((resolve) => {
-      this.#pending = { event, resolve }
+      this.#pending = { item, resolve }
       this.#options.onStateChange()
     })
   }
@@ -83,7 +89,7 @@ export class SpeechPlaybackCoordinator {
     outcome: Exclude<SpeechPlaybackOutcome, 'not-required'>,
   ): 'accepted' | 'invalid' {
     if (this.#resolvedSequences.has(sequence)) return 'accepted'
-    if (this.#owner !== subscriber || this.#pending?.event.sequence !== sequence) return 'invalid'
+    if (this.#owner !== subscriber || this.#pending?.item.sequence !== sequence) return 'invalid'
     this.#options.onControl?.('playback.resolved', { sequence, outcome })
     this.#settlePending(outcome)
     return 'accepted'
@@ -92,7 +98,7 @@ export class SpeechPlaybackCoordinator {
   public disconnect(subscriber: LiveSubscriber): void {
     if (this.#owner !== subscriber) return
     this.#options.onControl?.('playback.disconnected', {
-      sequence: this.#pending?.event.sequence ?? null,
+      sequence: this.#pending?.item.sequence ?? null,
     })
     this.#owner = null
     this.#settlePending('skipped')
@@ -108,7 +114,7 @@ export class SpeechPlaybackCoordinator {
     const pending = this.#pending
     if (!pending) return
     this.#pending = null
-    this.#resolvedSequences.add(pending.event.sequence)
+    this.#resolvedSequences.add(pending.item.sequence)
     pending.resolve(outcome)
     this.#options.onStateChange()
   }

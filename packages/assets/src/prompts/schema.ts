@@ -10,6 +10,7 @@ export const PromptToolNameSchema = z.enum([
   'submit_night_action',
   'submit_sheriff_action',
   'trigger_skill',
+  'submit_postgame_review',
 ])
 export type PromptToolName = z.infer<typeof PromptToolNameSchema>
 
@@ -141,7 +142,7 @@ const CorePromptSchema = z
           })
           .strict(),
       )
-      .length(5),
+      .length(6),
   })
   .strict()
 

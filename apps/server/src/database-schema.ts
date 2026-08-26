@@ -55,6 +55,7 @@ export function migrateDatabase(database: Database.Database): void {
       );
       ${playerSessionTables()}
       ${trajectoryTables()}
+      ${postgameReviewTables()}
       PRAGMA user_version = 8;
     `)
   }
@@ -191,5 +192,39 @@ function trajectoryTables(): string {
     );
     CREATE INDEX trajectory_records_owner ON trajectory_records(match_id, owner_id, ordinal);
     CREATE INDEX trajectory_records_turn ON trajectory_records(match_id, turn_id, ordinal);
+  `
+}
+
+function postgameReviewTables(): string {
+  return `
+    CREATE TABLE IF NOT EXISTS postgame_reviews (
+      match_id TEXT PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS postgame_review_submissions (
+      match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+      reviewer_id TEXT NOT NULL,
+      json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY(match_id, reviewer_id)
+    );
+    CREATE TABLE IF NOT EXISTS postgame_review_reflections (
+      match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+      player_id TEXT NOT NULL,
+      ordinal INTEGER NOT NULL,
+      json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY(match_id, player_id),
+      UNIQUE(match_id, ordinal)
+    );
+    CREATE TABLE IF NOT EXISTS postgame_review_turns (
+      match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+      player_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(match_id, player_id, kind)
+    );
   `
 }

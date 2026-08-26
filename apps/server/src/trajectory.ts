@@ -27,7 +27,7 @@ export interface TrajectoryTurnStart {
   readonly ownerId: PlayerId
   readonly sessionId: string
   readonly sessionGeneration: number
-  readonly kind: 'bootstrap' | 'action'
+  readonly kind: 'bootstrap' | 'action' | 'postgame'
   readonly phaseId: PhaseId | null
   readonly actionType: string
   readonly fromSequence: number
@@ -332,8 +332,12 @@ export class TrajectoryTurnRecorder {
   }
 
   public action(action: PlayerAction): void {
-    const input = safeJson(action)
-    this.#createRecord('action', action.type, { input, status: 'accepted' })
+    this.accepted(action.type, action)
+  }
+
+  public accepted(title: string, value: unknown): void {
+    const input = safeJson(value)
+    this.#createRecord('action', title, { input, status: 'accepted' })
   }
 
   public complete(stopReason: string): void {

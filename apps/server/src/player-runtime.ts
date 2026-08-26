@@ -1,137 +1,38 @@
 import { randomBytes } from 'node:crypto'
-import type { McpServer, RequestPermissionRequest } from '@agentclientprotocol/sdk'
 import {
   AcpDeliveryUncertainError,
-  AcpPlayerSession,
   DeliveryLedger,
-  playerApprovedToolNames,
-  playerSessionMeta,
-  resolvePlayerLaunchSpec,
   type AcpPromptCallbacks,
   type AcpPromptResult,
 } from '@agentwolf/acp'
 import {
   PlayerActionSchema,
-  type AgentProfile,
-  type AgentTool,
-  type MatchId,
   type PlayerAction,
-  type PlayerId,
   type PhaseId,
+  type PostgameReviewSubmission,
 } from '@agentwolf/contracts'
-import { loadPromptCore } from '@agentwolf/assets/prompts'
-import type { ActionExpectation, ActionMailbox } from './action-mailbox.js'
+import type { ActionExpectation, PostgameReviewExpectation } from './action-mailbox.js'
 import type { ContextEnvelope } from './context-renderer.js'
 import { prepareDirectSpeechResponse } from './direct-speech-response.js'
-import type { SqliteRepository } from './repository.js'
-import type { MatchTrajectoryRecorder, TrajectoryTurnRecorder } from './trajectory.js'
+import {
+  deliverAuxiliaryPrompt,
+  takePostgameReviewTurn,
+  takePostgameSpeechTurn,
+} from './player-auxiliary-turn.js'
+import {
+  defaultPlayerSessionFactory,
+  type PlayerSession,
+  type PlayerSessionFactory,
+} from './player-session-factory.js'
+import type { PlayerRuntimeOptions, PlayerRuntimeStatus } from './player-runtime-types.js'
+import type { TrajectoryTurnRecorder } from './trajectory.js'
 
-const promptCore = loadPromptCore()
-
-export type PlayerRuntimeStatus =
-  | 'idle'
-  | 'starting'
-  | 'ready'
-  | 'syncing'
-  | 'thinking'
-  | 'submitted'
-  | 'failed'
-  | 'closed'
-
-export interface PlayerSession {
-  readonly sessionId: string
-  readonly connected: boolean
-  prompt(
-    prompt: string,
-    timeoutMs: number,
-    callbacks?: AcpPromptCallbacks,
-  ): Promise<AcpPromptResult>
-  close(): Promise<void>
-}
-
-export type PlayerSessionFactory = (options: {
-  readonly cwd: string
-  readonly tool: AgentTool
-  readonly profile: AgentProfile
-  readonly mcpServer: McpServer
-  readonly matchId: MatchId
-  readonly playerId: PlayerId
-  readonly onStderr?: (chunk: string) => void
-  readonly onPermissionDecision?: (request: RequestPermissionRequest, allowed: boolean) => void
-  readonly resumeSessionId?: string
-}) => Promise<PlayerSession>
-
-export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
-  const mode = options.profile.mode ?? options.tool.initialMode
-  return AcpPlayerSession.start({
-    cwd: options.cwd,
-    launch: resolvePlayerLaunchSpec(options.tool, options.cwd),
-    model: options.profile.model,
-    modelConfigKey: options.tool.modelConfigKey,
-    ...(mode ? { mode } : {}),
-    mcpServers: [options.mcpServer],
-    sessionMeta: {
-      ...playerSessionMeta(options.tool.kind, promptCore.playerContract()),
-      agentwolf: { matchId: options.matchId, playerId: options.playerId },
-    },
-    approvedToolNames: playerApprovedToolNames(options.tool.kind),
-    requireSessionResume: true,
-    ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
-    allowOpaqueMcpPermissions: options.tool.kind === 'codex',
-    approvedMcpTools: [
-      {
-        server: 'agentwolf-player-actions',
-        tool: 'submit_speech',
-        title: promptCore.tool('submit_speech').title,
-      },
-      {
-        server: 'agentwolf-player-actions',
-        tool: 'submit_vote',
-        title: promptCore.tool('submit_vote').title,
-      },
-      {
-        server: 'agentwolf-player-actions',
-        tool: 'submit_night_action',
-        title: promptCore.tool('submit_night_action').title,
-      },
-      {
-        server: 'agentwolf-player-actions',
-        tool: 'submit_sheriff_action',
-        title: promptCore.tool('submit_sheriff_action').title,
-      },
-      {
-        server: 'agentwolf-player-actions',
-        tool: 'trigger_skill',
-        title: promptCore.tool('trigger_skill').title,
-      },
-    ],
-    ...(options.onStderr ? { onStderr: options.onStderr } : {}),
-    ...(options.onPermissionDecision ? { onPermissionDecision: options.onPermissionDecision } : {}),
-  })
-}
-
-export interface DeliveryEvents {
-  started(playerId: PlayerId, deliveryId: string, fromSequence: number, toSequence: number): void
-  acknowledged(playerId: PlayerId, deliveryId: string, toSequence: number): void
-}
-
-export interface PlayerRuntimeOptions {
-  readonly matchId: MatchId
-  readonly playerId: PlayerId
-  readonly profile: AgentProfile
-  readonly tool: AgentTool
-  readonly workspace: string
-  readonly token: string
-  readonly mcpUrl: string
-  readonly mailbox: ActionMailbox
-  readonly repository: SqliteRepository
-  readonly deliveryEvents: DeliveryEvents
-  readonly trajectory: MatchTrajectoryRecorder
-  readonly allowSessionCreation?: boolean
-  readonly sessionFactory?: PlayerSessionFactory
-  readonly onStderr?: (chunk: string) => void
-  readonly onStatusChange?: (playerId: PlayerId, status: PlayerRuntimeStatus) => void
-}
+export {
+  defaultPlayerSessionFactory,
+  type PlayerSession,
+  type PlayerSessionFactory,
+} from './player-session-factory.js'
+export type { PlayerRuntimeOptions, PlayerRuntimeStatus } from './player-runtime-types.js'
 
 export class PlayerRuntime {
   readonly #options: PlayerRuntimeOptions
@@ -334,6 +235,49 @@ export class PlayerRuntime {
     }
   }
 
+  public async takePostgameReview(
+    envelope: ContextEnvelope,
+    expectation: PostgameReviewExpectation,
+  ): Promise<PostgameReviewSubmission> {
+    return takePostgameReviewTurn({
+      mailbox: this.#options.mailbox,
+      matchId: this.#options.matchId,
+      playerId: this.#options.playerId,
+      envelope,
+      expectation,
+      deliver: (nextEnvelope, actionType, callbacks, acceptedAfterError) =>
+        this.#deliverAuxiliary(nextEnvelope, actionType, callbacks, acceptedAfterError),
+      onAccepted: (submission) => {
+        this.#activeTrajectory?.accepted('postgame-review', submission)
+        this.#setStatus('submitted')
+      },
+    })
+  }
+
+  public async takePostgameSpeech(
+    envelope: ContextEnvelope,
+    callbacks: AcpPromptCallbacks = {},
+  ): Promise<string> {
+    return takePostgameSpeechTurn({
+      matchId: this.#options.matchId,
+      playerId: this.#options.playerId,
+      envelope,
+      callbacks,
+      deliver: (nextEnvelope, actionType, nextCallbacks) =>
+        this.#deliverAuxiliary(nextEnvelope, actionType, nextCallbacks),
+    })
+  }
+
+  public async recoverAuxiliaryForRetry(): Promise<void> {
+    try {
+      if (!this.#session?.connected) await this.#resumeSessionConnection()
+      this.#setStatus('ready')
+    } catch (error) {
+      this.#setStatus('failed')
+      throw error
+    }
+  }
+
   public async close(): Promise<void> {
     if (this.#status === 'closed') return
     this.#setStatus('closed')
@@ -500,6 +444,31 @@ export class PlayerRuntime {
       if (this.#activeTrajectory === trajectory) this.#activeTrajectory = null
       if (this.#activeDeliveryId === deliveryId) this.#activeDeliveryId = null
     }
+  }
+
+  async #deliverAuxiliary(
+    envelope: ContextEnvelope,
+    actionType: string,
+    callbacks?: AcpPromptCallbacks,
+    acceptedAfterError?: () => boolean,
+  ): Promise<{ result: AcpPromptResult; trajectory: TrajectoryTurnRecorder }> {
+    if (!this.#session) throw new Error('Player ACP session is not started')
+    return deliverAuxiliaryPrompt({
+      session: this.#session,
+      promptTimeoutMs: this.#options.profile.promptTimeoutMs,
+      envelope,
+      actionType,
+      matchId: this.#options.matchId,
+      playerId: this.#options.playerId,
+      sessionGeneration: this.#sessionGeneration,
+      trajectory: this.#options.trajectory,
+      ...(callbacks ? { callbacks } : {}),
+      ...(acceptedAfterError ? { acceptedAfterError } : {}),
+      setStatus: (status) => this.#setStatus(status),
+      setActiveTrajectory: (trajectory) => {
+        this.#activeTrajectory = trajectory
+      },
+    })
   }
 
   async #resumeSessionConnection(): Promise<void> {

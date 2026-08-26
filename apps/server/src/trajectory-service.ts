@@ -165,6 +165,7 @@ function timelineGroup(
   turn: TrajectoryTurn,
   events: readonly GameEvent[],
 ): TrajectoryTimelineGroup {
+  if (turn.kind === 'postgame') return { kind: 'review', index: null }
   let day = 0
   let night = 0
   let phaseId = turn.phaseId

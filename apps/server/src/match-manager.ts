@@ -161,36 +161,31 @@ export class MatchManager {
     if (!runtime) {
       const record = this.#options.repository.getMatch(id)
       if (!record) throw new MatchNotFoundError(id)
-      const resolvedBoard = this.#resolvedRecordBoard(record)
-      const board = resolvedBoard.manifest
-      const ruleset = this.#options.rulesets.forSnapshot(resolvedBoard.snapshot)
-      const engine = GameEngine.restore({
-        matchId: id,
-        board,
-        events: this.#options.repository.listMatchEvents(id),
-        status: record.status,
-        pausedReason: record.pausedReason,
-        ruleset,
-      })
-      runtime = new MatchRuntime({
-        record,
-        engine,
-        board,
-        boardSnapshot: resolvedBoard.snapshot,
-        repository: this.#options.repository,
-        catalog: this.#options.catalog,
-        config: this.#options.config,
-        mailbox: this.#mailbox,
-        trajectory: this.#options.trajectories.recorder(id),
-        restored: true,
-        ruleset,
-        ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
-      })
-      this.#active.set(id, runtime)
-      this.#activateInactiveConnections(id, runtime)
+      runtime = this.#restoreRuntime(record)
     }
     await runtime.resume()
     return runtime.project({ kind: 'god' })
+  }
+
+  public initializePostgameReviews(): void {
+    for (const review of this.#options.repository.postgameReviews.listActive()) {
+      const record = this.#options.repository.getMatch(review.matchId)
+      if (!record || record.status !== 'ended') continue
+      const runtime = this.#active.get(record.id) ?? this.#restoreRuntime(record)
+      runtime.activatePostgameReview()
+    }
+  }
+
+  public startPostgameReview(id: MatchId): MatchView {
+    return this.#postgameRuntime(id).startPostgameReview()
+  }
+
+  public async skipPostgameReview(id: MatchId): Promise<MatchView> {
+    return this.#postgameRuntime(id).skipPostgameReview()
+  }
+
+  public resumePostgameReview(id: MatchId): MatchView {
+    return this.#postgameRuntime(id).resumePostgameReview()
   }
 
   public async deleteMatch(id: MatchId): Promise<void> {
@@ -235,6 +230,7 @@ export class MatchManager {
       },
       characterForSeat: (seat) =>
         record.setup.seats.find((entry) => entry.seat === seat)?.character ?? null,
+      postgameReview: this.#options.repository.postgameReviews.view(id),
     })
   }
 
@@ -321,6 +317,48 @@ export class MatchManager {
       pending.activate(runtime.connect(pending.subscriber))
     }
     this.#inactiveConnections.delete(id)
+  }
+
+  #postgameRuntime(id: MatchId): MatchRuntime {
+    const active = this.#active.get(id)
+    if (active) return active
+    const record = this.#options.repository.getMatch(id)
+    if (!record) throw new MatchNotFoundError(id)
+    if (!this.#options.repository.postgameReviews.get(id)) {
+      throw new Error(`Match ${id} has no postgame review`)
+    }
+    return this.#restoreRuntime(record)
+  }
+
+  #restoreRuntime(record: MatchRecord): MatchRuntime {
+    const resolvedBoard = this.#resolvedRecordBoard(record)
+    const board = resolvedBoard.manifest
+    const ruleset = this.#options.rulesets.forSnapshot(resolvedBoard.snapshot)
+    const engine = GameEngine.restore({
+      matchId: record.id,
+      board,
+      events: this.#options.repository.listMatchEvents(record.id),
+      status: record.status,
+      pausedReason: record.pausedReason,
+      ruleset,
+    })
+    const runtime = new MatchRuntime({
+      record,
+      engine,
+      board,
+      boardSnapshot: resolvedBoard.snapshot,
+      repository: this.#options.repository,
+      catalog: this.#options.catalog,
+      config: this.#options.config,
+      mailbox: this.#mailbox,
+      trajectory: this.#options.trajectories.recorder(record.id),
+      restored: true,
+      ruleset,
+      ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
+    })
+    this.#active.set(record.id, runtime)
+    this.#activateInactiveConnections(record.id, runtime)
+    return runtime
   }
 
   #resolvedRecordBoard(record: MatchRecord) {

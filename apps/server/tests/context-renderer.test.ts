@@ -468,6 +468,165 @@ describe('plugin-owned Prompt rendering', () => {
     expect(retry.prompt).toContain('现在轮到你发言')
     expect(retry.prompt).not.toContain('# 任务目标')
   })
+
+  it('renders every public event after a player cursor across multiple days', () => {
+    const setup = createBoardEngine(sixPlayerBoard)
+    const reviewer = setup.players[0]!
+    const speaker = setup.players[1]!
+    const eliminated = setup.players[2]!
+    const baseSequence = setup.engine.state.lastSequence
+    const events = [
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 1,
+        occurredAt: '2026-08-26T00:00:00.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'day.started', day: 2 },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 2,
+        occurredAt: '2026-08-26T00:00:01.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'speech.committed',
+          playerId: reviewer.id,
+          kind: 'day',
+          text: '评审者自己已经知道的发言。',
+          sanitized: false,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 3,
+        occurredAt: '2026-08-26T00:00:02.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'speech.committed',
+          playerId: speaker.id,
+          kind: 'day',
+          text: '第二天评审者错过的公开发言。',
+          sanitized: false,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 4,
+        occurredAt: '2026-08-26T00:00:03.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'night.started', night: 3 },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 5,
+        occurredAt: '2026-08-26T00:00:04.000Z',
+        visibility: { kind: 'faction', faction: 'werewolf' },
+        payload: {
+          type: 'speech.committed',
+          playerId: reviewer.id,
+          kind: 'wolf-council',
+          text: '不得进入公开补投递的狼队私密发言。',
+          sanitized: false,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 6,
+        occurredAt: '2026-08-26T00:00:05.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'day.started', day: 3 },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 7,
+        occurredAt: '2026-08-26T00:00:06.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'speech.committed',
+          playerId: speaker.id,
+          kind: 'day',
+          text: '第三天评审者错过的公开发言。',
+          sanitized: false,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 8,
+        occurredAt: '2026-08-26T00:00:07.000Z',
+        visibility: { kind: 'god' },
+        payload: { type: 'death.pending', playerId: eliminated.id, causes: ['private-test'] },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 9,
+        occurredAt: '2026-08-26T00:00:08.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'vote.resolved',
+          kind: 'exile',
+          totals: { [eliminated.id]: 4, [reviewer.id]: 2 },
+          tiedPlayerIds: [eliminated.id],
+          selectedPlayerId: eliminated.id,
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 10,
+        occurredAt: '2026-08-26T00:00:09.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'public.announcement',
+          code: 'player-eliminated',
+          playerIds: [eliminated.id],
+          params: {},
+        },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 11,
+        occurredAt: '2026-08-26T00:00:10.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'match.ended', winner: 'village', reason: 'test' },
+      }),
+      GameEventSchema.parse({
+        matchId: setup.engine.state.matchId,
+        sequence: baseSequence + 12,
+        occurredAt: '2026-08-26T00:00:11.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'role.revealed', playerId: reviewer.id, roleId: reviewer.roleId },
+      }),
+    ]
+    const state: GameState = {
+      ...setup.engine.state,
+      status: 'ended',
+      day: 3,
+      night: 3,
+      phaseId: PhaseIdSchema.parse('phase-match-ended'),
+      lastSequence: events.at(-1)!.sequence,
+    }
+
+    const history = setup.renderer.publicHistorySince(
+      state,
+      sixPlayerBoard,
+      events,
+      reviewer.id,
+      baseSequence,
+    )
+    expect(history.fromSequence).toBe(baseSequence + 1)
+    expect(history.toSequence).toBe(events.at(-1)!.sequence)
+    expect(history.events.every((event) => event.visibility.kind === 'public')).toBe(true)
+    expect(history.events.some((event) => event.payload.type === 'match.ended')).toBe(true)
+    expect(history.events.some((event) => event.payload.type === 'role.revealed')).toBe(true)
+    expect(history.narration.join('\n')).toContain('第二天评审者错过的公开发言')
+    expect(history.narration.join('\n')).toContain('第三天评审者错过的公开发言')
+    expect(history.narration.join('\n')).toContain('投票结果')
+    expect(history.narration.join('\n')).toContain(`${eliminated.seat} 号玩家出局`)
+    expect(history.narration.join('\n')).not.toContain('对局结束')
+    expect(history.narration.join('\n')).not.toContain('的身份是')
+    expect(history.narration.join('\n')).not.toContain('评审者自己已经知道的发言')
+    expect(history.narration.join('\n')).not.toContain('不得进入公开补投递的狼队私密发言')
+    expect(history.narration.join('\n')).not.toContain('private-test')
+  })
 })
 
 function createBoardEngine(board: BoardManifest) {

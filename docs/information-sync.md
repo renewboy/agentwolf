@@ -54,6 +54,8 @@ than replaying historical effects.
 | Exile runoff                       | tied speakers then non-tied voters             | prior ballot plus all runoff speeches                                                                                                                                    | runoff ballots and exile result public                                                                                                      |
 | Day resolution                     | no Agent                                       | not applicable                                                                                                                                                           | exile, Idiot reveal, death chain, winner, or next night public                                                                              |
 | Match end                          | no Agent                                       | settled victory state                                                                                                                                                    | winner first, followed by every player's final identity                                                                                     |
+| Postgame review                    | every seat, parallel frozen snapshot           | final identities, explicit MVP/SVP candidate pools, and one role-neutral five-dimension rubric                                                                           | each accepted review sheet public immediately; aggregate result only after every sheet                                                      |
+| Postgame reflections               | every seat, sequential                         | final aggregate, awards, own score, and prior completed reflections                                                                                                      | each reflection streams and commits through the public speech presentation                                                                  |
 
 ## Barrier semantics
 
@@ -102,8 +104,8 @@ replay-stable random start and direction after a peaceful night.
 
 The player process contributes no ambient user Memory, unrelated Skill catalog, repository
 development instructions, or general-purpose mutation tool schema. Its provider adapter publishes
-the player contract, two shared player Skills, local reads and read-only shell search, and five
-game-action tools. Shell commands cannot write files, access the network, or request unsandboxed
+the player contract, two shared player Skills, local reads and read-only shell search, five
+in-game action tools, and one postgame-review tool. Shell commands cannot write files, access the network, or request unsandboxed
 execution. A new Match audit fails when a reported bootstrap context exceeds 12,000 tokens.
 
 ## Failure semantics
@@ -140,6 +142,24 @@ contribute hidden payloads.
 
 ## Terminal synchronization
 
-`match.ended` publishes the winner before one final public role event for every seat. Every terminal projection exposes all final identities and reports every player Session as closed, including projections rebuilt after the runtime has been released.
+`match.ended` publishes the winner before one final public role event for every seat. The postgame
+coordinator then freezes explicit winning Player IDs without changing the event log. Review sheets
+are public as soon as accepted, but the parallel rating Prompt remains fixed at the same terminal
+snapshot. Before a seat's first rating Prompt, the server projects every public event after that
+Session's regular acknowledged cursor through the terminal sequence. This status-independent
+catch-up includes later public speeches across days, uses existing actor-aware Prompt rendering to
+omit own speech, excludes all non-public events, and leaves the regular cursor unchanged. A retry
+receives only the review continuation. The common terminal section contains the explicit winning
+faction, winning players, and final role roster. Aggregate scores and awards appear only after all
+seats submit. The Match feed records review start as a stable system message and places both award
+vote totals and radar details before the reflections. Reflections are public sequential speech and
+use the same stream, canonical text, and playback boundary as game speech.
 
-The web client treats an ended snapshot as a terminal connection state, closes its spectator WebSocket, and does not reconnect. A missing or deleted Match returns HTTP 404, clears any retained snapshot, enters an unavailable state, and does not poll again. Transient closure for a running Match retains the last snapshot and uses bounded recovery.
+The web client keeps an ended Match connected while review is counting down, collecting,
+reflecting, or paused. Completed and skipped review expose all final identities, report every
+Session as closed, close the spectator WebSocket, and do not reconnect. A missing or deleted Match
+returns HTTP 404, clears any retained snapshot, enters an unavailable state, and does not poll
+again. Transient closure for a running game or active review retains the last snapshot and uses
+bounded recovery. When review is enabled, the first live snapshot whose Match status is `ended`
+already contains the countdown record; an intermediate ended snapshot with a null review is never
+published.

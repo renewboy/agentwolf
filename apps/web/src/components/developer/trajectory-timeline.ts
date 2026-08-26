@@ -17,6 +17,8 @@ export function timelineGroupLabel(group: TrajectoryTimelineGroup): string {
       return formatCopy(getCopy('trajectory.groups.day'), { index: group.index ?? 1 })
     case 'end':
       return getCopy('trajectory.groups.end')
+    case 'review':
+      return getCopy('trajectory.groups.review')
     default: {
       const exhaustive: never = group.kind
       return exhaustive

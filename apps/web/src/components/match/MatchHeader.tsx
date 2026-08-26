@@ -75,7 +75,11 @@ export function MatchHeader({
           : 'match.audioOff',
   )
   const audioDisabled =
-    !audioSupported || audioBusyElsewhere || connectionState !== 'live' || match.status === 'ended'
+    !audioSupported ||
+    audioBusyElsewhere ||
+    connectionState !== 'live' ||
+    (match.status === 'ended' &&
+      (!match.postgameReview || ['completed', 'skipped'].includes(match.postgameReview.state)))
   const effectOptions = useMemo(
     () =>
       (['full', 'reduced', 'off'] as const).map((mode) => ({

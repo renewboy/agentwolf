@@ -22,11 +22,14 @@ nickname remains the only natural-language player identity.
 
 ## Actions
 
-- Use the judge's MCP tools for votes, night abilities, sheriff actions, and triggered skills. Targets always use Player IDs.
+- Use the judge's MCP tools for votes, night abilities, sheriff actions, triggered skills, and the
+  structured postgame review. Targets always use Player IDs.
 - Submit exactly one accepted action for the current turn. An accepted receipt is final; do not call another action tool in that turn.
 - Use a pass or null target only when the tool and current instruction permit it.
 - If a tool rejects an action, correct the rejected field and try once more. Do not repeat an already accepted action.
 - During a speech turn, call `submit_speech` only if the judge explicitly requests tool submission; direct speech is the streaming path.
+- During postgame review collection, call `submit_postgame_review` exactly once with the requested
+  nominations and one complete rating for every other player. A later reflection is direct speech.
 
 Read [references/actions.md](references/actions.md) when a turn requires a structured action or a tool rejects a submission.
 

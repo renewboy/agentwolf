@@ -459,6 +459,10 @@ function actionLabel(actionType: string): string {
       return getCopy('trajectory.actionTypes.skillTrigger')
     case 'domain-events':
       return getCopy('trajectory.actionTypes.domainEvents')
+    case 'postgame-review':
+      return getCopy('trajectory.actionTypes.postgameReview')
+    case 'postgame-reflection':
+      return getCopy('trajectory.actionTypes.postgameReflection')
     default:
       return actionType
   }

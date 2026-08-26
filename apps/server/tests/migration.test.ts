@@ -348,4 +348,25 @@ describe('database migration', () => {
     expect(prompt.json).toBe(promptRecordJson)
     database.close()
   })
+
+  it('creates postgame review tables in a fresh schema-eight database', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-current-schema-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const repository = new SqliteRepository(databasePath)
+    repository.close()
+
+    const database = new Database(databasePath)
+    expect(database.pragma('user_version', { simple: true })).toBe(8)
+    const tables = database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'postgame_%'")
+      .all() as Array<{ name: string }>
+    expect(tables.map((entry) => entry.name).sort()).toEqual([
+      'postgame_review_reflections',
+      'postgame_review_submissions',
+      'postgame_review_turns',
+      'postgame_reviews',
+    ])
+    database.close()
+  })
 })

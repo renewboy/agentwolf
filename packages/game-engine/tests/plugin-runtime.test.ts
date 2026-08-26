@@ -160,7 +160,11 @@ describe('ruleset plugin runtime', () => {
         })
         victories.register({
           id: 'synthetic-victory',
-          evaluate: () => ({ winner: 'independent', reason: 'synthetic-condition' }),
+          evaluate: () => ({
+            winner: 'independent',
+            winningPlayerIds: [PlayerIdSchema.parse('player-1')],
+            reason: 'synthetic-condition',
+          }),
         })
       },
     }
@@ -258,6 +262,7 @@ describe('ruleset plugin runtime', () => {
       runtime.victories.evaluate({ state, board: sixPlayerBoard, roles: runtime.roles }),
     ).toEqual({
       winner: 'independent',
+      winningPlayerIds: ['player-1'],
       reason: 'synthetic-condition',
     })
   })

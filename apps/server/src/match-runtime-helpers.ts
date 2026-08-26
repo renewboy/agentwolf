@@ -1,6 +1,12 @@
 import { AcpDeliveryUncertainError } from '@agentwolf/acp'
 import type { GameEvent, PlayerAction, PlayerId } from '@agentwolf/contracts'
-import { type GameState, type RoleRegistry, type TurnDescriptor } from '@agentwolf/game-engine'
+import {
+  type GameEngine,
+  type GameState,
+  type RoleRegistry,
+  type TurnDescriptor,
+} from '@agentwolf/game-engine'
+import type { SqliteRepository } from './repository.js'
 import type { SpeechCommittedEvent } from './speech-playback-coordinator.js'
 
 export function findCommittedSpeech(events: readonly GameEvent[]): SpeechCommittedEvent | null {
@@ -91,4 +97,26 @@ export async function mapWithConcurrency<Value>(
   )
   await Promise.all(workers)
   if (errors.length > 0) throw new AggregateError(errors, 'One or more player sessions failed')
+}
+
+export function reconcileCommittedPendingAction(
+  repository: SqliteRepository,
+  engine: GameEngine,
+  playerId: PlayerId,
+): void {
+  const pending = repository.playerSessions.get(engine.state.matchId, playerId)?.pendingAction
+  if (!pending) return
+  const deliverySequence = engine.events.find(
+    (event) =>
+      event.payload.type === 'delivery.started' && event.payload.deliveryId === pending.deliveryId,
+  )?.sequence
+  if (!deliverySequence) return
+  const committed = engine.events.some(
+    (event) =>
+      event.sequence > deliverySequence &&
+      event.payload.type === 'action.submitted' &&
+      event.payload.playerId === playerId &&
+      JSON.stringify(event.payload.action) === JSON.stringify(pending.action),
+  )
+  if (committed) repository.playerSessions.clearPendingAction(engine.state.matchId, playerId)
 }

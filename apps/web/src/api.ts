@@ -254,6 +254,21 @@ export const api = {
   async resumeMatch(id: MatchId): Promise<MatchView> {
     return MatchViewSchema.parse(await requestJson(`/api/matches/${id}/resume`, { method: 'POST' }))
   },
+  async startPostgameReview(id: MatchId): Promise<MatchView> {
+    return MatchViewSchema.parse(
+      await requestJson(`/api/matches/${id}/postgame-review/start`, { method: 'POST' }),
+    )
+  },
+  async skipPostgameReview(id: MatchId): Promise<MatchView> {
+    return MatchViewSchema.parse(
+      await requestJson(`/api/matches/${id}/postgame-review/skip`, { method: 'POST' }),
+    )
+  },
+  async resumePostgameReview(id: MatchId): Promise<MatchView> {
+    return MatchViewSchema.parse(
+      await requestJson(`/api/matches/${id}/postgame-review/resume`, { method: 'POST' }),
+    )
+  },
   async deleteMatch(id: MatchId): Promise<void> {
     await requestJson(`/api/matches/${id}`, { method: 'DELETE' })
   },

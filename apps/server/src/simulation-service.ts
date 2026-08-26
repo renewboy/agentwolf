@@ -65,7 +65,7 @@ export class SimulationService {
 
     const allTurns = this.#repository
       .listTrajectoryTurns(matchId)
-      .filter((turn) => turn.ownerId !== 'system')
+      .filter((turn) => turn.ownerId !== 'system' && turn.kind !== 'postgame')
     if (allTurns.length === 0) {
       throw new SimulationSourceError('Match has no structured player trajectory')
     }

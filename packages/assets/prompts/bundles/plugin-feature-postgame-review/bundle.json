@@ -1,0 +1,10 @@
+{
+  "pluginId": "plugin-feature-postgame-review",
+  "imports": [],
+  "shared": [
+    { "template": "review-turn.njk", "audience": "player" },
+    { "template": "review-continuation.njk", "audience": "player" },
+    { "template": "reflection-turn.njk", "audience": "public" },
+    { "template": "reflection-continuation.njk", "audience": "public" }
+  ]
+}

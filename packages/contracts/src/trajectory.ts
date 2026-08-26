@@ -17,7 +17,7 @@ export const TrajectoryTurnStatusSchema = z.enum([
 export type TrajectoryTurnStatus = z.infer<typeof TrajectoryTurnStatusSchema>
 
 export const TrajectoryTimelineGroupSchema = z.object({
-  kind: z.enum(['setup', 'night', 'sheriff', 'day', 'end']),
+  kind: z.enum(['setup', 'night', 'sheriff', 'day', 'end', 'review']),
   index: z.number().int().positive().nullable(),
 })
 export type TrajectoryTimelineGroup = z.infer<typeof TrajectoryTimelineGroupSchema>
@@ -40,7 +40,7 @@ export const TrajectoryTurnSchema = z.object({
   sessionGeneration: z.number().int().positive(),
   ordinal: z.number().int().positive(),
   attempt: z.number().int().positive(),
-  kind: z.enum(['bootstrap', 'action']),
+  kind: z.enum(['bootstrap', 'action', 'postgame']),
   phaseId: PhaseIdSchema.nullable(),
   actionType: z.string().min(1).max(80),
   timelineGroup: TrajectoryTimelineGroupSchema.default({ kind: 'setup', index: null }),

@@ -10,7 +10,12 @@ import {
   resolvePlayerLaunchSpec,
   type AcpSessionStartOptions,
 } from '@agentwolf/acp'
-import { AgentToolKindSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import {
+  AgentToolKindSchema,
+  MatchIdSchema,
+  PlayerIdSchema,
+  PostgameReviewSubmissionSchema,
+} from '@agentwolf/contracts'
 import { copyPlayerSkills } from '@agentwolf/assets/player-skills'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { buildServer } from '../../src/app.js'
@@ -28,6 +33,7 @@ const probeForbidden = process.argv.includes('--probe-forbidden')
 const probeStrategy = process.argv.includes('--probe-strategy')
 const probeSandbox = process.argv.includes('--probe-sandbox')
 const probeResume = process.argv.includes('--resume')
+const probePostgameReview = process.argv.includes('--postgame-review')
 const isolated = !process.argv.includes('--unisolated')
 const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-player-action-'))
 const matchId = MatchIdSchema.parse('match-player-action-probe')
@@ -73,12 +79,30 @@ try {
   }
   const workspace = await preparePlayerWorkspace(root, matchId, playerId)
   const token = server.matches.mailbox.issueToken(matchId, playerId)
-  server.matches.mailbox.expect({
-    matchId,
-    playerId,
-    actionType: 'vote',
-    voteKind: 'wolf-kill',
-  })
+  const expectSubmission = (): void => {
+    if (probePostgameReview) {
+      server.matches.mailbox.expectPostgameReview({
+        matchId,
+        playerId,
+        validate: (input) =>
+          PostgameReviewSubmissionSchema.parse({
+            ...input,
+            matchId,
+            reviewerId: playerId,
+            submittedAt: new Date().toISOString(),
+          }),
+      })
+      return
+    }
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'vote',
+      voteKind: 'wolf-kill',
+    })
+  }
+  expectSubmission()
+  const submittedTool = probePostgameReview ? 'submit_postgame_review' : 'submit_vote'
   const sessionOptions: AcpSessionStartOptions = {
     cwd: workspace,
     launch: isolated ? resolvePlayerLaunchSpec(tool, workspace) : resolveLaunchSpec(tool),
@@ -103,13 +127,13 @@ try {
         headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
       },
     ],
-    approvedToolNames: isolated ? playerApprovedToolNames(toolKind) : ['submit_vote'],
+    approvedToolNames: isolated ? playerApprovedToolNames(toolKind) : [submittedTool],
     allowOpaqueMcpPermissions: toolKind === 'codex',
     approvedMcpTools: [
       {
         server: 'agentwolf-player-actions',
-        tool: 'submit_vote',
-        title: promptCore.tool('submit_vote').title,
+        tool: submittedTool,
+        title: promptCore.tool(submittedTool).title,
       },
     ],
     onStderr: (chunk) => stderrChunks.push(chunk),
@@ -118,11 +142,29 @@ try {
   }
   session = await AcpPlayerSession.start(sessionOptions)
   const initialSessionId = session.sessionId
+  const postgameInput = {
+    mvpPlayerId: tokenTarget,
+    svpPlayerId: PlayerIdSchema.parse('player-3'),
+    ratings: Array.from({ length: 5 }, (_, index) => ({
+      playerId: PlayerIdSchema.parse(`player-${index + 2}`),
+      scores: {
+        information: 8,
+        communication: 8,
+        decision: 8,
+        objective: 8,
+        adaptability: 8,
+      },
+    })),
+  }
   const result = await session.prompt(
-    `Call the submit_vote tool with targetPlayerId ${tokenTarget}. End the turn immediately after the accepted receipt. Do not answer with text instead of the tool.`,
+    probePostgameReview
+      ? `Call submit_postgame_review exactly once with this JSON input: ${JSON.stringify(postgameInput)}. End the turn immediately after the accepted receipt.`
+      : `Call the submit_vote tool with targetPlayerId ${tokenTarget}. End the turn immediately after the accepted receipt. Do not answer with text instead of the tool.`,
     90_000,
   )
-  const action = server.matches.mailbox.take(matchId, playerId)
+  const action = probePostgameReview
+    ? server.matches.mailbox.takePostgameReview(matchId, playerId)
+    : server.matches.mailbox.take(matchId, playerId)
   if (!action) {
     const updates = result.updates.map((update) =>
       update.sessionUpdate === 'agent_message_chunk'
@@ -144,8 +186,19 @@ try {
       `Trae returned without an action. Permissions: ${JSON.stringify(permissionRequests).slice(0, 4_000)} Text: ${result.text.slice(0, 500)} Updates: ${JSON.stringify(updates).slice(0, 4_000)} Stderr: ${stripAnsi(stderrChunks.join('')).slice(-4_000)}`,
     )
   }
+  const reflectionChunks: string[] = []
+  const postgameReflection = probePostgameReview
+    ? await session.prompt(
+        'The structured postgame review is accepted. Now reply directly with one short natural postgame reflection. Do not call any tool.',
+        90_000,
+        { onTextChunk: (text) => reflectionChunks.push(text) },
+      )
+    : null
+  if (postgameReflection && reflectionChunks.join('').length === 0) {
+    throw new Error('Postgame reflection did not stream any direct speech')
+  }
   let resumeResult: Awaited<ReturnType<AcpPlayerSession['prompt']>> | null = null
-  let resumedAction: ReturnType<typeof server.matches.mailbox.take> = null
+  let resumedAction: typeof action = null
   if (probeResume) {
     await session.close()
     session = await AcpPlayerSession.start({
@@ -155,17 +208,16 @@ try {
     if (session.sessionId !== initialSessionId) {
       throw new Error(`Resumed Session ${session.sessionId}; expected ${initialSessionId}`)
     }
-    server.matches.mailbox.expect({
-      matchId,
-      playerId,
-      actionType: 'vote',
-      voteKind: 'wolf-kill',
-    })
+    expectSubmission()
     resumeResult = await session.prompt(
-      `Continue the current judge stage. Call submit_vote with targetPlayerId ${tokenTarget}, then end the turn after the accepted receipt.`,
+      probePostgameReview
+        ? `Continue the current postgame review. Call submit_postgame_review with this JSON input: ${JSON.stringify(postgameInput)}, then end the turn after the accepted receipt.`
+        : `Continue the current judge stage. Call submit_vote with targetPlayerId ${tokenTarget}, then end the turn after the accepted receipt.`,
       90_000,
     )
-    resumedAction = server.matches.mailbox.take(matchId, playerId)
+    resumedAction = probePostgameReview
+      ? server.matches.mailbox.takePostgameReview(matchId, playerId)
+      : server.matches.mailbox.take(matchId, playerId)
     if (!resumedAction) throw new Error('Resumed Session returned without an accepted action')
   }
   const usage = result.updates.findLast((update) => update.sessionUpdate === 'usage_update')
@@ -239,6 +291,10 @@ try {
         resumedSessionId: probeResume ? session.sessionId : null,
         stopReason: result.stopReason,
         action,
+        postgameReview: probePostgameReview,
+        postgameReflection: postgameReflection
+          ? { text: postgameReflection.text, chunks: reflectionChunks }
+          : null,
         resume: resumeResult
           ? { stopReason: resumeResult.stopReason, action: resumedAction }
           : null,

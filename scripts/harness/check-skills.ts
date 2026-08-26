@@ -30,6 +30,7 @@ for (const tool of [
   'submit_night_action',
   'submit_sheriff_action',
   'trigger_skill',
+  'submit_postgame_review',
 ]) {
   if (!playerSkill.includes(tool) && !actionReference.includes(tool)) {
     errors.push(`agentwolf-player does not document ${tool}`)

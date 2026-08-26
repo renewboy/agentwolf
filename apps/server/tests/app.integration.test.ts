@@ -201,6 +201,7 @@ describe('Fastify API', () => {
       'submit_night_action',
       'submit_sheriff_action',
       'trigger_skill',
+      'submit_postgame_review',
     ])
     const voteTool = tools.tools.find((tool) => tool.name === 'submit_vote')
     expect(voteTool?.description).toContain('狼人袭击阶段表示空刀')

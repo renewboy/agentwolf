@@ -10,7 +10,14 @@ import {
 } from '@phosphor-icons/react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
-import type { MatchView, PlayerId, SeatView, TimelineItem } from '@agentwolf/contracts'
+import type {
+  MatchView,
+  PlayerId,
+  PostgameReviewView,
+  SeatView,
+  TimelineItem,
+} from '@agentwolf/contracts'
+import { PostgameFeedAwards } from './PostgameAwardResults.js'
 
 interface TimelineGroup {
   readonly key: string
@@ -34,13 +41,20 @@ export function MatchFeed({
   seats,
   activeSpeech,
   audio,
+  postgameReview,
 }: {
   readonly timeline: readonly TimelineItem[]
   readonly seats: readonly SeatView[]
   readonly activeSpeech: MatchView['activeSpeech']
   readonly audio: SpeechAudioControls
+  readonly postgameReview: PostgameReviewView | null
 }) {
-  const groups = useMemo(() => groupTimeline(timeline), [timeline])
+  const postgameStartedAt = postgameReview?.startedAt ?? null
+  const postgameResultAt = postgameReview?.result?.completedAt ?? null
+  const groups = useMemo(
+    () => groupTimeline(timeline, postgameStartedAt !== null),
+    [postgameStartedAt, timeline],
+  )
   const latestKey = groups.at(-1)?.key ?? null
   const [openGroups, setOpenGroups] = useState<ReadonlySet<string>>(
     () => new Set(latestKey ? [latestKey] : []),
@@ -75,7 +89,7 @@ export function MatchFeed({
       setHasNewActivity(false)
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [lastSequence, liveLength])
+  }, [lastSequence, liveLength, postgameResultAt, postgameStartedAt])
 
   const toggleGroup = (key: string): void => {
     setOpenGroups((current) => {
@@ -117,6 +131,10 @@ export function MatchFeed({
         ) : (
           groups.map((group) => {
             const open = openGroups.has(group.key)
+            const postgameRecordCount =
+              group.key === 'postgame'
+                ? Number(postgameStartedAt !== null) + Number(Boolean(postgameReview?.result))
+                : 0
             return (
               <section className="aw-day-group" data-open={open} key={group.key}>
                 <button
@@ -130,14 +148,32 @@ export function MatchFeed({
                 >
                   <span>{group.label}</span>
                   <small>
-                    {formatCopy(getCopy('match.eventCount'), { count: group.items.length })}
+                    {formatCopy(getCopy('match.eventCount'), {
+                      count: group.items.length + postgameRecordCount,
+                    })}
                   </small>
                   <CaretDown size={17} aria-hidden />
                 </button>
                 {open ? (
                   <div className="aw-day-group__items">
+                    {group.key === 'postgame' && postgameStartedAt ? (
+                      <SystemEvent
+                        detail={getCopy('postgame.startedTimelineDetail')}
+                        kind="postgame.started"
+                        occurredAt={postgameStartedAt}
+                        title={getCopy('postgame.startedTimelineTitle')}
+                      />
+                    ) : null}
+                    {group.key === 'postgame' && postgameReview?.result ? (
+                      <PostgameFeedAwards result={postgameReview.result} seats={seats} />
+                    ) : null}
                     {group.items.map((item) => (
-                      <FeedItem audio={audio} item={item} key={item.sequence} seats={seats} />
+                      <FeedItem
+                        audio={audio}
+                        item={item}
+                        key={`${item.kind}:${item.sequence}`}
+                        seats={seats}
+                      />
                     ))}
                   </div>
                 ) : null}
@@ -187,21 +223,41 @@ function FeedItem({
   }
   if (item.kind === 'vote.resolved') return <VoteResult item={item} seats={seats} />
 
-  const tone = eventTone(item.kind)
   return (
-    <article
-      className="aw-feed-item aw-system-event"
-      data-sequence={item.sequence}
-      data-tone={tone}
-    >
+    <SystemEvent
+      kind={item.kind}
+      occurredAt={item.occurredAt}
+      sequence={item.sequence}
+      title={item.title}
+      {...(item.detail ? { detail: item.detail } : {})}
+    />
+  )
+}
+
+function SystemEvent({
+  kind,
+  title,
+  detail,
+  occurredAt,
+  sequence,
+}: {
+  readonly kind: string
+  readonly title: string
+  readonly detail?: string
+  readonly occurredAt: string
+  readonly sequence?: number
+}) {
+  const tone = eventTone(kind)
+  return (
+    <article className="aw-feed-item aw-system-event" data-sequence={sequence} data-tone={tone}>
       <span className="aw-system-event__icon" aria-hidden>
         {tone === 'night' ? <MoonStars size={19} /> : <ChatCenteredText size={19} />}
       </span>
       <div>
-        <p>{item.title}</p>
-        {item.detail ? <small>{item.detail}</small> : null}
+        <p>{title}</p>
+        {detail ? <small>{detail}</small> : null}
       </div>
-      <time dateTime={item.occurredAt}>{formatEventTime(item.occurredAt)}</time>
+      <time dateTime={occurredAt}>{formatEventTime(occurredAt)}</time>
     </article>
   )
 }
@@ -373,14 +429,27 @@ function VoteDetailLine({ line }: { readonly line: string }) {
   )
 }
 
-function groupTimeline(timeline: readonly TimelineItem[]): TimelineGroup[] {
+function groupTimeline(
+  timeline: readonly TimelineItem[],
+  postgameStarted: boolean,
+): TimelineGroup[] {
   const groups: Array<{ key: string; label: string; items: TimelineItem[] }> = [
     { key: 'setup', label: getCopy('match.setupGroup'), items: [] },
   ]
   let cycle = 0
   let current = groups[0]!
   for (const item of timeline) {
-    if (item.kind === 'night.started') {
+    if (item.postgame) {
+      const existing = groups.find((group) => group.key === 'postgame')
+      current =
+        existing ??
+        ({
+          key: 'postgame',
+          label: getCopy('postgame.feedGroup'),
+          items: [],
+        } satisfies TimelineGroup)
+      if (!existing) groups.push(current)
+    } else if (item.kind === 'night.started') {
       cycle += 1
       current = {
         key: `day-${cycle}`,
@@ -399,7 +468,12 @@ function groupTimeline(timeline: readonly TimelineItem[]): TimelineGroup[] {
     }
     current.items.push(item)
   }
-  return groups.filter((group) => group.items.length > 0)
+  if (postgameStarted && !groups.some((group) => group.key === 'postgame')) {
+    groups.push({ key: 'postgame', label: getCopy('postgame.feedGroup'), items: [] })
+  }
+  return groups.filter(
+    (group) => group.items.length > 0 || (postgameStarted && group.key === 'postgame'),
+  )
 }
 
 function eventTone(kind: string): 'system' | 'night' | 'result' | 'warning' {

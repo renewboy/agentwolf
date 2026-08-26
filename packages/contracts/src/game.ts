@@ -10,6 +10,7 @@ import {
 import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
 import { RoleEffectCueSchema } from './effects.js'
 import { RulesetLockSchema } from './plugins.js'
+import { PostgameReviewViewSchema } from './postgame.js'
 import { SpeechCharacterLimitSchema } from './settings.js'
 
 export const MatchStatusSchema = z.enum(['draft', 'starting', 'running', 'paused', 'ended'])
@@ -191,6 +192,7 @@ export const TimelineItemSchema = z.object({
   detail: z.string().optional(),
   playerIds: z.array(PlayerIdSchema),
   occurredAt: z.string().datetime(),
+  postgame: z.boolean().default(false),
 })
 export type TimelineItem = z.infer<typeof TimelineItemSchema>
 
@@ -215,6 +217,7 @@ export const MatchViewSchema = z.object({
     .nullable(),
   winner: z.enum(['village', 'werewolf', 'independent']).nullable(),
   pausedReason: z.string().nullable(),
+  postgameReview: PostgameReviewViewSchema.nullable().default(null),
 })
 export type MatchView = z.infer<typeof MatchViewSchema>
 

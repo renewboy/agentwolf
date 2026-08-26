@@ -17,6 +17,14 @@ export interface LiveConnection {
   close(): void
 }
 
+export type StreamedSpeechKind =
+  | 'sheriff'
+  | 'day'
+  | 'runoff'
+  | 'last-words'
+  | 'wolf-council'
+  | 'postgame'
+
 export class LiveHub {
   readonly #subscribers = new Set<LiveSubscriber>()
 
@@ -43,7 +51,7 @@ export class LiveHub {
   public broadcastSpeechChunk(
     state: GameState,
     actorId: PlayerId,
-    kind: 'sheriff' | 'day' | 'runoff' | 'last-words' | 'wolf-council',
+    kind: StreamedSpeechKind,
     text: string,
   ): void {
     for (const subscriber of this.#subscribers) {
@@ -64,7 +72,7 @@ function canSeeSpeech(
   state: GameState,
   view: SpectatorView,
   actorId: PlayerId,
-  kind: 'sheriff' | 'day' | 'runoff' | 'last-words' | 'wolf-council',
+  kind: StreamedSpeechKind,
 ): boolean {
   if (kind !== 'wolf-council') return true
   if (view.kind === 'god') return true

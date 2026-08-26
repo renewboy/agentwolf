@@ -14,6 +14,10 @@ Read [the architecture](../../docs/architecture.md) before changing ownership or
   rendering, trajectory audit, and simulation use the same resolved Ruleset and verify schema-two
   fingerprints.
 - `player-session-repository.ts` owns durable per-seat ACP Session bindings and accepted-action recovery state. `player-runtime.ts` owns one logical Session's create/resume, delivery cursor, continuation, and connection state.
+- `postgame-review-repository.ts` owns durable review sheets, aggregates, reflections, and review
+  attempts. `postgame-review-coordinator.ts` owns the countdown, same-Session review turns,
+  per-Session public-history catch-up from the regular acknowledged cursor, sequential reflections,
+  and terminal close without advancing that cursor or adding postgame records to the game event log.
 - `character-catalog.ts` owns built-in/custom Character resolution, immutable snapshots, copy/edit/delete policy, and managed portrait files. Character persistence remains separate from game-engine state and events.
 - `database-schema.ts` owns schema creation and migration, `trajectory.ts` owns capture and pre-persistence redaction, `trajectory-service.ts` owns Match-scoped reads and live deltas, and `trajectory-audit.ts` owns reconstruction checks.
 - `simulation-service.ts` owns sanitized Match capture and candidate storage; simulation runner,

@@ -42,8 +42,8 @@ portrayal boundaries, and a managed local portrait. Character cards affect expre
 Agent continues to use its full reasoning ability and strongest available game judgment.
 
 Match player Sessions run in a game-only configuration. Their model context contains the player
-contract, the selected board and visible Match history, two player Skills, and the five structured
-game actions. The strategy Skill provides a role index and linked articles to every player. Local
+contract, the selected board and visible Match history, two player Skills, five structured in-game
+actions, and one structured postgame-review action. The strategy Skill provides a role index and linked articles to every player. Local
 reads and read-only shell search can inspect those Skills before an action or before visible
 speech; file writes and shell network access are blocked. A seat with a Character receives only
 its own immutable card plus an explicit full-ability boundary; other seats' Character cards are
@@ -116,6 +116,30 @@ learning and copied abilities, Sheriff election, and Sheriff transfer effects th
 reduced, or off presentation modes. Standing Sheriff candidates carry an explicit raised-hand
 marker throughout the election. Effects never delay the rule
 engine and a projection receives only cues derived from events visible to that view.
+
+After `match.ended` and final identity reveal, the Match enters a ten-second postgame gate. Any
+spectator may start immediately or skip during that countdown; expiry starts automatically, and a
+started review cannot be skipped. Every seat keeps its existing logical ACP Session. All seats
+submit one MVP nominee from the explicit winning-player set, one SVP nominee from every other
+player, and integer one-through-ten ratings for every other seat across information judgment,
+communication influence, decision execution, objective contribution, and adaptability. Each
+completed player rating becomes public immediately, while every remaining Agent continues from the
+same frozen terminal facts without receiving those ratings. Before its first rating turn, each
+Session receives every public event after its regular acknowledged cursor through the frozen
+terminal sequence, including later-day player speeches. The same normal event presentation omits
+that player's own already-known speech and excludes faction, actor-private, and god-only events.
+Every player then receives the explicit winning faction, winning players, and complete final
+identity roster.
+
+After every player's ratings are present, the server publishes equal-weight arithmetic averages and resolves
+each award by votes, exact score total, then a Match-stable draw. The Match page identifies every
+player-rating selector by nickname and shows individual ratings, MVP/SVP badges, and a selected
+player's five-axis radar chart. The speech feed records the review start as a system message and
+places both winners, their vote totals, and their complete radar details before the reflections.
+Players then give reflections in seat order. Reflections use the ordinary
+streamed speech bubble, canonical Player-reference cleanup, automatic and manual speech playback,
+and final playback boundary. Completed or skipped review closes the player Sessions and settles
+the spectator connection; a failed review pauses with a same-Session continue action.
 
 Every ACP turn records one normalized trajectory with its exact Prompt, event range, reasoning,
 message stream, tool calls, permission decisions, accepted game action, context usage, duration,
@@ -205,4 +229,8 @@ Closing a Match or server bounds Session shutdown and reclaims each Agent proces
 and Linux, parent-process loss also triggers process-tree termination without waiting for the next
 server start.
 
-An ended Match is a stable record: every identity is visible, every player Session is presented as ended, and the spectator connection settles without reconnecting. A deleted or unknown Match returns a terminal unavailable response rather than entering live recovery.
+An ended Match has a stable game result and fully visible identities. Its spectator connection and
+player Sessions remain active only while the postgame review is counting down, collecting ratings,
+streaming reflections, or paused. Completed and skipped reviews present every Session as ended and
+settle without reconnecting. A deleted or unknown Match returns a terminal unavailable response
+rather than entering live recovery.

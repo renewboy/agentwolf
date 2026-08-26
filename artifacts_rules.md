@@ -264,7 +264,8 @@
 ## 13. 模型 Prompt 资产必须按语义所有权组织
 
 模型 Prompt 使用 `packages/assets/prompts` 下的非本地化 Nunjucks bundle。`_core` 只负责
-Session 框架、通用布局、Character 框架、引用格式和五个 MCP 工具；功能插件与角色插件分别
+Session 框架、通用布局、Character 框架、引用格式、五个局内 MCP 工具和一个赛后评审 MCP
+工具；功能插件与角色插件分别
 拥有自己的 Role、Ability、Phase、事件、公告和中断说明。
 
 结构化内容、循环和条件分支必须写在完整模板中。标签、状态流转、工具标题和回执等单行原子

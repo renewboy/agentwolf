@@ -11,6 +11,7 @@ Fastify API and view projector ---- SQLite event/profile/board/Character/setting
           +---- Match orchestrator ---- Action gateway ---- Player MCP tools
           |             |
           |             +---- ACP session supervisor ---- ACP agent processes
+          |             +---- Postgame review coordinator ---- sheets / aggregates / reflections
           |
           +---- Board catalog ---- immutable Match board snapshots
           +---- Character catalog ---- built-ins / custom cards / managed portraits
@@ -92,8 +93,8 @@ semantic ownership, complete coverage, imports, audience direction, path contain
 matcher ambiguity before the first render.
 
 `_core` owns the canonical provider player contract, session framing, foundation and continuation
-layouts, generic speech and action layouts, Character framing, reference helpers, and the five MCP
-tool declarations. The build copies both complete Skill source directories from
+layouts, generic speech and action layouts, Character framing, reference helpers, five in-game MCP
+tool declarations, and the postgame-review MCP declaration. The build copies both complete Skill source directories from
 `packages/assets/player-skills` to `.agentwolf/skills`. Each player workspace exposes that one
 shared directory through relative `.agents/skills`, `.claude/skills`, and `.trae/skills` symlinks.
 Player workspaces and Claude Session metadata receive the same player contract. Functional and
@@ -172,8 +173,9 @@ An uncertain ACP transport failure receives one automatic continuation attempt p
 phase. Only that player's connection can change. A second failure, missing binding, unsupported
 `session.resume`, or resume failure pauses for operator action without creating a Session. The web
 client preserves its current snapshot across transient WebSocket closure, refreshes over HTTP, and
-reconnects with bounded backoff. Ended snapshots close the live channel and settle locally. Unknown
-or deleted Match IDs return 404 and enter a non-retrying unavailable state.
+reconnects with bounded backoff. An ended game keeps the live channel while postgame review is
+active or paused; completed or skipped review closes it and settles locally. Unknown or deleted
+Match IDs return 404 and enter a non-retrying unavailable state.
 
 Speech turns deliver preceding visible speech to the active player. Incremental delivery omits the
 active player's own previously committed speech because that speech already exists in its
@@ -189,6 +191,36 @@ no-sheriff directions use a stable hash of Match ID, day, and the relevant playe
 log therefore replays the chosen order without runtime randomness.
 
 The complete phase matrix is defined in [Information synchronization](information-sync.md).
+
+## Postgame review
+
+Postgame review is application orchestration outside the deterministic game event log. The
+Ruleset victory registry returns the explicit winning Player IDs alongside the public winner; the
+review coordinator freezes that set and uses its complement as the SVP pool without inspecting
+concrete faction or Role IDs. SQLite stores the countdown state, immutable per-reviewer sheets,
+aggregate result, reflection turns, and final reflections separately from `match_events`.
+
+The countdown is server-owned and survives spectator disconnection. Starting review retains every
+seat's existing logical ACP Session. Rating turns use a separate postgame delivery ledger and a
+frozen terminal event list. Each first rating Prompt projects public events after that Session's
+regular acknowledged cursor through the terminal sequence using the normal Ruleset Prompt event
+registry, then adds the common winning faction, winning players, and final role roster. This
+catch-up does not advance the regular cursor; its postgame trajectory records the actual range and
+public event sequences for independent audit. A retry uses the compact continuation and does not
+replay catch-up. An accepted sheet is durable and immediately projected to the browser without
+entering another Agent's Prompt. The projected review start timestamp produces the feed's system
+message, while the aggregate result produces the feed-level award and radar summary. Transport
+recovery resumes the same Session and only the unfinished seat. Repeated failure pauses the review.
+
+For a review-enabled Match, terminal orchestration creates the countdown before broadcasting the
+first `ended` live snapshot. The browser therefore cannot settle on an intermediate terminal view
+and miss the countdown or its automatic transition.
+
+Reflections run sequentially through the shared direct-speech runner. Postgame text chunks use the
+normal live speech message, and committed reflections project as ordinary speech timeline items
+with stable presentation sequences. The shared playback coordinator accepts either a committed
+game speech event or a committed postgame reflection; the last reflection holds review completion
+until playback completes, its audio is skipped, synthesis fails, or the controller disconnects.
 
 ## Developer trajectory
 
@@ -229,6 +261,8 @@ replay payload replaces Match, Profile, board, Session, delivery, name, time, an
 local candidate provenance retains only the source Match ID and capture time. Schema-one payloads
 default an omitted speech character limit to 300. Raw Prompts, reasoning, tool output, credentials,
 diagnostics, and runtime paths do not enter simulation fixtures.
+Postgame review rows and postgame trajectory Turns are also excluded; simulation orchestration
+disables postgame review and retains `match.ended` as its terminal oracle.
 
 Candidate captures retain their complete canonical event trace for local review and live under
 `.agentwolf/simulations/inbox`. Approval writes a versioned fixture under the server test corpus
@@ -274,7 +308,7 @@ the connection, requires the stable `session.resume` capability, and creates one
 seat workspace and AgentWolf MCP server. It persists the returned ID before the single foundation
 Prompt. Later processes call `session/resume` with that ID and replace the Session's MCP connection
 configuration with the current player-bound endpoint and token. ACP permission requests are
-approved for the five structured game actions and the provider's local read-only knowledge tools.
+approved for the five structured in-game actions, the postgame review action, and the provider's local read-only knowledge tools.
 The provider sandbox blocks filesystem mutation, network access from shell commands, and
 unsandboxed escalation. `session/update` is the streaming source; the final `session/prompt`
 response closes the turn.
@@ -291,11 +325,12 @@ receives an isolated `CODEX_CONFIG`. Claude receives session metadata with an ex
 set and no ambient setting sources. These policies remove user memories, unrelated Skill catalogs,
 plugins, hooks, repository development instructions, browser/search tools, mutation tools, and
 sub-agents. The player contract is the model instruction source. The available capabilities are
-the two shared Skills, local reads and read-only shell search, and the five actions on
+the two shared Skills, local reads and read-only shell search, the five in-game actions, and the
+postgame-review action on
 `agentwolf-player-actions`.
 
 Trae exposes Read, Grep, Glob, Bash, and Skill in a read-only, non-networked sandbox. Codex exposes
-its native shell tool under the same read-only mode. Claude exposes the same five local tools with
+its native shell tool under the same read-only mode. Claude exposes the same local tools with
 fail-closed sandbox startup, no write paths, and no network domains. Provider-specific editing,
 browser, web search, plugin, hook, memory, and Agent features remain disabled.
 

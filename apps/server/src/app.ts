@@ -34,6 +34,7 @@ import { CharacterCatalogService } from './character-catalog.js'
 import type { ServerConfig } from './config.js'
 import { handleMcpRequest } from './mcp.js'
 import { MatchManager, MatchNotFoundError } from './match-manager.js'
+import { PostgameReviewConflictError } from './postgame-review-repository.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
 import { SqliteRepository } from './repository.js'
 import { SimulationService } from './simulation-service.js'
@@ -93,7 +94,10 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const notFound =
       normalized instanceof MatchNotFoundError || normalized.name === 'DeveloperModeDisabledError'
     const conflict =
-      normalized.name === 'SimulationSourceError' || normalized.name === 'SimulationWorkflowError'
+      normalized.name === 'SimulationSourceError' ||
+      normalized.name === 'SimulationWorkflowError' ||
+      normalized instanceof PostgameReviewConflictError
+    const postgameConflict = normalized instanceof PostgameReviewConflictError
     const clientError =
       normalized instanceof ZodError ||
       normalized.name === 'RuleViolation' ||
@@ -101,11 +105,13 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     await reply.code(notFound ? 404 : conflict ? 409 : clientError ? 400 : 500).send({
       error: notFound
         ? 'not-found'
-        : conflict
-          ? 'simulation-source-unavailable'
-          : clientError
-            ? 'invalid-request'
-            : 'internal-error',
+        : postgameConflict
+          ? 'postgame-review-conflict'
+          : conflict
+            ? 'simulation-source-unavailable'
+            : clientError
+              ? 'invalid-request'
+              : 'internal-error',
       message: normalized.message,
     })
   })
@@ -219,6 +225,18 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
     return reply.code(202).send(await matches.resumeMatch(id))
   })
+  app.post('/api/matches/:id/postgame-review/start', async (request, reply) => {
+    const id = MatchIdSchema.parse((request.params as { id: string }).id)
+    return reply.code(202).send(matches.startPostgameReview(id))
+  })
+  app.post('/api/matches/:id/postgame-review/skip', async (request, reply) => {
+    const id = MatchIdSchema.parse((request.params as { id: string }).id)
+    return reply.code(202).send(await matches.skipPostgameReview(id))
+  })
+  app.post('/api/matches/:id/postgame-review/resume', async (request, reply) => {
+    const id = MatchIdSchema.parse((request.params as { id: string }).id)
+    return reply.code(202).send(matches.resumePostgameReview(id))
+  })
   app.delete('/api/matches/:id', async (request, reply) => {
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
     await matches.deleteMatch(id)
@@ -328,6 +346,8 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     url: '/mcp',
     handler: async (request, reply) => handleMcpRequest(request, reply, matches.mailbox),
   })
+
+  app.addHook('onListen', async () => matches.initializePostgameReviews())
 
   if (existsSync(options.config.webDistPath)) {
     await app.register(staticPlugin, {

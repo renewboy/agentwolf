@@ -1,0 +1,10 @@
+现在轮到你发表赛后复盘感言。
+
+MVP：{{ helpers.player(mvpPlayerId) }}；SVP：{{ helpers.player(svpPlayerId) }}。
+你的最终五维均分：信息研判 {{ ownResult.scores.information | round(1) }}，表达影响 {{ ownResult.scores.communication | round(1) }}，决策执行 {{ ownResult.scores.decision | round(1) }}，目标贡献 {{ ownResult.scores.objective | round(1) }}，应变博弈 {{ ownResult.scores.adaptability | round(1) }}，总分 {{ ownResult.overall | round(1) }}。
+{% if priorReflections.length %}
+此前感言：
+{% for reflection in priorReflections %}- {{ helpers.player(reflection.playerId) }}：{{ reflection.text }}
+{% endfor %}
+{% endif %}
+请结合自己的真实身份、关键判断与决策，直接输出一段不超过约 {{ speechCharacterLimit }} 个中文字符的自然感言。可以评价自己的得失并回应此前感言。不要调用工具，不要输出分析过程，不要使用 Player ID。

@@ -259,6 +259,17 @@ export class PromptBundleRegistry {
       : currentTurn
   }
 
+  public renderEventNarration(input: FoundationPromptFacts): string[] {
+    const facts = FoundationPromptFactsSchema.parse(input)
+    const context = {
+      ...this.#context(facts.actor, facts.roster, facts.events, facts),
+      currentPhase: null,
+    }
+    return this.#renderEvents(facts.events, context)
+      .map((line) => line.trim())
+      .filter(Boolean)
+  }
+
   public renderBootstrapContinuation(): string {
     return this.#render('_core', this.#core.manifest.core!.layouts.bootstrapContinuation, {})
   }

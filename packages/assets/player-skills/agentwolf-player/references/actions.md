@@ -67,3 +67,29 @@ Use a null target with `"option": "pass"` only when the trigger can be declined.
 ## Receipt handling
 
 An accepted receipt means the action is registered. End the turn without repeating it. A rejected receipt explains the invalid actor, phase, ability, target, cardinality, or duplicate submission; change only the rejected part.
+
+## Postgame review
+
+`submit_postgame_review`
+
+```json
+{
+  "mvpPlayerId": "player-2",
+  "svpPlayerId": "player-5",
+  "ratings": [
+    {
+      "playerId": "player-2",
+      "scores": {
+        "information": 8,
+        "communication": 7,
+        "decision": 9,
+        "objective": 8,
+        "adaptability": 7
+      }
+    }
+  ]
+}
+```
+
+Use the eligible MVP and SVP Player IDs supplied by the judge. Include every other player exactly
+once in `ratings`, never include yourself, and use an integer from 1 through 10 for every score.

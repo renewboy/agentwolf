@@ -82,6 +82,11 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Schema-two Match board snapshots freeze ruleset and plugin versions, configuration hashes,
   fingerprint, and resolved policies. Restore rejects a mismatched installed fingerprint.
 - Each seat completes `session/new` once and owns one durable ACP Session ID for the Match lifetime. ACP processes may restart, but reconnect through `session/resume` with that persisted ID. Delivery uses a per-player acknowledged event cursor.
+- After `match.ended`, postgame review keeps those same Sessions through a server-owned countdown,
+  cursor-based public-history catch-up, frozen parallel review sheets, and sequential streamed
+  reflections. Catch-up uses public visibility without advancing the regular event cursor. Review
+  persistence is separate from game events; completed or skipped review is the terminal Session
+  boundary.
 - A foundation source history covers its cursor and renders every visible bootstrap fact exactly
   once, including private team knowledge. Faction affiliation, team knowledge, and action
   capabilities remain separate rule concepts.

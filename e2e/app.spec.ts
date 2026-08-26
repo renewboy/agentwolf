@@ -1544,6 +1544,216 @@ test('settles ended matches and stops polling a missing match', async ({ page })
   expect(missingGets).toBe(settledGetCount)
 })
 
+test('receives the countdown and automatic review start over one live connection', async ({
+  page,
+}) => {
+  const matchId = 'match-postgame-live-transition-test'
+  const base = thinkingMatchFixture()
+  const countdown = postgameMatchFixture(base, matchId, 'countdown')
+  const collecting = postgameMatchFixture(base, matchId, 'collecting')
+  let current: MatchView = { ...base, id: matchId }
+  let sendLive: (message: unknown) => void = ignoreLiveMessage
+  await page.route(`**/api/matches/${matchId}?*`, async (route) => route.fulfill({ json: current }))
+  await page.routeWebSocket('**/live?*', (socket) => {
+    sendLive = (message) => socket.send(JSON.stringify(message))
+    socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: current }))
+  })
+
+  await page.goto(`/matches/${matchId}`)
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  current = countdown
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  await expect(page.getByRole('timer')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '复盘即将开始' })).toBeVisible()
+
+  current = collecting
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  await expect(page.getByText('已完成 0 / 6')).toBeVisible()
+  await expect(page.locator('.aw-connection-indicator')).toContainText('实时连接正常')
+})
+
+test('shows completed player ratings immediately and streams reflections through speech bubbles', async ({
+  page,
+}) => {
+  const matchId = 'match-postgame-review-ui-test'
+  const base = thinkingMatchFixture()
+  const running = { ...base, id: matchId }
+  const countdown = postgameMatchFixture(base, matchId, 'countdown')
+  const collecting = postgameMatchFixture(base, matchId, 'collecting')
+  let current = running
+  let sendLive: (message: unknown) => void = ignoreLiveMessage
+  await page.route(`**/api/matches/${matchId}?*`, async (route) => route.fulfill({ json: current }))
+  await page.route(`**/api/matches/${matchId}/postgame-review/start`, async (route) => {
+    current = collecting
+    await route.fulfill({ status: 202, json: collecting })
+  })
+  await page.routeWebSocket('**/live?*', (socket) => {
+    sendLive = (message) => socket.send(JSON.stringify(message))
+    socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: current }))
+  })
+
+  await page.goto(`/matches/${matchId}`)
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  current = countdown
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  await expect(page.getByRole('heading', { name: '复盘即将开始' })).toBeVisible()
+  await expect(page.getByRole('timer')).toBeVisible()
+  await expect(page.getByRole('timer')).toContainText(/\d+/)
+  await page.getByRole('button', { name: '立即开始' }).click()
+  await expect(page.getByText('已完成 0 / 6')).toBeVisible()
+  const postgameFeedGroup = page.locator('.aw-day-group').filter({ hasText: '对局复盘' })
+  await expect(postgameFeedGroup.getByText('复盘开始', { exact: true })).toBeVisible()
+  await expect(
+    postgameFeedGroup.getByText('全员评分完成后将公布 MVP、SVP，并由玩家依次发表复盘感言。'),
+  ).toBeVisible()
+  await expect(page.locator('.aw-postgame-inspector')).toHaveCount(0)
+  await expect(page.locator('.aw-feed-shell')).toBeVisible()
+
+  const submission = postgameSubmission(matchId)
+  current = {
+    ...collecting,
+    postgameReview: {
+      ...collecting.postgameReview!,
+      submittedCount: 1,
+      submissions: [submission],
+    },
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  await expect(page.getByText('已完成 1 / 6')).toBeVisible()
+  await expect(
+    page.locator('.aw-stage-grid .aw-player-card[data-player-id="player-1"]'),
+  ).toHaveAttribute('data-review-submitted', 'true')
+  await page.getByRole('button', { name: '查看复盘' }).click()
+  await expect(page.locator('.aw-postgame-inspector')).toBeVisible()
+  await expect(page.getByText('测试玩家1的评分')).toBeVisible()
+  await expect(page.getByText(/评审单/)).toHaveCount(0)
+  await expect(page.getByText('已提交评分')).toHaveCount(0)
+  await expect(page.locator('.aw-postgame-player-tab')).toHaveCount(6)
+  for (const seat of Array.from({ length: 6 }, (_, index) => index + 1)) {
+    await expect(page.locator('.aw-postgame-player-tab').nth(seat - 1)).toContainText(
+      `测试玩家${seat}`,
+    )
+  }
+  await expect(
+    page.locator('.aw-postgame-player-tab').filter({ hasText: '测试玩家1' }),
+  ).toBeEnabled()
+  await expect(
+    page.locator('.aw-postgame-player-tab').filter({ hasText: '测试玩家2' }),
+  ).toBeDisabled()
+  await expect(page.getByRole('button', { name: '2 · 测试玩家2' })).toBeVisible()
+  await expect(page.locator('.aw-postgame-radar__value')).toBeVisible()
+  const desktopFeedBounds = await page.locator('.aw-feed-shell').boundingBox()
+  const desktopInspectorBounds = await page.locator('.aw-postgame-inspector').boundingBox()
+  expect(desktopFeedBounds).not.toBeNull()
+  expect(desktopInspectorBounds).not.toBeNull()
+  expect((desktopFeedBounds?.x ?? 0) + (desktopFeedBounds?.width ?? 0)).toBeLessThanOrEqual(
+    desktopInspectorBounds?.x ?? 0,
+  )
+  const reviewerTabBounds = await page
+    .locator('.aw-postgame-player-tab')
+    .filter({ hasText: '测试玩家1' })
+    .first()
+    .boundingBox()
+  const reviewerTabsBounds = await page.locator('.aw-postgame-player-tabs').boundingBox()
+  const inspectorContentBounds = await page.locator('.aw-postgame-content').boundingBox()
+  expect(reviewerTabBounds?.height ?? 0).toBeGreaterThanOrEqual(30)
+  expect(reviewerTabsBounds?.height ?? 0).toBeGreaterThanOrEqual(35)
+  expect(reviewerTabBounds?.y ?? 0).toBeGreaterThanOrEqual(inspectorContentBounds?.y ?? 0)
+  expect(
+    await page
+      .locator('.aw-postgame-player-tab')
+      .filter({ hasText: '测试玩家1' })
+      .first()
+      .evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        const hit = document.elementFromPoint(
+          bounds.x + bounds.width / 2,
+          bounds.y + bounds.height / 2,
+        )
+        return hit === element || element.contains(hit)
+      }),
+  ).toBe(true)
+
+  const result = postgameResult()
+  current = {
+    ...current,
+    postgameReview: {
+      ...current.postgameReview!,
+      state: 'speaking',
+      submittedCount: 6,
+      submissions: Array.from({ length: 6 }, (_, index) => ({
+        ...submission,
+        reviewerId: `player-${index + 1}`,
+        submittedAt: `2026-08-26T00:00:0${index}.000Z`,
+      })),
+      result,
+      currentSpeakerId: 'player-2',
+    },
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  await expect(page.getByRole('button', { name: '玩家评分' })).toBeVisible()
+  const feedAwards = postgameFeedGroup.locator('.aw-postgame-feed-result')
+  await expect(feedAwards).toBeVisible()
+  await expect(feedAwards).toContainText('本局 MVP 与 SVP')
+  await expect(feedAwards).toContainText('2 · 测试玩家2')
+  await expect(feedAwards).toContainText('4 票')
+  await expect(feedAwards).toContainText('3 · 测试玩家3')
+  await expect(feedAwards).toContainText('3 票')
+  await expect(feedAwards.locator('.aw-postgame-radar')).toHaveCount(2)
+  await expect(feedAwards.locator('.aw-postgame-radar__value')).toHaveCount(2)
+  sendLive({
+    type: 'speech-chunk',
+    matchId,
+    playerId: 'player-2',
+    text: '这是一段逐字出现的复盘感言。',
+  })
+  await expect(page.getByText('这是一段逐字出现的复盘感言。')).toBeVisible()
+
+  const reflectionText = '这是一段逐字出现的复盘感言。下一局我会更重视信息闭环。'
+  const reflection = {
+    matchId,
+    playerId: 'player-2',
+    seat: 2,
+    speechSequence: 32,
+    text: reflectionText,
+    occurredAt: '2026-08-26T00:01:00.000Z',
+  }
+  current = {
+    ...current,
+    timeline: [
+      ...current.timeline,
+      { ...speechTimelineItem(32, 'player-2', reflectionText), postgame: true },
+    ],
+    activeSpeech: null,
+    postgameReview: {
+      ...current.postgameReview!,
+      state: 'completed',
+      currentSpeakerId: null,
+      reflections: [reflection],
+    },
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  await expect(page.getByRole('log').getByText(reflectionText, { exact: true })).toBeVisible()
+  await expect(feedAwards.getByText('MVP · 获胜方最佳')).toBeVisible()
+  await expect(feedAwards.locator('.aw-postgame-radar__value')).toHaveCount(2)
+  await expect(page.locator('.aw-connection-indicator')).toContainText('对局记录已完整同步')
+  await page.setViewportSize({ width: 760, height: 900 })
+  await expect(page.locator('.aw-mobile-roster')).toBeVisible()
+  await expect(page.locator('.aw-postgame-inspector')).toBeVisible()
+  await expect(page.locator('.aw-feed-shell')).toBeHidden()
+  const inspectorBounds = await page.locator('.aw-postgame-inspector').boundingBox()
+  expect(inspectorBounds).not.toBeNull()
+  expect((inspectorBounds?.x ?? 0) + (inspectorBounds?.width ?? 0)).toBeLessThanOrEqual(760)
+  expect((inspectorBounds?.y ?? 0) + (inspectorBounds?.height ?? 0)).toBeLessThanOrEqual(900)
+  await page.locator('.aw-postgame-inspector-close').click()
+  await expect(page.locator('.aw-postgame-inspector')).toHaveCount(0)
+  await expect(page.locator('.aw-feed-shell')).toBeVisible()
+  const mobileAwardsBounds = await feedAwards.boundingBox()
+  expect(mobileAwardsBounds).not.toBeNull()
+  expect((mobileAwardsBounds?.x ?? 0) + (mobileAwardsBounds?.width ?? 0)).toBeLessThanOrEqual(760)
+})
+
 test('offers recovery controls and deletes a paused match', async ({ page, request }) => {
   const createdResponse = await request.post('/api/matches', {
     data: {
@@ -1738,6 +1948,80 @@ function thinkingMatchFixture(): MatchView {
     winner: null,
     pausedReason: null,
   } as MatchView
+}
+
+function postgameMatchFixture(
+  base: MatchView,
+  matchId: string,
+  state: 'countdown' | 'collecting',
+): MatchView {
+  return {
+    ...base,
+    id: matchId,
+    status: 'ended',
+    phaseId: 'phase-match-ended',
+    phaseLabel: '对局结束',
+    winner: 'village',
+    activeSpeech: null,
+    seats: base.seats.map((seat) => ({ ...seat, active: false, sessionStatus: 'ready' })),
+    postgameReview: {
+      state,
+      decisionDeadlineAt:
+        state === 'countdown' ? new Date(Date.now() + 10_000).toISOString() : null,
+      startedAt: state === 'countdown' ? null : '2026-08-26T00:00:00.000Z',
+      winningPlayerIds: ['player-1', 'player-2'],
+      losingPlayerIds: ['player-3', 'player-4', 'player-5', 'player-6'],
+      submittedCount: 0,
+      totalPlayers: 6,
+      currentSpeakerId: null,
+      submissions: [],
+      result: null,
+      reflections: [],
+      pausedReason: null,
+    },
+  } as MatchView
+}
+
+function postgameSubmission(matchId: string) {
+  return {
+    matchId,
+    reviewerId: 'player-1',
+    mvpPlayerId: 'player-2',
+    svpPlayerId: 'player-3',
+    submittedAt: '2026-08-26T00:00:00.000Z',
+    ratings: ['player-2', 'player-3', 'player-4', 'player-5', 'player-6'].map(
+      (playerId, index) => ({
+        playerId,
+        scores: {
+          information: 6 + (index % 5),
+          communication: 7,
+          decision: 8,
+          objective: 9,
+          adaptability: 8,
+        },
+      }),
+    ),
+  }
+}
+
+function postgameResult() {
+  return {
+    mvp: { playerId: 'player-2', votes: 4, resolvedBy: 'votes' },
+    svp: { playerId: 'player-3', votes: 3, resolvedBy: 'score' },
+    players: Array.from({ length: 6 }, (_, index) => ({
+      playerId: `player-${index + 1}`,
+      scores: {
+        information: 7 + (index % 2) * 0.5,
+        communication: 7.2,
+        decision: 8,
+        objective: 8.4,
+        adaptability: 7.8,
+      },
+      overall: 7.8,
+      ratingCount: 5,
+    })),
+    completedAt: '2026-08-26T00:00:30.000Z',
+  }
 }
 
 function votingMatchFixture(): MatchView {

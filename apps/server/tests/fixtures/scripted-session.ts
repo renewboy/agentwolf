@@ -17,6 +17,18 @@ export interface ScriptedSessionOptions {
   readonly failResumeFor?: PlayerId
   readonly uncertainBootstrapOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean }
   readonly sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean }
+  readonly postgameReviewContexts?: Map<PlayerId, ScriptedPostgameReviewContext>
+  readonly postgameReviewGate?: {
+    readonly playerId: PlayerId
+    readonly started: () => void
+    readonly release: Promise<void>
+  }
+}
+
+export interface ScriptedPostgameReviewContext {
+  readonly playerIds: readonly PlayerId[]
+  readonly mvpCandidates: readonly PlayerId[]
+  readonly svpCandidates: readonly PlayerId[]
 }
 
 export interface ScriptedSeerFault {
@@ -49,6 +61,8 @@ export function scriptedSessionFactory(options: ScriptedSessionOptions): PlayerS
       options.uncertainSpeechOnce,
       options.uncertainBootstrapOnce,
       options.sheriffSelfDestructOnce,
+      options.postgameReviewContexts,
+      options.postgameReviewGate,
     )
   }
 }
@@ -67,9 +81,14 @@ export class ScriptedSession implements PlayerSession {
     disconnect?: boolean
   }
   readonly #sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean }
+  readonly #postgameReviewContexts?: Map<PlayerId, ScriptedPostgameReviewContext>
+  readonly #postgameReviewGate?: ScriptedSessionOptions['postgameReviewGate']
+  #postgameReviewContext: ScriptedPostgameReviewContext | null = null
   #night = 1
   #playerCount = 0
   #closed = false
+  readonly #closedPromise: Promise<void>
+  #signalClosed!: () => void
 
   public get connected(): boolean {
     return !this.#closed
@@ -84,6 +103,8 @@ export class ScriptedSession implements PlayerSession {
     uncertainSpeechOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean },
     uncertainBootstrapOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean },
     sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean },
+    postgameReviewContexts?: Map<PlayerId, ScriptedPostgameReviewContext>,
+    postgameReviewGate?: ScriptedSessionOptions['postgameReviewGate'],
   ) {
     this.#playerId = playerId
     this.#token = token
@@ -93,7 +114,12 @@ export class ScriptedSession implements PlayerSession {
     this.#uncertainSpeechOnce = uncertainSpeechOnce
     this.#uncertainBootstrapOnce = uncertainBootstrapOnce
     this.#sheriffSelfDestructOnce = sheriffSelfDestructOnce
+    this.#postgameReviewContexts = postgameReviewContexts
+    this.#postgameReviewGate = postgameReviewGate
     this.sessionId = `scripted-${playerId}`
+    this.#closedPromise = new Promise<void>((resolvePromise) => {
+      this.#signalClosed = resolvePromise
+    })
   }
 
   public async prompt(
@@ -135,6 +161,60 @@ export class ScriptedSession implements PlayerSession {
       callbacks.onTextChunk?.(text.slice(0, 8))
       callbacks.onTextChunk?.(text.slice(8))
       return { text, stopReason: 'end_turn', updates: [] }
+    }
+    if (prompt.includes('现在轮到你发表赛后复盘感言')) {
+      const text = `${this.#playerId.replace('player-', '')}号的赛后复盘：关键判断仍可更准确，下一局会更重视信息闭环。`
+      callbacks.onTextChunk?.(text.slice(0, 12))
+      callbacks.onTextChunk?.(text.slice(12))
+      return { text, stopReason: 'end_turn', updates: [] }
+    }
+    if (prompt.includes('submit_postgame_review')) {
+      const mvpCandidates = idsOnLine(prompt, 'MVP 候选：', false)
+      const svpCandidates = idsOnLine(prompt, 'SVP 候选：', false)
+      if (mvpCandidates.length > 0 && svpCandidates.length > 0) {
+        this.#postgameReviewContext = {
+          playerIds: Array.from(
+            { length: this.#playerCount },
+            (_, index) => `player-${index + 1}` as PlayerId,
+          ),
+          mvpCandidates,
+          svpCandidates,
+        }
+        this.#postgameReviewContexts?.set(this.#playerId, this.#postgameReviewContext)
+      }
+      const reviewContext =
+        this.#postgameReviewContexts?.get(this.#playerId) ?? this.#postgameReviewContext
+      if (!reviewContext) throw new Error('Missing durable scripted postgame review context')
+      if (this.#postgameReviewGate?.playerId === this.#playerId) {
+        this.#postgameReviewGate.started()
+        await Promise.race([
+          this.#postgameReviewGate.release,
+          this.#closedPromise.then(() => {
+            const error = new Error('simulated postgame process close')
+            error.name = AcpDeliveryUncertainError.name
+            throw error
+          }),
+        ])
+      }
+      const choose = (candidates: readonly PlayerId[]): PlayerId =>
+        candidates.find((candidate) => candidate !== this.#playerId) ?? candidates[0]!
+      this.#mailbox().submitPostgameReview(this.#token, {
+        mvpPlayerId: choose(reviewContext.mvpCandidates),
+        svpPlayerId: choose(reviewContext.svpCandidates),
+        ratings: reviewContext.playerIds
+          .filter((playerId) => playerId !== this.#playerId)
+          .map((playerId, index) => ({
+            playerId,
+            scores: {
+              information: 6 + (index % 5),
+              communication: 6 + ((index + 1) % 5),
+              decision: 6 + ((index + 2) % 5),
+              objective: 6 + ((index + 3) % 5),
+              adaptability: 6 + ((index + 4) % 5),
+            },
+          })),
+      })
+      return { text: '', stopReason: 'end_turn', updates: [] }
     }
     if (prompt.includes('准备就绪')) {
       return { text: '准备就绪', stopReason: 'end_turn', updates: [] }
@@ -190,6 +270,7 @@ export class ScriptedSession implements PlayerSession {
 
   public close(): Promise<void> {
     this.#closed = true
+    this.#signalClosed()
     return Promise.resolve()
   }
 }
@@ -219,4 +300,13 @@ function latestPhase(prompt: string): string | null {
   if (prompt.includes('狼队商议结束') && prompt.includes('submit_vote')) return 'nightWolfVote'
   if (prompt.includes('submit_vote')) return 'dayVote'
   return null
+}
+
+function idsOnLine(prompt: string, prefix: string, required = true): PlayerId[] {
+  const line = prompt.split('\n').find((candidate) => candidate.startsWith(prefix))
+  if (!line) {
+    if (required) throw new Error(`Missing postgame candidate line ${prefix}`)
+    return []
+  }
+  return [...line.matchAll(/player-\d+/g)].map((match) => match[0] as PlayerId)
 }

@@ -113,6 +113,7 @@ export async function runOrchestrationSimulation(
       ruleset: rulesets.forSnapshot(simulation.setup.board),
       sessionFactory,
       sessionConcurrency: simulation.setup.players.length,
+      postgameReviewEnabled: false,
     })
     if (
       variant.startsWith('playback-') ||

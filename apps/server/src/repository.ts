@@ -34,6 +34,7 @@ import { migrateDatabase } from './database-schema.js'
 import { CharacterSqliteRepository } from './character-repository.js'
 import type { MatchRecord } from './match-record.js'
 import { PlayerSessionSqliteRepository } from './player-session-repository.js'
+import { PostgameReviewSqliteRepository } from './postgame-review-repository.js'
 export type { MatchRecord } from './match-record.js'
 
 interface DatabaseRow {
@@ -60,6 +61,7 @@ export class SqliteRepository {
   readonly #database: Database.Database
   public readonly characters: CharacterSqliteRepository
   public readonly playerSessions: PlayerSessionSqliteRepository
+  public readonly postgameReviews: PostgameReviewSqliteRepository
 
   public constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true })
@@ -69,6 +71,7 @@ export class SqliteRepository {
     migrateDatabase(this.#database)
     this.characters = new CharacterSqliteRepository(this.#database)
     this.playerSessions = new PlayerSessionSqliteRepository(this.#database)
+    this.postgameReviews = new PostgameReviewSqliteRepository(this.#database)
   }
 
   public close(): void {

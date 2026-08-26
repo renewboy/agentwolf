@@ -43,7 +43,7 @@ export function useLiveMatch(matchIdValue: string | undefined, view: SpectatorVi
       const nextMatch = await api.getMatch(matchId, selectedView)
       setMatch(nextMatch)
       setLoadedViewKey(keyForView(selectedView))
-      if (nextMatch.status === 'ended') {
+      if (isTerminalMatch(nextMatch)) {
         terminalRef.current = true
         setConnectionState('settled')
       }
@@ -119,7 +119,7 @@ export function useLiveMatch(matchIdValue: string | undefined, view: SpectatorVi
           if (message.type === 'snapshot') {
             setMatch(message.data)
             setLoadedViewKey(keyForView(message.view))
-            if (message.data.status === 'ended') {
+            if (isTerminalMatch(message.data)) {
               terminalRef.current = true
               setConnectionState('settled')
               socket.close()
@@ -195,6 +195,13 @@ export function useLiveMatch(matchIdValue: string | undefined, view: SpectatorVi
     resolveSpeechPlayback,
     viewPending: match !== null && loadedViewKey !== viewKey,
   }
+}
+
+function isTerminalMatch(match: MatchView): boolean {
+  return (
+    match.status === 'ended' &&
+    (!match.postgameReview || ['completed', 'skipped'].includes(match.postgameReview.state))
+  )
 }
 
 function keyForView(view: SpectatorView): string {

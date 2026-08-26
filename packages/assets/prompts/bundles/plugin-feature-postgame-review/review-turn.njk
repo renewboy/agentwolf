@@ -1,0 +1,25 @@
+对局已经结束。赛后评分不改变胜负。
+
+{% if publicHistory.length %}你上次行动后发生的公开对局记录（按发生顺序）：
+{% for line in publicHistory %}- {{ line }}
+{% endfor %}
+{% endif %}
+以下终局事实由裁判冻结，所有玩家收到完全相同的内容。
+终局时点：第 {{ terminalDay }} 天，已经过 {{ terminalNight }} 个夜晚。
+最终胜负：{{ winnerLabel }}获胜。
+获胜玩家：{% for playerId in mvpCandidateIds %}{{ helpers.player(playerId) }}{% if not loop.last %}、{% endif %}{% endfor %}
+
+最终身份：
+{% for player in roster %}- {{ helpers.player(player.playerId) }}：{{ player.roleLabel }}，{{ player.factionLabel }}
+{% endfor %}
+MVP 候选：{% for playerId in mvpCandidateIds %}{{ helpers.player(playerId) }}{% if not loop.last %}、{% endif %}{% endfor %}
+SVP 候选：{% for playerId in svpCandidateIds %}{{ helpers.player(playerId) }}{% if not loop.last %}、{% endif %}{% endfor %}
+
+请调用 `submit_postgame_review` 一次：
+- 从 MVP 候选中提名一人，从 SVP 候选中提名一人；存在其他候选时不得提名自己。
+- 对除自己以外的每位玩家恰好评分一次，每项使用 1 至 10 的整数。
+- `information`：信息研判；`communication`：表达影响；`decision`：决策执行；`objective`：目标贡献；`adaptability`：应变博弈。
+- 评价玩家是否有效推进其真实胜利目标，不以最终胜负、阵营名称或是否存活直接代替表现判断。
+
+必须评分的玩家：{% for playerId in ratingTargetIds %}{{ helpers.player(playerId) }}{% if not loop.last %}、{% endif %}{% endfor %}
+工具接受后结束本轮，不要在正文中复述评审。

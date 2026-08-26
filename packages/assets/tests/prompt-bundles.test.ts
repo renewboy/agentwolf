@@ -264,6 +264,7 @@ function toolDeclarations() {
     'submit_night_action',
     'submit_sheriff_action',
     'trigger_skill',
+    'submit_postgame_review',
   ].map((name) => ({ name, title: name, description: name, fields: [] }))
 }
 

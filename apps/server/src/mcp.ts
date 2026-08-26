@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { z } from 'zod'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
-import { SheriffActionKindSchema } from '@agentwolf/contracts'
+import { PostgameReviewSubmissionInputSchema, SheriffActionKindSchema } from '@agentwolf/contracts'
 import type { ActionMailbox } from './action-mailbox.js'
 
 const promptCore = loadPromptCore()
@@ -43,6 +43,7 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
   const nightTool = promptCore.tool('submit_night_action')
   const sheriffTool = promptCore.tool('submit_sheriff_action')
   const skillTool = promptCore.tool('trigger_skill')
+  const postgameReviewTool = promptCore.tool('submit_postgame_review')
   server.registerTool(
     'submit_speech',
     {
@@ -106,6 +107,15 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
     },
     ({ abilityId, targetPlayerId, option }) =>
       toolResult(() => mailbox.submitSkillTrigger(token, abilityId, targetPlayerId, option)),
+  )
+  server.registerTool(
+    'submit_postgame_review',
+    {
+      title: postgameReviewTool.title,
+      description: postgameReviewTool.description,
+      inputSchema: PostgameReviewSubmissionInputSchema.shape,
+    },
+    (input) => toolResult(() => mailbox.submitPostgameReview(token, input)),
   )
   return server
 }

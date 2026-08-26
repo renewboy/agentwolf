@@ -79,6 +79,11 @@ export function LobbyPage() {
               <article className="aw-match-row aw-panel" data-match-id={match.id} key={match.id}>
                 <div>
                   <StatusBadge status={match.status} />
+                  {match.postgameReview ? (
+                    <span className="aw-postgame-state">
+                      {getCopy(`postgame.states.${match.postgameReview.state}`)}
+                    </span>
+                  ) : null}
                   <h3>{match.boardName}</h3>
                   <p>
                     {formatCopy(getCopy('lobby.matchMeta'), {
@@ -103,9 +108,19 @@ export function LobbyPage() {
                       </Link>
                       <button
                         className="aw-button aw-button--icon"
-                        disabled={match.status !== 'ended' && match.status !== 'paused'}
+                        disabled={
+                          match.status !== 'paused' &&
+                          !(
+                            match.status === 'ended' &&
+                            (!match.postgameReview ||
+                              ['completed', 'skipped'].includes(match.postgameReview.state))
+                          )
+                        }
                         title={
-                          match.status === 'ended' || match.status === 'paused'
+                          match.status === 'paused' ||
+                          (match.status === 'ended' &&
+                            (!match.postgameReview ||
+                              ['completed', 'skipped'].includes(match.postgameReview.state)))
                             ? getCopy('simulationWizard.open')
                             : getCopy('simulationWizard.unavailable')
                         }

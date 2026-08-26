@@ -25,7 +25,10 @@ export function deriveMatchPresenceState(
 ): MatchPresenceState {
   if (!match) return 'initial-loading'
   if (viewPending) return 'switching-view'
-  if (match.status === 'ended') return 'ended'
+  const postgameActive =
+    match.postgameReview && !['completed', 'skipped'].includes(match.postgameReview.state)
+  if (match.postgameReview?.state === 'paused') return 'paused'
+  if (match.status === 'ended' && !postgameActive) return 'ended'
   if (connectionState !== 'live') return 'reconnecting'
   if (match.status === 'starting') return 'starting'
   if (match.status === 'paused') return 'paused'
@@ -41,6 +44,10 @@ export function deriveMatchPresenceState(
     return 'recovering-agents'
   }
   if (match.activeSpeech && !match.activeSpeech.final) return 'streaming'
+  if (postgameActive && match.seats.some((seat) => seat.sessionStatus === 'thinking')) {
+    return 'thinking'
+  }
+  if (postgameActive) return 'awaiting-actions'
   if (match.phaseId.includes('resolve') || match.phaseId.includes('announcement')) {
     return 'resolving'
   }
