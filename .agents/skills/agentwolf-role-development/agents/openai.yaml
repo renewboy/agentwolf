@@ -1,0 +1,4 @@
+interface:
+  display_name: 'AgentWolf 角色开发'
+  short_description: '实现 AgentWolf 新角色的完整插件接入与验收'
+  default_prompt: '使用 $agentwolf-role-development 按当前插件架构实现并验收一个新角色。'

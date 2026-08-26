@@ -7,16 +7,21 @@ const errors: string[] = []
 const skillsRoot = resolve(projectRoot, 'packages/assets/player-skills')
 const playerSkillRoot = resolve(skillsRoot, 'agentwolf-player')
 const strategySkillRoot = resolve(skillsRoot, 'werewolf-strategy')
+const codingSkillsRoot = resolve(projectRoot, '.agents/skills')
+const roleDevelopmentSkillRoot = resolve(codingSkillsRoot, 'agentwolf-role-development')
 
-try {
-  await access(resolve(projectRoot, '.agents/skills'))
-  errors.push('Player Skill sources must not be stored under .agents/skills')
-} catch {
-  // The repository must not expose player-only Skills to coding agents.
+for (const playerOnlySkill of ['agentwolf-player', 'werewolf-strategy']) {
+  try {
+    await access(resolve(codingSkillsRoot, playerOnlySkill))
+    errors.push(`Player Skill source ${playerOnlySkill} must not be stored under .agents/skills`)
+  } catch {
+    // Project coding-agent Skills must not expose player-only Skills.
+  }
 }
 
 const playerSkill = await validateSkill('agentwolf-player', playerSkillRoot)
 const strategySkill = await validateSkill('werewolf-strategy', strategySkillRoot)
+await validateSkill('agentwolf-role-development', roleDevelopmentSkillRoot)
 
 const actionReference = await text(resolve(playerSkillRoot, 'references/actions.md'))
 for (const tool of [
