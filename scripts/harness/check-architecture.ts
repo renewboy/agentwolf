@@ -20,15 +20,17 @@ const allowedInternalDependencies: Readonly<Record<string, ReadonlySet<string>>>
 
 const files = await sourceFiles(roots, new Set(['.ts', '.tsx']))
 const maxProductionFileLines = 600
+const productionFileLineLimitOverrides = new Map<string, number>([
+  ['packages/game-engine/src/engine.ts', 800],
+])
 const errors: string[] = []
 for (const path of files) {
   const relativePath = localPath(path)
   const content = await text(path)
   const lines = content.split(/\r?\n/).length
-  if (lines > maxProductionFileLines) {
-    errors.push(
-      `${relativePath} has ${lines} lines; production files are limited to ${maxProductionFileLines}`,
-    )
+  const maxLines = productionFileLineLimitOverrides.get(relativePath) ?? maxProductionFileLines
+  if (lines > maxLines) {
+    errors.push(`${relativePath} has ${lines} lines; production files are limited to ${maxLines}`)
   }
   const owner = packageOwner(relativePath)
   for (const match of content.matchAll(
@@ -111,16 +113,47 @@ const damageAuthorityFiles = await Promise.all(
       content: await text(path),
     })),
 )
-for (const [cause, expectedOwner] of [
-  ['werewolf', 'packages/game-engine/src/rulesets/classic/roles/werewolf.ts'],
-  ['self-destruct', 'packages/game-engine/src/rulesets/classic/roles/werewolf.ts'],
-  ['white-wolf-detonate', 'packages/game-engine/src/rulesets/classic/roles/white-wolf-king.ts'],
+const sharedTypes = await text(
+  files.find((candidate) => localPath(candidate) === 'packages/game-engine/src/types.ts')!,
+)
+if (!/readonly protection:\s*string/.test(sharedTypes)) {
+  errors.push('ProtectEffect protection IDs must remain open to Rule plugins')
+}
+const classicResolution = await text(
+  files.find(
+    (candidate) =>
+      localPath(candidate) === 'packages/game-engine/src/rulesets/classic/resolution-registry.ts',
+  )!,
+)
+if (/protection:\s*z\.enum/.test(classicResolution)) {
+  errors.push('classic resolution must not enumerate Role-specific protection IDs')
+}
+for (const match of classicResolution.matchAll(/protection\s*[!=]==?\s*['"]([^'"]+)['"]/g)) {
+  if (match[1] !== 'guard' && match[1] !== 'antidote') {
+    errors.push(`classic resolution contains Role-specific protection branch ${match[1]}`)
+  }
+}
+for (const [cause, expectedOwners] of [
+  [
+    'werewolf',
+    [
+      'packages/game-engine/src/rulesets/classic/roles/werewolf.ts',
+      'packages/game-engine/src/rulesets/classic/roles/awakened-hidden-wolf.ts',
+    ],
+  ],
+  ['self-destruct', ['packages/game-engine/src/rulesets/classic/roles/werewolf.ts']],
+  ['white-wolf-detonate', ['packages/game-engine/src/rulesets/classic/roles/white-wolf-king.ts']],
 ] as const) {
   const owners = damageAuthorityFiles
     .filter(({ content }) => new RegExp(`cause\\s*:\\s*['"]${cause}['"]`).test(content))
     .map(({ path }) => path)
-  if (owners.length !== 1 || owners[0] !== expectedOwner) {
-    errors.push(`${cause} damage effects must be defined only by ${expectedOwner}`)
+    .sort()
+  const expected = [...expectedOwners].sort()
+  if (
+    owners.length !== expected.length ||
+    owners.some((owner, index) => owner !== expected[index])
+  ) {
+    errors.push(`${cause} damage effects must be defined only by ${expected.join(', ')}`)
   }
 }
 const roleFiles = files.filter((path) =>

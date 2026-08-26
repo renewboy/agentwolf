@@ -268,7 +268,7 @@ export class GameEngine {
     const committed = normalizeTurnAction(node, action, this.#state)
     this.#append(
       { type: 'action.submitted', playerId: action.actorId, action: committed },
-      turnActionVisibility(node, committed),
+      turnActionVisibility(node, committed, this.#state),
     )
     appendActionOutcome({
       node,
@@ -332,7 +332,6 @@ export class GameEngine {
       visibility.public,
     )
 
-    const factionMembers = new Map<Faction, PlayerId[]>()
     setup.players.forEach((player, index) => {
       const roleId = setup.assignments[index]!
       const role = this.#roles.role(roleId)
@@ -340,20 +339,29 @@ export class GameEngine {
         { type: 'role.assigned', playerId: player.id, roleId, faction: role.faction },
         visibility.players([player.id]),
       )
-      const members = factionMembers.get(role.faction) ?? []
-      members.push(player.id)
-      factionMembers.set(role.faction, members)
     })
-    for (const [faction, playerIds] of factionMembers) {
-      const sharesKnowledge =
-        playerIds.length > 0 &&
-        playerIds.every((playerId) => {
-          const roleId = this.#state.players.get(playerId)?.roleId
-          return roleId ? this.#roles.role(roleId).sharesFactionKnowledge : false
-        })
-      if (sharesKnowledge) {
-        this.#append({ type: 'faction.members', faction, playerIds }, visibility.faction(faction))
-      }
+    this.#appendFactionKnowledge()
+  }
+
+  #appendFactionKnowledge(): void {
+    const membersByFaction = new Map<Faction, PlayerId[]>()
+    for (const player of this.#state.players.values()) {
+      if (!player.faction || !player.roleId) continue
+      const members = membersByFaction.get(player.faction) ?? []
+      members.push(player.id)
+      membersByFaction.set(player.faction, members)
+    }
+    for (const [faction, memberIds] of membersByFaction) {
+      const playerIds = memberIds.filter((playerId) => {
+        const roleId = this.#state.players.get(playerId)?.roleId
+        return roleId ? this.#roles.role(roleId).sharesFactionKnowledge : false
+      })
+      if (playerIds.length === 0) continue
+      const eventVisibility =
+        playerIds.length === memberIds.length
+          ? visibility.faction(faction)
+          : visibility.players(playerIds)
+      this.#append({ type: 'faction.members', faction, playerIds }, eventVisibility)
     }
   }
 
@@ -412,7 +420,9 @@ export class GameEngine {
         day: this.#state.day,
         labelKey: target.labelKey,
       },
-      visibility.public,
+      target.presentation?.visibility && target.presentation.visibility !== 'public'
+        ? visibility.god
+        : visibility.public,
     )
     if (target.mode !== 'automatic') {
       const playerIds = this.#rules.selectActors(target.actorSelector, this.#runtime())
@@ -505,7 +515,13 @@ export class GameEngine {
         entry.ability.actionTypes.includes(action.type),
         `${action.abilityId} does not accept ${action.type}`,
       )
-      entry.ability.validate({ state: this.#state, board: this.#board, action, actor })
+      entry.ability.validate({
+        state: this.#state,
+        board: this.#board,
+        roles: this.#roles,
+        action,
+        actor,
+      })
     } else {
       validateTurnAction(
         node,
@@ -575,7 +591,7 @@ export class GameEngine {
     if (node.action?.type !== 'speech') return
     const playerId = this.activeActor()
     if (!playerId) return
-    const eventVisibility = phaseActionVisibility(node, playerId)
+    const eventVisibility = phaseActionVisibility(node, playerId, this.#state.phaseActors)
     const lastPhaseChange = this.#events.findLastIndex(
       (event) => event.payload.type === 'phase.changed',
     )

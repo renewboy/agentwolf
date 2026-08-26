@@ -5,13 +5,14 @@ AgentWolf is a local-first spectator platform for multi-agent Werewolf matches. 
 ## V1 game catalog
 
 The role catalog contains Villager, Werewolf, Seer, Witch, Hunter, Idiot, Guard, Magic Mirror
-Girl, and White Wolf King. The board catalog contains:
+Girl, White Wolf King, and Awakened Hidden Wolf. The board catalog contains:
 
 - 6-player Quick: two Werewolves, two Villagers, Seer, Hunter.
 - 9-player Standard: three Werewolves, three Villagers, Seer, Witch, Hunter.
 - 12-player Standard: four Werewolves, four Villagers, Seer, Witch, Hunter, Idiot.
 - 12-player Guard: four Werewolves, four Villagers, Seer, Witch, Hunter, Guard.
-- 12-player Magic Mirror: four Werewolves, four Villagers, Magic Mirror Girl, Witch, Hunter, Guard.
+- 10-player Mirror Hidden: two Werewolves, Awakened Hidden Wolf, four Villagers, Magic Mirror
+  Girl, Witch, Guard.
 - 12-player White Wolf King: three Werewolves, White Wolf King, four Villagers, Seer, Witch,
   Hunter, Guard.
 
@@ -87,9 +88,9 @@ The spectator screen is a fixed-height live match stage. Player rosters run down
 
 Every player card shows the model bound to that seat. A visible identity uses one stable role badge:
 Villager is silver, Werewolf red, Seer blue, Witch purple, Hunter green, Idiot amber, Guard cyan,
-Magic Mirror Girl pink, and White Wolf King white. The badge retains the localized role name so
-identity never depends on color alone. Hidden identities use one neutral `身份未公开` badge and
-reveal no role color.
+Magic Mirror Girl pink, White Wolf King white, and Awakened Hidden Wolf copper. The badge retains
+the localized role name so identity never depends on color alone. Hidden identities use one
+neutral `身份未公开` badge and reveal no role color.
 
 One connected spectator window can control automatic speech playback. Complete sentences enter the
 browser speech queue while visible Agent text is still streaming; the committed event contributes
@@ -110,9 +111,10 @@ replace the hidden Werewolf role.
 
 Role abilities produce view-safe visual effect cues. The match screen plays Werewolf attack and
 self-destruct, Seer inspection, Magic Mirror exact-role inspection, Witch antidote and poison,
-Hunter shot, Idiot reveal, Guard protection, White Wolf King detonation, Sheriff election, and Sheriff transfer effects through full, reduced, or off
-presentation modes. Standing Sheriff candidates carry an explicit raised-hand marker throughout
-the election. Effects never delay the rule
+Hunter shot, Idiot reveal, Guard protection, White Wolf King detonation, Awakened Hidden Wolf
+learning and copied abilities, Sheriff election, and Sheriff transfer effects through full,
+reduced, or off presentation modes. Standing Sheriff candidates carry an explicit raised-hand
+marker throughout the election. Effects never delay the rule
 engine and a projection receives only cues derived from events visible to that view.
 
 Every ACP turn records one normalized trajectory with its exact Prompt, event range, reasoning,
@@ -152,13 +154,26 @@ lists only the potion actions currently legal; if neither potion is usable, the 
 pass. Poison guidance is present only while poison remains available.
 
 Werewolves choose the regular night attack through the dedicated wolf vote stage. Each Werewolf
-votes for one living non-Werewolf or submits `null` as the explicit no-kill option. No-kill wins
+votes for any living player, including itself or a pack teammate, or submits `null` as the
+explicit no-kill option. No-kill wins
 only with strictly more votes than every player target; a highest-vote tie selects one of the tied
 player targets by a replay-stable random choice. Their initial callable ability list contains
 self-destruct but does not present the regular attack as a `submit_night_action` ability.
 
 Magic Mirror Girl inspects one other living player each night and privately receives that player's
 exact role. A player already inspected by the same Magic Mirror Girl cannot be selected again.
+Before Awakened Hidden Wolf learns, the exact result is Awakened Hidden Wolf; from the learning
+night onward, the exact result is the learned Role.
+
+Awakened Hidden Wolf belongs to the Werewolf faction but neither knows nor is known by the
+Werewolf pack. It does not join wolf council or wolf-kill voting, can be attacked by the pack, and
+cannot self-destruct. Once per Match it may wait or learn one other living player's true Role.
+Learning grants the defined copied variant: Magic Mirror exact inspection, one poison, one
+mechanical shield, Hunter shot eligibility, or one double-attack choice after awakening. Hunter
+eligibility starts in the learning night; other copied night actions start the following night.
+After every pack Werewolf is eliminated, Awakened Hidden Wolf receives its own nightly attack.
+A same-target double attack ignores Guard and antidote protection. Its faction and victory
+affiliation never change.
 
 White Wolf King participates in the Werewolf council and regular attack ballot. During its allowed
 public daytime turn it may self-destruct through its dedicated skill and choose one other living

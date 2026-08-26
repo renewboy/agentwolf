@@ -135,6 +135,17 @@ const corePromptSource = (
 if (/['"`](?:role|ability|phase|plugin)-[a-z0-9-]+/.test(corePromptSource)) {
   errors.push('packages/assets/prompts/_core contains a concrete game semantic ID')
 }
+const corePromptManifest = JSON.parse(
+  await text(resolve(projectRoot, 'packages/assets/prompts/_core/bundle.json')),
+) as {
+  events?: Array<{ eventType?: string; omit?: boolean; template?: string }>
+}
+const phaseChangedPresentation = corePromptManifest.events?.find(
+  (presentation) => presentation.eventType === 'phase.changed',
+)
+if (phaseChangedPresentation?.omit !== true || phaseChangedPresentation.template !== undefined) {
+  errors.push('phase.changed must be omitted from every model Prompt')
+}
 
 const promptAnnouncementCodes = new Set<string>()
 for (const manifestPath of promptFiles.filter((path) => path.endsWith('/bundle.json'))) {

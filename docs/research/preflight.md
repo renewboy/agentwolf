@@ -6,6 +6,15 @@ AgentWolf treats a board as a versioned rule set because common Werewolf impleme
 
 The 6-player preset uses two Werewolves, two Villagers, Seer, and Hunter. It has no sheriff, reveals eliminated roles, and uses slaughter-all victory. The 9-player preset uses three Werewolves, three Villagers, Seer, Witch, and Hunter with sheriff election and slaughter-edge victory. The 12-player Standard board uses four Werewolves, four Villagers, Seer, Witch, Hunter, and Idiot. The official rules define a sheriff with a final daytime speech and 1.5 vote, slaughter-edge victory, first-night-only night last words, Witch one potion per night with no self-save, Hunter firing only after wolf kill or exile, and Idiot surviving exile while losing the vote. The Guard board uses the same player count and replaces Idiot with Guard; Guard can protect one player and cannot protect the same player on consecutive nights.
 
+The 10-player Mirror Hidden board uses two pack Werewolves, Awakened Hidden Wolf, four Villagers,
+Magic Mirror Girl, Witch, and Guard. Awakened Hidden Wolf is an isolated Werewolf-faction Role:
+the pack and the isolated Role do not know one another, the pack can attack it, and it cannot
+self-destruct. It may wait or learn one living player once. Learning immediately changes the
+exact-role result seen by Magic Mirror Girl, activates copied Hunter eligibility that night, and
+activates other copied night abilities on the following night. When no pack Werewolf remains, it
+receives a nightly attack. Learning Werewolf grants one double attack after awakening; choosing
+the same target twice ignores Guard and antidote protection.
+
 The sheriff election runs after first-night actions and before first-night deaths are announced. Candidates speak, may withdraw, and original non-candidates vote. A tie creates one runoff speech and vote; a second tie loses the badge. V1 uses the single-explosion badge-loss policy.
 
 The first sheriff-campaign speaker is selected randomly, then candidates continue in seat order.
@@ -20,7 +29,8 @@ Night interaction prompts follow `Guard -> Werewolves -> Witch -> Seer`. The boa
 
 The regular Werewolf attack uses one private ballot per living Werewolf. A `null` ballot is an
 explicit no-kill choice and must strictly outpoll every player target. A highest-vote tie selects
-one of the tied non-Werewolf player targets through a Match- and night-stable random choice.
+one of the tied player targets through a Match- and night-stable random choice. Pack members may
+target themselves or one another.
 
 Sources:
 
@@ -28,6 +38,8 @@ Sources:
 - [Official first-day sheriff flow](https://www.taptap.cn/moment/658304304670575860)
 - [Detailed sheriff tie and interruption variants](https://zh.wikiversity.org/zh-cn/%E7%8B%BC%E4%BA%BA%E6%AE%BA/%E9%81%8A%E6%88%B2%E8%A7%92%E8%89%B2/%E8%AD%A6%E9%95%B7)
 - [Werewolves of Miller's Hollow rulebook](https://www.gokids.com.tw/tsaiss/gokids/rules/BestOf_EN_CH%20rules.pdf)
+- [Awakened Hidden Wolf board and inspection behavior](https://shouyou.gamersky.com/news/202409/1811620.shtml)
+- [Awakened Hidden Wolf role and copied abilities](https://langrensha.net/news/20240905-5.html)
 
 ## Extension pressure from complex roles
 

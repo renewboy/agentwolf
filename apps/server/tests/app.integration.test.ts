@@ -98,7 +98,7 @@ describe('Fastify API', () => {
       'board-standard-9',
       'board-standard-12',
       'board-guard-12',
-      'board-magic-mirror-12',
+      'board-mirror-hidden-10',
       'board-white-wolf-king-12',
     ])
 
@@ -317,6 +317,26 @@ describe('Fastify API', () => {
     expect(createdResponse.statusCode).toBe(201)
     const board = createdResponse.json()
     expect(board).toMatchObject({ playerCount: 6, source: 'custom', editable: true, revision: 1 })
+    const duplicateHiddenWolf = await server.app.inject({
+      method: 'POST',
+      url: '/api/boards',
+      payload: {
+        name: '非法双觉醒隐狼板子',
+        description: '',
+        roles: [
+          { roleId: 'role-awakened-hidden-wolf', count: 2 },
+          { roleId: 'role-werewolf', count: 1 },
+          { roleId: 'role-villager', count: 2 },
+          { roleId: 'role-guard', count: 1 },
+        ],
+        sheriff: false,
+        victory: 'slaughter-edge',
+      },
+    })
+    expect(duplicateHiddenWolf.statusCode).toBe(400)
+    expect(duplicateHiddenWolf.json().message).toContain(
+      'role-awakened-hidden-wolf allows at most 1',
+    )
 
     const matchResponse = await server.app.inject({
       method: 'POST',
@@ -337,8 +357,8 @@ describe('Fastify API', () => {
     const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
     expect(snapshot).toMatchObject({
       schemaVersion: 2,
-      rulesetId: 'classic-v2',
-      ruleset: { id: 'ruleset-classic-v2', version: 2 },
+      rulesetId: 'classic-v3',
+      ruleset: { id: 'ruleset-classic-v3', version: 3 },
       policies: { victory: 'slaughter-all' },
     })
     if (!snapshot || snapshot.schemaVersion !== 2) throw new Error('Expected ruleset lock snapshot')

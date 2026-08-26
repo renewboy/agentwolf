@@ -36,6 +36,10 @@ export class RoleRegistry {
     return entry
   }
 
+  public hasAbility(id: AbilityId): boolean {
+    return this.#abilities.has(id)
+  }
+
   public capabilitiesFor(player: PlayerState): ReadonlySet<CapabilityId> {
     const capabilities = new Set(player.roleState.capabilities)
     if (player.roleId) {

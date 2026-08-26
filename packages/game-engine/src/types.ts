@@ -14,6 +14,7 @@ import type {
   JsonValue,
   PluginId,
 } from '@agentwolf/contracts'
+import type { RoleRegistry } from './roles/registry.js'
 
 export interface RoleSlot {
   readonly roleId: RoleId
@@ -37,9 +38,18 @@ export interface PhaseEdge {
 
 export type PhaseMode = 'automatic' | 'parallel' | 'sequential'
 
+export type PhasePresentation =
+  | { readonly visibility: 'public' }
+  | {
+      readonly visibility: 'actors' | 'god'
+      readonly hiddenPhaseId: PhaseId
+      readonly hiddenLabelKey: string
+    }
+
 export type PhaseActionVisibility =
   | 'public'
   | 'actor'
+  | 'actors'
   | { readonly kind: 'faction'; readonly faction: Faction }
 
 export type PhaseActionDefinition =
@@ -86,6 +96,7 @@ export interface PhaseNode {
   readonly id: PhaseId
   readonly labelKey: string
   readonly mode: PhaseMode
+  readonly presentation?: PhasePresentation
   readonly action?: PhaseActionDefinition
   readonly interrupts?: readonly PhaseInterruptDefinition[]
   readonly actorSelector?: string
@@ -178,6 +189,7 @@ export interface GameSnapshot {
 export interface ActionValidationContext {
   readonly state: GameState
   readonly board: BoardManifest
+  readonly roles: RoleRegistry
   readonly action: PlayerAction
   readonly actor: PlayerState
 }
@@ -190,12 +202,22 @@ export interface TargetEffect {
   readonly toTargetId: PlayerId
 }
 
+export type DamageCause =
+  | 'werewolf'
+  | 'poison'
+  | 'shot'
+  | 'exile'
+  | 'self-destruct'
+  | 'white-wolf-detonate'
+  | 'linked'
+
 export interface ProtectEffect {
   readonly kind: 'protect'
   readonly priority: 300
   readonly sourceId: PlayerId
   readonly targetId: PlayerId
-  readonly protection: 'guard' | 'antidote'
+  readonly protection: string
+  readonly blocks: readonly DamageCause[]
 }
 
 export interface DamageEffect {
@@ -203,14 +225,8 @@ export interface DamageEffect {
   readonly priority: 400 | 700
   readonly sourceId: PlayerId | null
   readonly targetId: PlayerId
-  readonly cause:
-    | 'werewolf'
-    | 'poison'
-    | 'shot'
-    | 'exile'
-    | 'self-destruct'
-    | 'white-wolf-detonate'
-    | 'linked'
+  readonly ignoredProtections?: readonly string[] | undefined
+  readonly cause: DamageCause
 }
 
 export interface InspectEffect {

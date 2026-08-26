@@ -21,7 +21,7 @@
       "text": "进入第 {{ payload.night }} 夜。"
     },
     { "eventType": "day.started", "audience": "public", "template": "events/day-started.njk" },
-    { "eventType": "phase.changed", "audience": "public", "template": "events/phase-changed.njk" },
+    { "eventType": "phase.changed", "audience": "public", "omit": true },
     { "eventType": "phase.actors-set", "audience": "god", "omit": true },
     { "eventType": "phase.actor-completed", "audience": "god", "omit": true },
     {

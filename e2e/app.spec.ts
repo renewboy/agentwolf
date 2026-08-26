@@ -85,21 +85,25 @@ test('creates, edits, selects, and deletes a custom six-player board', async ({ 
   const boardName = `E2E Board ${testRunId}`
   await page.goto('/boards')
   const roleBadges = page.locator('.aw-board-role-row .aw-role-badge')
-  await expect(roleBadges).toHaveCount(9)
+  await expect(roleBadges).toHaveCount(10)
   expect(
     new Set(
       await roleBadges.evaluateAll((elements) =>
         elements.map((element) => getComputedStyle(element).color),
       ),
     ).size,
-  ).toBe(9)
+  ).toBe(10)
   await expect(roleBadges.filter({ hasText: '女巫' })).toHaveCSS('color', 'rgb(189, 134, 223)')
   await expect(roleBadges.filter({ hasText: '猎人' })).toHaveCSS('color', 'rgb(114, 198, 154)')
   await expect(roleBadges.filter({ hasText: '魔镜少女' })).toHaveCSS('color', 'rgb(233, 159, 208)')
   await expect(roleBadges.filter({ hasText: '白狼王' })).toHaveCSS('color', 'rgb(232, 237, 243)')
-  await page.getByRole('button', { name: /12 人魔镜场/ }).click()
+  await expect(roleBadges.filter({ hasText: '觉醒隐狼' })).toHaveCSS('color', 'rgb(207, 143, 115)')
+  await page.getByRole('button', { name: /10 人镜隐迷踪局/ }).click()
   await expect(
     page.locator('.aw-board-role-row').filter({ hasText: '魔镜少女' }).locator('output'),
+  ).toHaveText('1')
+  await expect(
+    page.locator('.aw-board-role-row').filter({ hasText: '觉醒隐狼' }).locator('output'),
   ).toHaveText('1')
   await page.getByRole('button', { name: /12 人白狼王场/ }).click()
   await expect(
@@ -136,6 +140,28 @@ test('creates, edits, selects, and deletes a custom six-player board', async ({ 
   const dialog = page.getByRole('alertdialog', { name: '确认删除板子' })
   await dialog.getByRole('button', { name: '删除板子' }).click()
   await expect(page.getByRole('button', { name: new RegExp(boardName) })).toBeHidden()
+})
+
+test('shows the concise Mirror Hidden preset without clipping its composition', async ({
+  page,
+}) => {
+  await page.goto('/matches/new')
+  await page.getByRole('button', { name: '10 人', exact: true }).click()
+  const board = page.getByRole('button', { name: /10 人镜隐迷踪局/ })
+  await expect(board).toBeVisible()
+  await expect(
+    board.getByText(
+      '阵容：4 名平民、魔镜少女、女巫、守卫，对阵 2 名狼人和 1 名觉醒隐狼；上警屠边。',
+    ),
+  ).toBeVisible()
+  for (const label of ['狼人×2', '觉醒隐狼×1', '平民×4', '魔镜少女×1', '女巫×1', '守卫×1']) {
+    await expect(board.getByText(label, { exact: true })).toBeVisible()
+  }
+  expect(await board.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(board).toBeVisible()
+  expect(await board.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 })
 
 test('copies a Character, saves board defaults, and blocks duplicate Match nicknames', async ({
@@ -963,6 +989,24 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
   } as MatchView)
   await page.waitForTimeout(250)
   await expect(overlay).toHaveCount(0)
+})
+
+test('renders a private night phase through its generic projection', async ({ page }) => {
+  const match = {
+    ...thinkingMatchFixture(),
+    id: 'match-private-night-phase-test',
+    phaseId: 'phase-night-hidden',
+    phaseLabel: '夜间行动',
+  } as MatchView
+  await page.route(`**/api/matches/${match.id}?*`, async (route) => route.fulfill({ json: match }))
+  await page.routeWebSocket('**/live?*', (socket) => {
+    if (!socket.url().includes(match.id)) return
+    socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'closed-eye' }, data: match }))
+  })
+
+  await page.goto(`/matches/${match.id}`)
+  await expect(page.locator('.aw-phase-title')).toHaveText('夜间行动')
+  await expect(page.getByText('觉醒隐狼行动', { exact: true })).toHaveCount(0)
 })
 
 test('starts narration at sentence boundaries and only appends the committed tail', async ({

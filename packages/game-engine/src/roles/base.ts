@@ -18,6 +18,7 @@ export interface AbilityOutcome {
 export interface AbilityDefinition {
   readonly id: AbilityId
   readonly requiredCapability?: CapabilityId
+  readonly nightAttack?: boolean
   readonly actionTypes: readonly PlayerAction['type'][]
   validate(context: ActionValidationContext): void
   effects(context: ActionValidationContext): readonly ResolutionEffect[]
@@ -30,6 +31,7 @@ export abstract class Role {
   public abstract readonly faction: Faction
   public abstract readonly kind: 'villager' | 'god' | 'werewolf' | 'independent'
   public readonly sharesFactionKnowledge: boolean = false
+  public readonly maximumCount?: number
   public readonly capabilities: readonly CapabilityId[] = []
   public abstract readonly abilities: readonly AbilityDefinition[]
 }

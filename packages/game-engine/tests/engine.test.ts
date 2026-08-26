@@ -98,7 +98,7 @@ describe('GameEngine', () => {
     expect(restored.state.phaseId).toBe('phase-day-vote')
   })
 
-  it('rejects a wolf-kill vote that targets a werewolf teammate', () => {
+  it('accepts wolf-kill votes that target a teammate or the voter', () => {
     const roles = createV1RoleRegistry()
     const validateKill = vi.spyOn(roles.ability(v1AbilityIds.werewolfKill).ability, 'validate')
     const engine = createManualEngine(sixPlayerBoard, roles)
@@ -116,7 +116,7 @@ describe('GameEngine', () => {
         text: '确认狼队成员后再选择目标。',
       })
     }
-    const invalidAction = {
+    const teammateAction = {
       type: 'vote' as const,
       matchId: engine.state.matchId,
       actorId: firstWolf,
@@ -125,12 +125,17 @@ describe('GameEngine', () => {
     }
     const beforeValidation = engine.snapshot()
 
-    expect(() => engine.validateAction(invalidAction)).toThrow(
-      'Werewolves cannot attack a werewolf',
-    )
+    expect(() => engine.validateAction(teammateAction)).not.toThrow()
     expect(engine.snapshot()).toEqual(beforeValidation)
-    expect(() => engine.submit(invalidAction)).toThrow('Werewolves cannot attack a werewolf')
-    expect(validateKill).toHaveBeenCalledTimes(2)
+    expect(() => engine.submit(teammateAction)).not.toThrow()
+    expect(() =>
+      engine.submit({
+        ...teammateAction,
+        actorId: secondWolf,
+        targetId: secondWolf,
+      }),
+    ).not.toThrow()
+    expect(validateKill).toHaveBeenCalledTimes(3)
   })
 
   it('resolves the selected wolf attack through the registered Werewolf ability', () => {

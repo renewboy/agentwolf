@@ -59,6 +59,7 @@ const installedRoleIds = createClassicRuleset()
   .map((role) => role.id)
   .sort()
 const installedStrategyPages = new Map<string, string>([
+  ['role-awakened-hidden-wolf', 'robotwolf.md'],
   ['role-guard', 'guard.md'],
   ['role-hunter', 'hunter.md'],
   ['role-idiot', 'idiot.md'],

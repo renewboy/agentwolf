@@ -80,14 +80,21 @@ export const guardBoard = twelvePlayerBoard('board-guard-12', [
   { roleId: RoleIdSchema.parse('role-guard'), count: 1 },
 ])
 
-export const magicMirrorBoard = twelvePlayerBoard('board-magic-mirror-12', [
-  { roleId: RoleIdSchema.parse('role-werewolf'), count: 4 },
-  { roleId: RoleIdSchema.parse('role-villager'), count: 4 },
-  { roleId: RoleIdSchema.parse('role-magic-mirror-girl'), count: 1 },
-  { roleId: RoleIdSchema.parse('role-witch'), count: 1 },
-  { roleId: RoleIdSchema.parse('role-hunter'), count: 1 },
-  { roleId: RoleIdSchema.parse('role-guard'), count: 1 },
-])
+export const mirrorHiddenBoard: BoardManifest = {
+  id: BoardIdSchema.parse('board-mirror-hidden-10'),
+  playerCount: 10,
+  roles: [
+    { roleId: RoleIdSchema.parse('role-werewolf'), count: 2 },
+    { roleId: RoleIdSchema.parse('role-awakened-hidden-wolf'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-villager'), count: 4 },
+    { roleId: RoleIdSchema.parse('role-magic-mirror-girl'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-witch'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-guard'), count: 1 },
+  ],
+  sheriff: true,
+  policies: classicBoardPolicyDefaults,
+  phases: classicPhaseGraph,
+}
 
 export const whiteWolfKingBoard = twelvePlayerBoard('board-white-wolf-king-12', [
   { roleId: RoleIdSchema.parse('role-werewolf'), count: 3 },
@@ -116,7 +123,7 @@ const boards = new Map(
     ninePlayerBoard,
     standardBoard,
     guardBoard,
-    magicMirrorBoard,
+    mirrorHiddenBoard,
     whiteWolfKingBoard,
   ].map((board) => [board.id, board]),
 )

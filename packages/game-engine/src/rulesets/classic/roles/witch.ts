@@ -52,6 +52,7 @@ export class WitchRole extends Role {
             sourceId: context.actor.id,
             targetId,
             protection: 'antidote',
+            blocks: ['werewolf'],
           },
         ]
       },

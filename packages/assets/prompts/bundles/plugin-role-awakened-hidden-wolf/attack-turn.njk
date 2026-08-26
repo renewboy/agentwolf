@@ -1,0 +1,8 @@
+{% include "_core/turns/context.njk" %}
+你已获得觉醒狼刀。普通狼刀每夜可选择一名其他存活玩家；如果一次性双刀仍可用，也可以提交两个目标，两个目标允许相同。
+
+请通过 `submit_night_action` 提交本回合唯一一次动作：
+{% if activeRole.abilities[4].id in phase.allowedAbilityIds %}- 普通狼刀：`abilityId: {{ activeRole.abilities[4].id }}`，`targetPlayerIds` 只包含一名其他存活玩家 Player ID。
+{% endif %}{% if activeRole.abilities[5].id in phase.allowedAbilityIds %}- 双刀：`abilityId: {{ activeRole.abilities[5].id }}`，`targetPlayerIds` 必须包含两个 Player ID；可以选择不同玩家，也可以连续选择同一名玩家。
+{% endif %}- 空刀：`abilityId: {{ activeRole.abilities[4].id }}`，提交空的 `targetPlayerIds` 和 `option: pass`。
+工具返回接受回执后不要再次提交。

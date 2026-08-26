@@ -6,6 +6,7 @@ import {
   type ResolutionFrame,
 } from '../../plugins/resolution-registry.js'
 import type {
+  DamageCause,
   DamageEffect,
   ExactInspectEffect,
   InspectEffect,
@@ -15,6 +16,16 @@ import type {
   TargetEffect,
 } from '../../types.js'
 import { classicIdentityQueries } from './identity-queries.js'
+
+const damageCauseSchema = z.enum([
+  'werewolf',
+  'poison',
+  'shot',
+  'exile',
+  'self-destruct',
+  'white-wolf-detonate',
+  'linked',
+])
 
 const targetEffectSchema = z.object({
   kind: z.literal('target-map'),
@@ -28,22 +39,16 @@ const protectEffectSchema = z.object({
   priority: z.literal(300),
   sourceId: PlayerIdSchema,
   targetId: PlayerIdSchema,
-  protection: z.enum(['guard', 'antidote']),
+  protection: z.string().min(1),
+  blocks: z.array(damageCauseSchema).min(1),
 })
 const damageEffectSchema = z.object({
   kind: z.literal('damage'),
   priority: z.union([z.literal(400), z.literal(700)]),
   sourceId: PlayerIdSchema.nullable(),
   targetId: PlayerIdSchema,
-  cause: z.enum([
-    'werewolf',
-    'poison',
-    'shot',
-    'exile',
-    'self-destruct',
-    'white-wolf-detonate',
-    'linked',
-  ]),
+  ignoredProtections: z.array(z.string().min(1)).optional(),
+  cause: damageCauseSchema,
 })
 const inspectEffectSchema = z.object({
   kind: z.literal('inspect'),
@@ -96,12 +101,9 @@ export function registerClassicResolution(registry: ResolutionRegistry): void {
     lane: 'protection',
     apply: (effect, _context, frame) => {
       const targetId = redirectedTarget(effect.targetId, frame)
-      const protections = frame.fact(
-        protectionsKey,
-        () => new Map<PlayerId, Set<ProtectEffect['protection']>>(),
-      )
-      const targetProtections = protections.get(targetId) ?? new Set()
-      targetProtections.add(effect.protection)
+      const protections = frame.fact(protectionsKey, () => new Map<PlayerId, ProtectEffect[]>())
+      const targetProtections = protections.get(targetId) ?? []
+      targetProtections.push({ ...effect, targetId })
       protections.set(targetId, targetProtections)
     },
   })
@@ -179,20 +181,30 @@ function finalizeClassicCombat(
   frame: ResolutionFrame,
 ): Pick<ResolutionResult, 'pendingDeaths' | 'savedPlayerIds'> {
   const protections =
-    frame.read<Map<PlayerId, Set<ProtectEffect['protection']>>>(protectionsKey) ??
-    new Map<PlayerId, Set<ProtectEffect['protection']>>()
+    frame.read<Map<PlayerId, ProtectEffect[]>>(protectionsKey) ??
+    new Map<PlayerId, ProtectEffect[]>()
   const damages =
     frame.read<Map<PlayerId, DamageEffect[]>>(damagesKey) ?? new Map<PlayerId, DamageEffect[]>()
   const preventedExiles = frame.read<Set<PlayerId>>(preventedExilesKey) ?? new Set<PlayerId>()
   const pendingDeaths: ResolutionResult['pendingDeaths'][number][] = []
   const savedPlayerIds: PlayerId[] = []
   for (const [targetId, targetDamages] of damages) {
-    const protection = protections.get(targetId) ?? new Set()
+    const targetProtections = protections.get(targetId) ?? []
     const survivingDamages = targetDamages.filter((damage) => {
       if (damage.cause === 'exile') return !preventedExiles.has(targetId)
-      if (damage.cause !== 'werewolf') return true
-      const guarded = protection.has('guard')
-      const healed = protection.has('antidote')
+      const ignored = new Set(damage.ignoredProtections ?? [])
+      const blockers = targetProtections.filter(
+        (protection) =>
+          !ignored.has(protection.protection) && blocksDamage(protection, damage.cause),
+      )
+      if (damage.cause !== 'werewolf') return blockers.length === 0
+      if (
+        blockers.some((entry) => entry.protection !== 'guard' && entry.protection !== 'antidote')
+      ) {
+        return false
+      }
+      const guarded = blockers.some((entry) => entry.protection === 'guard')
+      const healed = blockers.some((entry) => entry.protection === 'antidote')
       if (guarded && healed) return context.board.policies.guardAntidoteCollision === 'death'
       return !guarded && !healed
     })
@@ -206,4 +218,8 @@ function finalizeClassicCombat(
     }
   }
   return { pendingDeaths, savedPlayerIds }
+}
+
+function blocksDamage(protection: ProtectEffect, cause: DamageCause): boolean {
+  return protection.blocks.includes(cause)
 }

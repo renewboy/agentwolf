@@ -68,8 +68,14 @@ export function visibleRoleId(
   if (idiotRevealed) return player.roleId
   if (view.kind === 'player') {
     if (view.playerId === playerId) return player.roleId
-    const viewer = state.players.get(view.playerId)
-    if (viewer?.faction === 'werewolf' && player.faction === 'werewolf') return player.roleId
+    const sharedFactionKnowledge = events.some(
+      (event) =>
+        event.payload.type === 'faction.members' &&
+        event.payload.playerIds.includes(view.playerId) &&
+        event.payload.playerIds.includes(playerId) &&
+        canViewEvent(event, view, state),
+    )
+    if (sharedFactionKnowledge) return player.roleId
   }
   return null
 }

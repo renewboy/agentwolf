@@ -30,6 +30,7 @@ describe('V1 role abilities', () => {
         sourceId: guardId,
         targetId,
         protection: 'guard',
+        blocks: ['werewolf'],
       },
     ])
     const repeatedState: GameState = {

@@ -2,7 +2,7 @@
 
 ## Test layers
 
-- Unit tests cover versioned Ruleset plugin dependency loading, semantic contribution ownership, strict Prompt bundle loading, synthetic Role/Ability/Phase/plugin-event Prompt extension, audience-safe imports, Nunjucks condition rendering, capability authorization, named-lane settlement, role classes, production ability-effect dispatch, wolf
+- Unit tests cover versioned Ruleset plugin dependency loading, semantic contribution ownership, strict Prompt bundle loading, synthetic Role/Ability/Phase/plugin-event Prompt extension, audience-safe imports, Nunjucks condition rendering, capability authorization, named-lane settlement, role classes, Awakened Hidden Wolf learning and copied variants, production ability-effect dispatch, wolf
   no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
   changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
   role-effect catalog coverage, custom-board validation, phase transitions, speech
@@ -85,11 +85,11 @@ buckets, and paths outside the dated directory format.
    does not receive its own already-known speech again in an incremental Prompt.
 4. God, closed-eye, and player projections return distinct allowed fields from the server.
 5. Speech chunks appear live, while committed text contains no Player IDs.
-6. Guard, Witch, Hunter, Idiot, Magic Mirror Girl, and White Wolf King interactions match the selected board policies. A Witch with an
+6. Guard, Witch, Hunter, Idiot, Magic Mirror Girl, White Wolf King, and Awakened Hidden Wolf interactions match the selected board policies. A Witch with an
    available antidote sees only the regular Werewolf attack target; after losing the antidote she
    receives no death target through either events or action instructions.
 7. A killed or timed-out ACP process continues or resumes the same persisted Session ID without resending an in-flight envelope; a repeated failure pauses the Match.
-8. Selecting 6, 9, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
+8. Selecting 6, 9, 10, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
 9. Agent Tool selection discovers its ACP model list, and only an advertised model can be selected in the settings UI.
 10. A rejected six-player Seer action returns its rule error to the same Agent turn, accepts a corrected tool call, reaches a settled inspection, and emits no pause or resume event.
 11. Recovery after server restart restores the event-sourced engine, resumes every original Session ID without another foundation, and continues the interrupted turn.
@@ -186,3 +186,8 @@ buckets, and paths outside the dated directory format.
     the shared wolf council and attack ballot, receives no ordinary Werewolf self-destruct ability,
     and settles a targeted detonation plus any eligible Hunter reaction through the common trigger
     pipeline.
+45. The 10-player Mirror Hidden board contains four Villagers, Magic Mirror Girl, Witch, Guard,
+    two pack Werewolves, and one Awakened Hidden Wolf. Pack members exchange private council and
+    ballot events without exposing them to Awakened Hidden Wolf; either side can target the other.
+    Learning, copied abilities, isolated attack activation, event restoration, and private phase
+    projection follow the Role contract without exposing its identity.

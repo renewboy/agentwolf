@@ -287,7 +287,7 @@ export function NewMatchPage() {
                       <em className="aw-board-custom-badge">{getCopy('setup.customBoard')}</em>
                     ) : null}
                   </strong>
-                  <span>{entry.description}</span>
+                  <span className="aw-board-option__description">{entry.description}</span>
                   <small>
                     {formatCopy(getCopy('setup.playerCountOption'), { count: entry.playerCount })}
                   </small>

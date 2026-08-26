@@ -19,7 +19,7 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 - Visible identities use one labeled role badge system across board management, Match setup,
   spectator, and developer surfaces: silver Villager, red Werewolf, blue Seer, purple Witch, green
   Hunter, amber Idiot, cyan Guard, pink Magic Mirror Girl, and white White Wolf King. Hidden identities use a neutral badge with no role-specific
-  color.
+  color. Awakened Hidden Wolf uses a copper label distinct from Werewolf and Magic Mirror Girl.
 
 ## Layouts
 
@@ -37,7 +37,8 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   seat assignment defaulted to the first persisted Agent Profile, per-seat Agent Profile selector,
   inherited and overridable Character selector, color-labeled board composition and manual identity
   selector, editable Character-name nickname default, duplicate nickname feedback, per-seat reroll,
-  and reroll-all.
+  and reroll-all. Built-in board descriptions preserve authored line breaks and wrap without
+  resizing or clipping role badges.
 - Spectator: a `100dvh` shell with an integrated status HUD, portrait-aware left and right player
   rosters, a center presence stage, and an independently scrolling event feed. Nickname remains
   primary, Character name is public secondary context, and every player card carries its configured

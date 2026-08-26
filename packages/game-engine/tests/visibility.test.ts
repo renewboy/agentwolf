@@ -97,7 +97,7 @@ describe('event visibility', () => {
     )
     expect(wolfVoteEvents).toHaveLength(wolves.length + 1)
     for (const event of wolfVoteEvents) {
-      expect(event.visibility).toEqual({ kind: 'faction', faction: 'werewolf' })
+      expect(event.visibility).toEqual({ kind: 'players', playerIds: wolves })
       expect(canViewEvent(event, { kind: 'god' }, engine.state)).toBe(true)
       expect(canViewEvent(event, { kind: 'closed-eye' }, engine.state)).toBe(false)
       expect(canViewEvent(event, { kind: 'player', playerId: witchId }, engine.state)).toBe(false)

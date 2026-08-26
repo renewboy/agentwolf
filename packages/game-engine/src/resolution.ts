@@ -56,7 +56,7 @@ export function addAbilityEffects(
     ability.actionTypes.includes(action.type),
     `${action.abilityId} does not accept ${action.type}`,
   )
-  const context = { state, board, action, actor }
+  const context = { state, board, roles, action, actor }
   ability.validate(context)
   agenda.addAll(ability.effects(context))
 }
@@ -70,7 +70,13 @@ export function appendAbilityOutcomes(
   const actor = runtime.state.players.get(action.actorId)
   assertRule(actor?.roleId, `Action actor ${action.actorId} has no role`)
   const { ability } = runtime.roles.ability(action.abilityId)
-  const context = { state: runtime.state, board: runtime.board, action, actor }
+  const context = {
+    state: runtime.state,
+    board: runtime.board,
+    roles: runtime.roles,
+    action,
+    actor,
+  }
   for (const outcome of ability.outcomes?.(context, result) ?? []) {
     if (outcome.stage !== stage) continue
     runtime.append(outcome.payload, outcome.visibility)

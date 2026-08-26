@@ -38,7 +38,9 @@ contracts  <- game-engine
 
 ## Rules and roles
 
-A Ruleset Catalog resolves one immutable, compile-time plugin manifest for every Match. A manifest
+A Ruleset Catalog resolves one immutable, compile-time plugin manifest for every Match. New
+Matches use `classic-v3`; `classic-v1` and `classic-v2` remain installed for snapshots that name
+those manifests. A manifest
 contains the ruleset ID and version plus an ordered lock of plugin IDs, versions, configurations,
 configuration hashes, and a canonical fingerprint. Schema-two board snapshots store that lock,
 the resolved board policies, composition, Sheriff setting, revision, and presentation metadata.
@@ -75,9 +77,8 @@ ability consumption. Interactive death reactions resolve through trigger-selecte
 before victory. Interrupt handlers commit every resulting death, publish registered outcomes, and
 select the next phase after the same terminal checks.
 
-Magic Mirror Girl uses the exact-role identity query and records inspected targets in its private
-plugin event state. White Wolf King receives the shared council and attack capabilities; its
-targeted detonation produces two damage effects and enters the common death-trigger pipeline.
+Role plugins keep faction affiliation, private team knowledge, action authorization, durable
+state, and settlement contributions under separate explicit contracts.
 Presentation registries map visible legacy and plugin events to narration, player references, and
 semantic effect cues outside the game kernel.
 
@@ -134,9 +135,9 @@ profiles append to the catalog, and the ordered list is the source for new-Match
 
 Every event receives a match-local monotonic sequence and a visibility descriptor: public, god-only, player set, or faction. State is reduced from the event log. View projectors filter before serialization.
 
-Wolf-kill ballots and their grouped resolution use Werewolf-faction visibility, so god and
-Werewolf player projections receive the complete vote while other player and closed-eye
-projections receive none of it. A no-kill ballot is a real choice and wins only by strict
+Wolf-kill ballots and their grouped resolution use the immutable wolf-phase actor set, so god and
+pack-member projections receive the complete vote while isolated Werewolf-faction Roles, other
+players, and closed-eye projections receive none of it. A no-kill ballot is a real choice and wins only by strict
 plurality. A tied highest count selects one replay-stable random player target. The resulting
 regular attack selection is visible to living Werewolves and to a living Witch only while her
 antidote remains available. The Witch's antidote can target only that regular attack target. Once

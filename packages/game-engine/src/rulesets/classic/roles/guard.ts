@@ -39,6 +39,7 @@ export class GuardRole extends Role {
             sourceId: context.actor.id,
             targetId,
             protection: 'guard',
+            blocks: ['werewolf'],
           },
         ]
       },

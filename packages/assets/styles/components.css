@@ -179,6 +179,11 @@
   --aw-role-background: var(--aw-role-white-wolf-soft);
 }
 
+.aw-role-badge[data-role-id='role-awakened-hidden-wolf'] {
+  --aw-role-color: var(--aw-role-awakened-hidden-wolf);
+  --aw-role-background: var(--aw-role-awakened-hidden-wolf-soft);
+}
+
 .aw-field {
   display: grid;
   gap: 8px;

@@ -4,25 +4,33 @@ import { createHash } from 'node:crypto'
 import {
   createClassicRuleset,
   createClassicV1Ruleset,
+  createClassicV2Ruleset,
   type RulesetRuntime,
 } from '@agentwolf/game-engine'
 import { promptRegistryFor } from './prompt-registry.js'
 
 export class RulesetCatalog {
   readonly #classicV1 = createClassicV1Ruleset()
-  readonly #classicV2 = createClassicRuleset()
+  readonly #classicV2 = createClassicV2Ruleset()
+  readonly #classicV3 = createClassicRuleset()
 
   public constructor() {
     promptRegistryFor(this.#classicV1)
     promptRegistryFor(this.#classicV2)
+    promptRegistryFor(this.#classicV3)
   }
 
   public current(): RulesetRuntime {
-    return this.#classicV2
+    return this.#classicV3
   }
 
   public forSnapshot(snapshot: MatchBoardSnapshot): RulesetRuntime {
-    const ruleset = snapshot.rulesetId === 'classic-v1' ? this.#classicV1 : this.#classicV2
+    const ruleset =
+      snapshot.rulesetId === 'classic-v1'
+        ? this.#classicV1
+        : snapshot.rulesetId === 'classic-v2'
+          ? this.#classicV2
+          : this.#classicV3
     if (snapshot.schemaVersion === 2) {
       const expected = this.lock(ruleset)
       if (snapshot.ruleset.fingerprint !== expected.fingerprint) {
@@ -34,8 +42,8 @@ export class RulesetCatalog {
     return ruleset
   }
 
-  public currentSnapshotId(): 'classic-v2' {
-    return 'classic-v2'
+  public currentSnapshotId(): 'classic-v3' {
+    return 'classic-v3'
   }
 
   public lock(ruleset: RulesetRuntime = this.current()): RulesetLock {

@@ -69,6 +69,7 @@ function localizePausedReason(reason: string | null): string | null {
 
 export function projectMatch(options: ProjectMatchOptions): MatchView {
   const projectedEvents = visibleEvents(options.events, options.view, options.state)
+  const phase = projectedPhase(options)
   const publicDead = publiclyEliminatedPlayerIds(options.events)
   const catalog = {
     players: new Map(
@@ -105,8 +106,8 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
     boardName: options.boardName,
     status: options.state.status,
     day: options.state.day,
-    phaseId: options.state.phaseId ?? '',
-    phaseLabel: options.state.phaseLabelKey ? getCopy(options.state.phaseLabelKey) : '',
+    phaseId: phase.id,
+    phaseLabel: phase.label,
     lastSequence: options.state.lastSequence,
     seats: [...options.state.players.values()]
       .sort((left, right) => left.seat - right.seat)
@@ -150,6 +151,32 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
     winner: winnerEvent?.payload.type === 'match.ended' ? winnerEvent.payload.winner : null,
     pausedReason: localizePausedReason(options.state.pausedReason),
   })
+}
+
+function projectedPhase(options: ProjectMatchOptions): {
+  readonly id: string
+  readonly label: string
+} {
+  const phaseId = options.state.phaseId
+  const node = phaseId ? options.board.phases.nodes.get(phaseId) : null
+  const presentation = node?.presentation
+  const canSeeExactPhase =
+    !presentation ||
+    presentation.visibility === 'public' ||
+    options.view.kind === 'god' ||
+    (presentation.visibility === 'actors' &&
+      options.view.kind === 'player' &&
+      options.state.phaseActors.includes(options.view.playerId))
+  if (canSeeExactPhase) {
+    return {
+      id: phaseId ?? '',
+      label: options.state.phaseLabelKey ? getCopy(options.state.phaseLabelKey) : '',
+    }
+  }
+  return {
+    id: presentation.hiddenPhaseId,
+    label: getCopy(presentation.hiddenLabelKey),
+  }
 }
 
 export function projectRoleEffectCues(events: readonly GameEvent[]): RoleEffectCue[] {

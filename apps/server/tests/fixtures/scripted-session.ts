@@ -1,16 +1,12 @@
 import type { McpServer } from '@agentclientprotocol/sdk'
-import { PhaseIdSchema, type PlayerId } from '@agentwolf/contracts'
+import type { PlayerId } from '@agentwolf/contracts'
 import {
   AcpDeliveryUncertainError,
   type AcpPromptCallbacks,
   type AcpPromptResult,
 } from '@agentwolf/acp'
-import { createClassicRuleset } from '@agentwolf/game-engine'
 import type { ActionMailbox } from '../../src/action-mailbox.js'
 import type { PlayerSession, PlayerSessionFactory } from '../../src/player-runtime.js'
-import { promptRegistryFor } from '../../src/prompt-registry.js'
-
-const promptRegistry = promptRegistryFor(createClassicRuleset())
 
 export interface ScriptedSessionOptions {
   readonly prompts: Map<PlayerId, string[]>
@@ -215,21 +211,12 @@ function latestPhase(prompt: string): string | null {
   if (prompt.includes('ability-hunter-shot')) return 'hunterShot'
   if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
   if (prompt.includes('ability-witch-antidote')) return 'nightWitch'
-  const phases = [
-    ['sheriffSignup', 'phase-sheriff-signup'],
-    ['sheriffWithdraw', 'phase-sheriff-withdraw'],
-    ['sheriffTransfer', 'phase-sheriff-transfer'],
-    ['nightWolfVote', 'phase-night-wolf-vote'],
-    ['dayVote', 'phase-day-vote'],
-    ['nightWitch', 'phase-night-witch'],
-    ['nightSeer', 'phase-night-seer'],
-  ] as const
-  const ranked = phases
-    .map(([phase, phaseId]) => ({
-      phase,
-      index: prompt.lastIndexOf(promptRegistry.phaseLabel(PhaseIdSchema.parse(phaseId))),
-    }))
-    .filter((entry) => entry.index >= 0)
-    .sort((left, right) => right.index - left.index)
-  return ranked[0]?.phase ?? null
+  if (prompt.includes('action: join') && prompt.includes('action: decline')) return 'sheriffSignup'
+  if (prompt.includes('action: withdraw') && prompt.includes('action: keep-running')) {
+    return 'sheriffWithdraw'
+  }
+  if (prompt.includes('action: destroy-badge')) return 'sheriffTransfer'
+  if (prompt.includes('狼队商议结束') && prompt.includes('submit_vote')) return 'nightWolfVote'
+  if (prompt.includes('submit_vote')) return 'dayVote'
+  return null
 }

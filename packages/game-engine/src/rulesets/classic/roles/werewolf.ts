@@ -23,6 +23,7 @@ export class WerewolfRole extends Role {
     {
       id: killAbilityId,
       requiredCapability: classicCapabilities.wolfKill,
+      nightAttack: true,
       actionTypes: ['vote', 'night-action'],
       validate: (context) => {
         let targetId: PlayerId | null
@@ -35,9 +36,7 @@ export class WerewolfRole extends Role {
           targetId = requireTargetCount(context, 1)[0]
         }
         if (!targetId) return
-        requireAliveTarget(context, targetId, { allowSelf: false })
-        const target = context.state.players.get(targetId)
-        assertRule(target?.faction !== 'werewolf', 'Werewolves cannot attack a werewolf')
+        requireAliveTarget(context, targetId, { allowSelf: true })
       },
       effects: (context) => {
         assertRule(context.action.type === 'night-action', 'Werewolf kill is a night action')

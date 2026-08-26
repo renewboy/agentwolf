@@ -62,7 +62,11 @@ function resolveNight(runtime: RuleRuntime): void {
     runtime.resolution,
     runtime.queries,
   )
-  if (runtime.state.nightAttackTargetId) {
+  const hasSubmittedNightAttack = actions.some(
+    (action) =>
+      action.type === 'night-action' && runtime.roles.ability(action.abilityId).ability.nightAttack,
+  )
+  if (runtime.state.nightAttackTargetId && !hasSubmittedNightAttack) {
     const source = [...runtime.state.players.values()].find(
       (player) => player.alive && runtime.roles.hasCapability(player, classicCapabilities.wolfKill),
     )

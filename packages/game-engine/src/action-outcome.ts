@@ -31,7 +31,7 @@ export function appendActionOutcome({
         text: result.text,
         sanitized: result.replacements > 0,
       },
-      phaseActionVisibility(node, action.actorId),
+      phaseActionVisibility(node, action.actorId, state.phaseActors),
     )
     return
   }

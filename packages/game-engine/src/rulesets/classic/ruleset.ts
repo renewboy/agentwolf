@@ -10,13 +10,18 @@ import { classicPluginIds } from './plugins/ids.js'
 import { classicNightPlugin } from './plugins/night-plugin.js'
 import { classicLegacyEventPlugin } from './plugins/legacy-event-plugin.js'
 import { classicPhasePlugin } from './plugins/phase-plugin.js'
-import { classicRolePlugins, classicV1RolePlugins } from './plugins/role-plugins.js'
+import {
+  classicRolePlugins,
+  classicV1RolePlugins,
+  classicV2RolePlugins,
+} from './plugins/role-plugins.js'
 import { classicSheriffPlugin } from './plugins/sheriff-plugin.js'
 import { classicTerminalPlugin } from './plugins/terminal-plugin.js'
-import { classicWolfTeamPlugin } from './plugins/wolf-team-plugin.js'
+import { classicV1WolfTeamPlugin, classicWolfTeamPlugin } from './plugins/wolf-team-plugin.js'
 
 function plugins(
   rolePlugins: readonly RulePlugin<RulesetBuilder>[],
+  wolfTeamPlugin: RulePlugin<RulesetBuilder>,
 ): readonly RulePlugin<RulesetBuilder>[] {
   return [
     classicPhasePlugin,
@@ -38,7 +43,7 @@ function plugins(
         })
       },
     },
-    classicWolfTeamPlugin,
+    wolfTeamPlugin,
     classicNightPlugin,
     classicSheriffPlugin,
     classicDeathPlugin,
@@ -49,9 +54,17 @@ function plugins(
 
 export function createClassicRuleset(): RulesetRuntime {
   return new RulesetBuilder({
+    id: RulesetIdSchema.parse('ruleset-classic-v3'),
+    version: 3,
+    plugins: plugins(classicRolePlugins, classicWolfTeamPlugin),
+  }).build()
+}
+
+export function createClassicV2Ruleset(): RulesetRuntime {
+  return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic-v2'),
     version: 2,
-    plugins: plugins(classicRolePlugins),
+    plugins: plugins(classicV2RolePlugins, classicV1WolfTeamPlugin),
   }).build()
 }
 
@@ -59,6 +72,6 @@ export function createClassicV1Ruleset(): RulesetRuntime {
   return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic-v1'),
     version: 1,
-    plugins: plugins(classicV1RolePlugins),
+    plugins: plugins(classicV1RolePlugins, classicV1WolfTeamPlugin),
   }).build()
 }

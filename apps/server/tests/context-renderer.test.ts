@@ -11,6 +11,7 @@ import {
   GameEngine,
   createClassicRuleset,
   guardBoard,
+  mirrorHiddenBoard,
   ninePlayerBoard,
   sixPlayerBoard,
   v1AbilityIds,
@@ -23,6 +24,97 @@ import { describe, expect, it } from 'vitest'
 import { ContextRenderer } from '../src/context-renderer.js'
 
 describe('plugin-owned Prompt rendering', () => {
+  it('omits phase transitions while retaining the current action contract', async () => {
+    const setup = createBoardEngine(guardBoard)
+    setup.engine.start()
+    const turn = setup.engine.currentTurn()
+    const actorId = setup.engine.expectedActors()[0]
+    if (!turn || !actorId) throw new Error('Expected the first private night turn')
+
+    const rendered = await setup.renderer.turn(
+      setup.engine.state,
+      guardBoard,
+      setup.engine.events,
+      actorId,
+      0,
+      turn,
+      300,
+    )
+
+    expect(rendered.prompt).not.toContain('阶段切换为')
+    expect(rendered.prompt).not.toContain('守卫行动')
+    expect(rendered.prompt).toContain('submit_night_action')
+    expect(setup.engine.state.phaseLabelKey).toBe('phases.nightGuard')
+  })
+
+  it('tells pack Werewolves that self and teammate attacks are legal', async () => {
+    const setup = createBoardEngine(sixPlayerBoard)
+    setup.engine.start()
+    while (setup.engine.state.phaseId === 'phase-night-wolf-council') {
+      const actorId = setup.engine.activeActor()
+      if (!actorId) throw new Error('Expected a wolf council actor')
+      setup.engine.submit({
+        type: 'speech',
+        matchId: setup.engine.state.matchId,
+        actorId,
+        kind: 'wolf-council',
+        text: '讨论自刀安排。',
+      })
+    }
+    const turn = setup.engine.currentTurn()
+    const actorId = setup.engine.expectedActors()[0]
+    if (!turn || !actorId) throw new Error('Expected a wolf vote turn')
+
+    const rendered = await setup.renderer.turn(
+      setup.engine.state,
+      sixPlayerBoard,
+      setup.engine.events,
+      actorId,
+      0,
+      turn,
+      300,
+    )
+
+    expect(rendered.prompt).toContain('包括自己或狼队友')
+    expect(rendered.prompt).not.toContain('非狼人玩家')
+  })
+
+  it('renders canonical Mirror Hidden rules without leaking pack knowledge or strategy aliases', async () => {
+    const setup = createBoardEngine(mirrorHiddenBoard)
+    const hiddenWolf = setup.players.find(
+      (player) => player.roleId === 'role-awakened-hidden-wolf',
+    )!
+    const wolves = setup.players.filter((player) => player.roleId === 'role-werewolf')
+    const hiddenPrompt = (
+      await setup.renderer.foundation(
+        setup.engine.state,
+        mirrorHiddenBoard,
+        hiddenWolf.id,
+        setup.engine.events,
+      )
+    ).prompt
+
+    expect(hiddenPrompt).toContain(
+      '身份配置：狼人 2 名、觉醒隐狼 1 名、村民 4 名、魔镜少女 1 名、女巫 1 名、守卫 1 名。',
+    )
+    expect(hiddenPrompt).toContain('你的身份是觉醒隐狼')
+    expect(hiddenPrompt).not.toContain('机械狼')
+    expect(hiddenPrompt).not.toContain('通灵师')
+    expect(hiddenPrompt).not.toContain('你的狼人队友是')
+    for (const wolf of wolves) expect(hiddenPrompt).not.toContain(`你的狼人队友是：${wolf.name}`)
+
+    const wolfPrompt = (
+      await setup.renderer.foundation(
+        setup.engine.state,
+        mirrorHiddenBoard,
+        wolves[0]!.id,
+        setup.engine.events,
+      )
+    ).prompt
+    expect(wolfPrompt).toContain(`你的存活狼队友：${wolves[1]!.seat} 号玩家`)
+    expect(wolfPrompt).not.toContain(`你的存活狼队友：${hiddenWolf.seat} 号玩家`)
+  })
+
   it('renders current board policy and exactly the installed board roles', async () => {
     const six = createBoardEngine(sixPlayerBoard)
     const sixPrompt = (

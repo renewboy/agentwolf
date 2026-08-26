@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  awakenedHiddenWolfAbilityIds,
   GameEngine,
   createClassicRuleset,
   magicMirrorAbilityIds,
-  magicMirrorBoard,
   magicMirrorInspectedEventType,
+  mirrorHiddenBoard,
   publiclyEliminatedPlayerIds,
   v1AbilityIds,
   whiteWolfAbilityIds,
@@ -15,9 +16,10 @@ import { actorsWithRole, createManualEngine, playNight, submitExpected } from '.
 
 describe('plugin role settlement', () => {
   it('settles Magic Mirror Girl exact-role inspection and records target history', () => {
-    const engine = createManualEngine(magicMirrorBoard)
+    const engine = createManualEngine(mirrorHiddenBoard)
     const actorId = actorsWithRole(engine, 'role-magic-mirror-girl')[0]!
-    const targetId = actorsWithRole(engine, 'role-hunter')[0]!
+    const targetId = actorsWithRole(engine, 'role-guard')[0]!
+    const hiddenWolfId = actorsWithRole(engine, 'role-awakened-hidden-wolf')[0]!
     engine.start()
     playNight(engine, { wolfTargetId: null })
     expect(engine.state.phaseId).toBe('phase-night-magic-mirror')
@@ -29,6 +31,14 @@ describe('plugin role settlement', () => {
       abilityId: magicMirrorAbilityIds.inspect,
       targetIds: [targetId],
     })
+    engine.submit({
+      type: 'night-action',
+      matchId: engine.state.matchId,
+      actorId: hiddenWolfId,
+      abilityId: awakenedHiddenWolfAbilityIds.learn,
+      targetIds: [],
+      option: 'pass',
+    })
 
     const result = engine.events.find(
       (event) =>
@@ -38,13 +48,13 @@ describe('plugin role settlement', () => {
     expect(result?.visibility).toEqual({ kind: 'players', playerIds: [actorId] })
     expect(result?.payload).toMatchObject({
       type: 'plugin.event',
-      data: { actorId, targetId, roleId: 'role-hunter' },
+      data: { actorId, targetId, roleId: 'role-guard' },
     })
 
     const ruleset = createClassicRuleset()
     const restored = GameEngine.restore({
       matchId: engine.state.matchId,
-      board: magicMirrorBoard,
+      board: mirrorHiddenBoard,
       events: engine.events,
       status: engine.state.status,
       pausedReason: engine.state.pausedReason,
@@ -55,7 +65,8 @@ describe('plugin role settlement', () => {
     expect(() =>
       ability.validate({
         state: restored.state,
-        board: magicMirrorBoard,
+        board: mirrorHiddenBoard,
+        roles: ruleset.roles,
         actor,
         action: {
           type: 'night-action',

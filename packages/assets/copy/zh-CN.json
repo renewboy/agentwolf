@@ -10,6 +10,7 @@
     "guard": "守卫",
     "magicMirrorGirl": "魔镜少女",
     "whiteWolfKing": "白狼王",
+    "awakenedHiddenWolf": "觉醒隐狼",
     "sheriff": "警长"
   },
   "abilities": {
@@ -21,7 +22,13 @@
     "hunterShot": "开枪带走玩家",
     "guardProtect": "守护玩家",
     "magicMirrorInspect": "查验具体身份",
-    "whiteWolfDetonate": "自爆带走玩家"
+    "whiteWolfDetonate": "自爆带走玩家",
+    "awakenedHiddenWolfLearn": "学习身份",
+    "awakenedHiddenWolfInspect": "复制魔镜查验",
+    "awakenedHiddenWolfPoison": "使用复制毒药",
+    "awakenedHiddenWolfShield": "使用机械盾",
+    "awakenedHiddenWolfKill": "觉醒狼刀",
+    "awakenedHiddenWolfDoubleKill": "觉醒双刀"
   },
   "effects": {
     "werewolfAttack": "狼人夜袭",
@@ -34,6 +41,12 @@
     "guardProtect": "守卫守护",
     "magicMirrorInspect": "魔镜查验",
     "whiteWolfDetonate": "白狼王自爆",
+    "awakenedHiddenWolfLearn": "觉醒隐狼学习",
+    "awakenedHiddenWolfInspect": "觉醒隐狼查验",
+    "awakenedHiddenWolfPoison": "觉醒隐狼毒药",
+    "awakenedHiddenWolfShield": "觉醒隐狼机械盾",
+    "awakenedHiddenWolfKill": "觉醒隐狼夜袭",
+    "awakenedHiddenWolfDoubleKill": "觉醒隐狼双刀",
     "sheriffElected": "获得警徽",
     "sheriffTransferred": "移交警徽",
     "mode": "技能特效",
@@ -58,9 +71,9 @@
       "name": "12 人守卫场",
       "description": "预言家、女巫、猎人、守卫，四狼四民，上警屠边。"
     },
-    "magicMirror12": {
-      "name": "12 人魔镜场",
-      "description": "魔镜少女、女巫、猎人、守卫，四狼四民，上警屠边。"
+    "mirrorHidden10": {
+      "name": "10 人镜隐迷踪局",
+      "description": "阵容：4 名平民、魔镜少女、女巫、守卫，对阵 2 名狼人和 1 名觉醒隐狼；上警屠边。"
     },
     "whiteWolfKing12": {
       "name": "12 人白狼王场",
@@ -74,6 +87,11 @@
     "nightWitch": "女巫行动",
     "nightSeer": "预言家查验",
     "nightMagicMirror": "魔镜少女查验",
+    "nightHidden": "夜间行动",
+    "nightAwakenedHiddenWolfStatus": "夜间状态检查",
+    "nightAwakenedHiddenWolfAttack": "觉醒隐狼行动",
+    "nightAwakenedHiddenWolfCopy": "觉醒隐狼复制技能",
+    "nightAwakenedHiddenWolfLearn": "觉醒隐狼学习",
     "nightResolve": "夜间结算",
     "sheriffSignup": "警长竞选报名",
     "sheriffSpeech": "警上发言",
@@ -133,6 +151,13 @@
     "seerResultWerewolf": "查验结果：{{player}}属于狼人阵营。",
     "magicMirrorResult": "查验结果：{{player}}的具体身份是{{role}}。",
     "whiteWolfDetonation": "{{actor}}发动白狼王技能，带走{{target}}。",
+    "awakenedHiddenWolfLearned": "你学习了{{player}}，其真实身份是{{role}}。",
+    "awakenedHiddenWolfArmed": "狼人均已出局，你已获得觉醒狼刀。",
+    "awakenedHiddenWolfDormant": "仍有狼人存活，你本夜没有狼刀。",
+    "awakenedHiddenWolfInspected": "复制查验结果：{{player}}的具体身份是{{role}}。",
+    "awakenedHiddenWolfPoisoned": "你对{{player}}使用了复制毒药。",
+    "awakenedHiddenWolfProtected": "你对{{player}}使用了机械盾。",
+    "awakenedHiddenWolfAttacked": "你本夜的袭击目标是{{players}}。",
     "factionMembers": "你的狼人队友是：{{players}}。",
     "factionNoTeammates": "你没有狼人队友。",
     "werewolfMembers": "狼人阵营成员：{{players}}。",

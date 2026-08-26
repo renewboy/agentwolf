@@ -14,7 +14,7 @@
 8. [狼美人](beautywolf.md)
 9. [禁锢之影](shadowwolf.md)
 10. [黑狼王](blackwolf.md)
-11. [机械狼](robotwolf.md)
+11. [机械狼（觉醒隐狼）](robotwolf.md)
 12. [白痴](idiot.md)
 13. [老酒鬼](drunkard.md)
 14. [爱神](cupid.md)

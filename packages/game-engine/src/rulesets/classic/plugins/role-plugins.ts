@@ -23,6 +23,7 @@ import {
   whiteWolfDetonationDataSchema,
   whiteWolfStateSchema,
 } from '../roles/white-wolf-king.js'
+import { awakenedHiddenWolfPlugin } from './awakened-hidden-wolf-plugin.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
@@ -183,9 +184,14 @@ export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
       })
     },
   },
+  awakenedHiddenWolfPlugin,
 ]
 
-export const classicV1RolePlugins = classicRolePlugins.filter(
+export const classicV2RolePlugins = classicRolePlugins.filter(
+  (plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf,
+)
+
+export const classicV1RolePlugins = classicV2RolePlugins.filter(
   (plugin) =>
     plugin.id !== classicPluginIds.magicMirrorGirl && plugin.id !== classicPluginIds.whiteWolfKing,
 )

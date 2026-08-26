@@ -82,7 +82,9 @@ Use focused tests while iterating. Run `pnpm check` for cross-layer changes and 
 - Schema-two Match board snapshots freeze ruleset and plugin versions, configuration hashes,
   fingerprint, and resolved policies. Restore rejects a mismatched installed fingerprint.
 - Each seat completes `session/new` once and owns one durable ACP Session ID for the Match lifetime. ACP processes may restart, but reconnect through `session/resume` with that persisted ID. Delivery uses a per-player acknowledged event cursor.
-- A foundation source history covers its cursor and renders every visible bootstrap fact exactly once, including private faction membership.
+- A foundation source history covers its cursor and renders every visible bootstrap fact exactly
+  once, including private team knowledge. Faction affiliation, team knowledge, and action
+  capabilities remain separate rule concepts.
 - One uncertain ACP transport failure per player and phase may continue the existing connection or resume that player's persisted Session ID. Recovery never creates another Session or disturbs another player. A repeated failure pauses for operator action.
 - Structured actions enter through the action gateway. Natural speech streams, is sanitized, and commits through the same gateway.
 - Player IDs are valid in prompts and structured actions. Public speech and last words contain nicknames or seats, never `player-N` identifiers.

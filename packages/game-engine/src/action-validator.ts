@@ -77,7 +77,7 @@ export function validateTurnAction(
         assertRule(action.targetIds.length === 0, 'A pass action cannot have targets')
         return
       }
-      entry.ability.validate({ state, board, action, actor })
+      entry.ability.validate({ state, board, roles, action, actor })
       return
     }
     case 'skill-trigger':
@@ -174,7 +174,7 @@ function validateVote(
       entry.ability.actionTypes.includes(action.type),
       `${definition.abilityId} does not accept ${action.type}`,
     )
-    entry.ability.validate({ state, board, action, actor })
+    entry.ability.validate({ state, board, roles, action, actor })
     return
   }
   if (!action.targetId) return
@@ -208,7 +208,7 @@ function validateRoleSkill(
     assertRule(action.targetId === null, 'A pass trigger cannot have a target')
     return
   }
-  entry.ability.validate({ state, board, action, actor })
+  entry.ability.validate({ state, board, roles, action, actor })
 }
 
 export function normalizeTurnAction(
@@ -224,15 +224,27 @@ export function normalizeTurnAction(
   }
 }
 
-export function turnActionVisibility(node: PhaseNode, action: PlayerAction): EventVisibility {
-  return phaseActionVisibility(node, action.actorId)
+export function turnActionVisibility(
+  node: PhaseNode,
+  action: PlayerAction,
+  state: GameState,
+): EventVisibility {
+  return phaseActionVisibility(node, action.actorId, state.phaseActors)
 }
 
-export function phaseActionVisibility(node: PhaseNode, actorId: PlayerId): EventVisibility {
+export function phaseActionVisibility(
+  node: PhaseNode,
+  actorId: PlayerId,
+  phaseActors: readonly PlayerId[] = [actorId],
+): EventVisibility {
   const actionVisibility = node.action?.visibility
   assertRule(actionVisibility, `${node.id} does not define action visibility`)
   if (actionVisibility === 'public') return { kind: 'public' }
   if (typeof actionVisibility === 'object') return actionVisibility
+  if (actionVisibility === 'actors') {
+    assertRule(phaseActors.length > 0, `${node.id} actor visibility requires phase actors`)
+    return { kind: 'players', playerIds: [...phaseActors] }
+  }
   return { kind: 'players', playerIds: [actorId] }
 }
 

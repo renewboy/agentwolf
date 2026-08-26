@@ -213,6 +213,10 @@
   margin-top: 3px;
 }
 
+.aw-board-option__description {
+  white-space: pre-line;
+}
+
 .aw-board-option .aw-role-badge {
   color: var(--aw-role-color);
 }

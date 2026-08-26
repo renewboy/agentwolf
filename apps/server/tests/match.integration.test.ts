@@ -4,26 +4,29 @@ import { resolve } from 'node:path'
 import {
   AgentProfileInputSchema,
   AgentToolInputSchema,
-  PhaseIdSchema,
   type LiveMessage,
   type MatchId,
   type MatchView,
   type PlayerId,
 } from '@agentwolf/contracts'
 import { type AcpPromptResult } from '@agentwolf/acp'
-import { createClassicRuleset, sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
+import { sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
 import { auditTrajectory } from '../src/trajectory-audit.js'
-import { promptRegistryFor } from '../src/prompt-registry.js'
 import { scriptedSessionFactory, type ScriptedSeerFault } from './fixtures/scripted-session.js'
 
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
-const promptRegistry = promptRegistryFor(createClassicRuleset())
-const promptPhase = (phaseId: string) => promptRegistry.phaseLabel(PhaseIdSchema.parse(phaseId))
+const promptContracts = {
+  'phase-night-wolf-vote': '狼队商议结束。请通过 `submit_vote`',
+  'phase-night-witch': '当前药剂状态：',
+  'phase-night-seer': 'ability-seer-inspect',
+  'phase-day-speech': '现在轮到你发言',
+} as const
+const promptContract = (phaseId: keyof typeof promptContracts) => promptContracts[phaseId]
 
 afterEach(async () => {
   await Promise.allSettled(openServers.splice(0).map((server) => server.close()))
@@ -108,7 +111,7 @@ describe('match orchestration', () => {
     expect(
       [...prompts.values()]
         .flat()
-        .some((prompt) => prompt.includes(promptPhase('phase-night-wolf-vote'))),
+        .some((prompt) => prompt.includes(promptContract('phase-night-wolf-vote'))),
     ).toBe(false)
     connection.receive({
       type: 'speech-playback.resolve',
@@ -135,7 +138,7 @@ describe('match orchestration', () => {
       sequence: pendingSequence,
       outcome: 'completed',
     })
-    await waitForPrompt(prompts, promptPhase('phase-night-wolf-vote'))
+    await waitForPrompt(prompts, promptContract('phase-night-wolf-vote'))
     contender.close()
     connection.close()
   })
@@ -196,7 +199,7 @@ describe('match orchestration', () => {
     connection.receive({ type: 'speech-playback.set', enabled: true })
     server.matches.beginMatch(created.id)
 
-    await waitForPrompt(prompts, promptPhase('phase-night-wolf-vote'))
+    await waitForPrompt(prompts, promptContract('phase-night-wolf-vote'))
     connection.close()
   })
 
@@ -264,7 +267,7 @@ describe('match orchestration', () => {
     const final = await waitForMatch(server, created.id)
     const lastWolfPrompt = prompts
       .get('player-1' as PlayerId)
-      ?.findLast((prompt) => prompt.includes(promptPhase('phase-night-wolf-vote')))
+      ?.findLast((prompt) => prompt.includes(promptContract('phase-night-wolf-vote')))
     expect(
       final.status,
       `${final.pausedReason ?? 'match paused without a reason'}\n${lastWolfPrompt ?? ''}`,
@@ -339,21 +342,30 @@ describe('match orchestration', () => {
     const witchId = final.seats.find((seat) => seat.roleId === 'role-witch')?.playerId
     const seerId = final.seats.find((seat) => seat.roleId === 'role-seer')?.playerId
     const witchPrompt = witchId
-      ? prompts.get(witchId)?.find((prompt) => prompt.includes(promptPhase('phase-night-witch')))
+      ? prompts
+          .get(witchId)
+          ?.find(
+            (prompt) =>
+              prompt.includes(promptContract('phase-night-witch')) &&
+              prompt.includes(`狼队常规袭击目标是${attacked?.seat ?? 0} 号玩家`),
+          )
       : undefined
     expect(witchPrompt).toContain(`狼队常规袭击目标是${attacked?.seat ?? 0} 号玩家`)
     expect(witchPrompt).not.toContain(attacked?.name)
     expect(witchPrompt).not.toContain(firstAttack.payload.targetId)
     expect(
       seerId
-        ? prompts.get(seerId)?.find((prompt) => prompt.includes(promptPhase('phase-night-seer')))
+        ? prompts
+            .get(seerId)
+            ?.findLast((prompt) => prompt.includes(promptContract('phase-night-seer')))
         : undefined,
     ).not.toContain('狼队常规袭击目标是')
     const firstDaySpeechPrompt = [...prompts.values()]
       .flat()
       .find(
         (prompt) =>
-          prompt.includes(promptPhase('phase-day-speech')) && prompt.includes('当前公开存活玩家'),
+          prompt.includes(promptContract('phase-day-speech')) &&
+          prompt.includes('当前公开存活玩家'),
       )
     expect(firstDaySpeechPrompt).toBeDefined()
 

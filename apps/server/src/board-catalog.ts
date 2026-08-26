@@ -18,7 +18,7 @@ import {
   boardManifestFromSnapshot,
   classicBoardPolicyDefaults,
   guardBoard,
-  magicMirrorBoard,
+  mirrorHiddenBoard,
   ninePlayerBoard,
   sixPlayerBoard,
   standardBoard,
@@ -58,9 +58,9 @@ const builtInBoards: readonly BuiltInBoardDefinition[] = [
     descriptionKey: 'boards.guard12.description',
   },
   {
-    manifest: magicMirrorBoard,
-    nameKey: 'boards.magicMirror12.name',
-    descriptionKey: 'boards.magicMirror12.description',
+    manifest: mirrorHiddenBoard,
+    nameKey: 'boards.mirrorHidden10.name',
+    descriptionKey: 'boards.mirrorHidden10.description',
   },
   {
     manifest: whiteWolfKingBoard,
@@ -197,6 +197,11 @@ export class BoardCatalogService {
       slot,
       role: this.#roles().role(slot.roleId),
     }))
+    for (const { slot, role } of resolved) {
+      if (role.maximumCount !== undefined && slot.count > role.maximumCount) {
+        throw new RuleViolation(`${role.id} allows at most ${role.maximumCount} per board`)
+      }
+    }
     const werewolves = resolved
       .filter(({ role }) => role.faction === 'werewolf')
       .reduce((total, { slot }) => total + slot.count, 0)

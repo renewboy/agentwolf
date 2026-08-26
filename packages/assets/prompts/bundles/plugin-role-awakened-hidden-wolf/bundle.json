@@ -1,0 +1,128 @@
+{
+  "pluginId": "plugin-role-awakened-hidden-wolf",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-awakened-hidden-wolf",
+      "label": "觉醒隐狼",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-awakened-hidden-wolf-learn",
+          "label": "学习身份",
+          "foundation": true
+        },
+        {
+          "id": "ability-awakened-hidden-wolf-inspect",
+          "label": "复制魔镜查验",
+          "foundation": true
+        },
+        {
+          "id": "ability-awakened-hidden-wolf-poison",
+          "label": "使用复制毒药",
+          "foundation": true
+        },
+        {
+          "id": "ability-awakened-hidden-wolf-shield",
+          "label": "使用机械盾",
+          "foundation": true
+        },
+        {
+          "id": "ability-awakened-hidden-wolf-kill",
+          "label": "觉醒狼刀",
+          "foundation": true
+        },
+        {
+          "id": "ability-awakened-hidden-wolf-double-kill",
+          "label": "觉醒双刀",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-awakened-hidden-wolf-status",
+      "label": "夜间状态检查",
+      "audience": "player",
+      "daytime": false
+    },
+    {
+      "id": "phase-night-awakened-hidden-wolf-attack",
+      "label": "觉醒隐狼行动",
+      "audience": "player",
+      "daytime": false,
+      "template": "attack-turn.njk"
+    },
+    {
+      "id": "phase-night-awakened-hidden-wolf-copy",
+      "label": "觉醒隐狼复制技能",
+      "audience": "player",
+      "daytime": false,
+      "template": "copy-turn.njk"
+    },
+    {
+      "id": "phase-night-awakened-hidden-wolf-learn",
+      "label": "觉醒隐狼学习",
+      "audience": "player",
+      "daytime": false,
+      "template": "learn-turn.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-awakened-hidden-wolf",
+        "eventType": "event-awakened-hidden-wolf-learned"
+      },
+      "audience": "player",
+      "template": "learned.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-awakened-hidden-wolf",
+        "eventType": "event-awakened-hidden-wolf-status"
+      },
+      "audience": "player",
+      "template": "status.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-awakened-hidden-wolf",
+        "eventType": "event-awakened-hidden-wolf-inspected"
+      },
+      "audience": "player",
+      "template": "inspected.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-awakened-hidden-wolf",
+        "eventType": "event-awakened-hidden-wolf-poisoned"
+      },
+      "audience": "player",
+      "template": "poisoned.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-awakened-hidden-wolf",
+        "eventType": "event-awakened-hidden-wolf-protected"
+      },
+      "audience": "player",
+      "template": "protected.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-awakened-hidden-wolf",
+        "eventType": "event-awakened-hidden-wolf-attacked"
+      },
+      "audience": "player",
+      "template": "attacked.njk"
+    }
+  ]
+}

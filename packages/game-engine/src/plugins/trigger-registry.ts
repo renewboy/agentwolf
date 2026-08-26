@@ -41,6 +41,7 @@ export class TriggerRegistry {
       .filter(
         (trigger) =>
           trigger.signal === signal &&
+          roles.hasAbility(trigger.abilityId) &&
           roles.canUseAbility(actor, trigger.abilityId) &&
           trigger.eligible({ state, board, roles, actor }),
       )

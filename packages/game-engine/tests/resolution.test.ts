@@ -15,13 +15,21 @@ describe('ResolutionAgenda', () => {
     const witchId = actorsWithRole(engine, 'role-witch')[0]!
     const wolfId = actorsWithRole(engine, 'role-werewolf')[0]!
     const agenda = new ResolutionAgenda()
-    agenda.add({ kind: 'protect', priority: 300, sourceId: guardId, targetId, protection: 'guard' })
+    agenda.add({
+      kind: 'protect',
+      priority: 300,
+      sourceId: guardId,
+      targetId,
+      protection: 'guard',
+      blocks: ['werewolf'],
+    })
     agenda.add({
       kind: 'protect',
       priority: 300,
       sourceId: witchId,
       targetId,
       protection: 'antidote',
+      blocks: ['werewolf'],
     })
     agenda.add({ kind: 'damage', priority: 400, sourceId: wolfId, targetId, cause: 'werewolf' })
 
@@ -41,13 +49,21 @@ describe('ResolutionAgenda', () => {
     const witchId = actorsWithRole(engine, 'role-witch')[0]!
     const wolfId = actorsWithRole(engine, 'role-werewolf')[0]!
     const agenda = new ResolutionAgenda()
-    agenda.add({ kind: 'protect', priority: 300, sourceId: guardId, targetId, protection: 'guard' })
+    agenda.add({
+      kind: 'protect',
+      priority: 300,
+      sourceId: guardId,
+      targetId,
+      protection: 'guard',
+      blocks: ['werewolf'],
+    })
     agenda.add({
       kind: 'protect',
       priority: 300,
       sourceId: witchId,
       targetId,
       protection: 'antidote',
+      blocks: ['werewolf'],
     })
     agenda.add({ kind: 'damage', priority: 400, sourceId: wolfId, targetId, cause: 'werewolf' })
 
