@@ -12,8 +12,9 @@
   coverage, provider tool policies, and pre-speech or mid-speech knowledge tool boundaries.
 - Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
 - Integration tests run the API with an in-memory repository and fake ACP processes. They cover
-  Character upload/copy/CRUD and reference protection, board Character defaults and Match
-  overrides, repeated Characters with unique nicknames, immutable Character snapshots,
+  model-specific ACP reasoning discovery and Session configuration, Character upload/copy/CRUD and
+  reference protection, paired board Agent/Character defaults and Match overrides, repeated
+  Profiles and Characters with unique nicknames, immutable Character snapshots,
   custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
   migration, one session per seat, cursor advancement, submitted-action status, normalized and
   redacted trajectories, exact stored Prompt cardinality and semantic delivery audit, Prompt metadata cleanup with byte-preserved Prompt records, uncertain-delivery recovery, MCP action
@@ -31,8 +32,9 @@
   routing, Prompt delivery boundaries, delivery recovery, restart reconstruction, playback completion,
   skip and disconnect, and repeated-run determinism.
 - Browser tests cover Agent Profile management, profile metadata layout, whole-row drag feedback,
-  keyboard ordering, persisted setup defaults, Character library editing and portrait upload,
-  custom-board Character defaults, Match overrides and duplicate nickname blocking, custom-board
+  keyboard ordering, model-dependent reasoning selection, persisted setup defaults, Character
+  library editing and portrait upload, custom-board Agent/Character defaults, Match overrides and
+  duplicate nickname blocking, custom-board
   management, complete role-palette coverage, styled listbox behavior, confirmation-dialog focus and
   deletion, Match setup, per-Match trajectory entry, seat and nickname labels, seat model labels,
   visibility-safe role badges, cross-screen role-color consistency, semantic record tags,
@@ -65,9 +67,9 @@ pnpm check:skills
 pnpm test:e2e
 pnpm test:simulation
 pnpm simulation:check
-pnpm smoke:player-action -- --tool=trae-cli gpt-5.6-luna --probe-strategy --probe-sandbox
-pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --probe-strategy --probe-sandbox
-pnpm smoke:player-action -- --tool=claude --probe-strategy --probe-sandbox
+pnpm smoke:player-action -- --tool=trae-cli gpt-5.6-luna --reasoning-effort=high --probe-strategy --probe-sandbox
+pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --reasoning-effort=high --probe-strategy --probe-sandbox
+pnpm smoke:player-action -- --tool=claude --reasoning-effort=high --probe-strategy --probe-sandbox
 pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --postgame-review
 ```
 
@@ -99,7 +101,9 @@ buckets, and paths outside the dated directory format.
    receives no death target through either events or action instructions.
 7. A killed or timed-out ACP process continues or resumes the same persisted Session ID without resending an in-flight envelope; a repeated failure pauses the Match.
 8. Selecting 6, 9, 10, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
-9. Agent Tool selection discovers its ACP model list, and only an advertised model can be selected in the settings UI.
+9. Agent Tool selection discovers its ACP model list and the selected model's `thought_level`
+   values through one temporary Session. Only advertised models and reasoning values can be saved;
+   an omitted reasoning value follows the Agent default.
 10. A rejected six-player Seer action returns its rule error to the same Agent turn, accepts a corrected tool call, reaches a settled inspection, and emits no pause or resume event.
 11. Recovery after server restart restores the event-sourced engine, resumes every original Session ID without another foundation, and continues the interrupted turn.
 12. A paused match exposes continue and delete controls; deletion removes the match, events, delivery ledgers, Session bindings, and player workspaces.
@@ -154,8 +158,9 @@ buckets, and paths outside the dated directory format.
 31. Sheriff campaign speech uses a replay-stable random first candidate. Day speech order covers
     single-death, multiple-death, and peaceful-night anchors with or without a Sheriff, persists its
     basis and direction, and always places a living Sheriff last.
-32. Agent Profiles render their names and models on separate lines, retain a user-defined order
-    across edits and restarts, and default every new-Match seat to the first ordered profile.
+32. Agent Profiles render their names and model/reasoning configuration on separate lines and
+    retain a user-defined order across edits and restarts. A new-Match seat inherits its board
+    Profile default, then falls back to the first ordered Profile, and remains overridable.
 33. Ended and paused Matches export a sanitized, versioned simulation capture; running Matches and
     Matches with unresolved trajectory Turns reject capture without mutating the source Match.
 34. A complete twelve-player capture reaches the same winner and semantic event digest through the
@@ -183,10 +188,11 @@ buckets, and paths outside the dated directory format.
 41. The complete 14-variant simulation corpus preserves its reviewed events, checkpoints, audits,
     and repeated-run determinism while default parallel `pnpm check` stays within the existing
     timeout.
-42. A six-player board can assign the same Character to multiple seats. Match setup defaults both
-    nicknames to the Character name, blocks creation until the nicknames are unique, permits
-    per-Match Character overrides, snapshots every selected card, injects only the owning card with
-    the full-ability boundary, and projects Character portraits without changing game-role secrecy.
+42. A six-player board can assign the same Agent Profile and Character to multiple seats in one
+    saved default lineup. Match setup inherits both, permits per-seat overrides, defaults Character
+    nicknames, blocks creation until nicknames are unique, snapshots every selected card, injects
+    only the owning card with the full-ability boundary, and projects Character portraits without
+    changing game-role secrecy. Referenced Profiles and Characters cannot be deleted.
 43. A schema-two Match board snapshot freezes the installed ruleset ID, version, plugin versions,
     configuration hashes, fingerprint, and complete board policies. A modified fingerprint rejects
     restore, while schema-one `classic-v1` simulations retain their reviewed event digests.

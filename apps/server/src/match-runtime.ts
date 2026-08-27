@@ -100,11 +100,11 @@ export class MatchRuntime {
       events: this.engine.events,
       view,
       roles: this.#roles,
-      model: (playerId) =>
-        this.#players.get(playerId)?.model ??
-        this.#options.catalog.getProfile(this.engine.state.players.get(playerId)!.profileId)
-          ?.model ??
-        null,
+      agent: (playerId) =>
+        this.#players.get(playerId)?.agent ??
+        this.#options.catalog.getProfileConfiguration(
+          this.engine.state.players.get(playerId)!.profileId,
+        ),
       characterForSeat: (seat) =>
         this.#options.record.setup.seats.find((entry) => entry.seat === seat)?.character ?? null,
       sessionStatus: (playerId) => this.#players.get(playerId)?.status ?? 'idle',

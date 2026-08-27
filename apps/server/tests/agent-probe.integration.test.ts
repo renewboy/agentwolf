@@ -38,6 +38,7 @@ describe('AgentProbeService', () => {
       name: 'Mock player',
       toolId: tool.id,
       model: 'mock-model',
+      reasoningEffort: 'low',
       mode: 'read-only',
       promptTimeoutMs: 5_000,
       connection: {},
@@ -53,11 +54,14 @@ describe('AgentProbeService', () => {
       developerMode: false,
     }
     const service = new AgentProbeService(catalog, config)
-    const discovery = await service.discoverTool(tool.id)
+    const discovery = await service.discoverTool(tool.id, { model: 'mock-model' })
     expect(discovery).toMatchObject({
       ok: true,
       agentName: 'agentwolf-mock',
       models: ['mock-default', 'mock-model'],
+      currentModel: 'mock-model',
+      reasoningEfforts: ['low', 'high'],
+      currentReasoningEffort: 'high',
       modes: ['read-only'],
     })
     const result = await service.probe(profile.id)
@@ -65,6 +69,9 @@ describe('AgentProbeService', () => {
       ok: true,
       agentName: 'agentwolf-mock',
       models: ['mock-default', 'mock-model'],
+      currentModel: 'mock-model',
+      reasoningEfforts: ['low', 'high'],
+      currentReasoningEffort: 'low',
       modes: ['read-only'],
     })
     repository.close()

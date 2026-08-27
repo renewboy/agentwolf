@@ -25,6 +25,7 @@ export interface AcpSessionStartOptions {
   readonly launch: ProcessLaunchSpec
   readonly model?: string
   readonly modelConfigKey?: string
+  readonly reasoningEffort?: string
   readonly mode?: string
   readonly mcpServers?: readonly McpServer[]
   readonly sessionMeta?: Readonly<Record<string, unknown>>
@@ -139,7 +140,7 @@ export class AcpPlayerSession {
         })
         sessionId = options.resumeSessionId
         availableModes = response.modes?.availableModes ?? []
-        configOptions = response.configOptions ?? []
+        configOptions = await configureSession(context, sessionId, response, options)
       } else {
         const response = await context.request(methods.agent.session.new, {
           ...request,
@@ -147,8 +148,7 @@ export class AcpPlayerSession {
         })
         sessionId = response.sessionId
         availableModes = response.modes?.availableModes ?? []
-        configOptions = response.configOptions ?? []
-        await configureSession(context, sessionId, response, options)
+        configOptions = await configureSession(context, sessionId, response, options)
       }
 
       activeSession = new AcpPlayerSession(
@@ -349,20 +349,37 @@ async function configureSession(
     readonly configOptions?: readonly SessionConfigOption[] | null
   },
   options: AcpSessionStartOptions,
-): Promise<void> {
+): Promise<readonly SessionConfigOption[]> {
+  let configOptions = session.configOptions ?? []
   if (options.model) {
     const modelConfigKey = options.modelConfigKey ?? 'model'
-    const modelOption = session.configOptions?.find(
+    const modelOption = configOptions.find(
       (option) => option.id === modelConfigKey || option.category === 'model',
     )
     if (!modelOption) {
       throw new Error('ACP agent does not advertise a model configuration option')
     }
-    await context.request(methods.agent.session.setConfigOption, {
+    configOptions = await setSelectConfigOption(
+      context,
       sessionId,
-      configId: modelOption.id,
-      value: options.model,
-    })
+      modelOption,
+      options.model,
+      'model',
+    )
+  }
+
+  if (options.reasoningEffort) {
+    const reasoningOption = reasoningConfigOption(configOptions)
+    if (!reasoningOption) {
+      throw new Error('ACP agent does not advertise a thought_level configuration option')
+    }
+    configOptions = await setSelectConfigOption(
+      context,
+      sessionId,
+      reasoningOption,
+      options.reasoningEffort,
+      'reasoning effort',
+    )
   }
 
   if (options.mode) {
@@ -373,4 +390,43 @@ async function configureSession(
       modeId: options.mode,
     })
   }
+  return configOptions
+}
+
+function reasoningConfigOption(
+  configOptions: readonly SessionConfigOption[],
+): SessionConfigOption | undefined {
+  const matching = configOptions.filter((option) => option.category === 'thought_level')
+  if (matching.length > 1) {
+    throw new Error('ACP agent advertises multiple thought_level configuration options')
+  }
+  return matching[0]
+}
+
+async function setSelectConfigOption(
+  context: ClientContext,
+  sessionId: string,
+  option: SessionConfigOption,
+  value: string,
+  label: string,
+): Promise<readonly SessionConfigOption[]> {
+  if (option.type !== 'select') {
+    throw new Error(`ACP ${label} configuration option is not selectable`)
+  }
+  const values = selectOptionValues(option)
+  if (!values.includes(value)) {
+    throw new Error(`ACP agent does not advertise ${label} ${value}`)
+  }
+  const response = await context.request(methods.agent.session.setConfigOption, {
+    sessionId,
+    configId: option.id,
+    value,
+  })
+  return response.configOptions
+}
+
+function selectOptionValues(option: Extract<SessionConfigOption, { type: 'select' }>): string[] {
+  return option.options.flatMap((entry) =>
+    'options' in entry ? entry.options.map(({ value }) => value) : [entry.value],
+  )
 }

@@ -464,6 +464,12 @@
   object-fit: cover;
 }
 
+.aw-board-seat-defaults {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 .aw-character-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1829,17 +1835,17 @@
   text-align: right;
 }
 
-.aw-player-card__model {
+.aw-player-card__agent {
   grid-column: 1 / -1;
   grid-row: 2;
 }
 
-.aw-player-rail--left .aw-player-card__model {
+.aw-player-rail--left .aw-player-card__agent {
   justify-self: start;
   text-align: left;
 }
 
-.aw-player-rail--right .aw-player-card__model {
+.aw-player-rail--right .aw-player-card__agent {
   justify-self: end;
   text-align: right;
 }
@@ -2008,12 +2014,11 @@
   font-size: 9px;
 }
 
-.aw-player-card__model {
-  overflow: hidden;
+.aw-player-card__agent {
   color: var(--aw-color-text-muted);
   font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .aw-player-card__character {

@@ -44,7 +44,8 @@ Matches use `classic-v3`; `classic-v1` and `classic-v2` remain installed for sna
 those manifests. A manifest
 contains the ruleset ID and version plus an ordered lock of plugin IDs, versions, configurations,
 configuration hashes, and a canonical fingerprint. Schema-two board snapshots store that lock,
-the resolved board policies, composition, Sheriff setting, revision, and presentation metadata.
+the resolved board policies, composition, Sheriff setting, revision, and per-seat Agent Profile and
+Character defaults.
 Restore, trajectory reconstruction, and simulation require the installed fingerprint to match.
 Schema-one `classic-v1` snapshots resolve through their registered compatibility ruleset.
 
@@ -130,7 +131,10 @@ stores the exact rendered Prompt.
 
 The Agent Profile catalog stores one explicit SQLite order. Reorder requests contain every current
 profile ID exactly once and commit in one transaction. Profile edits preserve their position, new
-profiles append to the catalog, and the ordered list is the source for new-Match seat defaults.
+profiles append to the catalog, and each Profile stores one model plus an optional ACP-advertised
+reasoning effort. Custom boards store nullable Profile IDs by seat. Match creation resolves an
+explicit request Profile, then the board default, then the first ordered catalog Profile. A Profile
+referenced by a custom board cannot be deleted.
 
 ## Events, visibility, and synchronization
 
@@ -298,10 +302,12 @@ timing or state.
 ## ACP and action transport
 
 An Agent Tool is a command, arguments, environment allowlist, initial mode, and capability hints.
-The settings API discovers its current models and modes from the ACP `session/new` response before
-an Agent Profile binds the tool to one advertised model and its connection options. The profile
-catalog API returns profiles in their persisted order and accepts validated whole-catalog reorder
-requests.
+The settings API opens one short-lived ACP Session and discovers its current models, modes, and
+selectable `thought_level` config option. Applying a model inside that same Session returns the
+model-specific reasoning choices. The settings page deduplicates concurrent requests and caches
+each tool/model result for its page lifetime. An Agent Profile binds the tool to one advertised
+model, an optional advertised reasoning effort, and its connection options. The profile catalog
+API returns profiles in their persisted order and accepts validated whole-catalog reorder requests.
 
 For each seat, the supervisor reserves a durable binding, starts a stdio ACP process, initializes
 the connection, requires the stable `session.resume` capability, and creates one Session with the
@@ -312,6 +318,11 @@ approved for the five structured in-game actions, the postgame review action, an
 The provider sandbox blocks filesystem mutation, network access from shell commands, and
 unsandboxed escalation. `session/update` is the streaming source; the final `session/prompt`
 response closes the turn.
+
+A player Session applies its Profile model before resolving and applying an explicit reasoning
+effort from the refreshed config options. An omitted effort leaves the Agent default unchanged.
+After `session/resume`, the same configuration sequence is applied to the original Session ID so
+provider process defaults cannot replace the Match-bound Profile configuration.
 
 On macOS and Linux, every ACP command runs inside a lightweight guardian-owned process group. The
 guardian relays stdio without interpreting ACP data, observes the AgentWolf parent through a

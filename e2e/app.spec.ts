@@ -7,8 +7,10 @@ test.describe.configure({ mode: 'serial' })
 const testRunId = `e2e-${Date.now().toString(36).slice(-6)}`
 const sharedToolName = `E2E Mock ${testRunId}`
 const sharedProfileName = `E2E Shared ${testRunId}`
+const boardProfileName = `E2E Board Agent ${testRunId}`
 let sharedToolId = ''
 let sharedProfileId = ''
+let boardProfileId = ''
 
 test.beforeAll(async ({ request }) => {
   const toolResponse = await request.post('/api/agent-tools', {
@@ -35,6 +37,18 @@ test.beforeAll(async ({ request }) => {
   })
   expect(profileResponse.ok()).toBe(true)
   sharedProfileId = ((await profileResponse.json()) as { id: string }).id
+  const boardProfileResponse = await request.post('/api/agent-profiles', {
+    data: {
+      name: boardProfileName,
+      toolId: sharedToolId,
+      model: 'mock-model',
+      reasoningEffort: 'high',
+      promptTimeoutMs: 5000,
+      connection: {},
+    },
+  })
+  expect(boardProfileResponse.ok()).toBe(true)
+  boardProfileId = ((await boardProfileResponse.json()) as { id: string }).id
 })
 
 test.afterAll(async ({ request }) => {
@@ -189,6 +203,11 @@ test('copies a Character, saves board defaults, and blocks duplicate Match nickn
   await page.getByRole('button', { name: '基于此创建' }).click()
   await page.getByLabel('板子名称').fill(boardName)
   const characterSelectors = page.getByRole('combobox', { name: /号座位扮演角色/ })
+  const agentSelectors = page.getByRole('combobox', { name: /号座位默认 Agent/ })
+  await agentSelectors.nth(0).click()
+  await page.getByRole('option', { name: new RegExp(boardProfileName) }).click()
+  await agentSelectors.nth(1).click()
+  await page.getByRole('option', { name: new RegExp(boardProfileName) }).click()
   await characterSelectors.nth(0).click()
   await page.getByRole('option', { name: `${characterName} · 名侦探柯南`, exact: true }).click()
   await characterSelectors.nth(1).click()
@@ -202,11 +221,28 @@ test('copies a Character, saves board defaults, and blocks duplicate Match nickn
   const seats = page.locator('.aw-seat-config')
   await expect(seats.nth(0).getByRole('textbox')).toHaveValue(characterName)
   await expect(seats.nth(1).getByRole('textbox')).toHaveValue(characterName)
+  const inheritedAgents = page.getByRole('combobox', { name: 'Agent 配置' })
+  await expect(inheritedAgents.nth(0)).toHaveAttribute('data-value', boardProfileId)
+  await expect(inheritedAgents.nth(1)).toHaveAttribute('data-value', boardProfileId)
   await expect(page.getByRole('button', { name: '开始对局' })).toBeDisabled()
   await expect(seats.nth(0)).toHaveAttribute('data-duplicate-name', 'true')
   await seats.nth(1).getByRole('textbox').fill(`${characterName} B`)
   await expect(page.getByRole('button', { name: '开始对局' })).toBeEnabled()
   await expect(page.locator('select')).toHaveCount(0)
+
+  await page.goto('/agents')
+  await page
+    .locator('.aw-profile-item')
+    .filter({ hasText: boardProfileName })
+    .locator('button')
+    .last()
+    .click()
+  await page.getByRole('button', { name: '删除配置' }).click()
+  const profileDialog = page.getByRole('alertdialog', { name: '确认删除配置' })
+  await profileDialog.getByRole('button', { name: '删除配置' }).click()
+  await expect(page.getByText(new RegExp(`used by board ${boardName}`))).toBeVisible()
+  await expect(page.locator('.aw-profile-item').filter({ hasText: boardProfileName })).toBeVisible()
+  await page.keyboard.press('Escape')
 })
 
 test('creates, reorders, defaults, edits, and deletes an Agent Profile', async ({
@@ -215,6 +251,12 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
 }) => {
   const profileName = `E2E UI ${testRunId}`
   const updatedName = `E2E UI Updated ${testRunId}`
+  const discoveryPayloads: string[] = []
+  page.on('request', (browserRequest) => {
+    if (browserRequest.method() === 'POST' && browserRequest.url().includes('/api/agent-tools/')) {
+      discoveryPayloads.push(browserRequest.postData() ?? '')
+    }
+  })
   await page.goto('/agents')
   const tool = page.getByRole('combobox', { name: 'Agent 工具', exact: true })
   await tool.click()
@@ -227,6 +269,11 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
   await expect(model).toBeEnabled()
   await model.click()
   await page.getByRole('option', { name: 'mock-model', exact: true }).click()
+  const reasoning = page.getByRole('combobox', { name: '推理强度' })
+  await expect(reasoning).toBeEnabled()
+  await reasoning.click()
+  await page.getByRole('option', { name: 'low', exact: true }).click()
+  expect(discoveryPayloads.filter((payload) => payload.includes('mock-model'))).toHaveLength(1)
   await page.getByRole('button', { name: '保存配置' }).click()
   await expect(page.getByText('已保存', { exact: true })).toBeVisible()
   await expect(page.locator('.aw-profile-item').filter({ hasText: profileName })).toBeVisible()
@@ -234,8 +281,9 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
   await page.getByLabel('配置名称', { exact: true }).fill(updatedName)
   await page.getByRole('button', { name: '保存配置' }).click()
   const updatedProfileRow = page.locator('.aw-profile-item').filter({ hasText: updatedName })
-  const sharedProfileRow = page.locator('.aw-profile-item').filter({ hasText: sharedProfileName })
+  const boardProfileRow = page.locator('.aw-profile-item').filter({ hasText: boardProfileName })
   await expect(updatedProfileRow).toBeVisible()
+  await expect(updatedProfileRow.locator('small')).toContainText('mock-model · low')
   const nameBox = await updatedProfileRow.locator('strong').boundingBox()
   const modelBox = await updatedProfileRow.locator('small').boundingBox()
   expect(nameBox).not.toBeNull()
@@ -246,7 +294,7 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
     name: `调整 ${updatedName} 的顺序`,
   })
   const sourceBox = await updatedProfileRow.boundingBox()
-  const targetBox = await sharedProfileRow.boundingBox()
+  const targetBox = await boardProfileRow.boundingBox()
   expect(sourceBox).not.toBeNull()
   expect(targetBox).not.toBeNull()
   const pointerOrderSaved = page.waitForResponse(
@@ -263,14 +311,22 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
   await page.mouse.move(targetBox!.x + targetBox!.width / 2, targetBox!.y + targetBox!.height / 4, {
     steps: 8,
   })
-  await expect(sharedProfileRow).toHaveAttribute('data-drop-position', 'before')
+  await expect(boardProfileRow).toHaveAttribute('data-drop-position', 'before')
   await page.mouse.up()
   await pointerOrderSaved
   const profileList = page.locator('.aw-profile-list')
   await expect(profileList).toHaveAttribute('data-reordering', 'false')
-  await expect(page.locator('.aw-profile-item').first()).toContainText(updatedName)
+  await expect(page.locator('.aw-profile-item').nth(1)).toContainText(updatedName)
 
   await reorderHandle.focus()
+  const initialHomeOrderSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/agent-profiles/order') && response.request().method() === 'PUT',
+  )
+  await page.keyboard.press('Home')
+  await initialHomeOrderSaved
+  await expect(profileList).toHaveAttribute('data-reordering', 'false')
+  await expect(page.locator('.aw-profile-item').first()).toContainText(updatedName)
   const arrowOrderSaved = page.waitForResponse(
     (response) =>
       response.url().endsWith('/api/agent-profiles/order') && response.request().method() === 'PUT',
@@ -293,8 +349,10 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
   const orderedProfiles = (await (await request.get('/api/agent-profiles')).json()) as Array<{
     id: string
     name: string
+    reasoningEffort?: string
   }>
   expect(orderedProfiles[0]?.name).toBe(updatedName)
+  expect(orderedProfiles[0]?.reasoningEffort).toBe('low')
 
   await page.goto('/matches/new')
   const seatProfiles = page.getByRole('combobox', { name: 'Agent 配置' })
@@ -402,7 +460,7 @@ test('projects god, closed-eye, and player spectator views from the server', asy
       seats: Array.from({ length: 12 }, (_, index) => ({
         seat: index + 1,
         name: `${testRunId}-projection-${index + 1}`,
-        profileId: sharedProfileId,
+        profileId: boardProfileId,
       })),
     },
   })
@@ -412,8 +470,8 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   await expect(page.getByRole('heading', { name: '事件时间线' })).toBeVisible()
   const roleLabels = page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__role')
   await expect(roleLabels).toHaveCount(12)
-  await expect(page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__model')).toHaveText(
-    Array.from({ length: 12 }, () => '模型 · mock-model'),
+  await expect(page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__agent')).toHaveText(
+    Array.from({ length: 12 }, () => `${sharedToolName} · mock-model · high`),
   )
   expect(
     (await roleLabels.allTextContents()).filter((value) => value !== '身份未公开'),
@@ -423,6 +481,9 @@ test('projects god, closed-eye, and player spectator views from the server', asy
 
   await page.getByRole('button', { name: '闭眼视角' }).click()
   await expect(roleLabels).toHaveText(Array.from({ length: 12 }, () => '身份未公开'))
+  await expect(page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__agent')).toHaveText(
+    Array.from({ length: 12 }, () => `${sharedToolName} · mock-model · high`),
+  )
   expect(
     await roleLabels.evaluateAll((elements) =>
       elements.map((element) => element.dataset['roleId']),
@@ -792,21 +853,21 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
       const statusBox = element
         .querySelector<HTMLElement>('.aw-player-card__status')!
         .getBoundingClientRect()
-      const modelBox = element
-        .querySelector<HTMLElement>('.aw-player-card__model')!
+      const agentBox = element
+        .querySelector<HTMLElement>('.aw-player-card__agent')!
         .getBoundingClientRect()
       const cardBox = element.getBoundingClientRect()
       return {
         nameLeftGap: Math.abs(copyBox.left - nameBox.left),
         roleLeftGap: Math.abs(copyBox.left - roleBox.left),
         statusLeftGap: Math.abs(copyBox.left - statusBox.left),
-        modelLeftGap: Math.abs(cardBox.left + 12 - modelBox.left),
+        agentLeftGap: Math.abs(cardBox.left + 12 - agentBox.left),
       }
     })
   expect(leftCardAlignment.nameLeftGap).toBeLessThanOrEqual(1)
   expect(leftCardAlignment.roleLeftGap).toBeLessThanOrEqual(1)
   expect(leftCardAlignment.statusLeftGap).toBeLessThanOrEqual(1)
-  expect(leftCardAlignment.modelLeftGap).toBeLessThanOrEqual(1)
+  expect(leftCardAlignment.agentLeftGap).toBeLessThanOrEqual(1)
   const ring = page
     .locator('.aw-stage-grid .aw-player-card[data-session="thinking"] .aw-player-avatar__ring')
     .first()
@@ -1900,7 +1961,7 @@ function thinkingMatchFixture(): MatchView {
     playerId: `player-${index + 1}`,
     seat: index + 1,
     name: `测试玩家${index + 1}`,
-    model: 'mock-model',
+    agent: { name: 'Mock Agent', model: 'mock-model', reasoningEffort: 'high' },
     alive: true,
     canVote: true,
     sheriff: index === 1,

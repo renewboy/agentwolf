@@ -15,6 +15,7 @@ import {
   ninePlayerBoard,
   sixPlayerBoard,
   v1AbilityIds,
+  whiteWolfKingBoard,
   type BoardManifest,
   type EnginePlayerInput,
   type GameState,
@@ -113,6 +114,35 @@ describe('plugin-owned Prompt rendering', () => {
     ).prompt
     expect(wolfPrompt).toContain(`你的存活狼队友：${wolves[1]!.seat} 号玩家`)
     expect(wolfPrompt).not.toContain(`你的存活狼队友：${hiddenWolf.seat} 号玩家`)
+  })
+
+  it('identifies the White Wolf King inside private pack knowledge', async () => {
+    const setup = createBoardEngine(whiteWolfKingBoard)
+    const wolves = setup.players.filter((player) => player.roleId === 'role-werewolf')
+    const whiteWolfKing = setup.players.find((player) => player.roleId === 'role-white-wolf-king')!
+
+    for (const viewer of [...wolves, whiteWolfKing]) {
+      const prompt = (
+        await setup.renderer.foundation(
+          setup.engine.state,
+          whiteWolfKingBoard,
+          viewer.id,
+          setup.engine.events,
+        )
+      ).prompt
+      const teammateLine = prompt.split('\n').find((line) => line.includes('你的存活狼队友'))
+      expect(teammateLine).toBeDefined()
+      expect(teammateLine).not.toContain(viewer.name)
+      expect(teammateLine).not.toContain(viewer.id)
+      if (viewer.id !== whiteWolfKing.id) {
+        expect(teammateLine).toContain(`${whiteWolfKing.seat} 号玩家（白狼王）`)
+      } else {
+        expect(teammateLine).not.toContain('（白狼王）')
+      }
+      for (const wolf of wolves.filter((player) => player.id !== viewer.id)) {
+        expect(teammateLine).toContain(`${wolf.seat} 号玩家（狼人）`)
+      }
+    }
   })
 
   it('renders current board policy and exactly the installed board roles', async () => {

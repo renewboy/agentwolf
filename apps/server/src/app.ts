@@ -4,6 +4,7 @@ import cors from '@fastify/cors'
 import staticPlugin from '@fastify/static'
 import websocket from '@fastify/websocket'
 import {
+  AgentDiscoveryInputSchema,
   AgentProfileIdSchema,
   AgentProfileInputSchema,
   AgentProfileOrderInputSchema,
@@ -139,7 +140,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   })
   app.post('/api/agent-tools/:id/discover', async (request) => {
     const id = AgentToolIdSchema.parse((request.params as { id: string }).id)
-    return probe.discoverTool(id)
+    return probe.discoverTool(id, AgentDiscoveryInputSchema.parse(request.body ?? {}))
   })
 
   app.get('/api/agent-profiles', async () => catalog.listProfiles())

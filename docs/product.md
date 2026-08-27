@@ -28,11 +28,13 @@ Player identities remain hidden after death and exile. A role-specific public re
 ## Setup
 
 The Agent settings screen creates, edits, probes, deletes, and orders Agent Profiles. Each list row
-keeps the profile name and model on separate lines. The whole row is draggable and presents a
+keeps the profile name and its model/reasoning configuration on separate lines. The whole row is draggable and presents a
 following drag image, lifted source state, and insertion marker; its handle also supports keyboard
 ordering. The order persists across edits and restarts. Selecting an Agent Tool opens a temporary
-ACP session and reads its advertised model configuration; the model is selected from that returned
-list. A profile combines the tool, selected model, and non-secret connection settings.
+ACP session and reads its advertised model configuration. Selecting a model reads that Session's
+refreshed `thought_level` choices, so every Profile may bind one advertised reasoning effort or
+follow the Agent's current default. A profile combines the tool, selected model, optional reasoning
+effort, and non-secret connection settings.
 Environment-variable references supply credentials.
 
 The Collection screen contains the Character catalog. Twelve read-only Detective Conan Character
@@ -56,12 +58,13 @@ and each speech Prompt presents it as guidance without truncating or rejecting t
 Changing the global value affects subsequently created Matches only.
 
 The board-management screen creates and maintains custom boards, including one optional default
-Character per seat. The new-match screen selects any available player count and compatible built-in
-or custom board, inherits those Character defaults, permits per-seat overrides, assigns an Agent
-Profile, and edits or rerolls player names. The same Character may appear more than once. Selecting
+Agent Profile and Character per seat. Both defaults are committed with the board. The new-match
+screen selects any available player count and compatible built-in or custom board, inherits those
+seat defaults, permits per-seat overrides, and edits or rerolls player names. The same Agent Profile
+or Character may appear more than once. Selecting
 a Character defaults that seat's nickname to the Character name, but the editable nickname remains
 the only Match name; duplicate trimmed nicknames block creation. Every seat initially uses the first
-profile in the persisted Agent Profile order. The nickname generator composes curated word lists
+profile in the persisted Agent Profile order when its board seat has no Agent default. The nickname generator composes curated word lists
 and guarantees uniqueness for no-Character seats. Starting a match assigns `player-1` through
 `player-N` by seat order and stores the complete selected Character card in the Match setup snapshot.
 Board role rows, board compositions, manual identity selectors, and visible Match identities use
@@ -86,7 +89,7 @@ lowest-seat death as the no-sheriff anchor.
 
 The spectator screen is a fixed-height live match stage. Player rosters run down the left and right edges, while the center presents streamed speech, public events, night information allowed by the selected view, voting results, and audio playback through the browser Speech Synthesis API. Resolved votes group voter seat numbers under each target seat number. God view and Werewolf player views also receive the complete private wolf-kill ballot, including no-kill votes and any replay-stable random target selected from a tie. The central history scrolls independently and can be folded by match day.
 
-Every player card shows the model bound to that seat. A visible identity uses one stable role badge:
+Every player card shows its complete Agent configuration. A visible identity uses one stable role badge:
 Villager is silver, Werewolf red, Seer blue, Witch purple, Hunter green, Idiot amber, Guard cyan,
 Magic Mirror Girl pink, White Wolf King white, and Awakened Hidden Wolf copper. The badge retains
 the localized role name so identity never depends on color alone. Hidden identities use one

@@ -28,6 +28,9 @@ const toolKind = AgentToolKindSchema.parse(
 const model =
   process.argv.slice(2).find((argument) => !argument.startsWith('--')) ??
   (toolKind === 'claude' ? undefined : 'gpt-5.6-luna')
+const reasoningEffort = process.argv
+  .find((argument) => argument.startsWith('--reasoning-effort='))
+  ?.slice('--reasoning-effort='.length)
 const inspectTools = process.argv.includes('--inspect-tools')
 const probeForbidden = process.argv.includes('--probe-forbidden')
 const probeStrategy = process.argv.includes('--probe-strategy')
@@ -107,6 +110,7 @@ try {
     cwd: workspace,
     launch: isolated ? resolvePlayerLaunchSpec(tool, workspace) : resolveLaunchSpec(tool),
     ...(model ? { model } : {}),
+    ...(reasoningEffort ? { reasoningEffort } : {}),
     modelConfigKey: tool.modelConfigKey,
     sessionMeta: {
       ...(isolated
@@ -287,6 +291,7 @@ try {
         agentTool: toolKind,
         isolated,
         model: model ?? null,
+        reasoningEffort: reasoningEffort ?? null,
         initialSessionId,
         resumedSessionId: probeResume ? session.sessionId : null,
         stopReason: result.stopReason,

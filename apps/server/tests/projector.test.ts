@@ -51,19 +51,29 @@ describe('vote timeline projection', () => {
       events: engine.events,
       view: { kind: 'god' } as const,
       roles: createV1RoleRegistry(),
-      model: () => 'projection-model',
+      agent: () => ({
+        name: 'Projection Agent',
+        model: 'projection-model',
+        reasoningEffort: 'high',
+      }),
     }
     const godSeats = projectMatch({ ...options, state: electionState }).seats
     expect(godSeats).toContainEqual(
       expect.objectContaining({ playerId: candidateId, sheriffCandidate: true }),
     )
-    expect(godSeats[0]?.model).toBe('projection-model')
+    expect(godSeats[0]?.agent).toEqual({
+      name: 'Projection Agent',
+      model: 'projection-model',
+      reasoningEffort: 'high',
+    })
     const closedEyeSeat = projectMatch({
       ...options,
       state: electionState,
       view: { kind: 'closed-eye' },
     }).seats[0]
-    expect(closedEyeSeat).toMatchObject({ model: 'projection-model' })
+    expect(closedEyeSeat).toMatchObject({
+      agent: { name: 'Projection Agent', model: 'projection-model', reasoningEffort: 'high' },
+    })
     expect(closedEyeSeat?.roleId).toBeUndefined()
     expect(
       projectMatch({

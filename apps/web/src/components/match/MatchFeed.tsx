@@ -61,6 +61,8 @@ export function MatchFeed({
   )
   const scrollRef = useRef<HTMLDivElement>(null)
   const followingLatest = useRef(true)
+  const detachedByUser = useRef(false)
+  const pendingScrollFrame = useRef<number | null>(null)
   const [hasNewActivity, setHasNewActivity] = useState(false)
   const lastSequence = timeline.at(-1)?.sequence ?? 0
   const liveLength = activeSpeech && !activeSpeech.final ? activeSpeech.text.length : 0
@@ -82,13 +84,20 @@ export function MatchFeed({
       return undefined
     }
     const frame = window.requestAnimationFrame(() => {
+      pendingScrollFrame.current = null
+      if (!followingLatest.current) return
       scroller.scrollTo({
         top: scroller.scrollHeight,
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        behavior: 'auto',
       })
       setHasNewActivity(false)
     })
-    return () => window.cancelAnimationFrame(frame)
+    pendingScrollFrame.current = frame
+    return () => {
+      if (pendingScrollFrame.current !== frame) return
+      window.cancelAnimationFrame(frame)
+      pendingScrollFrame.current = null
+    }
   }, [lastSequence, liveLength, postgameResultAt, postgameStartedAt])
 
   const toggleGroup = (key: string): void => {
@@ -103,9 +112,18 @@ export function MatchFeed({
   const returnToLatest = (): void => {
     const scroller = scrollRef.current
     if (!scroller) return
+    detachedByUser.current = false
     followingLatest.current = true
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
     setHasNewActivity(false)
+  }
+
+  const stopFollowingLatest = (): void => {
+    detachedByUser.current = true
+    followingLatest.current = false
+    if (pendingScrollFrame.current === null) return
+    window.cancelAnimationFrame(pendingScrollFrame.current)
+    pendingScrollFrame.current = null
   }
 
   return (
@@ -116,11 +134,26 @@ export function MatchFeed({
         ref={scrollRef}
         role="log"
         aria-live="polite"
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'Home') {
+            stopFollowingLatest()
+          }
+        }}
+        onPointerDown={stopFollowingLatest}
         onScroll={(event) => {
           const element = event.currentTarget
-          followingLatest.current =
-            element.scrollHeight - element.scrollTop - element.clientHeight < 96
+          const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight
+          if (detachedByUser.current) {
+            const returnedToBottom = distanceFromBottom <= 1
+            detachedByUser.current = !returnedToBottom
+            followingLatest.current = returnedToBottom
+          } else {
+            followingLatest.current = distanceFromBottom < 96
+          }
           if (followingLatest.current) setHasNewActivity(false)
+        }}
+        onWheel={(event) => {
+          if (event.deltaY < 0) stopFollowingLatest()
         }}
       >
         {groups.length === 0 ? (

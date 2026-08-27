@@ -1,5 +1,5 @@
 import { FloppyDisk, Plus, Pulse, Robot, Trash, Wrench } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
   AgentProfileInputSchema,
@@ -25,10 +25,13 @@ interface ProfileDraft {
   readonly name: string
   readonly toolId: AgentToolId | ''
   readonly model: string
+  readonly reasoningEffort: string
   readonly mode: string
   readonly promptTimeoutMs: number
   readonly connection: string
 }
+
+const agentDefaultReasoning = '__agentwolf_agent_default__'
 
 export function AgentsPage() {
   const [tools, setTools] = useState<AgentTool[] | null>(null)
@@ -43,6 +46,8 @@ export function AgentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const discoverySequence = useRef(0)
+  const discoveryCache = useRef(new Map<string, Promise<AgentProbeResult>>())
   const profileOrdering = useProfileOrdering({
     profiles,
     busy,
@@ -75,49 +80,92 @@ export function AgentsPage() {
     () => capabilities?.models.map((model) => ({ value: model, label: model })) ?? [],
     [capabilities],
   )
+  const reasoningOptions = useMemo(
+    () => [
+      {
+        value: agentDefaultReasoning,
+        label: capabilities?.currentReasoningEffort
+          ? formatCopy(getCopy('agentFields.reasoningDefaultCurrent'), {
+              effort: capabilities.currentReasoningEffort,
+            })
+          : getCopy('agentFields.reasoningDefault'),
+      },
+      ...(capabilities?.reasoningEfforts.map((effort) => ({
+        value: effort,
+        label: effort,
+      })) ?? []),
+    ],
+    [capabilities],
+  )
 
-  useEffect(() => {
-    const toolId = draft?.toolId
-    let active = true
-    if (!toolId) {
-      setCapabilities(null)
-      setDiscoveryError(null)
-    } else {
+  const discoverCapabilities = useCallback(
+    async (toolId: AgentToolId, preferredModel?: string): Promise<void> => {
+      const sequence = ++discoverySequence.current
       setDiscovering(true)
       setCapabilities(null)
       setDiscoveryError(null)
-      const discover = async (): Promise<void> => {
-        try {
-          const result = await api.discoverTool(toolId)
-          if (!active) return
-          setCapabilities(result)
-          const failure = result.ok
-            ? result.models.length === 0
-              ? getCopy('agentFields.modelsUnavailable')
-              : null
-            : result.message
-          setDiscoveryError(failure)
-          setDraft((current) => {
-            if (!current || current.toolId !== toolId) return current
-            const model = result.models.includes(current.model)
-              ? current.model
-              : (result.models[0] ?? '')
-            return { ...current, model }
-          })
-        } catch (cause) {
-          if (!active) return
-          setCapabilities(null)
-          setDiscoveryError(cause instanceof Error ? cause.message : String(cause))
-        } finally {
-          if (active) setDiscovering(false)
+      try {
+        const discover = async (model?: string): Promise<AgentProbeResult> => {
+          const key = `${toolId}\u0000${model ?? ''}`
+          const cached = discoveryCache.current.get(key)
+          if (cached) return cached
+          const pending = api.discoverTool(toolId, model ? { model } : {})
+          discoveryCache.current.set(key, pending)
+          try {
+            const result = await pending
+            if (!result.ok) discoveryCache.current.delete(key)
+            return result
+          } catch (cause) {
+            discoveryCache.current.delete(key)
+            throw cause
+          }
         }
+        let result = await discover(preferredModel)
+        if (!result.ok && preferredModel) result = await discover()
+        if (sequence !== discoverySequence.current) return
+        setCapabilities(result)
+        const failure = result.ok
+          ? result.models.length === 0
+            ? getCopy('agentFields.modelsUnavailable')
+            : null
+          : result.message
+        setDiscoveryError(failure)
+        setDraft((current) => {
+          if (!current || current.toolId !== toolId) return current
+          const model = result.models.includes(current.model)
+            ? current.model
+            : result.currentModel && result.models.includes(result.currentModel)
+              ? result.currentModel
+              : (result.models[0] ?? '')
+          const reasoningEffort = result.reasoningEfforts.includes(current.reasoningEffort)
+            ? current.reasoningEffort
+            : ''
+          return { ...current, model, reasoningEffort }
+        })
+      } catch (cause) {
+        if (sequence !== discoverySequence.current) return
+        setCapabilities(null)
+        setDiscoveryError(cause instanceof Error ? cause.message : String(cause))
+      } finally {
+        if (sequence === discoverySequence.current) setDiscovering(false)
       }
-      void discover()
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const toolId = draft?.toolId
+    if (!toolId) {
+      discoverySequence.current += 1
+      setCapabilities(null)
+      setDiscoveryError(null)
+      setDiscovering(false)
+    } else {
+      const savedProfile = profiles?.find((profile) => profile.id === draft?.id)
+      const savedModel = savedProfile?.toolId === toolId ? savedProfile.model : undefined
+      void discoverCapabilities(toolId, savedModel)
     }
-    return () => {
-      active = false
-    }
-  }, [draft?.id, draft?.toolId])
+  }, [discoverCapabilities, draft?.id, draft?.toolId, profiles])
 
   const selectProfile = (profile: AgentProfile): void => {
     setNotice(null)
@@ -126,6 +174,7 @@ export function AgentsPage() {
       name: profile.name,
       toolId: profile.toolId,
       model: profile.model,
+      reasoningEffort: profile.reasoningEffort ?? '',
       mode: profile.mode ?? '',
       promptTimeoutMs: profile.promptTimeoutMs,
       connection: JSON.stringify(profile.connection, null, 2),
@@ -141,6 +190,7 @@ export function AgentsPage() {
         name: draft.name,
         toolId: draft.toolId,
         model: draft.model,
+        ...(draft.reasoningEffort ? { reasoningEffort: draft.reasoningEffort } : {}),
         ...(draft.mode.trim() ? { mode: draft.mode.trim() } : {}),
         promptTimeoutMs: draft.promptTimeoutMs,
         connection: parseRecordInput(draft.connection),
@@ -300,6 +350,7 @@ export function AgentsPage() {
                     ...draft,
                     toolId,
                     model: '',
+                    reasoningEffort: '',
                     mode: '',
                   })
                 }
@@ -325,7 +376,38 @@ export function AgentsPage() {
                 placeholder={getCopy(
                   discovering ? 'agentFields.modelsLoading' : 'agentFields.modelSelect',
                 )}
-                onChange={(model) => setDraft({ ...draft, model })}
+                onChange={(model) => {
+                  setDraft({ ...draft, model, reasoningEffort: '' })
+                  if (draft.toolId) void discoverCapabilities(draft.toolId, model)
+                }}
+              />
+            </FormField>
+            <FormField
+              label={getCopy('agentFields.reasoningEffort')}
+              hint={
+                discovering
+                  ? getCopy('agentFields.reasoningLoading')
+                  : capabilities?.reasoningEfforts.length
+                    ? formatCopy(getCopy('agentFields.reasoningReady'), {
+                        count: capabilities.reasoningEfforts.length,
+                      })
+                    : getCopy('agentFields.reasoningUnavailable')
+              }
+            >
+              <GameSelect
+                ariaLabel={getCopy('agentFields.reasoningEffort')}
+                disabled={
+                  discovering || !capabilities?.ok || capabilities.reasoningEfforts.length === 0
+                }
+                value={draft.reasoningEffort || agentDefaultReasoning}
+                options={reasoningOptions}
+                onChange={(reasoningEffort) =>
+                  setDraft({
+                    ...draft,
+                    reasoningEffort:
+                      reasoningEffort === agentDefaultReasoning ? '' : reasoningEffort,
+                  })
+                }
               />
             </FormField>
             <FormField label={getCopy('agentFields.mode')}>
@@ -378,7 +460,9 @@ export function AgentsPage() {
                 discovering ||
                 Boolean(discoveryError) ||
                 !draft.name.trim() ||
-                !capabilities?.models.includes(draft.model)
+                !capabilities?.models.includes(draft.model) ||
+                (Boolean(draft.reasoningEffort) &&
+                  !capabilities.reasoningEfforts.includes(draft.reasoningEffort))
               }
               type="button"
               onClick={() => void saveProfile()}
@@ -436,6 +520,7 @@ function createEmptyProfile(toolId: AgentToolId | ''): ProfileDraft {
     name: '',
     toolId,
     model: '',
+    reasoningEffort: '',
     mode: '',
     promptTimeoutMs: 180_000,
     connection: '{}',

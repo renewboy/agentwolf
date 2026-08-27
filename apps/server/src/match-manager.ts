@@ -75,17 +75,27 @@ export class MatchManager {
     const orderedSeats = [...request.seats].sort((left, right) => left.seat - right.seat)
     orderedSeats.forEach((seat, index) => {
       if (seat.seat !== index + 1) throw new Error('Seats must be numbered consecutively from 1')
-      if (!this.#options.catalog.getProfile(seat.profileId)) {
-        throw new Error(`Unknown Agent Profile ${seat.profileId}`)
-      }
     })
-    if (new Set(orderedSeats.map((seat) => seat.name)).size !== orderedSeats.length) {
+    const boardAgentProfiles = new Map(
+      resolvedBoard.summary.agentProfiles.map((slot) => [slot.seat, slot.profileId]),
+    )
+    const fallbackProfileId = this.#options.catalog.listProfiles()[0]?.id
+    const resolvedSeats = orderedSeats.map((seat) => {
+      const profileId =
+        seat.profileId ?? boardAgentProfiles.get(seat.seat) ?? fallbackProfileId ?? null
+      if (!profileId) throw new Error('Match creation requires at least one Agent Profile')
+      if (!this.#options.catalog.getProfile(profileId)) {
+        throw new Error(`Unknown Agent Profile ${profileId}`)
+      }
+      return { ...seat, profileId }
+    })
+    if (new Set(resolvedSeats.map((seat) => seat.name)).size !== resolvedSeats.length) {
       throw new Error('Player names must be unique inside a match')
     }
     const boardCharacters = new Map(
       resolvedBoard.summary.characters.map((slot) => [slot.seat, slot.characterId]),
     )
-    const snapshotSeats = orderedSeats.map((seat) => {
+    const snapshotSeats = resolvedSeats.map((seat) => {
       const characterId =
         seat.characterId === undefined ? (boardCharacters.get(seat.seat) ?? null) : seat.characterId
       return {
@@ -224,9 +234,9 @@ export class MatchManager {
       events,
       view: parsedView,
       roles: ruleset.roles,
-      model: (playerId) => {
+      agent: (playerId) => {
         const profileId = state.players.get(playerId)?.profileId
-        return profileId ? (this.#options.catalog.getProfile(profileId)?.model ?? null) : null
+        return profileId ? this.#options.catalog.getProfileConfiguration(profileId) : null
       },
       characterForSeat: (seat) =>
         record.setup.seats.find((entry) => entry.seat === seat)?.character ?? null,

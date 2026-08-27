@@ -89,6 +89,8 @@ export function TrajectoryLedger({
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualRef = useRef<HTMLDivElement>(null)
   const followTail = useRef(followLatest)
+  const detachedByUser = useRef(false)
+  const centeredSelection = useRef<string | null>(null)
   const previousOwner = useRef<TrajectoryOwnerId | null>(null)
   const scrollByOwner = useRef(new Map<TrajectoryOwnerId, number>())
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
@@ -137,10 +139,20 @@ export function TrajectoryLedger({
     }
   }, [followLatest, page.ownerId, rows.length, virtualizer])
   useLayoutEffect(() => {
-    if (!selectedId) return
+    if (!selectedId) {
+      centeredSelection.current = null
+      return
+    }
+    if (centeredSelection.current === selectedId) return
     const index = rows.findIndex((row) => row.key === selectedId)
-    if (index >= 0) virtualizer.scrollToIndex(index, { align: 'center' })
+    if (index < 0) return
+    centeredSelection.current = selectedId
+    virtualizer.scrollToIndex(index, { align: 'center' })
   }, [rows, selectedId, virtualizer])
+  const stopFollowingTail = (): void => {
+    detachedByUser.current = true
+    followTail.current = false
+  }
   return (
     <section className="aw-trajectory-ledger" aria-busy={loading} data-loading={loading}>
       <div className="aw-trajectory-toolbar">
@@ -172,10 +184,26 @@ export function TrajectoryLedger({
       <div
         className="aw-trajectory-scroll"
         ref={scrollRef}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'Home') {
+            stopFollowingTail()
+          }
+        }}
+        onPointerDown={stopFollowingTail}
         onScroll={(event) => {
           const target = event.currentTarget
           scrollByOwner.current.set(page.ownerId, target.scrollTop)
-          followTail.current = target.scrollHeight - target.scrollTop - target.clientHeight < 80
+          const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+          if (detachedByUser.current) {
+            const returnedToBottom = distanceFromBottom <= 1
+            detachedByUser.current = !returnedToBottom
+            followTail.current = returnedToBottom
+          } else {
+            followTail.current = distanceFromBottom < 80
+          }
+        }}
+        onWheel={(event) => {
+          if (event.deltaY < 0) stopFollowingTail()
         }}
       >
         <div className="aw-trajectory-virtual" ref={virtualRef}>

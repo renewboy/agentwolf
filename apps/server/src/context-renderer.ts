@@ -1,6 +1,12 @@
-import type { CharacterCardSnapshot, GameEvent, PlayerId } from '@agentwolf/contracts'
+import type {
+  CharacterCardSnapshot,
+  GameEvent,
+  PlayerId,
+  SpectatorView,
+} from '@agentwolf/contracts'
 import {
   visibleEvents,
+  visibleRoleId,
   type BoardManifest,
   type GameState,
   type RulesetRuntime,
@@ -53,7 +59,7 @@ export class ContextRenderer {
     return {
       prompt: this.#prompts.renderFoundation({
         actor: actorFact(player),
-        roster: rosterFacts(state),
+        roster: rosterFacts(state, historyEvents, { kind: 'player', playerId }),
         board: boardFacts(board, this.#ruleset),
         game: gameFacts(state),
         events: [...projected],
@@ -85,7 +91,7 @@ export class ContextRenderer {
     return {
       prompt: this.#prompts.renderTurn({
         actor: actorFact(player),
-        roster: rosterFacts(state),
+        roster: rosterFacts(state, events, { kind: 'player', playerId }),
         board: boardFacts(board, this.#ruleset),
         game: gameFacts(state),
         events: [...projected],
@@ -146,7 +152,7 @@ export class ContextRenderer {
       events: publicEvents,
       narration: this.#prompts.renderEventNarration({
         actor: actorFact(actor),
-        roster: rosterFacts(state),
+        roster: rosterFacts(state, history, { kind: 'closed-eye' }),
         board: boardFacts(board, this.#ruleset),
         game: gameFacts(state),
         events: narrationEvents,
@@ -176,7 +182,7 @@ function actorFact(
   }
 }
 
-function rosterFacts(state: GameState) {
+function rosterFacts(state: GameState, events: readonly GameEvent[], view: SpectatorView) {
   return [...state.players.values()]
     .sort((left, right) => left.seat - right.seat)
     .map((player) => ({
@@ -184,6 +190,7 @@ function rosterFacts(state: GameState) {
       seat: player.seat,
       name: player.name,
       alive: player.alive,
+      roleId: visibleRoleId(player.id, view, state, events),
     }))
 }
 

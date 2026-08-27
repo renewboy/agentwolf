@@ -1,4 +1,5 @@
 import {
+  AgentConfigurationSummarySchema,
   AgentProfileIdSchema,
   AgentProfileInputSchema,
   AgentProfileOrderInputSchema,
@@ -7,6 +8,7 @@ import {
   AgentToolInputSchema,
   AgentToolSchema,
   type AgentProfile,
+  type AgentConfigurationSummary,
   type AgentProfileId,
   type AgentProfileInput,
   type AgentProfileOrderInput,
@@ -71,6 +73,14 @@ export class AgentCatalogService {
     return this.#repository.getProfile(id)
   }
 
+  public getProfileConfiguration(id: AgentProfileId): AgentConfigurationSummary | null {
+    const profile = this.getProfile(id)
+    if (!profile) return null
+    const tool = this.getTool(profile.toolId)
+    if (!tool) return null
+    return agentConfiguration(profile, tool)
+  }
+
   public createProfile(input: AgentProfileInput): AgentProfile {
     const parsed = AgentProfileInputSchema.parse(input)
     this.#requireTool(parsed.toolId)
@@ -114,6 +124,12 @@ export class AgentCatalogService {
   }
 
   public deleteProfile(id: AgentProfileId): void {
+    const referencedBy = this.#repository
+      .listCustomBoards()
+      .find((board) => board.agentProfiles.some((slot) => slot.profileId === id))
+    if (referencedBy) {
+      throw new RuleViolation(`Agent Profile is used by board ${referencedBy.name}`)
+    }
     if (!this.#repository.deleteProfile(id)) throw new Error(`Unknown Agent Profile ${id}`)
   }
 
@@ -122,4 +138,15 @@ export class AgentCatalogService {
     if (!tool) throw new Error(`Unknown Agent Tool ${id}`)
     return tool
   }
+}
+
+export function agentConfiguration(
+  profile: AgentProfile,
+  tool: AgentTool,
+): AgentConfigurationSummary {
+  return AgentConfigurationSummarySchema.parse({
+    name: tool.kind === 'trae-cli' ? 'Trae' : tool.name,
+    model: profile.model,
+    reasoningEffort: profile.reasoningEffort ?? null,
+  })
 }

@@ -1,4 +1,5 @@
 import {
+  AgentDiscoveryInputSchema,
   AgentProbeResultSchema,
   AgentProfileOrderInputSchema,
   AgentProfileSchema,
@@ -18,6 +19,7 @@ import {
   TrajectoryAuditReportSchema,
   TrajectorySummarySchema,
   type AgentProfile,
+  type AgentDiscoveryInput,
   type AgentProfileId,
   type AgentProfileInput,
   type AgentProfileOrderInput,
@@ -105,9 +107,12 @@ export const api = {
   async deleteTool(id: AgentToolId): Promise<void> {
     await requestJson(`/api/agent-tools/${id}`, { method: 'DELETE' })
   },
-  async discoverTool(id: AgentToolId): Promise<AgentProbeResult> {
+  async discoverTool(id: AgentToolId, input: AgentDiscoveryInput = {}): Promise<AgentProbeResult> {
     return AgentProbeResultSchema.parse(
-      await requestJson(`/api/agent-tools/${id}/discover`, { method: 'POST' }),
+      await requestJson(`/api/agent-tools/${id}/discover`, {
+        method: 'POST',
+        body: JSON.stringify(AgentDiscoveryInputSchema.parse(input)),
+      }),
     )
   },
   async listProfiles(): Promise<AgentProfile[]> {

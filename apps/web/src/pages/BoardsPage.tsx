@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
   CustomBoardInputSchema,
+  type AgentProfile,
+  type AgentProfileId,
   type BoardId,
   type BoardSummary,
   type BoardVictory,
@@ -25,6 +27,7 @@ interface BoardDraft {
   readonly description: string
   readonly roles: Readonly<Record<string, number>>
   readonly characters: readonly (CharacterId | null)[]
+  readonly agentProfiles: readonly (AgentProfileId | null)[]
   readonly sheriff: boolean
   readonly victory: BoardVictory
   readonly editable: boolean
@@ -36,6 +39,7 @@ export function BoardsPage() {
   const [boards, setBoards] = useState<BoardSummary[] | null>(null)
   const [roles, setRoles] = useState<RoleSummary[] | null>(null)
   const [characters, setCharacters] = useState<CharacterCard[] | null>(null)
+  const [profiles, setProfiles] = useState<AgentProfile[] | null>(null)
   const [draft, setDraft] = useState<BoardDraft | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,14 +49,16 @@ export function BoardsPage() {
   const load = useCallback(async () => {
     setError(null)
     try {
-      const [nextBoards, nextRoles, nextCharacters] = await Promise.all([
+      const [nextBoards, nextRoles, nextCharacters, nextProfiles] = await Promise.all([
         api.listBoards(),
         api.listRoles(),
         api.listCharacters(),
+        api.listProfiles(),
       ])
       setBoards(nextBoards)
       setRoles(nextRoles)
       setCharacters(nextCharacters)
+      setProfiles(nextProfiles)
       setDraft((current) => current ?? boardToDraft(nextBoards[0]!, false))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -74,6 +80,20 @@ export function BoardsPage() {
     ],
     [characters],
   )
+  const profileOptions = useMemo(
+    () => [
+      { value: 'none' as const, label: getCopy('boardManagement.noDefaultAgent') },
+      ...(profiles ?? []).map((profile) => ({
+        value: profile.id,
+        label: formatCopy(getCopy('setup.profileOption'), {
+          name: profile.name,
+          model: profile.model,
+          reasoning: profile.reasoningEffort ?? getCopy('agentFields.reasoningDefault'),
+        }),
+      })),
+    ],
+    [profiles],
+  )
 
   const selectBoard = (board: BoardSummary): void => {
     setNotice(null)
@@ -89,6 +109,7 @@ export function BoardsPage() {
       description: getCopy('boardManagement.emptyDescription'),
       roles: Object.fromEntries(roles.map((role) => [role.id, 0])),
       characters: [],
+      agentProfiles: [],
       sheriff: false,
       victory: 'slaughter-all',
       editable: true,
@@ -118,6 +139,10 @@ export function BoardsPage() {
         { length: nextPlayerCount },
         (_, index) => draft.characters[index] ?? null,
       ),
+      agentProfiles: Array.from(
+        { length: nextPlayerCount },
+        (_, index) => draft.agentProfiles[index] ?? null,
+      ),
     })
   }
 
@@ -135,6 +160,10 @@ export function BoardsPage() {
         characters: draft.characters.map((characterId, index) => ({
           seat: index + 1,
           characterId,
+        })),
+        agentProfiles: draft.agentProfiles.map((profileId, index) => ({
+          seat: index + 1,
+          profileId,
         })),
         sheriff: draft.sheriff,
         victory: draft.victory,
@@ -167,10 +196,10 @@ export function BoardsPage() {
     }
   }
 
-  if (error && (!boards || !roles || !characters)) {
+  if (error && (!boards || !roles || !characters || !profiles)) {
     return <ErrorState message={error} retry={() => void load()} />
   }
-  if (!boards || !roles || !characters || !draft) return <LoadingState />
+  if (!boards || !roles || !characters || !profiles || !draft) return <LoadingState />
 
   return (
     <main className="aw-page">
@@ -299,6 +328,7 @@ export function BoardsPage() {
             <div className="aw-board-character-grid">
               {boardSeats.slice(0, draft.characters.length).map((seat) => {
                 const characterId = draft.characters[seat - 1] ?? null
+                const profileId = draft.agentProfiles[seat - 1] ?? null
                 const character = characters.find((entry) => entry.id === characterId) ?? null
                 return (
                   <div className="aw-board-character-slot" key={seat}>
@@ -307,22 +337,38 @@ export function BoardsPage() {
                     ) : (
                       <span className="aw-board-character-slot__empty" aria-hidden />
                     )}
-                    <GameSelect
-                      ariaLabel={formatCopy(getCopy('boardManagement.characterSeat'), {
-                        seat,
-                      })}
-                      disabled={!draft.editable}
-                      options={characterOptions}
-                      value={characterId ?? 'none'}
-                      onChange={(value) =>
-                        setDraft({
-                          ...draft,
-                          characters: draft.characters.map((entry, seatIndex) =>
-                            seatIndex === seat - 1 ? (value === 'none' ? null : value) : entry,
-                          ),
-                        })
-                      }
-                    />
+                    <div className="aw-board-seat-defaults">
+                      <GameSelect
+                        ariaLabel={formatCopy(getCopy('boardManagement.agentSeat'), { seat })}
+                        disabled={!draft.editable}
+                        options={profileOptions}
+                        value={profileId ?? 'none'}
+                        onChange={(value) =>
+                          setDraft({
+                            ...draft,
+                            agentProfiles: draft.agentProfiles.map((entry, seatIndex) =>
+                              seatIndex === seat - 1 ? (value === 'none' ? null : value) : entry,
+                            ),
+                          })
+                        }
+                      />
+                      <GameSelect
+                        ariaLabel={formatCopy(getCopy('boardManagement.characterSeat'), {
+                          seat,
+                        })}
+                        disabled={!draft.editable}
+                        options={characterOptions}
+                        value={characterId ?? 'none'}
+                        onChange={(value) =>
+                          setDraft({
+                            ...draft,
+                            characters: draft.characters.map((entry, seatIndex) =>
+                              seatIndex === seat - 1 ? (value === 'none' ? null : value) : entry,
+                            ),
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 )
               })}
@@ -427,6 +473,9 @@ function boardToDraft(board: BoardSummary, editable: boolean): BoardDraft {
     characters: [...board.characters]
       .sort((left, right) => left.seat - right.seat)
       .map(({ characterId }) => characterId),
+    agentProfiles: [...board.agentProfiles]
+      .sort((left, right) => left.seat - right.seat)
+      .map(({ profileId }) => profileId),
     sheriff: board.sheriff,
     victory: board.victory,
     editable,

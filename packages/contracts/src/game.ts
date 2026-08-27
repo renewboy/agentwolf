@@ -8,6 +8,7 @@ import {
   RoleIdSchema,
 } from './ids.js'
 import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
+import { AgentConfigurationSummarySchema } from './agents.js'
 import { RoleEffectCueSchema } from './effects.js'
 import { RulesetLockSchema } from './plugins.js'
 import { PostgameReviewViewSchema } from './postgame.js'
@@ -26,7 +27,7 @@ export type SpectatorView = z.infer<typeof SpectatorViewSchema>
 export const SeatAssignmentInputSchema = z.object({
   seat: z.number().int().positive(),
   name: z.string().trim().min(1).max(24),
-  profileId: AgentProfileIdSchema,
+  profileId: AgentProfileIdSchema.optional(),
   roleId: RoleIdSchema.optional(),
   characterId: CharacterIdSchema.nullable().optional(),
 })
@@ -41,6 +42,7 @@ export type CreateMatchRequest = z.infer<typeof CreateMatchRequestSchema>
 
 export const MatchSeatSnapshotSchema = SeatAssignmentInputSchema.omit({ characterId: true }).extend(
   {
+    profileId: AgentProfileIdSchema,
     character: CharacterCardSnapshotSchema.nullable().default(null),
   },
 )
@@ -67,11 +69,18 @@ export const BoardCharacterSlotSchema = z.object({
 })
 export type BoardCharacterSlot = z.infer<typeof BoardCharacterSlotSchema>
 
+export const BoardAgentProfileSlotSchema = z.object({
+  seat: z.number().int().positive().max(24),
+  profileId: AgentProfileIdSchema.nullable(),
+})
+export type BoardAgentProfileSlot = z.infer<typeof BoardAgentProfileSlotSchema>
+
 export const CustomBoardInputSchema = z.object({
   name: z.string().trim().min(1).max(48),
   description: z.string().trim().max(240).default(''),
   roles: z.array(BoardRoleSlotSchema).min(2).max(24),
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
+  agentProfiles: z.array(BoardAgentProfileSlotSchema).max(24).default([]),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
 })
@@ -98,6 +107,7 @@ export const BoardSummarySchema = z.object({
     }),
   ),
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
+  agentProfiles: z.array(BoardAgentProfileSlotSchema).max(24).default([]),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
   source: z.enum(['built-in', 'custom']),
@@ -112,6 +122,7 @@ const MatchBoardSnapshotFields = {
   description: z.string(),
   roles: z.array(BoardRoleSlotSchema).min(2).max(24),
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
+  agentProfiles: z.array(BoardAgentProfileSlotSchema).max(24).default([]),
   playerCount: z.number().int().min(6).max(24),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
@@ -162,7 +173,7 @@ export const SeatViewSchema = z.object({
   playerId: PlayerIdSchema,
   seat: z.number().int().positive(),
   name: z.string(),
-  model: z.string().trim().min(1).max(160).nullable(),
+  agent: AgentConfigurationSummarySchema.nullable(),
   alive: z.boolean(),
   canVote: z.boolean(),
   sheriff: z.boolean(),

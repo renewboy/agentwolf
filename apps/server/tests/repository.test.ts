@@ -39,6 +39,7 @@ describe('Agent catalog and repository', () => {
         name: 'Custom player',
         toolId: tool.id,
         model: 'model-a',
+        reasoningEffort: 'high',
         promptTimeoutMs: 10_000,
         connection: { region: 'local' },
       }),
@@ -54,6 +55,7 @@ describe('Agent catalog and repository', () => {
     )
     expect(catalog.listTools().some((entry) => entry.id === tool.id)).toBe(true)
     expect(catalog.getProfile(profile.id)?.model).toBe('model-a')
+    expect(catalog.getProfile(profile.id)?.reasoningEffort).toBe('high')
     expect(catalog.listProfiles().map((entry) => entry.id)).toEqual([profile.id, secondProfile.id])
 
     expect(
@@ -70,11 +72,13 @@ describe('Agent catalog and repository', () => {
       name: 'Updated player',
       toolId: tool.id,
       model: 'model-b',
+      reasoningEffort: 'xhigh',
       promptTimeoutMs: 20_000,
       connection: {},
     })
     expect(updated.createdAt).toBe(profile.createdAt)
     expect(updated.model).toBe('model-b')
+    expect(updated.reasoningEffort).toBe('xhigh')
     expect(catalog.listProfiles().map((entry) => entry.id)).toEqual([secondProfile.id, profile.id])
     expect(() => catalog.deleteTool(tool.id)).toThrow(/used/)
     catalog.deleteProfile(profile.id)

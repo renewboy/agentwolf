@@ -15,13 +15,33 @@ const modelOption = (currentValue = 'mock-default') => ({
   ],
 })
 
+const reasoningValues = (model) => (model === 'mock-model' ? ['low', 'high'] : ['low', 'medium'])
+
+const defaultReasoning = (model) => (model === 'mock-model' ? 'high' : 'medium')
+
+const reasoningOption = (model, currentValue = defaultReasoning(model)) => ({
+  id: 'reasoning_effort',
+  name: 'Reasoning effort',
+  category: 'thought_level',
+  type: 'select',
+  currentValue,
+  options: reasoningValues(model).map((value) => ({ value, name: value })),
+})
+
 const storePath = resolve(process.cwd(), '.mock-agent-sessions.json')
 
 function readStore() {
   try {
     return JSON.parse(readFileSync(storePath, 'utf8'))
   } catch {
-    return { sessions: [], newCount: 0, resumeCount: 0, lastResumeMcpServers: [] }
+    return {
+      sessions: [],
+      configs: {},
+      configRequests: [],
+      newCount: 0,
+      resumeCount: 0,
+      lastResumeMcpServers: [],
+    }
   }
 }
 
@@ -29,13 +49,18 @@ function writeStore(store) {
   writeFileSync(storePath, JSON.stringify(store))
 }
 
-function sessionResponse() {
+function sessionResponse(config = { model: 'mock-default', reasoningEffort: 'medium' }) {
   return {
     modes: {
       currentModeId: 'read-only',
       availableModes: [{ id: 'read-only', name: 'Read only' }],
     },
-    configOptions: [modelOption()],
+    configOptions: [
+      modelOption(config.model),
+      ...(process.env.AGENTWOLF_MOCK_DISABLE_REASONING === 'true'
+        ? []
+        : [reasoningOption(config.model, config.reasoningEffort)]),
+    ],
   }
 }
 
@@ -57,11 +82,12 @@ const app = agent({ name: 'AgentWolf mock agent' })
     const store = readStore()
     const sessionId = `mock-session-${store.sessions.length + 1}`
     store.sessions.push(sessionId)
+    store.configs[sessionId] = { model: 'mock-default', reasoningEffort: 'medium' }
     store.newCount += 1
     writeStore(store)
     return {
       sessionId,
-      ...sessionResponse(),
+      ...sessionResponse(store.configs[sessionId]),
     }
   })
   .onRequest(methods.agent.session.resume, ({ params }) => {
@@ -70,11 +96,39 @@ const app = agent({ name: 'AgentWolf mock agent' })
     store.resumeCount += 1
     store.lastResumeMcpServers = (params.mcpServers ?? []).map((server) => server.name)
     writeStore(store)
-    return sessionResponse()
+    return sessionResponse(
+      process.env.AGENTWOLF_MOCK_RESUME_DEFAULT_CONFIG === 'true'
+        ? { model: 'mock-default', reasoningEffort: 'medium' }
+        : store.configs[params.sessionId],
+    )
   })
-  .onRequest(methods.agent.session.setConfigOption, ({ params }) => ({
-    configOptions: [modelOption(String(params.value))],
-  }))
+  .onRequest(methods.agent.session.setConfigOption, ({ params }) => {
+    const store = readStore()
+    const config = store.configs[params.sessionId]
+    if (!config) throw new Error('Unknown session')
+    const value = String(params.value)
+    if (params.configId === 'model') {
+      if (!['mock-default', 'mock-model'].includes(value)) throw new Error('Unknown model')
+      config.model = value
+      if (!reasoningValues(value).includes(config.reasoningEffort)) {
+        config.reasoningEffort = defaultReasoning(value)
+      }
+    } else if (params.configId === 'reasoning_effort') {
+      if (!reasoningValues(config.model).includes(value)) {
+        throw new Error('Unsupported reasoning effort')
+      }
+      config.reasoningEffort = value
+    } else {
+      throw new Error('Unknown config option')
+    }
+    store.configRequests.push({
+      sessionId: params.sessionId,
+      configId: params.configId,
+      value,
+    })
+    writeStore(store)
+    return sessionResponse(config)
+  })
   .onRequest(methods.agent.session.setMode, () => ({}))
   .onRequest(methods.agent.session.prompt, async ({ params, client }) => {
     if (!readStore().sessions.includes(params.sessionId)) throw new Error('Unknown session')

@@ -278,12 +278,9 @@ export function DeveloperPage() {
                     <small className="aw-trajectory-owner__nickname">
                       {formatCopy(getCopy('trajectory.nickname'), { name: owner.label })}
                     </small>
-                    <small
-                      className="aw-trajectory-owner__model"
-                      title={player?.model ?? undefined}
-                    >
+                    <small className="aw-trajectory-owner__model" title={player?.agent?.model}>
                       {formatCopy(getCopy('trajectory.model'), {
-                        model: player?.model ?? getCopy('match.modelUnavailable'),
+                        model: player?.agent?.model ?? getCopy('match.modelUnavailable'),
                       })}
                     </small>
                   </>

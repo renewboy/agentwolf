@@ -96,6 +96,7 @@ describe('database migration', () => {
         id: 'board-quick-6',
         name: '6 人快速场',
         playerCount: 6,
+        agentProfiles: expect.arrayContaining([{ seat: 1, profileId: null }]),
       },
       setup: {
         speechCharacterLimit: 300,
@@ -165,6 +166,58 @@ describe('database migration', () => {
         .all(),
     ).toEqual([{ name: 'character_assets' }, { name: 'custom_characters' }])
     migrated.close()
+  })
+
+  it('reads persisted Profiles and boards that predate reasoning and Agent seat defaults', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-agent-default-compatibility-'))
+    roots.push(root)
+    const databasePath = resolve(root, 'agentwolf.sqlite')
+    const database = new Database(databasePath)
+    migrateDatabase(database)
+    const timestamp = '2026-08-24T00:00:00.000Z'
+    const profile = AgentProfileSchema.parse({
+      id: 'profile-compatible-player',
+      name: 'Compatible player',
+      toolId: 'tool-trae-cli',
+      model: 'compatible-model',
+      promptTimeoutMs: 10_000,
+      connection: {},
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    database
+      .prepare(
+        'INSERT INTO agent_profiles (id, tool_id, json, updated_at, sort_order) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(profile.id, profile.toolId, JSON.stringify(profile), timestamp, 0)
+    database.prepare('INSERT INTO custom_boards (id, json, updated_at) VALUES (?, ?, ?)').run(
+      'board-compatible-defaults',
+      JSON.stringify({
+        id: 'board-compatible-defaults',
+        name: 'Compatible defaults',
+        description: '',
+        roles: [
+          { roleId: 'role-werewolf', count: 2 },
+          { roleId: 'role-villager', count: 3 },
+          { roleId: 'role-seer', count: 1 },
+        ],
+        characters: [],
+        sheriff: false,
+        victory: 'slaughter-all',
+        revision: 1,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }),
+      timestamp,
+    )
+    database.close()
+
+    const repository = new SqliteRepository(databasePath)
+    const restoredProfile = repository.getProfile(profile.id)
+    expect(restoredProfile?.model).toBe('compatible-model')
+    expect(restoredProfile?.reasoningEffort).toBeUndefined()
+    expect(repository.listCustomBoards()[0]?.agentProfiles).toEqual([])
+    repository.close()
   })
 
   it('adds the trajectory Turn lookup index to schema four', async () => {

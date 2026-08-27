@@ -292,6 +292,14 @@ export class PromptBundleRegistry {
           .filter((playerId) => playerId !== excludedPlayerId)
           .map((playerId) => seatLabel(playerId, players))
           .join('、'),
+      knownPlayerRoleListExcept: (playerIds: readonly PlayerId[], excludedPlayerId: PlayerId) =>
+        playerIds
+          .filter((playerId) => playerId !== excludedPlayerId)
+          .map((playerId) => {
+            const roleId = playerFact(playerId, players).roleId!
+            return `${seatLabel(playerId, players)}（${this.roleLabel(roleId)}）`
+          })
+          .join('、'),
       livingPlayerIds: (excludedPlayerId?: PlayerId) =>
         roster
           .filter(

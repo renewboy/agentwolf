@@ -90,6 +90,7 @@ export function NewMatchPage() {
         label: formatCopy(getCopy('setup.profileOption'), {
           name: profile.name,
           model: profile.model,
+          reasoning: profile.reasoningEffort ?? getCopy('agentFields.reasoningDefault'),
         }),
       })),
     [profiles],
@@ -119,6 +120,9 @@ export function NewMatchPage() {
       Array.from({ length: count }, () => roleId),
     )
     const characterById = new Map(characters.map((character) => [character.id, character]))
+    const profileIds = [...board.agentProfiles]
+      .sort((left, right) => left.seat - right.seat)
+      .map(({ profileId }) => profileId)
     const characterIds = [...board.characters]
       .sort((left, right) => left.seat - right.seat)
       .map(({ characterId }) => characterId)
@@ -141,7 +145,7 @@ export function NewMatchPage() {
         return {
           seat: index + 1,
           name,
-          profileId: profiles[0]?.id ?? '',
+          profileId: profileIds[index] ?? profiles[0]?.id ?? '',
           roleId: roleIds[index]!,
           characterId,
         }

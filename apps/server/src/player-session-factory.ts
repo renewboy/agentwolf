@@ -38,11 +38,15 @@ export type PlayerSessionFactory = (options: {
 
 export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
   const mode = options.profile.mode ?? options.tool.initialMode
+  // ACP processes may report provider defaults after resume; the Profile remains authoritative.
   return AcpPlayerSession.start({
     cwd: options.cwd,
     launch: resolvePlayerLaunchSpec(options.tool, options.cwd),
     model: options.profile.model,
     modelConfigKey: options.tool.modelConfigKey,
+    ...(options.profile.reasoningEffort
+      ? { reasoningEffort: options.profile.reasoningEffort }
+      : {}),
     ...(mode ? { mode } : {}),
     mcpServers: [options.mcpServer],
     sessionMeta: {

@@ -56,6 +56,7 @@ export function createSimulationNormalization(
     source: 'custom',
     revision: 1,
     characters: board.characters.map(({ seat }) => ({ seat, characterId: null })),
+    agentProfiles: board.agentProfiles.map(({ seat }) => ({ seat, profileId: null })),
   })
   const replacements = new Map<string, string>([
     [board.id, canonicalBoard.id],

@@ -38,6 +38,7 @@ export const AgentProfileSchema = z.object({
   name: z.string().trim().min(1).max(80),
   toolId: AgentToolIdSchema,
   model: z.string().trim().min(1).max(160),
+  reasoningEffort: z.string().trim().min(1).max(80).optional(),
   mode: z.string().trim().min(1).optional(),
   promptTimeoutMs: z.number().int().min(5_000).max(600_000).default(180_000),
   connection: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
@@ -45,6 +46,13 @@ export const AgentProfileSchema = z.object({
   updatedAt: z.string().datetime(),
 })
 export type AgentProfile = z.infer<typeof AgentProfileSchema>
+
+export const AgentConfigurationSummarySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  model: z.string().trim().min(1).max(160),
+  reasoningEffort: z.string().trim().min(1).max(80).nullable(),
+})
+export type AgentConfigurationSummary = z.infer<typeof AgentConfigurationSummarySchema>
 
 export const AgentProfileInputSchema = AgentProfileSchema.omit({
   id: true,
@@ -62,12 +70,20 @@ export const AgentProfileOrderInputSchema = z.object({
 })
 export type AgentProfileOrderInput = z.infer<typeof AgentProfileOrderInputSchema>
 
+export const AgentDiscoveryInputSchema = z.object({
+  model: z.string().trim().min(1).max(160).optional(),
+})
+export type AgentDiscoveryInput = z.infer<typeof AgentDiscoveryInputSchema>
+
 export const AgentProbeResultSchema = z.object({
   ok: z.boolean(),
   agentName: z.string().optional(),
   agentVersion: z.string().optional(),
   protocolVersion: z.number().int().optional(),
   models: z.array(z.string()),
+  currentModel: z.string().optional(),
+  reasoningEfforts: z.array(z.string()).default([]),
+  currentReasoningEffort: z.string().optional(),
   modes: z.array(z.string()),
   message: z.string(),
   durationMs: z.number().int().nonnegative(),

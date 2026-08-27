@@ -299,6 +299,20 @@ describe('Fastify API', () => {
         },
       })
     ).json()
+    const boardProfile = (
+      await server.app.inject({
+        method: 'POST',
+        url: '/api/agent-profiles',
+        payload: {
+          name: 'Board-default player',
+          toolId: tools[0].id,
+          model: 'board-model',
+          reasoningEffort: 'high',
+          promptTimeoutMs: 5_000,
+          connection: {},
+        },
+      })
+    ).json()
     const createdResponse = await server.app.inject({
       method: 'POST',
       url: '/api/boards',
@@ -311,13 +325,27 @@ describe('Fastify API', () => {
           { roleId: 'role-seer', count: 1 },
           { roleId: 'role-witch', count: 1 },
         ],
+        agentProfiles: Array.from({ length: 6 }, (_, index) => ({
+          seat: index + 1,
+          profileId: index < 2 ? boardProfile.id : null,
+        })),
         sheriff: false,
         victory: 'slaughter-all',
       },
     })
     expect(createdResponse.statusCode).toBe(201)
     const board = createdResponse.json()
-    expect(board).toMatchObject({ playerCount: 6, source: 'custom', editable: true, revision: 1 })
+    expect(board).toMatchObject({
+      playerCount: 6,
+      source: 'custom',
+      editable: true,
+      revision: 1,
+      agentProfiles: expect.arrayContaining([
+        { seat: 1, profileId: boardProfile.id },
+        { seat: 2, profileId: boardProfile.id },
+        { seat: 3, profileId: null },
+      ]),
+    })
     const duplicateHiddenWolf = await server.app.inject({
       method: 'POST',
       url: '/api/boards',
@@ -338,6 +366,29 @@ describe('Fastify API', () => {
     expect(duplicateHiddenWolf.json().message).toContain(
       'role-awakened-hidden-wolf allows at most 1',
     )
+    const unknownAgentDefault = await server.app.inject({
+      method: 'POST',
+      url: '/api/boards',
+      payload: {
+        name: '非法 Agent 默认板子',
+        description: '',
+        roles: [
+          { roleId: 'role-werewolf', count: 2 },
+          { roleId: 'role-villager', count: 3 },
+          { roleId: 'role-seer', count: 1 },
+        ],
+        agentProfiles: Array.from({ length: 6 }, (_, index) => ({
+          seat: index + 1,
+          profileId: index === 0 ? 'profile-missing-default' : null,
+        })),
+        sheriff: false,
+        victory: 'slaughter-all',
+      },
+    })
+    expect(unknownAgentDefault.statusCode).toBe(400)
+    expect(unknownAgentDefault.json().message).toContain(
+      'Unknown Agent Profile profile-missing-default',
+    )
 
     const matchResponse = await server.app.inject({
       method: 'POST',
@@ -348,19 +399,31 @@ describe('Fastify API', () => {
         seats: Array.from({ length: 6 }, (_, index) => ({
           seat: index + 1,
           name: `Custom board seat ${index + 1}`,
-          profileId: profile.id,
+          ...(index === 1 ? { profileId: profile.id } : {}),
         })),
       },
     })
     expect(matchResponse.statusCode).toBe(201)
     const match = matchResponse.json()
     expect(match.boardName).toBe('六人预女场')
+    expect(match.seats[0]?.agent).toEqual({
+      name: 'Trae',
+      model: 'board-model',
+      reasoningEffort: 'high',
+    })
+    expect(
+      server.repository.getMatch(match.id)?.setup.seats.map(({ profileId }) => profileId),
+    ).toEqual([boardProfile.id, profile.id, profile.id, profile.id, profile.id, profile.id])
     const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
     expect(snapshot).toMatchObject({
       schemaVersion: 2,
       rulesetId: 'classic-v3',
       ruleset: { id: 'ruleset-classic-v3', version: 3 },
       policies: { victory: 'slaughter-all' },
+      agentProfiles: expect.arrayContaining([
+        { seat: 1, profileId: boardProfile.id },
+        { seat: 3, profileId: null },
+      ]),
     })
     if (!snapshot || snapshot.schemaVersion !== 2) throw new Error('Expected ruleset lock snapshot')
     expect(() =>
@@ -369,6 +432,12 @@ describe('Fastify API', () => {
         ruleset: { ...snapshot.ruleset, fingerprint: '0'.repeat(64) },
       }),
     ).toThrow(/fingerprint mismatch/)
+    const protectedProfile = await server.app.inject({
+      method: 'DELETE',
+      url: `/api/agent-profiles/${boardProfile.id}`,
+    })
+    expect(protectedProfile.statusCode).toBe(400)
+    expect(protectedProfile.json().message).toContain(`used by board ${board.name}`)
 
     const updatedResponse = await server.app.inject({
       method: 'PUT',
@@ -385,6 +454,11 @@ describe('Fastify API', () => {
       },
     })
     expect(updatedResponse.json()).toMatchObject({ revision: 2, sheriff: true })
+    const deletedProfile = await server.app.inject({
+      method: 'DELETE',
+      url: `/api/agent-profiles/${boardProfile.id}`,
+    })
+    expect(deletedProfile.statusCode).toBe(204)
     expect(
       (await server.app.inject({ method: 'DELETE', url: `/api/boards/${board.id}` })).statusCode,
     ).toBe(204)

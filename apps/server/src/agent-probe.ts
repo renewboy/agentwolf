@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { AcpPlayerSession, resolveLaunchSpec } from '@agentwolf/acp'
 import {
   AgentProbeResultSchema,
+  type AgentDiscoveryInput,
   type AgentTool,
   type AgentProbeResult,
   type AgentProfileId,
@@ -27,19 +28,27 @@ export class AgentProbeService {
     if (!tool) throw new Error(`Unknown Agent Tool ${profile.toolId}`)
     return this.#inspect(tool, {
       model: profile.model,
+      ...(profile.reasoningEffort ? { reasoningEffort: profile.reasoningEffort } : {}),
       ...(profile.mode ? { mode: profile.mode } : {}),
     })
   }
 
-  public async discoverTool(toolId: AgentToolId): Promise<AgentProbeResult> {
+  public async discoverTool(
+    toolId: AgentToolId,
+    selection: AgentDiscoveryInput = {},
+  ): Promise<AgentProbeResult> {
     const tool = this.#catalog.getTool(toolId)
     if (!tool) throw new Error(`Unknown Agent Tool ${toolId}`)
-    return this.#inspect(tool, {})
+    return this.#inspect(tool, selection.model ? { model: selection.model } : {})
   }
 
   async #inspect(
     tool: AgentTool,
-    selection: { readonly model?: string; readonly mode?: string },
+    selection: {
+      readonly model?: string
+      readonly mode?: string
+      readonly reasoningEffort?: string
+    },
   ): Promise<AgentProbeResult> {
     const startedAt = performance.now()
     const probeRoot = resolve(this.#config.dataDirectory, 'probes')
@@ -53,21 +62,32 @@ export class AgentProbeService {
         launch: resolveLaunchSpec(tool),
         modelConfigKey: tool.modelConfigKey,
         ...(selection.model ? { model: selection.model } : {}),
+        ...(selection.reasoningEffort ? { reasoningEffort: selection.reasoningEffort } : {}),
         ...(mode ? { mode } : {}),
       })
-      const models = session.configOptions
-        .flatMap((option) =>
-          option.category === 'model' && option.type === 'select'
-            ? option.options.flatMap((entry) => ('options' in entry ? entry.options : [entry]))
-            : [],
-        )
-        .map((option) => option.value)
+      const modelOption = session.configOptions.find(
+        (option) => option.id === tool.modelConfigKey || option.category === 'model',
+      )
+      const models = modelOption?.type === 'select' ? selectValues(modelOption) : []
+      const reasoningOptions = session.configOptions.filter(
+        (option) => option.category === 'thought_level',
+      )
+      if (reasoningOptions.length > 1) {
+        throw new Error('ACP agent advertises multiple thought_level configuration options')
+      }
+      const reasoningOption = reasoningOptions[0]
+      if (reasoningOption && reasoningOption.type !== 'select') {
+        throw new Error('ACP thought_level configuration option is not selectable')
+      }
       return AgentProbeResultSchema.parse({
         ok: true,
         agentName: session.initializeResponse.agentInfo?.name,
         agentVersion: session.initializeResponse.agentInfo?.version,
         protocolVersion: session.initializeResponse.protocolVersion,
         models,
+        ...(modelOption?.type === 'select' ? { currentModel: modelOption.currentValue } : {}),
+        reasoningEfforts: reasoningOption ? selectValues(reasoningOption) : [],
+        ...(reasoningOption ? { currentReasoningEffort: reasoningOption.currentValue } : {}),
         modes: session.availableModes.map((modeEntry) => modeEntry.id),
         message: 'connection-ok',
         durationMs: Math.round(performance.now() - startedAt),
@@ -76,6 +96,7 @@ export class AgentProbeService {
       return AgentProbeResultSchema.parse({
         ok: false,
         models: [],
+        reasoningEfforts: [],
         modes: [],
         message: error instanceof Error ? error.message : String(error),
         durationMs: Math.round(performance.now() - startedAt),
@@ -86,3 +107,13 @@ export class AgentProbeService {
     }
   }
 }
+
+function selectValues(
+  option: Extract<AgentProbeSessionConfigOption, { type: 'select' }>,
+): string[] {
+  return option.options
+    .flatMap((entry) => ('options' in entry ? entry.options : [entry]))
+    .map(({ value }) => value)
+}
+
+type AgentProbeSessionConfigOption = AcpPlayerSession['configOptions'][number]

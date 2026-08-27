@@ -192,6 +192,7 @@ export class BoardCatalogService {
     const count = parsed.roles.reduce((total, role) => total + role.count, 0)
     if (count < 6 || count > 24) throw new RuleViolation('Board requires between 6 and 24 players')
     this.#validateCharacters(parsed.characters, count)
+    this.#validateAgentProfiles(parsed.agentProfiles, count)
 
     const resolved = parsed.roles.map((slot) => ({
       slot,
@@ -229,6 +230,7 @@ export class BoardCatalogService {
       description: getCopy(definition.descriptionKey),
       roles: definition.manifest.roles,
       characters: [],
+      agentProfiles: [],
       sheriff: definition.manifest.sheriff,
       victory: definition.manifest.policies.victory,
       revision: 1,
@@ -247,6 +249,7 @@ export class BoardCatalogService {
     readonly description: string
     readonly roles: readonly CustomBoard['roles'][number][]
     readonly characters: readonly CustomBoard['characters'][number][]
+    readonly agentProfiles: readonly CustomBoard['agentProfiles'][number][]
     readonly sheriff: boolean
     readonly victory: CustomBoard['victory']
     readonly revision: number
@@ -258,6 +261,10 @@ export class BoardCatalogService {
       playerCount: input.roles.reduce((total, role) => total + role.count, 0),
       characters: this.#normalizedCharacters(
         input.characters,
+        input.roles.reduce((total, role) => total + role.count, 0),
+      ),
+      agentProfiles: this.#normalizedAgentProfiles(
+        input.agentProfiles,
         input.roles.reduce((total, role) => total + role.count, 0),
       ),
       roles: input.roles.map((slot) => ({
@@ -277,6 +284,7 @@ export class BoardCatalogService {
       description: summary.description,
       roles: summary.roles.map(({ roleId, count }) => ({ roleId, count })),
       characters: summary.characters,
+      agentProfiles: summary.agentProfiles,
       playerCount: summary.playerCount,
       sheriff: summary.sheriff,
       victory: summary.victory,
@@ -313,6 +321,36 @@ export class BoardCatalogService {
     return Array.from({ length: playerCount }, (_, index) => ({
       seat: index + 1,
       characterId: bySeat.get(index + 1) ?? null,
+    }))
+  }
+
+  #validateAgentProfiles(
+    agentProfiles: readonly CustomBoard['agentProfiles'][number][],
+    playerCount: number,
+  ): void {
+    if (agentProfiles.length === 0) return
+    if (agentProfiles.length !== playerCount) {
+      throw new RuleViolation('Board Agent Profile defaults must contain one slot per seat')
+    }
+    const seats = [...agentProfiles].map(({ seat }) => seat).sort((left, right) => left - right)
+    if (seats.some((seat, index) => seat !== index + 1)) {
+      throw new RuleViolation('Board Agent Profile default seats must be consecutive')
+    }
+    for (const { profileId } of agentProfiles) {
+      if (profileId && !this.#repository.getProfile(profileId)) {
+        throw new RuleViolation(`Unknown Agent Profile ${profileId}`)
+      }
+    }
+  }
+
+  #normalizedAgentProfiles(
+    agentProfiles: readonly CustomBoard['agentProfiles'][number][],
+    playerCount: number,
+  ): CustomBoard['agentProfiles'] {
+    const bySeat = new Map(agentProfiles.map((slot) => [slot.seat, slot.profileId]))
+    return Array.from({ length: playerCount }, (_, index) => ({
+      seat: index + 1,
+      profileId: bySeat.get(index + 1) ?? null,
     }))
   }
 

@@ -2,6 +2,7 @@ import {
   MatchViewSchema,
   RoleEffectCueSchema,
   CharacterSummarySchema,
+  type AgentConfigurationSummary,
   type CharacterCardSnapshot,
   type GameEvent,
   type MatchId,
@@ -53,7 +54,7 @@ export interface ProjectMatchOptions {
   readonly events: readonly GameEvent[]
   readonly view: SpectatorView
   readonly roles: RoleRegistry
-  readonly model?: (playerId: PlayerId) => string | null
+  readonly agent?: (playerId: PlayerId) => AgentConfigurationSummary | null
   readonly characterForSeat?: (seat: number) => CharacterCardSnapshot | null
   readonly sessionStatus?: (playerId: PlayerId) => SessionStatus
   readonly postgameReview?: PostgameReviewView | null
@@ -125,7 +126,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
           playerId: player.id,
           seat: player.seat,
           name: player.name,
-          model: options.model?.(player.id) ?? null,
+          agent: options.agent?.(player.id) ?? null,
           alive: visibleAlive,
           canVote:
             options.view.kind === 'god'

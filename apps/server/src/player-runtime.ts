@@ -6,6 +6,7 @@ import {
   type AcpPromptResult,
 } from '@agentwolf/acp'
 import {
+  type AgentConfigurationSummary,
   PlayerActionSchema,
   type PlayerAction,
   type PhaseId,
@@ -19,6 +20,7 @@ import {
   takePostgameReviewTurn,
   takePostgameSpeechTurn,
 } from './player-auxiliary-turn.js'
+import { agentConfiguration } from './agent-catalog.js'
 import {
   defaultPlayerSessionFactory,
   type PlayerSession,
@@ -58,8 +60,8 @@ export class PlayerRuntime {
     return this.#status
   }
 
-  public get model(): string {
-    return this.#options.profile.model
+  public get agent(): AgentConfigurationSummary {
+    return agentConfiguration(this.#options.profile, this.#options.tool)
   }
 
   public get acknowledgedSequence(): number {

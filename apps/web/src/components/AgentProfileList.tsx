@@ -60,7 +60,12 @@ export function AgentProfileList({
             <Robot size={22} aria-hidden />
             <span className="aw-profile-item__copy">
               <strong>{profile.name}</strong>
-              <small>{profile.model}</small>
+              <small>
+                {formatCopy(getCopy('agentFields.modelAndReasoning'), {
+                  model: profile.model,
+                  reasoning: profile.reasoningEffort ?? getCopy('agentFields.reasoningDefault'),
+                })}
+              </small>
             </span>
           </button>
         </div>

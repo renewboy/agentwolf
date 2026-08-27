@@ -16,6 +16,7 @@ export const PromptPlayerFactSchema = z
     seat: z.number().int().positive(),
     name: z.string().min(1),
     alive: z.boolean(),
+    roleId: RoleIdSchema.nullable().optional(),
   })
   .strict()
 export type PromptPlayerFact = z.infer<typeof PromptPlayerFactSchema>

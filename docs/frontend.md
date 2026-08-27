@@ -23,26 +23,26 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 
 ## Layouts
 
-- Agent settings: ordered agent list with separate name and model lines, whole-row drag images,
-  lifted source and insertion feedback, keyboard reorder handles, and a focused editor with
-  explicit empty, probe, saving, and error states.
+- Agent settings: ordered agent list with separate name and model/reasoning lines, whole-row drag
+  images, lifted source and insertion feedback, keyboard reorder handles, model-dependent ACP
+  reasoning selection, and a focused editor with explicit empty, probe, saving, and error states.
 - Global settings: one focused editor for shared Match preferences, with saved and error states.
 - Collection: a responsive Character-card grid and detail editor with generated portraits,
   built-in copy, custom create/edit/delete, local portrait replacement, and explicit full-ability
   guidance. The same shell can add a separate game-card catalog without merging its data model.
 - Board management: built-in and custom board list, color-labeled role-count steppers, derived 6-24
-  player total, per-seat default Character selectors, sheriff switch, victory selector, copy, save,
-  edit, and confirmed deletion.
+  player total, paired per-seat default Agent Profile and Character selectors, sheriff switch,
+  victory selector, copy, save, edit, and confirmed deletion.
 - New match: available-player-count selection, compatible built-in or custom board summary, ordered
-  seat assignment defaulted to the first persisted Agent Profile, per-seat Agent Profile selector,
-  inherited and overridable Character selector, color-labeled board composition and manual identity
-  selector, editable Character-name nickname default, duplicate nickname feedback, per-seat reroll,
-  and reroll-all. Built-in board descriptions preserve authored line breaks and wrap without
-  resizing or clipping role badges.
+  seat assignment inherited from per-seat board Agent defaults or the first persisted Agent Profile,
+  per-seat Agent Profile selector, inherited and overridable Character selector, color-labeled
+  board composition and manual identity selector, editable Character-name nickname default,
+  duplicate nickname feedback, per-seat reroll, and reroll-all. Built-in board descriptions
+  preserve authored line breaks and wrap without resizing or clipping role badges.
 - Spectator: a `100dvh` shell with an integrated status HUD, portrait-aware left and right player
   rosters, a center presence stage, and an independently scrolling event feed. Nickname remains
-  primary, Character name is public secondary context, and every player card carries its configured
-  model and visibility-safe role badge. Left-rail name, identity, Session status, and model metadata
+  primary, Character name is public secondary context, and every player card carries its complete
+  Agent configuration and visibility-safe role badge. Left-rail name, identity, Session status, and Agent metadata
   align to the left edge; the same four fields align to the right edge on the right rail. Speech,
   system events, night information, votes, and resolutions use distinct presentation. History folds
   by match day.
@@ -110,7 +110,8 @@ shutdown, listbox interaction, confirmation-dialog focus behavior, reduced motio
 layout. Character coverage includes catalog CRUD, local portrait upload, board defaults, Match
 overrides, repeated Characters, duplicate nickname blocking, and public portrait projection. Agent
 Profile coverage includes name/model separation, whole-row drag feedback, keyboard
-reordering, reload persistence, and new-Match defaults.
+reordering, ACP reasoning discovery, reload persistence, board Agent defaults, reference-safe
+deletion, and new-Match inheritance and overrides.
 Postgame coverage includes countdown start/skip, a persistent start message, immediate per-player
 rating visibility, feed-level MVP/SVP vote totals and radar details, badges, active-review reconnect,
 streamed reflections without duplicate committed text, final playback resolution, and completed/skipped settlement.

@@ -1,8 +1,9 @@
 import { Crown, HandPalm, Medal, Skull, Trophy } from '@phosphor-icons/react'
-import { formatCopy, getCopy } from '@agentwolf/assets'
+import { getCopy } from '@agentwolf/assets'
 import type { PostgameReviewView, SeatView } from '@agentwolf/contracts'
 import { RoleBadge } from '../RoleBadge.js'
 import { characterPortraitUrl } from '../../character-portraits.js'
+import { formatAgentConfiguration } from '../../agent-configuration.js'
 
 export function PlayerRail({
   seats,
@@ -149,10 +150,8 @@ function PlayerCard({
           {statusLabel}
         </span>
       </div>
-      <span className="aw-player-card__model" title={seat.model ?? undefined}>
-        {formatCopy(getCopy('match.playerModel'), {
-          model: seat.model ?? getCopy('match.modelUnavailable'),
-        })}
+      <span className="aw-player-card__agent" title={formatAgentConfiguration(seat.agent)}>
+        {formatAgentConfiguration(seat.agent)}
       </span>
     </article>
   )

@@ -51,6 +51,85 @@ describe('AcpPlayerSession', () => {
     await session.close()
   })
 
+  it('reapplies model and reasoning when resume reports process defaults', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-reasoning-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const launch = {
+      command: process.execPath,
+      args: [fixture],
+      env: { ...process.env, AGENTWOLF_MOCK_RESUME_DEFAULT_CONFIG: 'true' },
+    }
+    const created = await AcpPlayerSession.start({
+      cwd,
+      launch,
+      model: 'mock-model',
+      reasoningEffort: 'low',
+      requireSessionResume: true,
+    })
+    expect(
+      created.configOptions.find((option) => option.category === 'thought_level'),
+    ).toMatchObject({ currentValue: 'low', options: expect.any(Array) })
+    const sessionId = created.sessionId
+    await created.close()
+
+    const store = JSON.parse(await readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8')) as {
+      configRequests: Array<{ configId: string; value: string }>
+    }
+    expect(store.configRequests).toEqual([
+      { sessionId, configId: 'model', value: 'mock-model' },
+      { sessionId, configId: 'reasoning_effort', value: 'low' },
+    ])
+
+    const resumed = await AcpPlayerSession.start({
+      cwd,
+      launch,
+      model: 'mock-model',
+      reasoningEffort: 'low',
+      resumeSessionId: sessionId,
+      requireSessionResume: true,
+    })
+    await resumed.close()
+
+    const resumedStore = JSON.parse(
+      await readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8'),
+    ) as {
+      configRequests: Array<{ configId: string; value: string }>
+    }
+    expect(resumedStore.configRequests).toEqual([
+      { sessionId, configId: 'model', value: 'mock-model' },
+      { sessionId, configId: 'reasoning_effort', value: 'low' },
+      { sessionId, configId: 'model', value: 'mock-model' },
+      { sessionId, configId: 'reasoning_effort', value: 'low' },
+    ])
+
+    await expect(
+      AcpPlayerSession.start({
+        cwd,
+        launch,
+        model: 'mock-model',
+        reasoningEffort: 'medium',
+      }),
+    ).rejects.toThrow(/does not advertise reasoning effort medium/)
+  }, 15_000)
+
+  it('leaves reasoning at the Agent default when thought_level is not advertised', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-default-reasoning-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: {
+        command: process.execPath,
+        args: [fixture],
+        env: { ...process.env, AGENTWOLF_MOCK_DISABLE_REASONING: 'true' },
+      },
+      model: 'mock-model',
+    })
+    expect(session.configOptions.some((option) => option.category === 'thought_level')).toBe(false)
+    await session.close()
+  })
+
   it('resumes one durable Session ID in a new ACP process without session/new', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-resume-'))
     temporaryDirectories.push(cwd)
