@@ -16,6 +16,7 @@
     "dev:server": "pnpm strategy:build && pnpm --filter @agentwolf/server dev",
     "dev:web": "pnpm --filter @agentwolf/web dev",
     "duplication": "jscpd apps packages scripts",
+    "docs:generate": "tsx scripts/harness/generate-game-catalog.ts",
     "format:check": "oxfmt --check .",
     "format": "oxfmt --write .",
     "lint": "oxlint --type-aware --deny-warnings .",

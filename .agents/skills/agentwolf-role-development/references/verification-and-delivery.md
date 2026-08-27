@@ -67,28 +67,29 @@ Run live ACP smoke tests only when the change alters player tool contracts, sand
 or model-facing action execution and credentials are available. A normal Role addition with an
 existing action shape usually needs rendered Prompt and fake-session integration evidence instead.
 
-## Documentation and acceptance
+## Documentation and delivery
 
-Update only documents that own changed current behavior:
+Update only the owner whose durable contract changed:
 
-- `docs/product.md` for the installed catalog, built-in boards, and observable Role behavior;
-- `docs/architecture.md` for new extension contracts or runtime ownership;
-- `docs/information-sync.md` for phase, visibility, barrier, or delivery changes;
-- `docs/frontend.md` for role badge/effect presentation;
-- `docs/testing.md` for durable test coverage and acceptance scenarios;
+- `docs/generated/game-catalog.md` is regenerated from installed Roles and built-in boards;
+- `docs/product.md` only when the user workflow or visible behavior contract changes;
+- `docs/architecture/game-runtime.md` for shared rule extension contracts;
+- `docs/architecture/prompt-and-context.md` for Prompt/context ownership changes;
+- `docs/architecture/information-synchronization.md` for visibility, barrier, or delivery changes;
+- `docs/architecture/web-client.md` or `docs/frontend.md` for browser architecture or visual principles;
+- `docs/testing.md` only when test strategy or fixture policy changes, not when adding coverage;
 - the nearest `AGENTS.md` only when durable repository guidance changed.
 
 Describe the implemented current state. Keep design history, migration narrative, future Roles,
 and debugging notes out of these documents.
 
-When the implementation plan is complete:
+At completion:
 
-1. move it to `docs/plans/completed/<slug>.md`;
-2. replace work checklists with `Goal`, `Completed work`, and `Completion evidence`;
-3. add one immutable `docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md` record with `Scope` and
-   `Evidence`;
-4. verify the closest `AGENTS.md` files remain accurate;
-5. report focused and full commands, simulation/browser evidence, and any explicitly unrun checks.
+1. regenerate the game catalog and verify the closest `AGENTS.md` files remain accurate;
+2. when a proposed Agent Note was required, rewrite and move it to `implemented/<class>` with the
+   shipped decision, alternatives, consequences, and stable verification contract;
+3. report focused and full commands, simulation/browser evidence, and any explicitly unrun checks in
+   the request handoff rather than a separate acceptance document.
 
 Do not include `.agentwolf/` databases, sessions, trajectories, generated speech, screenshots, or
 credentials in the change.

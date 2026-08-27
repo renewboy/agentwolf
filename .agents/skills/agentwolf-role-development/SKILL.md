@@ -1,6 +1,6 @@
 ---
 name: agentwolf-role-development
-description: Implement or change a playable AgentWolf game Role across versioned ruleset plugins, Prompts, projections, effects, boards, strategy content, and acceptance. Use for Role semantics; do not use for Character persona cards.
+description: Implement or change a playable AgentWolf game Role across versioned ruleset plugins, Prompts, projections, effects, boards, strategy content, and verification. Use for Role semantics; do not use for Character persona cards.
 ---
 
 # AgentWolf Role development
@@ -13,10 +13,10 @@ Character card controls public persona and expression; route Character-only work
 
 Before editing:
 
-1. Read the repository `AGENTS.md` chain and the required current-state documents it names. Read
-   `artifacts_rules.md`, `docs/product.md`, `docs/architecture.md`,
-   `docs/research/preflight.md`, `docs/information-sync.md`, and `docs/testing.md`. Read
-   `docs/frontend.md` when the Role needs a badge, effect, board UI, or browser acceptance.
+1. Read the repository `AGENTS.md` chain, [game runtime](../../../docs/architecture/game-runtime.md),
+   and the [adopted rule baseline](../../../docs/reference/game-rules.md). Read only additional module
+   documents touched by the Role: Prompt/context, information synchronization, or Web client. Read
+   `docs/frontend.md` when the Role changes badge, effect, board UI, or browser behavior.
 2. Inspect the working tree and preserve unrelated changes. Treat existing Matches and
    `.agentwolf/` runtime data as read-only unless the user explicitly authorizes mutation.
 3. Write down the Role's faction and kind; timing; legal actors and targets; pass rules; usage
@@ -24,8 +24,8 @@ Before editing:
    death, Sheriff, and victory; and whether it enters a built-in board.
 4. Ask the user before implementation when any rule variant above is unspecified and different
    choices change observable outcomes. Do not choose a folklore variant silently.
-5. New Roles and cross-layer Role changes require an active implementation plan and request-owned
-   acceptance record under the repository's documented lifecycle.
+5. Create a proposed Agent Note only when the Role changes a hard-to-reverse architecture, privacy,
+   durable-data, or shared extension contract. An ordinary Role addition needs no durable plan file.
 
 Choose existing examples by behavior, not by name:
 
@@ -47,7 +47,7 @@ installable or visible. It covers the companion Prompt bundle, visibility-safe n
 effects, localized UI assets, badge colors, player strategy pages, and built-in boards.
 
 Read [verification and delivery](references/verification-and-delivery.md) before writing tests or
-closing the plan. Select checks from the Role's actual behavior and run the full cross-layer gates
+closing the request. Select checks from the Role's actual behavior and run the full cross-layer gates
 for a shipped Role.
 
 ## Architectural invariants

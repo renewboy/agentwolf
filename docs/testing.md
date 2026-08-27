@@ -1,215 +1,72 @@
 # Testing and acceptance
 
+Tests prove external behavior and architecture boundaries. They do not substitute Agent self-report,
+and this document does not maintain a feature-by-feature coverage inventory.
+
 ## Test layers
 
-- Unit tests cover versioned Ruleset plugin dependency loading, semantic contribution ownership, strict Prompt bundle loading, synthetic Role/Ability/Phase/plugin-event Prompt extension, audience-safe imports, Nunjucks condition rendering, capability authorization, named-lane settlement, role classes, Awakened Hidden Wolf learning and copied variants, production ability-effect dispatch, wolf
-  no-kill and replay-stable tie selection, phase action contracts that remain stable across phase-ID
-  changes, the twelve built-in Character cards and portraits, full-ability portrayal rendering,
-  role-effect catalog coverage, custom-board validation, phase transitions, speech
-  sanitization, nickname uniqueness, event reduction, visibility projection, explicit winning-player
-  review eligibility, complete five-dimensional sheets, arithmetic aggregation and deterministic
-  award ties, player Skill source
-  coverage, provider tool policies, and pre-speech or mid-speech knowledge tool boundaries.
-- Property tests generate legal player counts, action orders, and death chains to check deterministic replay, unique Player IDs, monotonic sequences, and terminal victory.
-- Integration tests run the API with an in-memory repository and fake ACP processes. They cover
-  model-specific ACP reasoning discovery and Session configuration, Character upload/copy/CRUD and
-  reference protection, paired board Agent/Character defaults and Match overrides, repeated
-  Profiles and Characters with unique nicknames, immutable Character snapshots,
-  custom-board CRUD and immutable Match snapshots, schema-one migration, Agent Profile ordering and
-  migration, one session per seat, cursor advancement, submitted-action status, normalized and
-  redacted trajectories, exact stored Prompt cardinality and semantic delivery audit, Prompt metadata cleanup with byte-preserved Prompt records, uncertain-delivery recovery, MCP action
-  authorization, durable Session binding and resume, accepted-action reconciliation, same-turn correction after a rejected structured action, guarded process-tree
-  shutdown, parent-process loss, bounded protocol close, sync barriers, clean direct-speech
-  boundaries, interrupted parallel-action cleanup, streamed speech, postgame countdown/start/skip,
-  atomic first-ended countdown projection, per-cursor multi-day public-history catch-up, private
-  event exclusion, unchanged regular cursors, audited postgame event ranges, frozen terminal facts,
-  immediate sheet persistence and projection, continuation-only same-Session review restart, and
-  sequential reflection playback.
-- Contract tests validate REST, WebSocket, event, trajectory, and action schemas against fixtures shared by server and web.
-- Simulation corpus tests re-execute approved real-Match captures through a fresh rule engine and
-  the production Match runtime with deterministic fake Sessions. They check semantic event order,
-  vote calculations, visibility, exact parallel actor barriers, current-engine sequential actor
-  routing, Prompt delivery boundaries, delivery recovery, restart reconstruction, playback completion,
-  skip and disconnect, and repeated-run determinism.
-- Browser tests cover Agent Profile management, profile metadata layout, whole-row drag feedback,
-  keyboard ordering, model-dependent reasoning selection, persisted setup defaults, Character
-  library editing and portrait upload, custom-board Agent/Character defaults, Match overrides and
-  duplicate nickname blocking, custom-board
-  management, complete role-palette coverage, styled listbox behavior, confirmation-dialog focus and
-  deletion, Match setup, per-Match trajectory entry, seat and nickname labels, seat model labels,
-  visibility-safe role badges, cross-screen role-color consistency, semantic record tags,
-  minimap-to-Record navigation, stable player switching,
-  shared-period collapse, developer detail, context-audit status, role-effect modes, rerolls, game start,
-  view switching, live speech, target-grouped vote results, private wolf-ballot visibility,
-  non-rotating vote collection feedback, sequence-keyed automatic playback, per-speech
-  manual play and stop, playback skip and synthesis failure, fixed-height match layout, active
-  waiting feedback, postgame start messages, review sheets, feed-level award votes and radar values,
-  award badges, streamed reflections,
-  terminal-state motion cleanup, and missing-Match request settlement.
-- Browser fixtures use a per-run name namespace and remove every created Match, custom board,
-  custom Character, Agent Profile, and custom Agent Tool during suite teardown, including after
-  failed assertions.
-- Optional live ACP smokes verify installed adapters, a real structured action with a one-turn fake
-  Match, local strategy search through the shared Skill links, and sandbox rejection of file writes
-  and shell network access. They never run in keyless CI.
+- Unit tests own pure rule, schema, rendering, normalization, catalog, and utility behavior.
+- Property tests own broad deterministic invariants such as legal player counts, event monotonicity,
+  replay, and death/action ordering.
+- Integration tests own REST/WebSocket contracts, SQLite repositories and migrations, Match runtime,
+  ACP protocol fakes, projection, delivery, recovery, postgame, trajectory, and simulation services.
+- Contract tests parse shared fixtures at producer and consumer boundaries.
+- Simulation corpus tests replay reviewed real-Match decisions through both the game engine and
+  production orchestration with deterministic fake Sessions.
+- Browser tests own visible workflows, keyboard/focus behavior, responsive containment, live
+  reconnect, speech playback, and motion cleanup.
+- Optional live smokes own installed ACP adapter behavior, real structured actions, local Skill
+  access, and sandbox rejection. They do not run in keyless CI.
 
-## Required commands
+Detailed scenarios belong in descriptively named tests and fixtures beside their implementation.
+
+## Commands
 
 ```sh
 pnpm typecheck
 pnpm lint
 pnpm test:coverage
 pnpm build
-pnpm check:architecture
-pnpm check:artifacts
-pnpm check:docs
-pnpm check:skills
+pnpm check
 pnpm test:e2e
 pnpm test:simulation
 pnpm simulation:check
-pnpm smoke:player-action -- --tool=trae-cli gpt-5.6-luna --reasoning-effort=high --probe-strategy --probe-sandbox
-pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --reasoning-effort=high --probe-strategy --probe-sandbox
-pnpm smoke:player-action -- --tool=claude --reasoning-effort=high --probe-strategy --probe-sandbox
-pnpm smoke:player-action -- --tool=codex gpt-5.6-luna --postgame-review
 ```
 
-`pnpm check` is the deterministic local and CI gate. It excludes live model calls and credentialed adapter smokes.
+`pnpm check` is the deterministic repository gate: architecture, artifacts, documentation, Skills,
+types, lint, formatting, dependency hygiene, duplication, unit/integration coverage, and production
+build. It excludes credentialed model calls.
 
-The simulation corpus retains duplicate engine and full-orchestration replays for every approved
-variant. Trajectory persistence skips live-delta normalization without subscribers and reads live
-records by indexed Turn ID, so the default parallel coverage gate runs without a worker override.
+Use focused Vitest or Playwright targets while iterating. Run the complete repository gate for
+cross-layer changes and `pnpm test:e2e` for user-visible browser behavior. Run live smokes only when
+provider behavior is in scope and credentials are available.
 
-`pnpm install` registers Lefthook when Git uses its normal hooks directory. A managed global `core.hooksPath` is preserved; on such hosts, run `pnpm check` explicitly and rely on the required GitHub Actions jobs.
+## Test data
 
-Work that requires an implementation plan writes one immutable acceptance record at
-`docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md`. A record contains `Scope` and `Evidence`, owns only
-that planned request's results, and is never refreshed with later aggregate counts. Small scoped
-requests and localized bug fixes report focused verification in their handoff and create neither a
-plan nor an acceptance record. Documentation gates reject a shared `docs/acceptance.md`, archive
-buckets, and paths outside the dated directory format.
+- Tests create uniquely named Agent Tools, Profiles, Characters, boards, Matches, and candidates.
+- Reusable-server browser tests delete every created record in teardown, including after assertions
+  fail, and verify no test event or delivery ledger remains.
+- Tests never reuse, rename, delete, or reorder user-owned runtime records.
+- Runtime databases, Sessions, generated speech, screenshots, videos, and browser traces remain under
+  ignored `.agentwolf/` or test-output directories.
+- Approved simulation fixtures contain sanitized structural decisions and reviewed semantic oracles,
+  never credentials, raw Prompts, reasoning, tool output, runtime paths, or source Match identity.
 
-## Acceptance scenarios
+## Assertion policy
 
-1. Twelve fake agents complete a Standard match from first night through a winner with deterministic replay.
-2. The first-day sheriff flow supports join, decline, withdrawal, tie speech, revote, badge loss, 1.5 vote weight, and badge transfer.
-3. Every voter receives every other player's speech exactly once before its vote is accepted, and
-   does not receive its own already-known speech again in an incremental Prompt.
-4. God, closed-eye, and player projections return distinct allowed fields from the server.
-5. Speech chunks appear live, while committed text contains no Player IDs.
-6. Guard, Witch, Hunter, Idiot, Magic Mirror Girl, White Wolf King, and Awakened Hidden Wolf interactions match the selected board policies. A Witch with an
-   available antidote sees only the regular Werewolf attack target; after losing the antidote she
-   receives no death target through either events or action instructions.
-7. A killed or timed-out ACP process continues or resumes the same persisted Session ID without resending an in-flight envelope; a repeated failure pauses the Match.
-8. Selecting 6, 9, 10, or 12 players filters compatible boards, produces the matching seat count, and sends each Agent the selected board policies.
-9. Agent Tool selection discovers its ACP model list and the selected model's `thought_level`
-   values through one temporary Session. Only advertised models and reasoning values can be saved;
-   an omitted reasoning value follows the Agent default.
-10. A rejected six-player Seer action returns its rule error to the same Agent turn, accepts a corrected tool call, reaches a settled inspection, and emits no pause or resume event.
-11. Recovery after server restart restores the event-sourced engine, resumes every original Session ID without another foundation, and continues the interrupted turn.
-12. A paused match exposes continue and delete controls; deletion removes the match, events, delivery ledgers, Session bindings, and player workspaces.
-13. A simulated uncertain ACP speech delivery continues the affected Session once, commits the retried speech, leaves every other Session untouched, and does not emit a transient pause event.
-14. A transient spectator WebSocket closure keeps the last snapshot, refreshes over HTTP, and reconnects instead of replacing the page with an error.
-15. A daytime exile with last words completes the day and enters the next night before another day speech can begin.
-16. Every bootstrap prompt covers its delivery cursor, includes one detailed public rules entry for
-    each role on the selected board without seat assignments, includes the source Role introduction
-    identically for every player, gives each Werewolf exactly its other teammates, and gives
-    non-Werewolves no faction roster.
-17. Death and exile keep identities hidden in running closed-eye and player projections; `match.ended` precedes one final public identity event per seat, and every terminal projection exposes all roles.
-18. An ended page closes continuous presence motion and live reconnection, while a 404 Match page stops further GET and WebSocket attempts.
-19. A valid structured action immediately projects `submitted` to god and actor views while remaining hidden from other player and closed-eye views.
-20. Vote collection uses phase-specific copy and a pulsing signal rail without circular rotation; resolved vote cards group voter seats by target seat and preserve weighted votes, abstentions, and wolf no-kill ballots. God and Werewolf player views receive detailed wolf ballots while closed-eye, non-Werewolf, and Witch views do not.
-21. A speech stage may generate every speaker in sequence, but its following phase receives no Agent prompt until the controlling browser completes or skips the visible playback queue through the final speech sequence. Closed-eye playback does not hold private wolf-council speech.
-22. A saved six-player Seer/Witch board can switch sheriff and victory policies; editing or
-    deleting it does not change a Match created from an earlier revision.
-23. Normal startup captures trajectory data while returning 404 for every developer route; a
-    developer restart reads the same records and streams later logical updates by revision.
-24. Every completed deterministic Turn has one exact stored Prompt, a matching visibility-safe
-    delivery range and acknowledgement, no duplicate stream records, and a successful semantic audit.
-25. Private Seer, Magic Mirror Girl, Witch, Guard, and night-attack cues appear only in permitted projections; public White Wolf King detonation cues appear in every public projection; full,
-    reduced, and off effect modes play each newly visible cue at most once and leave no residual
-    transform.
-26. Normal speech rejects the compatibility `submit_speech` tool and commits only the clean direct
-    response around embedded role and tool boundaries. A local strategy lookup may finish before
-    speech starts. Once speech starts, later lookup output and rewritten speech stay outside the
-    live stream and Match event. A clean same-turn correction remains valid when no speech preceded
-    a rejected tool. Bundle-rendered speech prompts contain current public facts and the
-    phase-specific action contract.
-27. Wolf council and post-death Sheriff transfer expose no self-destruct interrupt or premature
-    night-action contract, while sheriff-election and daytime speech or vote turns for living
-    Werewolves receive the exact self-destruct ability ID accepted by the engine. The following wolf
-    attack stage accepts only `submit_vote`, explicitly forbids
-    `submit_night_action`, offers `targetPlayerId: null` as no-kill, resolves no-kill only by strict
-    plurality, chooses a replay-stable player target on a highest-vote tie, and keeps the bootstrap
-    callable-ability list free of the regular attack ID. A self-destruct that ends a parallel stage
-    discards every accepted action that did not enter the engine before the next phase begins.
-28. Developer mode places `查看轨迹` on each Match record, routes by that Match ID, shows players by
-    seat with nickname, configured model, and complete color-labeled role identity as secondary
-    context, fills the available viewport, and presents labeled semantic colors without a global
-    developer navigation item or Match selector. Minimap nodes
-    center the selected Record, and an owner change keeps the page mounted while restoring that
-    owner's ledger position. Every owner is grouped by the same setup/night/sheriff/day/end game
-    periods rather than player-local Turn numbers.
-29. Ordered ACP text deltas preserve repeated fragments and punctuation. A projected speech
-    message Record and committed event expose the same normalized canonical text, while historical
-    incomplete stream Records project through the same normalization.
-30. Every daytime Prompt states the current day exactly once and lists every publicly living
-    nickname, seat, and Player ID while excluding eliminated players without exposing pending
-    night deaths during the sheriff campaign.
-31. Sheriff campaign speech uses a replay-stable random first candidate. Day speech order covers
-    single-death, multiple-death, and peaceful-night anchors with or without a Sheriff, persists its
-    basis and direction, and always places a living Sheriff last.
-32. Agent Profiles render their names and model/reasoning configuration on separate lines and
-    retain a user-defined order across edits and restarts. A new-Match seat inherits its board
-    Profile default, then falls back to the first ordered Profile, and remains overridable.
-33. Ended and paused Matches export a sanitized, versioned simulation capture; running Matches and
-    Matches with unresolved trajectory Turns reject capture without mutating the source Match.
-34. A complete twelve-player capture reaches the same winner and semantic event digest through the
-    engine and orchestration runners under recorded, forward, reverse, transient-delivery, restart,
-    playback-complete, playback-skip, and playback-disconnect variants.
-35. A repeated uncertain delivery capture continues one stable Session once and pauses on the second failure
-    at the same action boundary. Re-running a fixture and seed produces identical canonical output.
-36. Candidate approval strips source identifiers and full event bodies from the committed oracle;
-    schema, secret, invariant, engine, orchestration, and determinism checks gate the corpus.
-37. Developer-mode Match rows open a keyboard-safe simulation wizard that reviews and approves the
-    same candidate through HTTP, disables ineligible Matches, blocks dismissal during work, restores
-    trigger focus, and stays within desktop and mobile viewports. The trajectory page contains no
-    simulation workflow controls.
-38. Every Match player card shows its configured model. Role badges use the same semantic color for
-    the same identity on Match and trajectory screens, while closed-eye projections retain model
-    metadata and expose only the neutral `身份未公开` badge.
-39. The build copies both complete player Skills to `.agentwolf/skills`; every player workspace
-    exposes that shared directory through relative `.agents`, `.claude`, and `.trae` Skill links.
-    Trae, Codex, and Claude expose local Skill reads and read-only Bash while withholding editing,
-    browser, web-search, plugin, memory, hook, and Agent capabilities. Live adapter smokes submit a
-    real vote, find a known strategy phrase through the linked files, leave a requested marker file
-    absent, and cannot reach a local HTTP endpoint from Bash.
-40. Normal Session close, a hung protocol close, development shutdown, descendant processes that
-    ignore TERM, and an AgentWolf parent killed by SIGKILL all leave no guarded Agent process.
-41. The complete 14-variant simulation corpus preserves its reviewed events, checkpoints, audits,
-    and repeated-run determinism while default parallel `pnpm check` stays within the existing
-    timeout.
-42. A six-player board can assign the same Agent Profile and Character to multiple seats in one
-    saved default lineup. Match setup inherits both, permits per-seat overrides, defaults Character
-    nicknames, blocks creation until nicknames are unique, snapshots every selected card, injects
-    only the owning card with the full-ability boundary, and projects Character portraits without
-    changing game-role secrecy. Referenced Profiles and Characters cannot be deleted.
-43. A schema-two Match board snapshot freezes the installed ruleset ID, version, plugin versions,
-    configuration hashes, fingerprint, and complete board policies. A modified fingerprint rejects
-    restore, while schema-one `classic-v1` simulations retain their reviewed event digests.
-44. Magic Mirror Girl receives an actor-private exact-role result, cannot inspect the same target
-    twice, and contributes its night phase through the plugin phase registry. White Wolf King joins
-    the shared wolf council and attack ballot, receives no ordinary Werewolf self-destruct ability,
-    and settles a targeted detonation plus any eligible Hunter reaction through the common trigger
-    pipeline.
-45. The 10-player Mirror Hidden board contains four Villagers, Magic Mirror Girl, Witch, Guard,
-    two pack Werewolves, and one Awakened Hidden Wolf. Pack members exchange private council and
-    ballot events without exposing them to Awakened Hidden Wolf; either side can target the other.
-    Learning, copied abilities, isolated attack activation, event restoration, and private phase
-    projection follow the Role contract without exposing its identity.
-46. `match.ended` starts one ten-second review gate. Accepted reviewer sheets become visible before
-    the parallel barrier finishes but never enter another reviewer's Prompt. Explicit winning
-    Player IDs define MVP eligibility and every other player defines SVP eligibility. All sheets
-    produce equal-weight radar averages and deterministic awards, then every seat streams one
-    ordinary speech reflection in seat order. The final reflection reuses the playback boundary;
-    completed or skipped review closes the original Sessions, while restart resumes only unfinished
-    work on those same Session IDs.
+- Assert the authoritative event, schema, database row, protocol message, projected DTO, rendered UI,
+  or process state.
+- A test must fail when the owned behavior breaks; avoid assertions against duplicated implementation
+  details or another test's summary.
+- Visibility tests exercise god, actor, unrelated-player, faction, and closed-eye projections at the
+  server boundary before browser presentation.
+- Parallel tests freeze one actor barrier and prove no completion-order leak. Recovery tests prove the
+  same Session ID and accepted-action reconciliation.
+- Model- or user-visible prose changes inspect the actual rendered Prompt or browser artifact rather
+  than checking only source-file presence.
+
+## Acceptance evidence
+
+Concrete commands and observed results are reported in the request handoff or CI. Durable Agent Notes
+may name stable verification contracts, but the repository does not store per-request completion
+plans, dated test totals, or duplicate acceptance summaries.

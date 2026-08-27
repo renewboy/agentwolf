@@ -122,7 +122,7 @@ built-in board still requires:
 
 Validate whether the existing `BoardPolicies` can express the Role's configurable rules. A new
 policy is a wire and snapshot change: update contracts, manifest construction, Prompt facts,
-configuration UI when applicable, restore tests, and current-state documentation together.
+configuration UI when applicable, restore tests, and the owning architecture contract together.
 
 ### Ruleset compatibility
 

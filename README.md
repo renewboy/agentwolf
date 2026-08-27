@@ -33,4 +33,5 @@ The built-in tool catalog uses:
 
 Agent profiles bind one tool definition to one model and its connection parameters. Credentials are read from named environment variables and are not saved in profile records.
 
-See [product behavior](docs/product.md), [architecture](docs/architecture.md), and [testing](docs/testing.md).
+See [product behavior](docs/product.md), the generated [game catalog](docs/generated/game-catalog.md),
+the modular [architecture index](docs/architecture.md), and [testing](docs/testing.md).

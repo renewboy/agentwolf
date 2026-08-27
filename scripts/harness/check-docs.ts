@@ -1,23 +1,44 @@
 import { access } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
+import { renderGameCatalog, gameCatalogPath } from './generate-game-catalog.js'
 import { sourceFiles, text, localPath, failIfErrors, projectRoot } from './files.js'
 
 const errors: string[] = []
 const required = [
   'AGENTS.md',
-  'apps/server/AGENTS.md',
-  'apps/web/AGENTS.md',
   'README.md',
-  'artifacts_rules.md',
+  'apps/server/AGENTS.md',
+  'apps/server/README.md',
+  'apps/web/AGENTS.md',
+  'apps/web/README.md',
+  'packages/contracts/README.md',
+  'packages/contracts/AGENTS.md',
+  'packages/game-engine/README.md',
+  'packages/game-engine/AGENTS.md',
+  'packages/acp/README.md',
+  'packages/acp/AGENTS.md',
+  'packages/assets/README.md',
+  'packages/assets/AGENTS.md',
+  'docs/AGENTS.md',
   'docs/product.md',
   'docs/architecture.md',
+  'docs/architecture/game-runtime.md',
+  'docs/architecture/prompt-and-context.md',
+  'docs/architecture/acp-session-runtime.md',
+  'docs/architecture/information-synchronization.md',
+  'docs/architecture/match-lifecycle.md',
+  'docs/architecture/trajectory-and-simulation.md',
+  'docs/architecture/web-client.md',
   'docs/frontend.md',
   'docs/testing.md',
-  'docs/information-sync.md',
-  'docs/research/preflight.md',
-  'docs/plans/completed/v1.md',
-  'docs/plans/completed/immersive-match-ui.md',
+  'docs/reference/game-rules.md',
+  'docs/generated/game-catalog.md',
+  '.agents/notes/AGENTS.md',
+  '.agents/notes/README.md',
+  '.agents/notes/implemented/AGENTS.md',
+  '.agents/notes/archived/AGENTS.md',
 ]
+
 for (const path of required) {
   try {
     await access(resolve(projectRoot, path))
@@ -26,48 +47,40 @@ for (const path of required) {
   }
 }
 
-try {
-  await access(resolve(projectRoot, 'docs/acceptance.md'))
-  errors.push(
-    'docs/acceptance.md is a shared write hotspot; planned work uses one dated acceptance record',
-  )
-} catch {
-  // The aggregate acceptance document must remain absent.
-}
-
-const acceptanceFiles = await sourceFiles(['docs/acceptance'], new Set(['.md']))
-if (acceptanceFiles.length === 0) errors.push('docs/acceptance contains no dated records')
-const acceptancePattern =
-  /^docs\/acceptance\/(\d{4}-\d{2}-\d{2})\/(\d{2})-(\d{2})-(\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/
-for (const path of acceptanceFiles) {
-  const relativePath = localPath(path)
-  const match = relativePath.match(acceptancePattern)
-  if (!match) {
-    errors.push(`${relativePath} must use docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md`)
-    continue
-  }
-  const content = await text(path)
-  const lines = content.split(/\r?\n/).length
-  if (lines > 120) errors.push(`${relativePath} exceeds the 120-line acceptance record limit`)
-  for (const heading of ['## Scope', '## Evidence']) {
-    if (!content.includes(heading)) errors.push(`${relativePath} is missing ${heading}`)
-  }
-  const expectedTime = `Evidence time: ${match[1]} ${match[2]}:${match[3]}:${match[4]}`
-  if (!content.includes(expectedTime)) {
-    errors.push(`${relativePath} must contain ${expectedTime}`)
+for (const path of [
+  'artifacts_rules.md',
+  'docs/information-sync.md',
+  'docs/research/preflight.md',
+  'docs/plans',
+  'docs/acceptance',
+  'docs/decisions',
+]) {
+  try {
+    await access(resolve(projectRoot, path))
+    errors.push(`${path} is a retired documentation location`)
+  } catch {
+    // Retired locations remain absent.
   }
 }
 
-const completedPlans = await sourceFiles(['docs/plans/completed'], new Set(['.md']))
-for (const path of completedPlans) {
-  const content = await text(path)
-  const relativePath = localPath(path)
-  for (const heading of ['## Goal', '## Completed work', '## Completion evidence']) {
-    if (!content.includes(heading)) errors.push(`${relativePath} is missing ${heading}`)
-  }
-  if (/- \[ \]|\bTODO\b|^## (?:Pending|Next steps|Future)/imu.test(content)) {
-    errors.push(`${relativePath} contains unfinished or future work`)
-  }
+const markdownFiles = await sourceFiles(['docs'], new Set(['.md']))
+const allInstructionFiles = (await sourceFiles(['.'], new Set(['.md']))).filter((path) =>
+  path.endsWith('/AGENTS.md'),
+)
+const rootAgentsPath = resolve(projectRoot, 'AGENTS.md')
+
+for (const path of [rootAgentsPath, ...allInstructionFiles]) {
+  const lines = (await text(path)).split(/\r?\n/).length
+  if (lines > 200) errors.push(`${localPath(path)} exceeds the 200-line AGENTS.md limit`)
+}
+
+const architectureFiles = [
+  resolve(projectRoot, 'docs/architecture.md'),
+  ...(await sourceFiles(['docs/architecture'], new Set(['.md']))),
+]
+for (const path of architectureFiles) {
+  const lines = (await text(path)).split(/\r?\n/).length
+  if (lines > 400) errors.push(`${localPath(path)} exceeds the 400-line architecture limit`)
 }
 
 const currentStateDocs = [
@@ -76,6 +89,7 @@ const currentStateDocs = [
   'docs/architecture.md',
   'docs/frontend.md',
   'docs/testing.md',
+  ...architectureFiles.slice(1).map(localPath),
 ]
 for (const path of currentStateDocs) {
   const content = await text(resolve(projectRoot, path))
@@ -84,12 +98,59 @@ for (const path of currentStateDocs) {
   }
 }
 
-const markdownFiles = await sourceFiles(['docs'], new Set(['.md']))
-const rootAgentsPath = resolve(projectRoot, 'AGENTS.md')
-const nestedAgentFiles = (await sourceFiles(['.'], new Set(['.md']))).filter(
-  (path) => path !== rootAgentsPath && path.endsWith('/AGENTS.md'),
+const noteFiles = (await sourceFiles(['.agents/notes'], new Set(['.md']))).filter(
+  (path) => !path.endsWith('/AGENTS.md') && !path.endsWith('/README.md'),
 )
+const notePattern =
+  /^\.agents\/notes\/(proposed|implemented|rejected|archived)\/(feature|bug-fix|simplification|architecture|process|testing)\/(\d{4}-\d{2}-\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/
+for (const path of noteFiles) {
+  const relativePath = localPath(path)
+  const match = relativePath.match(notePattern)
+  if (!match) {
+    errors.push(`${relativePath} must use .agents/notes/<lifecycle>/<class>/YYYY-MM-DD-<slug>.md`)
+    continue
+  }
+  const lifecycle = match[1]!
+  const content = await text(path)
+  const lines = content.split(/\r?\n/)
+  if (!/^# Agent Note: \S/.test(lines[0] ?? '')) {
+    errors.push(`${relativePath} must start with # Agent Note: <title>`)
+  }
+  const status = lines.find((line) => line.startsWith('Status:'))
+  const expectedStatus =
+    lifecycle === 'rejected'
+      ? /^Status: rejected — .+$/
+      : lifecycle === 'archived'
+        ? /^Status: implemented$/
+        : new RegExp(`^Status: ${lifecycle}$`)
+  if (!status || !expectedStatus.test(status)) {
+    errors.push(`${relativePath} status does not match its lifecycle`)
+  }
+  for (const heading of ['## Problem', '## Alternatives considered']) {
+    if (!content.includes(heading)) errors.push(`${relativePath} is missing ${heading}`)
+  }
+  const requiredHeadings =
+    lifecycle === 'implemented' || lifecycle === 'archived'
+      ? ['## Decision', '## Consequences']
+      : ['## Proposal']
+  for (const heading of requiredHeadings) {
+    if (!content.includes(heading)) errors.push(`${relativePath} is missing ${heading}`)
+  }
+  if (lifecycle === 'proposed') {
+    for (const heading of ['## Acceptance criteria', '## Risks']) {
+      if (!content.includes(heading)) errors.push(`${relativePath} is missing ${heading}`)
+    }
+  }
+  if (
+    (lifecycle === 'implemented' || lifecycle === 'archived') &&
+    (/^## (?:Proposal|Plan|Migration plan|Acceptance criteria)\b/im.test(content) ||
+      /- \[ \]|\bTODO\b/im.test(content))
+  ) {
+    errors.push(`${relativePath} contains unfinished proposal or checklist content`)
+  }
+}
 
+const nestedAgentFiles = allInstructionFiles.filter((path) => path !== rootAgentsPath)
 for (const path of nestedAgentFiles) {
   let ancestorDirectory = dirname(dirname(path))
   let parentAgentsPath: string | undefined
@@ -106,28 +167,37 @@ for (const path of nestedAgentFiles) {
       ancestorDirectory = parentDirectory
     }
   }
-
   if (!parentAgentsPath) {
     errors.push(`${localPath(path)} has no ancestor AGENTS.md`)
     continue
   }
-
   const parentLink = relative(dirname(path), parentAgentsPath).replaceAll('\\', '/')
   const parentLabel =
     parentAgentsPath === rootAgentsPath ? 'the root AGENTS.md' : 'the parent AGENTS.md'
   const expectedReference = `See [${parentLabel}](${parentLink})`
-  const content = await text(path)
-  if (!content.includes(expectedReference)) {
+  if (!(await text(path)).includes(expectedReference)) {
     errors.push(`${localPath(path)} must contain ${expectedReference}`)
   }
 }
 
-for (const path of new Set([
+const packageReadmes = [
+  'apps/server/README.md',
+  'apps/web/README.md',
+  'packages/contracts/README.md',
+  'packages/game-engine/README.md',
+  'packages/acp/README.md',
+  'packages/assets/README.md',
+].map((path) => resolve(projectRoot, path))
+const linkSources = new Set([
   resolve(projectRoot, 'README.md'),
   rootAgentsPath,
-  ...nestedAgentFiles,
+  ...allInstructionFiles,
   ...markdownFiles,
-])) {
+  ...packageReadmes,
+  resolve(projectRoot, '.agents/notes/README.md'),
+  ...noteFiles,
+])
+for (const path of linkSources) {
   const content = await text(path)
   for (const match of content.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
     const target = match[1]!
@@ -142,9 +212,10 @@ for (const path of new Set([
   }
 }
 
-const agents = await text(resolve(projectRoot, 'AGENTS.md'))
-if (agents.split(/\r?\n/).length > 200)
-  errors.push('AGENTS.md must remain a concise map under 200 lines')
+const generatedCatalog = await text(gameCatalogPath).catch(() => '')
+if (generatedCatalog !== renderGameCatalog()) {
+  errors.push('docs/generated/game-catalog.md is stale; run pnpm docs:generate')
+}
 
 const workflow = await text(resolve(projectRoot, '.github/workflows/ci.yml')).catch(() => '')
 for (const requiredText of [
@@ -156,7 +227,8 @@ for (const requiredText of [
 ]) {
   if (!workflow.includes(requiredText)) errors.push(`CI workflow is missing ${requiredText}`)
 }
-if (workflow.includes('continue-on-error: true'))
+if (workflow.includes('continue-on-error: true')) {
   errors.push('CI workflow contains a non-blocking required gate')
+}
 
 failIfErrors(errors, 'docs')

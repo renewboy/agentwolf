@@ -1,37 +1,58 @@
 # AgentWolf repository guide
 
-AgentWolf is a TypeScript workspace for running Werewolf matches between long-lived ACP Agent sessions. This file defines repo-wide rules; nested `AGENTS.md` files add instructions for their own subtrees.
+AgentWolf is a TypeScript workspace for running Werewolf matches between long-lived ACP Agent
+sessions. This file is the repository map; detailed product and architecture facts live with their
+owning documents and packages.
 
 ## Instruction scope
 
-- Before editing any file, locate and read the closest `AGENTS.md` in that file's directory or nearest ancestor, then follow its links to applicable parent instructions. Repeat this for every affected subtree; do not assume the current working directory loaded rules for a different subtree.
-- Root instructions apply repo-wide. Nested instructions contain only subtree-specific additions or overrides, and the closest applicable file wins when instructions conflict.
-- Every nested `AGENTS.md` links to its closest ancestor `AGENTS.md` with a relative Markdown link so the full instruction chain remains discoverable.
-- After changing code, review the closest applicable `AGENTS.md` for drift in responsibilities, commands, boundaries, and conventions. Update it in the same change when durable guidance changed; leave it untouched when it remains accurate.
+- Before editing a file, read the closest `AGENTS.md` and follow its parent links.
+- Root rules apply repository-wide. A closer `AGENTS.md` may add or override subtree rules.
+- Every nested `AGENTS.md` links to its closest ancestor, and every `AGENTS.md` stays within 200
+  lines.
+- Preserve unrelated worktree changes. Review the applicable instructions after editing and update
+  them only when durable guidance changed.
 
-## Required reading
+## Reading routes
 
-- Read `artifacts_rules.md` before changing any durable document, prompt, runtime skill, tool description, UI copy, role copy, or public announcement.
-- Read `docs/product.md` before changing product behavior or V1 scope.
-- Read `docs/architecture.md` before changing packages, dependency direction, persistence, runtime ownership, or server/web boundaries.
-- Read `docs/research/preflight.md` before changing game rules or role behavior.
-- Read `docs/information-sync.md` before changing visibility, phase delivery, voting barriers, speech order, or recovery semantics.
-- Read `docs/testing.md` before changing test infrastructure, coverage, fixtures, or acceptance evidence.
-- Read `docs/frontend.md` before changing layout, interaction controls, motion, responsive behavior, or visual tokens.
-- Read `packages/assets/player-skills/agentwolf-player/SKILL.md` before changing the player-agent workflow.
+- Documentation structure and prose: [documentation standard](docs/AGENTS.md).
+- Product behavior and V1 scope: [product](docs/product.md).
+- System map and module routing: [architecture index](docs/architecture.md).
+- Game kernel, Rulesets, Roles, phases, effects, and victory:
+  [game runtime](docs/architecture/game-runtime.md).
+- Prompt bundles, visible model facts, and player context:
+  [Prompt and context](docs/architecture/prompt-and-context.md).
+- ACP processes, durable Sessions, actions, and recovery:
+  [ACP Session runtime](docs/architecture/acp-session-runtime.md).
+- Visibility, barriers, speech delivery, playback, and reconnect:
+  [information synchronization](docs/architecture/information-synchronization.md).
+- Match setup, snapshots, persistence, deletion, and postgame review:
+  [Match lifecycle](docs/architecture/match-lifecycle.md).
+- Trajectory capture, audit, and deterministic simulation:
+  [trajectory and simulation](docs/architecture/trajectory-and-simulation.md).
+- Browser ownership and projected live state: [Web client](docs/architecture/web-client.md).
+- Visual and interaction direction: [frontend](docs/frontend.md).
+- Test policy and commands: [testing](docs/testing.md).
+- Game-rule source baseline: [game rules](docs/reference/game-rules.md).
+- Playable Role work: [Role development Skill](.agents/skills/agentwolf-role-development/SKILL.md).
+
+Read only the routes relevant to the change. Do not load every document by default.
 
 ## Workspace map
 
-- `packages/contracts`: branded IDs, API schemas, event envelopes, action schemas, Agent and Character schemas, and view DTOs.
-- `packages/game-engine`: deterministic kernel, plugin SDK, versioned rulesets, boards, phase composition, resolution, replay, and visibility. It performs no IO.
-- `packages/acp`: Agent tool catalog, ACP process/session lifecycle, streamed updates, and delivery ledgers.
-- `packages/assets`: non-localized Nunjucks Prompt bundles, player Skill sources, localized UI copy and narration, Character cards and portraits, nickname words, design tokens, and all CSS.
-- `apps/server`: Fastify routes, SQLite repositories, orchestration, MCP tools, projections, live streams, and recovery. See its [local instructions](apps/server/AGENTS.md).
-- `apps/web`: React application, validated API client, setup, settings, lobby, and spectator UI. See its [local instructions](apps/web/AGENTS.md).
-- `scripts`: architecture, artifact, documentation, skill, formatting, coverage, and CI gates.
-- `.agentwolf/`: runtime-only databases, built player Skills, workspaces, sessions, logs, and local acceptance evidence.
+- `packages/contracts`: branded IDs, wire schemas, events, actions, settings, and view DTOs.
+- `packages/game-engine`: deterministic kernel, versioned Rulesets, plugins, boards, and replay.
+- `packages/acp`: ACP process, protocol, Session, stream, and transport primitives.
+- `packages/assets`: model Prompt bundles, player Skills, localized copy, Characters, and styles.
+- `apps/server`: Fastify, SQLite, Match orchestration, projection, MCP, recovery, and developer tools.
+- `apps/web`: React setup, settings, lobby, spectator, and developer UI.
+- `scripts`: repository checks, generators, development entrypoints, and CI helpers.
+- `.agentwolf/`: runtime-only databases, generated Skills, workspaces, Sessions, and logs.
 
-## Dependency direction
+Package-local contracts live in each package or app README. Cross-package design lives in the
+architecture module documents; do not duplicate it in both places.
+
+## Package direction
 
 ```text
 contracts <- game-engine
@@ -45,9 +66,9 @@ contracts <- game-engine
              web
 ```
 
-- `contracts` and `game-engine` never import server, web, ACP, filesystem, network, or asset code.
-- The server filters every view before serialization; the browser never receives hidden fields or enforces secrecy through local hiding.
-- Add an executable architecture rule whenever a dependency boundary is mechanically checkable.
+- `contracts` and `game-engine` never import server, Web, ACP, filesystem, network, or asset code.
+- The server filters every view before serialization; the browser never receives hidden fields.
+- Add an executable architecture check for a mechanically enforceable dependency or privacy rule.
 
 ## Commands
 
@@ -62,68 +83,51 @@ pnpm test:e2e
 pnpm dev
 ```
 
-Use focused tests while iterating. Run `pnpm check` for cross-layer changes and before handoff, then run `pnpm test:e2e` for user-visible flows.
+Use focused tests while iterating. Run `pnpm check` for cross-layer changes and before handoff;
+run `pnpm test:e2e` when visible browser behavior changes.
 
-## TypeScript and source rules
+## Source rules
 
-- Use ESM, strict TypeScript, branded cross-boundary IDs, Zod at wire/config/user-input boundaries, and exhaustive switches for closed unions.
+- Use ESM, strict TypeScript, branded cross-boundary IDs, Zod at wire/config/user-input boundaries,
+  and exhaustive switches for closed unions.
 - Do not interpolate shell strings for subprocess execution.
-- Model Prompt templates and MCP tool text belong in `packages/assets/prompts`; UI copy, CSS, colors, nicknames, and other reusable presentation assets belong in their corresponding `packages/assets` subtree.
-- Player Skill sources belong in `packages/assets/player-skills`. The build copies the complete directory to `.agentwolf/skills`; repository-root `.agents/skills` is reserved for coding-agent Skills and must not contain player Skills.
-- Runtime skill and secret material never enters browser bundles or durable match events.
+- Model-facing text belongs in `packages/assets/prompts`; UI copy and reusable presentation assets
+  belong in `packages/assets`.
+- Player Skill sources belong in `packages/assets/player-skills`; repository-root `.agents/skills`
+  contains coding-agent Skills only.
+- Runtime secrets, Skill material, and hidden game state never enter browser bundles or public events.
 
 ## Runtime invariants
 
-- Roles and system rules are compile-time plugins composed by a versioned Ruleset manifest. The
-  kernel contains no concrete Role or Ability IDs. Capabilities authorize shared and dynamic
-  abilities; plugin registries own phases, effects, events, queries, triggers, interrupts, and
-  victory.
-- Every game change is an append-only domain event, and model-visible state is reconstructable from events.
-- Schema-two Match board snapshots freeze ruleset and plugin versions, configuration hashes,
-  fingerprint, and resolved policies. Restore rejects a mismatched installed fingerprint.
-- Each seat completes `session/new` once and owns one durable ACP Session ID for the Match lifetime. ACP processes may restart, but reconnect through `session/resume` with that persisted ID. Delivery uses a per-player acknowledged event cursor.
-- After `match.ended`, postgame review keeps those same Sessions through a server-owned countdown,
-  cursor-based public-history catch-up, frozen parallel review sheets, and sequential streamed
-  reflections. Catch-up uses public visibility without advancing the regular event cursor. Review
-  persistence is separate from game events; completed or skipped review is the terminal Session
-  boundary.
-- A foundation source history covers its cursor and renders every visible bootstrap fact exactly
-  once, including private team knowledge. Faction affiliation, team knowledge, and action
-  capabilities remain separate rule concepts.
-- One uncertain ACP transport failure per player and phase may continue the existing connection or resume that player's persisted Session ID. Recovery never creates another Session or disturbs another player. A repeated failure pauses for operator action.
-- Structured actions enter through the action gateway. Natural speech streams, is sanitized, and commits through the same gateway.
-- Player IDs are valid in prompts and structured actions. Public speech and last words contain nicknames or seats, never `player-N` identifiers.
-- Parallel vote/action stages use one barrier snapshot and publish results only after all eligible turns settle.
-- Every installed Role has one mapped strategy Role page and one source-matched public introduction. Adding a Role without both fails `pnpm check:skills`.
-- Player workspaces link `.agents/skills`, `.claude/skills`, and `.trae/skills` to the shared `.agentwolf/skills` build output. Player agents may read and search those Skills with read-only Bash; file writes, shell network access, and unsandboxed escalation remain unavailable.
-- Character cards are public presentation metadata outside the game engine and domain events. They
-  affect expression only; every player retains full reasoning quality, and nicknames remain the
-  only natural-language Match identity.
-- Trajectory collection is active in every mode; its HTTP and WebSocket read surfaces require loopback developer mode.
+- Rules and Roles are versioned plugins; the kernel contains no concrete Role or Ability branches.
+- Game state is event-sourced and deterministically replayable.
+- Every seat owns one durable logical ACP Session for the complete Match and postgame lifecycle.
+- Structured actions enter through the action gateway; natural speech streams and commits through
+  the same authoritative Match runtime.
+- Parallel stages use one frozen barrier snapshot and reveal results only after eligible turns settle.
+- Server projection owns secrecy; model Prompt rendering consumes already-filtered visible facts.
+- Character cards affect public expression only and remain outside game rules and durable events.
+- Trajectory collection is always on; its read surfaces exist only in loopback developer mode.
 
-## Test and runtime-data rules
+The linked architecture modules own the exact contracts behind these summary invariants.
 
-- Add unit coverage for rules, integration coverage for protocol/projection boundaries, and browser coverage for visible interaction flows.
+## Tests and runtime data
+
+- Add unit coverage for rules, integration coverage for protocol/projection boundaries, and browser
+  coverage for visible interaction flows.
 - Assert protocol or external state, not an Agent's self-report.
-- Tests create uniquely named profiles, tools, and matches and delete them in `finally` or suite teardown. Tests never reuse, rename, or delete user-owned runtime records.
-- Browser tests that run against a reusable local server must prove teardown leaves no test Profile, Tool, Match, event, or delivery ledger.
-- Keep runtime data under `.agentwolf/`; never commit sessions, credentials, match logs, generated speech, screenshots, or browser recordings.
-- Store secret references by environment-variable name. Never persist secret values.
+- Tests create unique records and remove them in teardown; never reuse or mutate user-owned data.
+- Keep runtime data under `.agentwolf/`; never commit Sessions, credentials, Match logs, generated
+  speech, screenshots, or recordings.
+- Store secret references by environment-variable name, never by value.
 
-## Documentation and plan lifecycle
+## Decisions and completion
 
-- Durable documents describe current implemented behavior. One fact has one owning document; other documents link to it.
-- Keep architecture, interface specification, operations, decisions, execution plans, incidents, acceptance evidence, and roadmaps in separate documents.
-- Cross-layer, architectural, high-risk, or multi-milestone work requires an implementation plan under `docs/plans/` while work is active.
-- Work that requires an implementation plan also requires one request-owned acceptance record. Small scoped requests and localized bug fixes that can be implemented and verified directly require neither document; report their verification in the handoff.
-- When every required change and acceptance check is complete, move the plan to `docs/plans/completed/<slug>.md`.
-- Every completed plan contains `Goal`, `Completed work`, and `Completion evidence` and contains no pending checklist, TODO, or future scope.
-
-## Change completion
-
-1. Update source, assets, and owning tests together.
-2. Add a mechanical invariant for every enforceable review rule.
-3. Update current-state documentation for changed public behavior or boundaries.
-4. When the work required an execution plan, move the finished plan into `docs/plans/completed/`.
-5. Run focused tests, `pnpm check`, and user-visible browser acceptance.
-6. When the work required an implementation plan, add one immutable acceptance record at `docs/acceptance/YYYY-MM-DD/HH-MM-SS-<slug>.md` without editing earlier records or committing `.agentwolf/` artifacts.
+- Major, hard-to-reverse work starts as a proposed Agent Note under `.agents/notes`; local fixes and
+  ordinary feature work do not require a durable decision record.
+- On delivery, rewrite a proposed Note as present-tense implemented reality. Do not retain execution
+  checklists or dated test totals in durable documentation.
+- Update only the document that owns a changed public fact or cross-package contract. Adding a test,
+  implementation branch, Role, or screen detail does not by itself require a standing-doc edit.
+- Keep generated catalogs generated, update source and owning tests together, and report concrete
+  verification in the handoff.
