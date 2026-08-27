@@ -70,7 +70,7 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
 ## Live-state rules
 
 - Session status changes push snapshots to the client; the HUD never polls every frame.
-- A structured action accepted by the gateway displays as `已提交`. Vote prompts display `投票中`, and the stage displays `等待玩家提交投票` without a rotating presence orb or player ring. The signal rail continues a low-frequency pulse.
+- A structured action accepted by the gateway displays as `已提交` until its tool receipt closes the Prompt. Vote prompts display `投票中`, and the stage displays `等待玩家提交投票` without a rotating presence orb or player ring. The signal rail continues a low-frequency pulse.
 - Session bootstrap displays `同步中`. Replacement-session bootstrap displays `正在恢复玩家会话` without exposing hidden actor order.
 - God view can show every seat's runtime status. Player view can show the selected player's private status plus public speech. Closed-eye view receives no hidden night actor status.
 - Switching views covers the current projection before requesting the next one.

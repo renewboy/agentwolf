@@ -61,7 +61,7 @@ than replaying historical effects.
 
 Parallel stages freeze one event sequence before prompting any actor. Every prompt is rendered from that same sequence. Submitted actions remain in the action mailbox until all prompt turns finish, then enter the rule engine in seat order. This prevents one voter from observing another voter's unannounced action.
 
-The action gateway marks a player Session as submitted immediately after accepting a valid structured action. God view and that player's own view can display the submitted state while the ACP turn closes; other projections receive no completion-order signal. A submitted action remains sealed inside the barrier until every eligible turn settles.
+The action gateway marks a player Session as submitted immediately after accepting a valid structured action. God view and that player's own view can display the submitted state while the accepted tool receipt closes the Prompt; other projections receive no completion-order signal. A submitted action remains sealed inside the barrier until every eligible turn settles.
 
 Sequential speech stages commit each speech immediately. The next speaker's prompt includes that
 speech once. A player's own committed speech remains in its long-lived Session and is omitted from

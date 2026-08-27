@@ -56,7 +56,9 @@ export interface AcpPromptResult {
 
 interface ActivePromptState {
   readonly callbacks: AcpPromptCallbacks
+  readonly controller: AbortController
   readonly updates: SessionUpdate[]
+  finishAfterAcceptedAction: boolean
   text: string
 }
 
@@ -196,6 +198,13 @@ export class AcpPlayerSession {
     return !this.#closed && !this.#connection.signal.aborted
   }
 
+  public finishAfterAcceptedAction(): void {
+    const activePrompt = this.#activePrompt
+    if (!activePrompt || activePrompt.controller.signal.aborted) return
+    activePrompt.finishAfterAcceptedAction = true
+    activePrompt.controller.abort(new Error('ACP Prompt completed after accepted action'))
+  }
+
   public async prompt(
     prompt: string,
     timeoutMs: number,
@@ -206,7 +215,13 @@ export class AcpPlayerSession {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(new Error('ACP prompt timed out')), timeoutMs)
     timer.unref()
-    const activePrompt: ActivePromptState = { callbacks, updates: [], text: '' }
+    const activePrompt: ActivePromptState = {
+      callbacks,
+      controller,
+      updates: [],
+      finishAfterAcceptedAction: false,
+      text: '',
+    }
     this.#activePrompt = activePrompt
     const timeoutFailure = new Promise<never>((_resolve, reject) => {
       const onAbort = (): void => reject(controller.signal.reason)
@@ -243,6 +258,13 @@ export class AcpPlayerSession {
             sessionReusable: false,
           },
         )
+      }
+      if (activePrompt.finishAfterAcceptedAction) {
+        return {
+          text: activePrompt.text,
+          stopReason: 'end_turn',
+          updates: activePrompt.updates,
+        }
       }
       throw new AcpDeliveryUncertainError(`ACP prompt failed: ${failure}`, {
         cause: error,

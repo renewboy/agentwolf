@@ -34,6 +34,7 @@ describe('PlayerRuntime action status', () => {
     const promptResult = new Promise<AcpPromptResult>((resolvePromise) => {
       finishPrompt = () => resolvePromise({ text: '', stopReason: 'end_turn', updates: [] })
     })
+    let emitToolReceipt!: () => void
     const profile = AgentProfileSchema.parse({
       id: 'profile-runtime-submitted',
       name: 'Submitted status profile',
@@ -113,9 +114,16 @@ describe('PlayerRuntime action status', () => {
       sessionFactory: async () => ({
         sessionId: 'session-runtime-submitted',
         connected: true,
-        prompt: () => {
+        finishAfterAcceptedAction: () => finishPrompt(),
+        prompt: (_prompt, _timeoutMs, callbacks = {}) => {
           mailbox.submitVote(token, 'player-2')
           announceSubmission()
+          emitToolReceipt = () =>
+            callbacks.onUpdate?.({
+              sessionUpdate: 'tool_call_update',
+              toolCallId: 'accepted-vote',
+              status: 'completed',
+            })
           return promptResult
         },
         close: () => Promise.resolve(),
@@ -133,7 +141,7 @@ describe('PlayerRuntime action status', () => {
     expect(runtime.status).toBe('submitted')
     expect(statuses).toEqual(['starting', 'ready', 'thinking', 'submitted'])
 
-    finishPrompt()
+    emitToolReceipt()
     await expect(turn).resolves.toMatchObject({
       type: 'vote',
       actorId: playerId,
@@ -231,6 +239,7 @@ describe('PlayerRuntime action status', () => {
       sessionFactory: async () => ({
         sessionId: 'session-runtime-clean-speech',
         connected: true,
+        finishAfterAcceptedAction: () => undefined,
         prompt: async (_prompt, _timeoutMs, callbacks = {}) => {
           const emitText = (text: string): void => {
             const update = {
@@ -390,6 +399,7 @@ describe('PlayerRuntime action status', () => {
           get connected() {
             return connected
           },
+          finishAfterAcceptedAction: () => undefined,
           prompt: async () => {
             if (!initial) {
               mailbox.submitVote(token, 'player-3')

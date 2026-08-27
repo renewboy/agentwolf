@@ -178,6 +178,8 @@ class ReplaySession implements PlayerSession {
     return !this.#closed
   }
 
+  public finishAfterAcceptedAction(): void {}
+
   public constructor(
     playerId: PlayerId,
     generation: number,

@@ -35,6 +35,37 @@ describe('AcpPlayerSession', () => {
     await session.close()
   })
 
+  it('ends an active Prompt after an accepted tool receipt without waiting for later text', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-accepted-action-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: { command: process.execPath, args: [fixture], env: { ...process.env } },
+    })
+    let receiptCompleted = false
+    const startedAt = Date.now()
+    const result = await session.prompt('hang-after-tool', 5_000, {
+      onUpdate: (update) => {
+        if (
+          receiptCompleted ||
+          update.sessionUpdate !== 'tool_call_update' ||
+          update.status !== 'completed'
+        ) {
+          return
+        }
+        receiptCompleted = true
+        session.finishAfterAcceptedAction()
+      },
+    })
+
+    expect(receiptCompleted).toBe(true)
+    expect(result.text).toBe('')
+    expect(result.stopReason).toBe('end_turn')
+    expect(Date.now() - startedAt).toBeLessThan(1_000)
+    await session.close()
+  })
+
   it('forwards prompts larger than the guardian stdin FIFO capacity', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-large-prompt-'))
     temporaryDirectories.push(cwd)

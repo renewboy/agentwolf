@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import type { SessionUpdate } from '@agentclientprotocol/sdk'
 import {
   AcpDeliveryUncertainError,
   DeliveryLedger,
@@ -43,6 +44,7 @@ export class PlayerRuntime {
   #status: PlayerRuntimeStatus = 'idle'
   #activeTrajectory: TrajectoryTurnRecorder | null = null
   #activeDeliveryId: string | null = null
+  #acceptedActionAwaitingToolReceipt = false
   #sessionGeneration = 1
   #continuationPending = false
 
@@ -177,6 +179,7 @@ export class PlayerRuntime {
     phaseId: PhaseId,
     callbacks: AcpPromptCallbacks = {},
   ): Promise<PlayerAction> {
+    this.#acceptedActionAwaitingToolReceipt = false
     const persistedAction = this.#pendingAction()
     if (persistedAction) {
       try {
@@ -200,21 +203,21 @@ export class PlayerRuntime {
           this.#activeDeliveryId,
           action,
         )
+        this.#acceptedActionAwaitingToolReceipt = true
         this.#setStatus('submitted')
       },
     })
     try {
       const speechCapture =
         expectation.actionType === 'speech' ? prepareDirectSpeechResponse(callbacks) : null
-      const { result, trajectory } = await this.#deliver(
-        envelope,
+      const promptCallbacks = this.#finishAcceptedActionAfterToolReceipt(
         speechCapture?.callbacks ?? callbacks,
-        {
-          kind: 'action',
-          phaseId,
-          actionType: expectation.actionType,
-        },
       )
+      const { result, trajectory } = await this.#deliver(envelope, promptCallbacks, {
+        kind: 'action',
+        phaseId,
+        actionType: expectation.actionType,
+      })
       const directSpeechText = speechCapture?.response.finish(result.text) ?? result.text
       const speechDiagnostic = speechCapture?.response.diagnostic
       if (speechDiagnostic) trajectory.diagnostic(speechDiagnostic)
@@ -233,6 +236,7 @@ export class PlayerRuntime {
       trajectory.action(action)
       return action
     } finally {
+      this.#acceptedActionAwaitingToolReceipt = false
       this.#options.mailbox.clear(this.#options.matchId, this.#options.playerId)
     }
   }
@@ -241,19 +245,25 @@ export class PlayerRuntime {
     envelope: ContextEnvelope,
     expectation: PostgameReviewExpectation,
   ): Promise<PostgameReviewSubmission> {
-    return takePostgameReviewTurn({
-      mailbox: this.#options.mailbox,
-      matchId: this.#options.matchId,
-      playerId: this.#options.playerId,
-      envelope,
-      expectation,
-      deliver: (nextEnvelope, actionType, callbacks, acceptedAfterError) =>
-        this.#deliverAuxiliary(nextEnvelope, actionType, callbacks, acceptedAfterError),
-      onAccepted: (submission) => {
-        this.#activeTrajectory?.accepted('postgame-review', submission)
-        this.#setStatus('submitted')
-      },
-    })
+    this.#acceptedActionAwaitingToolReceipt = false
+    try {
+      return await takePostgameReviewTurn({
+        mailbox: this.#options.mailbox,
+        matchId: this.#options.matchId,
+        playerId: this.#options.playerId,
+        envelope,
+        expectation,
+        deliver: (nextEnvelope, actionType, callbacks, acceptedAfterError) =>
+          this.#deliverAuxiliary(nextEnvelope, actionType, callbacks, acceptedAfterError),
+        onAccepted: (submission) => {
+          this.#activeTrajectory?.accepted('postgame-review', submission)
+          this.#acceptedActionAwaitingToolReceipt = true
+          this.#setStatus('submitted')
+        },
+      })
+    } finally {
+      this.#acceptedActionAwaitingToolReceipt = false
+    }
   }
 
   public async takePostgameSpeech(
@@ -455,6 +465,7 @@ export class PlayerRuntime {
     acceptedAfterError?: () => boolean,
   ): Promise<{ result: AcpPromptResult; trajectory: TrajectoryTurnRecorder }> {
     if (!this.#session) throw new Error('Player ACP session is not started')
+    const promptCallbacks = this.#finishAcceptedActionAfterToolReceipt(callbacks ?? {})
     return deliverAuxiliaryPrompt({
       session: this.#session,
       promptTimeoutMs: this.#options.profile.promptTimeoutMs,
@@ -464,13 +475,25 @@ export class PlayerRuntime {
       playerId: this.#options.playerId,
       sessionGeneration: this.#sessionGeneration,
       trajectory: this.#options.trajectory,
-      ...(callbacks ? { callbacks } : {}),
+      callbacks: promptCallbacks,
       ...(acceptedAfterError ? { acceptedAfterError } : {}),
       setStatus: (status) => this.#setStatus(status),
       setActiveTrajectory: (trajectory) => {
         this.#activeTrajectory = trajectory
       },
     })
+  }
+
+  #finishAcceptedActionAfterToolReceipt(callbacks: AcpPromptCallbacks): AcpPromptCallbacks {
+    return {
+      ...callbacks,
+      onUpdate: (update) => {
+        callbacks.onUpdate?.(update)
+        if (!this.#acceptedActionAwaitingToolReceipt || !terminalToolUpdate(update)) return
+        this.#acceptedActionAwaitingToolReceipt = false
+        this.#session?.finishAfterAcceptedAction()
+      },
+    }
   }
 
   async #resumeSessionConnection(): Promise<void> {
@@ -567,4 +590,10 @@ export class PlayerRuntime {
     this.#status = status
     this.#options.onStatusChange?.(this.#options.playerId, status)
   }
+}
+
+function terminalToolUpdate(update: SessionUpdate): boolean {
+  if (update.sessionUpdate !== 'tool_call' && update.sessionUpdate !== 'tool_call_update')
+    return false
+  return update.status === 'completed' || update.status === 'failed'
 }

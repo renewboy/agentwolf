@@ -237,6 +237,11 @@ describe('Fastify API', () => {
       arguments: { targetPlayerId: 'player-2' },
     })
     expect(result.isError).not.toBe(true)
+    expect(result.content).toContainEqual(
+      expect.objectContaining({
+        text: '动作已登记。立即结束本回合，不要再发言或输出任何文字。',
+      }),
+    )
     expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
       type: 'vote',
       targetId: 'player-2',

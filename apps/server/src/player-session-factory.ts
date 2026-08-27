@@ -16,6 +16,7 @@ const promptCore = loadPromptCore()
 export interface PlayerSession {
   readonly sessionId: string
   readonly connected: boolean
+  finishAfterAcceptedAction(): void
   prompt(
     prompt: string,
     timeoutMs: number,

@@ -94,6 +94,8 @@ export class ScriptedSession implements PlayerSession {
     return !this.#closed
   }
 
+  public finishAfterAcceptedAction(): void {}
+
   public constructor(
     playerId: PlayerId,
     token: string,

@@ -177,6 +177,9 @@ const app = agent({ name: 'AgentWolf mock agent' })
         size: 32768,
       },
     })
+    if (promptText.includes('hang-after-tool')) {
+      await new Promise(() => undefined)
+    }
     if (promptText.includes('permission-check')) {
       const opaqueCodex = promptText.includes('permission-check-codex')
       const permission = await client.request(methods.client.session.requestPermission, {

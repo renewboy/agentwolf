@@ -1377,6 +1377,8 @@ class BlockingSession implements PlayerSession {
     return !this.#closed
   }
 
+  public finishAfterAcceptedAction(): void {}
+
   public constructor(playerId: PlayerId, turnStarted: () => void) {
     this.sessionId = `blocking-${playerId}`
     this.#turnStarted = turnStarted
