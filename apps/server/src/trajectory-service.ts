@@ -1,15 +1,21 @@
+import { resolve } from 'node:path'
+import { resolvePlayerLaunchSpec } from '@agentwolf/acp'
 import { getCopy } from '@agentwolf/assets'
 import {
   PlayerActionSchema,
   TrajectoryDeltaSchema,
   TrajectoryOwnerIdSchema,
   TrajectoryPageSchema,
+  TrajectoryPlayerDebugSchema,
   TrajectorySummarySchema,
   type MatchId,
+  type AgentTool,
   type GameEvent,
+  type PlayerId,
   type TrajectoryDelta,
   type TrajectoryOwnerId,
   type TrajectoryPage,
+  type TrajectoryPlayerDebug,
   type TrajectoryRecord,
   type TrajectorySummary,
   type TrajectoryTimelineGroup,
@@ -18,15 +24,24 @@ import {
 import type { SqliteRepository } from './repository.js'
 import { sanitizeSpeech } from '@agentwolf/game-engine'
 import { MatchTrajectoryRecorder } from './trajectory.js'
+import type { AgentCatalogService } from './agent-catalog.js'
 
 type TrajectorySubscriber = (delta: TrajectoryDelta) => void
 
 export class TrajectoryService {
   readonly #repository: SqliteRepository
+  readonly #catalog: AgentCatalogService | null
+  readonly #dataDirectory: string | null
   readonly #subscribers = new Map<MatchId, Set<TrajectorySubscriber>>()
 
-  public constructor(repository: SqliteRepository) {
+  public constructor(
+    repository: SqliteRepository,
+    catalog: AgentCatalogService | null = null,
+    dataDirectory: string | null = null,
+  ) {
     this.#repository = repository
+    this.#catalog = catalog
+    this.#dataDirectory = dataDirectory
   }
 
   public recorder(matchId: MatchId): MatchTrajectoryRecorder {
@@ -61,6 +76,86 @@ export class TrajectoryService {
         recordCount: records.filter((record) => record.ownerId === ownerId).length,
       })),
       turns,
+    })
+  }
+
+  public playerDebug(matchId: MatchId, playerId: PlayerId): TrajectoryPlayerDebug {
+    const match = this.#requireMatch(matchId)
+    const setup = match.setup.seats.find((seat) => `player-${seat.seat}` === playerId)
+    if (!setup) throw new Error(`Unknown Player ${playerId} for Match ${matchId}`)
+    const binding = this.#repository.playerSessions.get(matchId, playerId)
+    const profile = binding?.profile ?? this.#catalog?.getProfile(setup.profileId)
+    const tool = binding?.tool ?? (profile ? this.#catalog?.getTool(profile.toolId) : null)
+    if (!profile || !tool) throw new Error(`Missing Agent configuration for ${matchId}/${playerId}`)
+
+    const turns = this.#repository.listTrajectoryTurns(matchId, playerId)
+    const turnsWithUsage = turns.filter((turn) => turn.usage !== null)
+    const latestTurn = turns.at(-1) ?? null
+    const ledger = this.#repository.getDeliveryLedger(matchId, playerId)
+    const launch = playerLaunch(tool, matchId, playerId, this.#dataDirectory)
+
+    return TrajectoryPlayerDebugSchema.parse({
+      matchId,
+      playerId,
+      profile: {
+        id: profile.id,
+        name: profile.name,
+        toolId: tool.id,
+        toolName: tool.kind === 'trae-cli' ? 'Trae' : tool.name,
+        toolKind: tool.kind,
+        model: profile.model,
+        reasoningEffort: profile.reasoningEffort ?? null,
+        mode: profile.mode ?? tool.initialMode ?? null,
+        promptTimeoutMs: profile.promptTimeoutMs,
+      },
+      session: {
+        id: binding?.sessionId ?? null,
+        generation: binding?.sessionGeneration ?? null,
+        state: binding?.state ?? null,
+        bootstrapState: binding?.bootstrapState ?? null,
+        pendingActionType: binding?.pendingAction?.action.type ?? null,
+        pendingDeliveryId: binding?.pendingAction?.deliveryId ?? null,
+        createdAt: binding?.createdAt ?? null,
+        updatedAt: binding?.updatedAt ?? null,
+      },
+      launch: {
+        command: redactLaunchValue(launch.command),
+        args: redactLaunchArgs(launch.args),
+        environment: Object.entries(tool.environment)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([name, value]) => ({
+            name,
+            source: value.source,
+            reference: value.source === 'process' ? value.variable : null,
+          })),
+        connectionKeys: Object.keys(profile.connection).sort(),
+      },
+      delivery: {
+        acknowledgedSequence: ledger?.acknowledgedSequence ?? 0,
+        activeAttempt: ledger?.activeAttempt
+          ? { ...ledger.activeAttempt, error: ledger.activeAttempt.error ?? null }
+          : null,
+      },
+      context: {
+        latest: turnsWithUsage.at(-1)?.usage ?? null,
+        peakUsed: turnsWithUsage.reduce(
+          (maximum, turn) => Math.max(maximum, turn.usage?.used ?? 0),
+          0,
+        ),
+        turnsWithUsage: turnsWithUsage.length,
+      },
+      latestTurn: latestTurn
+        ? {
+            ordinal: latestTurn.ordinal,
+            actionType: latestTurn.actionType,
+            status: latestTurn.status,
+            attempt: latestTurn.attempt,
+            fromSequence: latestTurn.fromSequence,
+            toSequence: latestTurn.toSequence,
+            durationMs: latestTurn.durationMs,
+            error: latestTurn.error,
+          }
+        : null,
     })
   }
 
@@ -152,6 +247,42 @@ export class TrajectoryService {
     if (!match) throw new Error(`Unknown match ${matchId}`)
     return match
   }
+}
+
+function playerLaunch(
+  tool: AgentTool,
+  matchId: MatchId,
+  playerId: PlayerId,
+  dataDirectory: string | null,
+): { readonly command: string; readonly args: readonly string[] } {
+  if (!dataDirectory) return { command: tool.command, args: tool.args }
+  const workspace = resolve(dataDirectory, 'matches', matchId, 'players', playerId, 'workspace')
+  try {
+    const launch = resolvePlayerLaunchSpec(tool, workspace)
+    return { command: launch.command, args: launch.args }
+  } catch {
+    return { command: tool.command, args: tool.args }
+  }
+}
+
+const sensitiveLaunchKey =
+  /authorization|cookie|credential|password|secret|token|api[-_]?key|private[-_]?key/i
+const sensitiveLaunchValue =
+  /bearer\s+[a-z0-9._~+/-]{12,}|(?:sk|sk-proj)-[a-z0-9_-]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/i
+
+function redactLaunchArgs(args: readonly string[]): string[] {
+  return args.map((value, index) => {
+    const separator = value.indexOf('=')
+    if (separator >= 0 && sensitiveLaunchKey.test(value.slice(0, separator))) {
+      return `${value.slice(0, separator)}=[REDACTED]`
+    }
+    if (index > 0 && sensitiveLaunchKey.test(args[index - 1] ?? '')) return '[REDACTED]'
+    return redactLaunchValue(value)
+  })
+}
+
+function redactLaunchValue(value: string): string {
+  return sensitiveLaunchValue.test(value) ? '[REDACTED]' : value
 }
 
 function withTimelineGroups(

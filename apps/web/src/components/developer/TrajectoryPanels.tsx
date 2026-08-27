@@ -271,6 +271,12 @@ export function TrajectoryLedger({
                       {recordLabel(row.record)}
                     </span>
                     <small>{recordPreview(row.record)}</small>
+                    <time
+                      dateTime={row.record.startedAt}
+                      title={timestampLabel(row.record.startedAt, true)}
+                    >
+                      {timestampLabel(row.record.startedAt, false)}
+                    </time>
                     <em>{durationLabel(row.record.durationMs)}</em>
                   </button>
                 )}
@@ -291,8 +297,7 @@ export function TrajectoryInspector({
   readonly turn: TrajectoryTurn | null
 }) {
   return (
-    <aside className="aw-trajectory-inspector">
-      <h2>{getCopy('trajectory.detail')}</h2>
+    <div className="aw-trajectory-record-detail">
       {!record && !turn ? (
         <p>{getCopy('trajectory.selectRecord')}</p>
       ) : turn ? (
@@ -305,6 +310,7 @@ export function TrajectoryInspector({
             label={getCopy('trajectory.status')}
             value={getCopy(`trajectory.statuses.${turn.status}`)}
           />
+          <Detail label={getCopy('trajectory.time')} value={timestampLabel(turn.startedAt, true)} />
           <Detail label={getCopy('trajectory.duration')} value={durationLabel(turn.durationMs)} />
           <Detail
             label={getCopy('trajectory.sequence')}
@@ -334,6 +340,10 @@ export function TrajectoryInspector({
             label={getCopy('trajectory.status')}
             value={record.status ?? getCopy('common.none')}
           />
+          <Detail
+            label={getCopy('trajectory.time')}
+            value={timestampLabel(record.startedAt, true)}
+          />
           <Detail label={getCopy('trajectory.duration')} value={durationLabel(record.durationMs)} />
           {record.usage ? (
             <Detail
@@ -351,7 +361,7 @@ export function TrajectoryInspector({
           ) : null}
         </>
       ) : null}
-    </aside>
+    </div>
   )
 }
 
@@ -469,6 +479,21 @@ function actionTypeFromRecord(input: string | null): string | null {
 function durationLabel(durationMs: number | null): string {
   if (durationMs === null) return '-'
   return durationMs >= 1000 ? `${(durationMs / 1000).toFixed(1)}s` : `${durationMs}ms`
+}
+
+function timestampLabel(value: string, includeDate: boolean): string {
+  const timestamp = new Date(value)
+  const time = `${twoDigits(timestamp.getHours())}:${twoDigits(timestamp.getMinutes())}:${twoDigits(
+    timestamp.getSeconds(),
+  )}.${String(timestamp.getMilliseconds()).padStart(3, '0')}`
+  if (!includeDate) return time
+  return `${timestamp.getFullYear()}-${twoDigits(timestamp.getMonth() + 1)}-${twoDigits(
+    timestamp.getDate(),
+  )} ${time}`
+}
+
+function twoDigits(value: number): string {
+  return String(value).padStart(2, '0')
 }
 
 function actionLabel(actionType: string): string {

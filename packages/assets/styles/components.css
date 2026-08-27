@@ -478,6 +478,119 @@
   min-width: 112px;
 }
 
+.aw-audit-dialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(760px, 100%);
+  max-height: min(720px, calc(100dvh - 36px));
+  overflow: hidden;
+  border: 1px solid rgb(208 90 78 / 72%);
+  border-radius: var(--aw-radius-panel);
+  color: var(--aw-color-text);
+  background:
+    radial-gradient(circle at 92% 0, rgb(208 90 78 / 11%), transparent 30%),
+    linear-gradient(150deg, rgb(25 34 43 / 99%), rgb(7 17 26 / 99%) 62%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 238 231 / 7%),
+    0 34px 96px rgb(0 0 0 / 62%);
+  animation: aw-dialog-panel-enter 220ms var(--aw-ease-out) both;
+}
+
+.aw-audit-dialog__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--aw-color-line);
+}
+
+.aw-audit-dialog__header h2,
+.aw-audit-dialog__header p {
+  margin: 0;
+}
+
+.aw-audit-dialog__header h2 {
+  font-family: var(--aw-font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.aw-audit-dialog__header p {
+  margin-top: 5px;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+
+.aw-audit-dialog__issues {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  margin: 0;
+  padding: 16px 22px 22px;
+  overflow: auto;
+  list-style: none;
+}
+
+.aw-audit-dialog__issues li {
+  display: grid;
+  gap: 9px;
+  padding: 13px 14px;
+  border: 1px solid rgb(208 90 78 / 34%);
+  border-radius: var(--aw-radius-control);
+  background: rgb(108 39 35 / 10%);
+}
+
+.aw-audit-dialog__issue-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.aw-audit-dialog__issue-heading > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.aw-audit-dialog__issue-heading .aw-button {
+  flex: none;
+  gap: 5px;
+  min-height: 34px;
+}
+
+.aw-audit-dialog__issues code {
+  color: #f0a49c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aw-audit-dialog__issues span {
+  overflow-wrap: anywhere;
+  color: var(--aw-color-text-muted);
+  font-size: 10px;
+}
+
+.aw-audit-dialog__issues strong {
+  overflow-wrap: anywhere;
+  color: var(--aw-color-text);
+  font-size: 11px;
+}
+
+.aw-audit-dialog__issues pre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--aw-color-text);
+  font:
+    11px/1.55 ui-monospace,
+    'SFMono-Regular',
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
 .aw-simulation-wizard {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;

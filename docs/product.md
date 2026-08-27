@@ -149,10 +149,8 @@ message stream, tool calls, permission decisions, accepted game action, context 
 session generation, recovery attempt, diagnostics, and result. Capture-time filtering removes
 secret-bearing metadata and bounds large fields. Starting with developer mode adds a trajectory
 action to every Match record. That action opens the selected Match's loopback-only timeline,
-seat-first ledger grouped by shared game periods, detail inspector, and context audit; ordinary
-startup exposes none of these routes or controls while continuing to retain the records locally.
-Each player row includes its nickname, configured model, and complete role identity using the same
-role badge as the Match screen.
+seat-first ledger grouped by shared game periods, player and record inspectors, and an audit issue
+window; ordinary startup exposes none of these routes or controls while retaining records locally.
 
 An ended or paused Match can produce a sanitized simulation capture from its immutable board,
 fixed roles, player decisions, context ranges, completion order, delivery outcomes, and relevant

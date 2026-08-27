@@ -70,7 +70,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   const rulesets = new RulesetCatalog()
   const boards = new BoardCatalogService(repository, characters, rulesets)
   boards.backfillMatchSnapshots()
-  const trajectories = new TrajectoryService(repository)
+  const trajectories = new TrajectoryService(repository, catalog, options.config.dataDirectory)
   const simulations = new SimulationService(repository, boards, options.config)
   const matches = new MatchManager({
     repository,
@@ -260,6 +260,14 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const beforeTurn = optionalInteger(query['beforeTurn'])
     const limit = optionalInteger(query['limit']) ?? 20
     return trajectories.page(id, ownerId, beforeTurn, limit)
+  })
+  app.get('/api/developer/matches/:id/trajectory/players/:playerId', async (request) => {
+    requireDeveloperMode(options.config)
+    const params = request.params as { id: string; playerId: string }
+    return trajectories.playerDebug(
+      MatchIdSchema.parse(params.id),
+      PlayerIdSchema.parse(params.playerId),
+    )
   })
   app.get('/api/developer/matches/:id/trajectory/audit', async (request) => {
     requireDeveloperMode(options.config)

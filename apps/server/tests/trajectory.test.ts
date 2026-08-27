@@ -60,6 +60,97 @@ describe('trajectory capture', () => {
     ).toBeNull()
   })
 
+  it('returns secret-safe player launch and Session diagnostics', async () => {
+    const server = await createServer()
+    const tool = server.catalog.createTool({
+      name: 'Debug launch tool',
+      kind: 'custom',
+      command: 'debug-agent',
+      args: ['--api-key', 'sk-proj-sensitive-value', '--sandbox=read-only'],
+      environment: {
+        DEBUG_SECRET: { source: 'process', variable: 'DEBUG_SECRET_VALUE' },
+        DEBUG_LITERAL: { source: 'literal', value: 'literal-should-not-leak', secret: false },
+      },
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Debug profile',
+      toolId: tool.id,
+      model: 'debug-model',
+      reasoningEffort: 'high',
+      promptTimeoutMs: 42_000,
+      connection: { endpoint: 'local', note: 'connection-should-not-leak' },
+    })
+    const match = server.matches.createMatch({
+      boardId: 'board-quick-6',
+      roleAssignment: 'random',
+      seats: Array.from({ length: 6 }, (_, index) => ({
+        seat: index + 1,
+        name: `Debug player ${index + 1}`,
+        profileId: profile.id,
+      })),
+    })
+    const playerId = PlayerIdSchema.parse('player-1')
+    server.repository.playerSessions.adopt({
+      matchId: match.id,
+      playerId,
+      profile,
+      tool,
+      sessionId: 'session-debug-001',
+    })
+    server.repository.saveDeliveryLedger(match.id, playerId, {
+      acknowledgedSequence: 17,
+      activeAttempt: null,
+    })
+    server.repository.saveTrajectoryTurn(
+      TrajectoryTurnSchema.parse({
+        matchId: match.id,
+        turnId: 'delivery-debug-001',
+        ownerId: playerId,
+        sessionId: 'session-debug-001',
+        sessionGeneration: 1,
+        ordinal: 1,
+        attempt: 1,
+        kind: 'action',
+        phaseId: 'phase-day-speech',
+        actionType: 'speech',
+        fromSequence: 12,
+        toSequence: 17,
+        status: 'completed',
+        startedAt: '2026-08-27T00:00:00.000Z',
+        completedAt: '2026-08-27T00:00:01.000Z',
+        durationMs: 1_000,
+        stopReason: 'end_turn',
+        error: null,
+        usage: { used: 13_925, size: 190_000, cost: null },
+        revision: 0,
+      }),
+    )
+
+    const response = await server.app.inject({
+      method: 'GET',
+      url: `/api/developer/matches/${match.id}/trajectory/players/${playerId}`,
+    })
+    expect(response.statusCode).toBe(200)
+    const debug = response.json()
+    expect(debug).toMatchObject({
+      profile: { name: 'Debug profile', model: 'debug-model', reasoningEffort: 'high' },
+      session: { id: 'session-debug-001', generation: 1, state: 'active' },
+      delivery: { acknowledgedSequence: 17 },
+      context: { latest: { used: 13_925, size: 190_000 }, peakUsed: 13_925 },
+      latestTurn: { ordinal: 1, actionType: 'speech', status: 'completed' },
+    })
+    expect(debug.launch.args).toEqual(['--api-key', '[REDACTED]', '--sandbox=read-only'])
+    expect(debug.launch.environment).toEqual([
+      { name: 'DEBUG_LITERAL', source: 'literal', reference: null },
+      { name: 'DEBUG_SECRET', source: 'process', reference: 'DEBUG_SECRET_VALUE' },
+    ])
+    expect(debug.launch.connectionKeys).toEqual(['endpoint', 'note'])
+    expect(JSON.stringify(debug)).not.toContain('literal-should-not-leak')
+    expect(JSON.stringify(debug)).not.toContain('connection-should-not-leak')
+    expect(JSON.stringify(debug)).not.toContain('sk-proj-sensitive-value')
+  })
+
   it('uses explicit turns, merges streams, upserts tools, and redacts secrets before storage', async () => {
     const server = await createServer()
     const tool = builtInAgentTools()[0]!

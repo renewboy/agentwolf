@@ -676,6 +676,35 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   await page.goto('/')
   const matchRow = page.locator(`[data-match-id="${match.id}"]`)
   await expect(matchRow).toBeVisible()
+  const auditSummary = (await (
+    await request.get(`/api/developer/matches/${match.id}/trajectory/summary`)
+  ).json()) as {
+    turns: Array<{
+      turnId: string
+      ownerId: string
+      ordinal: number
+      usage: { used: number } | null
+    }>
+  }
+  const auditTurn = auditSummary.turns.findLast(
+    (turn) => turn.ownerId === 'player-1' && turn.usage !== null,
+  )!
+  await page.route(`**/api/developer/matches/${match.id}/trajectory/audit`, async (route) =>
+    route.fulfill({
+      json: {
+        matchId: match.id,
+        ok: false,
+        auditedTurns: auditSummary.turns.length,
+        issues: [
+          {
+            turnId: auditTurn.turnId,
+            code: 'context-budget-exceeded',
+            detail: 'Bootstrap context used 13925 tokens; budget is 12000',
+          },
+        ],
+      },
+    }),
+  )
   await matchRow.getByRole('link', { name: '查看轨迹' }).click()
   await expect(page).toHaveURL(new RegExp(`/matches/${match.id}/trajectory$`))
   const trajectoryNavigation = page.locator('.aw-developer-navigation')
@@ -690,11 +719,58 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   )
   await expectTooltip(matchSwitch, '切换到游戏主界面')
   await expect(page.getByRole('combobox', { name: '选择对局' })).toHaveCount(0)
-  await expect(page.getByText('上下文审计通过')).toBeVisible()
-  await expect(page.getByRole('button', { name: '添加仿真' })).toHaveCount(0)
   const firstOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '1号玩家' })
+  const auditOrb = page.getByRole('button', { name: '审计：1 个问题' })
+  await expect(auditOrb).toBeVisible()
+  await expect(auditOrb.locator('span')).toHaveCount(0)
+  const auditOrbBounds = await auditOrb.boundingBox()
+  expect(auditOrbBounds).not.toBeNull()
+  await page.mouse.move(
+    (auditOrbBounds?.x ?? 0) + (auditOrbBounds?.width ?? 0) / 2,
+    (auditOrbBounds?.y ?? 0) + (auditOrbBounds?.height ?? 0) / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(280, (auditOrbBounds?.y ?? 0) + 24, { steps: 8 })
+  await page.mouse.up()
+  await expect(page.getByRole('dialog', { name: '上下文审计' })).toHaveCount(0)
+  await expect
+    .poll(async () => (await auditOrb.boundingBox())?.x ?? Number.POSITIVE_INFINITY)
+    .toBeGreaterThan(240)
+  await expect
+    .poll(async () => (await auditOrb.boundingBox())?.x ?? Number.NEGATIVE_INFINITY)
+    .toBeLessThan(260)
+  await page.reload()
+  await expect(auditOrb).toBeVisible()
+  await expect
+    .poll(async () => (await auditOrb.boundingBox())?.x ?? Number.POSITIVE_INFINITY)
+    .toBeGreaterThan(240)
+  await expect
+    .poll(async () => (await auditOrb.boundingBox())?.x ?? Number.NEGATIVE_INFINITY)
+    .toBeLessThan(260)
+  await auditOrb.click()
+  const auditDialog = page.getByRole('dialog', { name: '上下文审计' })
+  await expect(auditDialog).toBeVisible()
+  await expect(auditDialog).toContainText('context-budget-exceeded')
+  await expect(auditDialog).toContainText('Bootstrap context used 13925 tokens; budget is 12000')
+  await expect(auditDialog).toContainText(auditTurn.turnId)
+  await expect(auditDialog).toContainText(
+    `1号玩家 · ${testRunId}-trajectory-1 · 模型调用 #${auditTurn.ordinal}`,
+  )
+  await page.keyboard.press('Escape')
+  await expect(auditDialog).toBeHidden()
+  await expect(auditOrb).toBeFocused()
+  await auditOrb.click()
+  await auditDialog.getByRole('button', { name: '定位轨迹' }).click()
+  await expect(auditDialog).toBeHidden()
+  await expect(firstOwner).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('tab', { name: '记录详情' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.aw-trajectory-record[data-selected="true"]')).toContainText(
+    '上下文用量',
+  )
+  await expect(page.getByRole('button', { name: '添加仿真' })).toHaveCount(0)
   await expect(firstOwner).toContainText(`${testRunId}-trajectory-1`)
-  await expect(firstOwner).toContainText('模型：mock-model')
+  await expect(firstOwner).toContainText(`${sharedToolName} · mock-model · 跟随 Agent 默认`)
+  await expect(firstOwner.locator('.aw-trajectory-owner__avatar')).toHaveCount(0)
   const trajectoryRole = firstOwner.locator('.aw-role-badge')
   await expect(trajectoryRole).toHaveAttribute('data-role-id', firstSeat.roleId!)
   await expect(trajectoryRole).toContainText(firstSeat.roleName!)
@@ -719,19 +795,74 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   )
   await expect(firstOwner).not.toContainText('回合')
   await firstOwner.click()
+  const playerTab = page.getByRole('tab', { name: '玩家配置' })
+  const recordTab = page.getByRole('tab', { name: '记录详情' })
+  await expect(playerTab).toHaveAttribute('aria-selected', 'true')
+  const firstDebug = (await (
+    await request.get(`/api/developer/matches/${match.id}/trajectory/players/player-1`)
+  ).json()) as {
+    session: { id: string }
+    launch: { command: string }
+    context: { peakUsed: number }
+  }
+  await expect(page.getByRole('tabpanel', { name: '玩家配置' })).toContainText(
+    firstDebug.session.id,
+  )
+  await expect(page.getByRole('tabpanel', { name: '玩家配置' })).toContainText(
+    firstDebug.launch.command,
+  )
+  await playerTab.press('ArrowRight')
+  await expect(recordTab).toHaveAttribute('aria-selected', 'true')
+  await recordTab.press('ArrowLeft')
+  await expect(playerTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('button', { name: /提示词/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /思考/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /工具调用/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /上下文用量/ }).first()).toBeVisible()
+  const firstRecordTime = page.locator('.aw-trajectory-record time').first()
+  await expect(firstRecordTime).toHaveAttribute(
+    'datetime',
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u,
+  )
+  await expect(firstRecordTime).toHaveText(/^\d{2}:\d{2}:\d{2}\.\d{3}$/u)
+  const trajectoryColumnWidths = await page.locator('.aw-trajectory-layout').evaluate((layout) => {
+    const ledger = layout.querySelector<HTMLElement>('.aw-trajectory-ledger')!
+    const inspector = layout.querySelector<HTMLElement>('.aw-trajectory-inspector')!
+    return {
+      ledger: ledger.getBoundingClientRect().width,
+      inspector: inspector.getBoundingClientRect().width,
+    }
+  })
+  expect(trajectoryColumnWidths.inspector).toBeGreaterThan(320)
+  expect(trajectoryColumnWidths.inspector).toBeLessThan(340)
+  expect(trajectoryColumnWidths.ledger).toBeGreaterThan(trajectoryColumnWidths.inspector * 1.9)
+  await page.setViewportSize({ width: 2048, height: 1080 })
+  const wideTrajectoryColumnWidths = await page
+    .locator('.aw-trajectory-layout')
+    .evaluate((layout) => {
+      const ledger = layout.querySelector<HTMLElement>('.aw-trajectory-ledger')!
+      const inspector = layout.querySelector<HTMLElement>('.aw-trajectory-inspector')!
+      return {
+        ledger: ledger.getBoundingClientRect().width,
+        inspector: inspector.getBoundingClientRect().width,
+      }
+    })
+  expect(wideTrajectoryColumnWidths.inspector).toBeGreaterThan(530)
+  expect(wideTrajectoryColumnWidths.inspector).toBeLessThan(535)
+  expect(wideTrajectoryColumnWidths.ledger).toBeGreaterThan(
+    wideTrajectoryColumnWidths.inspector * 2,
+  )
   await expect(page.locator('.aw-trajectory-kind-tag[data-kind="prompt"]').first()).toHaveCSS(
     'background-color',
     'rgb(121, 169, 220)',
   )
   const firstPromptNode = page.locator('.aw-trajectory-minimap__node[data-kind="prompt"]').first()
   await firstPromptNode.click()
+  await expect(recordTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.aw-trajectory-record[data-selected="true"]')).toContainText(
     '注入提示词',
   )
+  await expect(page.getByRole('tabpanel', { name: '记录详情' })).toContainText('时间')
   const viewportMetrics = await page.evaluate(() => ({
     bodyHeight: document.body.scrollHeight,
     viewportHeight: window.innerHeight,
@@ -749,6 +880,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   )
   const secondOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '2号玩家' })
   await secondOwner.click()
+  await expect(playerTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.aw-trajectory-layout')).toBeVisible()
   await expect(page.locator('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'true')
   await expect(page.locator('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'false')
@@ -768,6 +900,20 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     .click()
   await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('当前身份')
   await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('Player ID')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await auditOrb.click()
+  await expect(auditDialog).toBeVisible()
+  const auditDialogBounds = await auditDialog.boundingBox()
+  expect(auditDialogBounds).not.toBeNull()
+  expect(auditDialogBounds?.x ?? -1).toBeGreaterThanOrEqual(0)
+  expect((auditDialogBounds?.x ?? 0) + (auditDialogBounds?.width ?? 0)).toBeLessThanOrEqual(390)
+  expect(auditDialogBounds?.y ?? -1).toBeGreaterThanOrEqual(0)
+  expect((auditDialogBounds?.y ?? 0) + (auditDialogBounds?.height ?? 0)).toBeLessThanOrEqual(844)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+  await page.keyboard.press('Escape')
+  await expect(auditDialog).toBeHidden()
   await page.getByRole('link', { name: '切换到游戏主界面' }).click()
   await expect(page).toHaveURL(new RegExp(`/matches/${match.id}$`))
   await expect(page.getByRole('heading', { name: '对局已暂停' })).toBeVisible()

@@ -64,10 +64,8 @@ The visual reference is [match-stage.png](design/reference/match-stage.png), gen
   below the application bar with a seat-first participant list, a compact
   Prompt/model/tool/runtime record minimap, a virtualized and collapsible Turn ledger, semantic
   event-color tags, full record inspector, live revision updates, older-page loading, search, and
-  context-audit status. Each participant row places its complete role badge at the right edge of
-  the seat-heading row, with nickname and configured model below. Minimap nodes select and center
-  their Record. Player switching keeps the shell mounted and restores each player's ledger scroll
-  position.
+  context-audit status. The inspector switches between player diagnostics and record detail;
+  audit failures open from a floating status control.
 
 ## Live-state rules
 

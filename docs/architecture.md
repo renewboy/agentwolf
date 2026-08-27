@@ -245,6 +245,9 @@ ranges, actor and action boundaries, delivery ownership, acknowledgement, contin
 bootstrap context budget. The exact Prompt sent remains an immutable trajectory Record; audit does
 not render current templates against historical text.
 
+Developer player diagnostics combine the immutable Session launch snapshot with trajectory usage;
+launch values are redacted and environment or connection values are never serialized.
+
 The developer ledger derives `开局`, `第 N 夜`, `上警`, `第 N 天`, and `对局结束` from
 the game event sequence at each delivery boundary. These shared periods group every player's
 records; player-local delivery ordinals remain diagnostic metadata rather than timeline headings.

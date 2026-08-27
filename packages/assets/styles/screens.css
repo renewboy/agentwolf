@@ -739,30 +739,60 @@
   white-space: nowrap;
 }
 
-.aw-trajectory-audit {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  padding: 6px 10px;
-  border: 1px solid var(--aw-color-danger);
-  border-radius: var(--aw-radius-control);
-  border-color: var(--aw-color-danger);
+.aw-trajectory-audit-orb {
+  display: grid;
+  position: fixed;
+  z-index: 32;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 1px solid rgb(208 90 78 / 82%);
+  border-radius: 50%;
+  color: #f2b4ad;
+  background:
+    radial-gradient(circle at 35% 24%, rgb(255 229 222 / 13%), transparent 30%),
+    linear-gradient(145deg, rgb(64 31 31 / 98%), rgb(14 25 34 / 99%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 238 231 / 8%),
+    0 12px 34px rgb(0 0 0 / 45%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-.aw-trajectory-audit[data-ok='true'] {
-  border-color: var(--aw-color-success);
+.aw-trajectory-audit-orb:hover,
+.aw-trajectory-audit-orb:focus-visible {
+  border-color: #ef9c93;
+  transform: translateY(-2px);
 }
 
-.aw-trajectory-audit span {
-  color: var(--aw-color-text-muted);
+.aw-trajectory-audit-orb:active {
+  cursor: grabbing;
+}
+
+.aw-trajectory-audit-orb > b {
+  display: grid;
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border: 2px solid var(--aw-color-bg);
+  border-radius: 999px;
+  color: #fff4ef;
+  background: var(--aw-color-danger);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .aw-trajectory-layout {
   display: grid;
-  grid-template-columns: 190px minmax(520px, 1.45fr) minmax(330px, 0.9fr);
+  grid-template-columns: 210px minmax(520px, 1fr) clamp(320px, 26vw, 900px);
   grid-template-rows: 78px minmax(0, 1fr);
   gap: 0;
   height: 100%;
@@ -952,10 +982,9 @@
   flex: none;
 }
 
-.aw-trajectory-owner__model {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.aw-trajectory-owner__agent {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .aw-trajectory-owner[aria-pressed='true'] {
@@ -1052,6 +1081,7 @@
 }
 
 .aw-trajectory-record small,
+.aw-trajectory-record time,
 .aw-trajectory-record em {
   overflow: hidden;
   color: var(--aw-color-text-muted);
@@ -1081,7 +1111,7 @@
 }
 
 .aw-trajectory-record {
-  grid-template-columns: 38px 88px minmax(0, 1fr) 54px;
+  grid-template-columns: 38px 88px minmax(0, 1fr) 84px 46px;
   gap: 8px;
   min-height: 34px;
   margin-left: 8px;
@@ -1092,6 +1122,12 @@
 
 .aw-trajectory-record > span:first-child {
   color: var(--aw-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.aw-trajectory-record time,
+.aw-trajectory-record em {
+  justify-self: end;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1177,12 +1213,145 @@
 }
 
 .aw-trajectory-inspector {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
   height: 100%;
+  padding: 0;
+  overflow: hidden;
 }
 
-.aw-trajectory-inspector > p {
+.aw-trajectory-inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--aw-color-line);
+  background: var(--aw-color-surface);
+}
+
+.aw-trajectory-inspector-tabs button {
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text-muted);
+  background: transparent;
+  font: 650 12px var(--aw-font-ui);
+  cursor: pointer;
+}
+
+.aw-trajectory-inspector-tabs button:hover,
+.aw-trajectory-inspector-tabs button:focus-visible {
+  color: var(--aw-color-text);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-trajectory-inspector-tabs button[aria-selected='true'] {
+  border-color: rgb(216 169 91 / 52%);
+  color: #f0d29c;
+  background: rgb(216 169 91 / 10%);
+}
+
+.aw-trajectory-inspector-panel {
+  min-width: 0;
+  min-height: 0;
+  padding: 14px;
+  overflow: auto;
+}
+
+.aw-trajectory-record-detail > p,
+.aw-trajectory-player-debug > p {
   color: var(--aw-color-text-muted);
   line-height: 1.6;
+}
+
+.aw-trajectory-player-debug {
+  display: grid;
+  gap: 14px;
+}
+
+.aw-trajectory-player-debug__header {
+  display: grid;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--aw-color-line);
+}
+
+.aw-trajectory-player-debug__header > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.aw-trajectory-player-debug__header strong,
+.aw-trajectory-player-debug__header span {
+  overflow-wrap: anywhere;
+}
+
+.aw-trajectory-player-debug__header span {
+  color: var(--aw-color-text-muted);
+  font-size: 10px;
+}
+
+.aw-trajectory-debug-group {
+  display: grid;
+}
+
+.aw-trajectory-debug-group h3 {
+  margin: 0;
+  padding: 0 0 7px;
+  border-bottom: 1px solid var(--aw-color-line);
+  color: var(--aw-color-amber);
+  font: 650 11px var(--aw-font-ui);
+  letter-spacing: 0.04em;
+}
+
+.aw-trajectory-debug-row {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgb(51 66 80 / 45%);
+  font-size: 11px;
+}
+
+.aw-trajectory-debug-row > span,
+.aw-trajectory-debug-block > span {
+  color: var(--aw-color-text-muted);
+}
+
+.aw-trajectory-debug-row strong,
+.aw-trajectory-debug-row code {
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-weight: 650;
+}
+
+.aw-trajectory-debug-row code,
+.aw-trajectory-debug-block pre {
+  user-select: text;
+}
+
+.aw-trajectory-debug-block {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.aw-trajectory-debug-block > span {
+  font-size: 11px;
+}
+
+.aw-trajectory-debug-block pre {
+  max-height: 150px;
+  margin: 0;
+  padding: 9px;
+  overflow: auto;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  background: var(--aw-color-surface);
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .aw-trajectory-inspector-head {

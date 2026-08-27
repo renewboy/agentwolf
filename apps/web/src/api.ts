@@ -17,6 +17,7 @@ import {
   SimulationReviewResultSchema,
   TrajectoryPageSchema,
   TrajectoryAuditReportSchema,
+  TrajectoryPlayerDebugSchema,
   TrajectorySummarySchema,
   type AgentProfile,
   type AgentDiscoveryInput,
@@ -39,6 +40,7 @@ import {
   type GlobalSettings,
   type MatchId,
   type MatchView,
+  type PlayerId,
   type SpectatorView,
   type RoleSummary,
   type RuntimeConfig,
@@ -48,6 +50,7 @@ import {
   type TrajectoryOwnerId,
   type TrajectoryPage,
   type TrajectoryAuditReport,
+  type TrajectoryPlayerDebug,
   type TrajectorySummary,
 } from '@agentwolf/contracts'
 
@@ -216,6 +219,11 @@ export const api = {
   async trajectoryAudit(id: MatchId): Promise<TrajectoryAuditReport> {
     return TrajectoryAuditReportSchema.parse(
       await requestJson(`/api/developer/matches/${id}/trajectory/audit`),
+    )
+  },
+  async trajectoryPlayerDebug(id: MatchId, playerId: PlayerId): Promise<TrajectoryPlayerDebug> {
+    return TrajectoryPlayerDebugSchema.parse(
+      await requestJson(`/api/developer/matches/${id}/trajectory/players/${playerId}`),
     )
   },
   async trajectoryPage(

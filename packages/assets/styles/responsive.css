@@ -189,7 +189,14 @@
   }
 
   .aw-trajectory-owner {
-    min-width: 150px;
+    min-width: 180px;
+  }
+
+  .aw-trajectory-audit-orb {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: 54px;
+    height: 54px;
   }
 
   .aw-trajectory-ledger {
@@ -221,7 +228,7 @@
   }
 
   .aw-trajectory-record {
-    grid-template-columns: 34px 82px minmax(0, 1fr);
+    grid-template-columns: 34px 82px minmax(0, 1fr) 84px;
   }
 
   .aw-trajectory-record em {

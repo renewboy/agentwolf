@@ -5,6 +5,7 @@ import type {
   TrajectoryDelta,
   TrajectoryOwnerSummary,
   TrajectoryPage,
+  TrajectoryPlayerDebug,
   TrajectoryRecord,
   TrajectorySummary,
   TrajectoryTurn,
@@ -110,6 +111,10 @@ test('keeps the trajectory reading position while live records arrive', async ({
   )
   await page.route(`**/api/developer/matches/${match.id}/trajectory/audit`, async (route) =>
     route.fulfill({ json: audit }),
+  )
+  await page.route(
+    `**/api/developer/matches/${match.id}/trajectory/players/player-1`,
+    async (route) => route.fulfill({ json: playerDebugFixture(match.id) }),
   )
   await page.route(`**/api/developer/matches/${match.id}/trajectory?*`, async (route) =>
     route.fulfill({ json: trajectoryPage }),
@@ -237,6 +242,51 @@ function trajectoryTurn(matchId: MatchView['id']): TrajectoryTurn {
     error: null,
     usage: null,
     revision: 1,
+  }
+}
+
+function playerDebugFixture(matchId: MatchView['id']): TrajectoryPlayerDebug {
+  return {
+    matchId,
+    playerId: 'player-1',
+    profile: {
+      id: 'profile-debug-player-1',
+      name: 'Debug profile',
+      toolId: 'tool-debug-player',
+      toolName: 'Mock Agent',
+      toolKind: 'custom',
+      model: 'mock-model',
+      reasoningEffort: 'high',
+      mode: null,
+      promptTimeoutMs: 5_000,
+    },
+    session: {
+      id: 'session-scroll-retention',
+      generation: 1,
+      state: 'active',
+      bootstrapState: 'acknowledged',
+      pendingActionType: null,
+      pendingDeliveryId: null,
+      createdAt: occurredAt,
+      updatedAt: occurredAt,
+    },
+    launch: { command: 'mock-agent', args: [], environment: [], connectionKeys: [] },
+    delivery: { acknowledgedSequence: 1, activeAttempt: null },
+    context: {
+      latest: { used: 1_000, size: 10_000, cost: null },
+      peakUsed: 1_000,
+      turnsWithUsage: 1,
+    },
+    latestTurn: {
+      ordinal: 1,
+      actionType: 'speech',
+      status: 'completed',
+      attempt: 1,
+      fromSequence: 1,
+      toSequence: 1,
+      durationMs: 100,
+      error: null,
+    },
   }
 }
 

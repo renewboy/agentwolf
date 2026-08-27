@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { MatchIdSchema, PhaseIdSchema, PlayerIdSchema } from './ids.js'
+import { AgentToolKindSchema } from './agents.js'
+import {
+  AgentProfileIdSchema,
+  AgentToolIdSchema,
+  MatchIdSchema,
+  PhaseIdSchema,
+  PlayerIdSchema,
+} from './ids.js'
 
 export const RuntimeConfigSchema = z.object({ developerMode: z.boolean() })
 export type RuntimeConfig = z.infer<typeof RuntimeConfigSchema>
@@ -156,3 +163,72 @@ export const TrajectoryAuditReportSchema = z.object({
   issues: z.array(TrajectoryAuditIssueSchema),
 })
 export type TrajectoryAuditReport = z.infer<typeof TrajectoryAuditReportSchema>
+
+export const TrajectoryPlayerDebugSchema = z.object({
+  matchId: MatchIdSchema,
+  playerId: PlayerIdSchema,
+  profile: z.object({
+    id: AgentProfileIdSchema,
+    name: z.string(),
+    toolId: AgentToolIdSchema,
+    toolName: z.string(),
+    toolKind: AgentToolKindSchema,
+    model: z.string(),
+    reasoningEffort: z.string().nullable(),
+    mode: z.string().nullable(),
+    promptTimeoutMs: z.number().int().positive(),
+  }),
+  session: z.object({
+    id: z.string().nullable(),
+    generation: z.number().int().positive().nullable(),
+    state: z.enum(['creating', 'active']).nullable(),
+    bootstrapState: z.enum(['pending', 'dispatched', 'acknowledged']).nullable(),
+    pendingActionType: z.string().nullable(),
+    pendingDeliveryId: z.string().nullable(),
+    createdAt: z.string().datetime().nullable(),
+    updatedAt: z.string().datetime().nullable(),
+  }),
+  launch: z.object({
+    command: z.string(),
+    args: z.array(z.string()),
+    environment: z.array(
+      z.object({
+        name: z.string(),
+        source: z.enum(['process', 'literal']),
+        reference: z.string().nullable(),
+      }),
+    ),
+    connectionKeys: z.array(z.string()),
+  }),
+  delivery: z.object({
+    acknowledgedSequence: z.number().int().nonnegative(),
+    activeAttempt: z
+      .object({
+        id: z.string(),
+        fromSequence: z.number().int().nonnegative(),
+        toSequence: z.number().int().nonnegative(),
+        state: z.enum(['in-flight', 'uncertain']),
+        startedAt: z.string(),
+        error: z.string().nullable(),
+      })
+      .nullable(),
+  }),
+  context: z.object({
+    latest: TrajectoryUsageSchema.nullable(),
+    peakUsed: z.number().int().nonnegative(),
+    turnsWithUsage: z.number().int().nonnegative(),
+  }),
+  latestTurn: z
+    .object({
+      ordinal: z.number().int().positive(),
+      actionType: z.string(),
+      status: TrajectoryTurnStatusSchema,
+      attempt: z.number().int().positive(),
+      fromSequence: z.number().int().nonnegative(),
+      toSequence: z.number().int().nonnegative(),
+      durationMs: z.number().int().nonnegative().nullable(),
+      error: z.string().nullable(),
+    })
+    .nullable(),
+})
+export type TrajectoryPlayerDebug = z.infer<typeof TrajectoryPlayerDebugSchema>
