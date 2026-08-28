@@ -1,41 +1,38 @@
-# Agent Note: Deterministic simulation corpus
+# Agent Note: 确定性仿真语料
 
 Status: implemented
 
 ## Problem
 
-Unit tests and event-log replay cannot prove that current orchestration still prompts the right
-players, honors parallel barriers, recovers delivery, and reaches reviewed user-visible game
-semantics from real Match decisions.
+单元测试与事件日志 replay 无法证明当前编排仍然提示正确的玩家、遵守并行 barrier、恢复投递,
+并从真实 Match 决策出发到达经过评审的用户可见游戏语义。
 
 ## Decision
 
-Ended or paused Matches may produce sanitized local candidates. Review and approval create compact,
-versioned fixtures containing the immutable board, player decisions, actor barriers, delivery
-outcomes, semantic event oracle, and terminal checkpoints without raw Prompt or secret material.
+已结束或暂停的 Match 可以产出脱敏的本地候选。评审与批准生成紧凑的、版本化的 fixture,包含
+不可变 board、玩家决策、actor barrier、投递结果、语义 event oracle 与终局检查点,不含原始
+Prompt 或机密素材。
 
-Every approved fixture runs through two deterministic paths: a fresh game-engine runner and an
-in-memory production Match-runtime runner with fake Sessions. Sequential replay asks the engine for
-the current actor; parallel replay requires the complete captured barrier. Stable fixture/variant
-seeds cover completion order, recovery, restart, and playback outcomes.
+每份获批 fixture 走两条确定性路径:一个全新的 game-engine runner,以及一个使用 fake Session
+的内存态生产 Match-runtime runner。顺序 replay 向引擎询问当前 actor;并行 replay 要求完整的
+捕获 barrier。稳定的 fixture/variant 种子覆盖完成顺序、恢复、重启与回放结果。
 
-CLI and browser workflows call the same simulation service. Candidate approval never overwrites an
-existing fixture or mutates the source Match. The current design is documented in
-[Trajectory and simulation](../../../../docs/architecture/trajectory-and-simulation.md).
+CLI 与浏览器工作流调用同一个 simulation service。候选批准绝不覆盖既有 fixture,也不改动来源
+Match。当前设计记录于
+[轨迹与仿真](../../../../docs/architecture/trajectory-and-simulation.md)。
 
 ## Alternatives considered
 
-**Replay the captured event log as the test.** Reapplying old events proves reducers, not that the
-current engine and orchestration generate equivalent behavior.
+**把捕获的事件日志当作测试来重放。** 重新应用旧事件只证明 reducer,不能证明当前引擎与编排
+会生成等价行为。
 
-**Use only the game-engine runner.** This misses delivery cursors, Session behavior, action barriers,
-playback holds, and restart recovery.
+**只使用 game-engine runner。** 这会漏掉投递 cursor、Session 行为、动作 barrier、回放挂起与
+重启恢复。
 
-**Commit raw production captures.** Raw identifiers, Prompts, reasoning, diagnostics, and credentials
-are unnecessary for deterministic regression and unsafe as fixtures.
+**提交原始生产捕获。** 原始标识符、Prompt、推理、诊断与凭据对确定性回归既不必要,作为
+fixture 也不安全。
 
 ## Consequences
 
-Reviewed real-Match behavior becomes a keyless regression corpus across rule and orchestration
-layers. Fixture changes require explicit review and preserve a compact semantic oracle rather than a
-production transcript.
+经过评审的真实 Match 行为成为横跨规则与编排层的免凭据回归语料。fixture 变更需要显式评审,
+并保留紧凑的语义 oracle 而非生产转录。

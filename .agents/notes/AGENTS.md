@@ -1,8 +1,8 @@
 # AgentWolf Agent Notes
 
-See [the root AGENTS.md](../../AGENTS.md) and the
-[documentation standard](../../docs/AGENTS.md). Agent Notes record major proposals and decisions;
-their lifecycle, classes, and format are defined in [README.md](README.md).
+参见[根级 AGENTS.md](../../AGENTS.md)与
+[文档标准](../../docs/AGENTS.md)。Agent Note 记录重大提案与决策;
+其 lifecycle、classes 与格式定义见 [README.md](README.md)。
 
-Do not create a Note for a local fix, ordinary implementation detail, or test addition. Update an
-existing owner instead of creating a parallel record for the same decision.
+不要为局部修复、普通实现细节或测试新增创建 Note。更新既有的归属文档,而不是为同一决策创建
+平行记录。

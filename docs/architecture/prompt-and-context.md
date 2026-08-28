@@ -1,63 +1,57 @@
-# Prompt and player-context architecture
+# Prompt 与玩家上下文架构
 
-## Responsibility
+## 职责
 
-This module converts installed game semantics and one player's visibility-safe state into the exact
-model Prompt sent through ACP. It owns Prompt bundle loading, semantic presentation coverage,
-strict Nunjucks rendering, player Skill delivery, Character framing, and context-budget audit.
+该模块将已安装的游戏语义与某位玩家的 visibility-safe 状态转换为通过 ACP 发送的确切模型
+Prompt。它拥有 Prompt bundle 加载、语义呈现覆盖、严格 Nunjucks 渲染、玩家 Skill 送达、
+Character 框定与上下文预算审计。
 
-Prompt assets live in [`packages/assets`](../../packages/assets/README.md); the server adapts the
-resolved Ruleset and Match state into plain assets-owned facts.
+Prompt 资产位于 [`packages/assets`](../../packages/assets/README.md);server 将解析后的
+Ruleset 与 Match 状态适配为 plain assets-owned 事实。
 
-## Bundle ownership
+## Bundle 归属
 
-Model Prompts use non-localized Nunjucks bundles under `packages/assets/prompts`. `_core` owns Session
-framing, generic layouts, Character framing, reference formatting, five in-game MCP tools, and one
-postgame-review MCP tool. Functional and Role plugins own their Role, Ability, Phase, event,
-announcement, and interrupt presentation.
+模型 Prompt 使用 `packages/assets/prompts` 下的非本地化 Nunjucks bundles。`_core` 拥有 Session
+框定、通用布局、Character 框定、引用格式化、五个对局内 MCP 工具与一个赛后复盘 MCP 工具。
+功能性与 Role 插件拥有自己的 Role、Ability、Phase、事件、公告与 interrupt 呈现。
 
-The server adapts installed Ruleset contribution records into a plain semantic inventory. The assets
-loader compares bundle claims with that inventory and freezes one registry before the first render.
+server 将已安装的 Ruleset 贡献记录适配为一份 plain 语义清单。assets loader 将 bundle 声明与
+该清单比对,并在首次渲染前冻结一份 registry。
 
-## Template forms
+## 模板形态
 
-Structured content, loops, and conditional branches use cohesive templates. Labels, transitions, tool
-titles, and receipts may use typed single-line fields on their semantic owner. Prompt assets contain
-no generic string dictionary, locale tree, copy-key lookup service, condition-fragment files,
-sentence-level templates, Prompt-version selector, or server branch on concrete Role, Ability, Phase,
-or Plugin IDs.
+结构化内容、循环与条件分支使用内聚模板。标签、过渡、工具标题与回执可以使用其语义所有者上
+的类型化单行字段。Prompt 资产不含通用字符串字典、locale 树、copy-key 查找服务、条件片段
+文件、句级模板、Prompt 版本选择器,也不含针对具体 Role、Ability、Phase 或 Plugin ID 的
+server 分支。
 
-## Fact projection
+## 事实投影
 
-`ContextRenderer` converts the current Match projection and action expectation into a strict fact
-contract containing visibility-filtered events, public state, the current action contract, and the
-actor's own state. Template source is repository-owned and path-contained within installed bundles
-and declared dependencies. Public templates cannot reference more private assets.
+`ContextRenderer` 将当前 Match 投影与动作预期转换为一份严格事实契约,包含可见性过滤后的
+事件、公开状态、当前动作契约与行为者自身状态。模板源由仓库持有并受路径约束在已安装 bundles
+与声明的依赖之内。公开模板不能引用更私密的资产。
 
-## Prompt flows
+## Prompt 流
 
-A foundation covers its delivery cursor and renders every visible bootstrap fact exactly once:
-public board rules, public Role introductions, the acting Role and abilities, private faction
-knowledge where applicable, and the acting Character card. It contains no seat-to-Role disclosure.
+foundation 覆盖其送达游标,并将每个可见的引导事实精确渲染一次:公开 board 规则、公开 Role
+介绍、行动 Role 与 abilities、适用的私密阵营知情,以及行动 Character 卡。它不包含任何
+seat 到 Role 的披露。
 
-An incremental turn renders newly visible events after the acknowledged cursor plus one current
-stage/action contract. It omits the player's own already-known committed speech while retaining all
-other required public speech. A continuation after uncertain delivery is compact and describes the
-current action boundary; it does not replay the foundation or full history.
+增量回合渲染游标确认之后新可见的事件,外加一份当前阶段/动作契约。它省略玩家自己已知的已
+提交发言,同时保留所有其他必需的公开发言。不确定送达后的续篇是紧凑的,只描述当前动作边界;
+它不重放 foundation 或完整历史。
 
-Visible history keeps event order and resolves Player, Role, Ability, Phase, and Faction references
-through the frozen registry. Player-authored speech text is preserved rather than reformatted by the
-judge presentation layer.
+可见历史保持事件顺序,并通过冻结 registry 解析 Player、Role、Ability、Phase 与 Faction 引用。
+玩家撰写的发言文本被保留,而不是由裁判呈现层重新排版。
 
-## Player environment
+## 玩家环境
 
-The build copies complete player Skill directories to `.agentwolf/skills`. Each Match workspace links
-its `.agents/skills`, `.claude/skills`, and `.trae/skills` directories to that shared output.
+构建过程将完整的玩家 Skill 目录复制到 `.agentwolf/skills`。每个 Match workspace 将其
+`.agents/skills`、`.claude/skills` 与 `.trae/skills` 目录链接到该共享输出。
 
-The player runtime exposes the player contract, selected Skills, local read/search tools, five
-in-game actions, and one postgame-review action. Ambient user memory, unrelated Skills, repository
-development instructions, Web access, mutation tools, hooks, plugins, and sub-agents remain absent.
+玩家运行时暴露玩家契约、所选 Skills、本地读取/搜索工具、五个对局内动作与一个赛后复盘动作。
+环境用户记忆、无关 Skills、仓库开发指令、Web 访问、变更类工具、hooks、插件与子代理保持
+缺席。
 
-Every bootstrap trajectory audits the complete provider-reported model context against the 12,000
-token limit. The exact Prompt sent is stored in trajectory; historical Prompt text is never
-re-rendered from current templates.
+每次引导轨迹将提供方报告的完整模型上下文对照 12,000 token 上限进行审计。实际发送的 Prompt
+存入轨迹;历史 Prompt 文本从不基于当前模板重新渲染。

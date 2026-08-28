@@ -1,43 +1,44 @@
-# Match motion specification
+# Match 动效规范
 
-The match screen is a fixed-height event-driven HUD. Motion communicates live state and returns to rest after every discrete event. Continuous motion is limited to active waiting states and the low-frequency lunar atmosphere.
+Match 界面是一个固定高度、事件驱动的 HUD。动效传达实时状态,并在每个离散事件之后回到静息。
+持续动效仅限于活跃等待状态与低频的月夜氛围。
 
-## Feedback tiers
+## 反馈层级
 
-| Tier | Duration | Ease | Use |
+| 层级 | 时长 | 缓动 | 用途 |
 | --- | ---: | --- | --- |
-| Small | 140-220 ms | `power2.out` | hover, press, focus, new status |
-| Medium | 320-520 ms | `power3.out` | message entry, day disclosure, player completion |
-| Large | 520-760 ms | `power4.out` then settle | day/night transition, vote result, elimination, winner |
+| 小 | 140-220 ms | `power2.out` | hover、按下、聚焦、新状态 |
+| 中 | 320-520 ms | `power3.out` | 消息进入、白天揭示、玩家完成 |
+| 大 | 520-760 ms | `power4.out` 后落定 | 昼夜切换、投票结果、淘汰、获胜 |
 
-## Presence states
+## 在场状态
 
-| State | Visible response | Exit |
+| 状态 | 可见响应 | 退出 |
 | --- | --- | --- |
-| Loading | full three-column skeleton, moving lunar scan, live status copy | first snapshot |
-| Starting | seat medallions illuminate as sessions become ready | match running |
-| Thinking | active status ring rotates, signal path breathes, center presence copy remains visible | action or speech chunk |
-| Awaiting actions | sealed-action motif and ambient signal movement without public actor identity | resolution event |
-| Streaming | text chunks appear with cursor and waveform movement | committed speech |
-| Resolving | phase veil and focused result-stage movement | stable next phase |
-| Reconnecting | retained snapshot plus moving connection rail | socket open |
-| Switching view | opaque privacy veil covers the old projection before replacement | new projection |
-| Paused | low-frequency warning border and actionable dialog | resume or delete |
-| Ended | one winner reveal, then a stable terminal composition | terminal |
+| Loading | 完整三栏骨架、移动的月夜扫描、实时状态文案 | 第一份快照 |
+| Starting | 随 Session 就绪点亮 Seat 徽章 | Match 开始运行 |
+| Thinking | 活跃状态环旋转、信号路径呼吸、中央在场文案保持可见 | 动作或发言分块 |
+| Awaiting actions | 密封动作图样与环境信号流动,不公开行为者身份 | 结算事件 |
+| Streaming | 文本分块带光标与波形运动出现 | 发言提交 |
+| Resolving | 阶段帷幕与聚焦的结果舞台运动 | 稳定的下一阶段 |
+| Reconnecting | 保留快照加移动的连接轨道 | socket 打开 |
+| Switching view | 不透明隐私帷幕在替换前遮盖旧投影 | 新投影 |
+| Paused | 低频警告边框与可操作对话框 | 恢复或删除 |
+| Ended | 一次获胜揭示,随后是稳定的终局构图 | 终局 |
 
-## Event transitions
+## 事件切换
 
-- Day and night use a 600 ms color-temperature and phase-title transition. It never blocks game state.
-- Player speech enters from the side of that player's rail. The bubble settles without bouncing.
-- Vote results reveal totals in descending order, then emphasize the selected or tied result once.
-- Elimination applies one brief contraction and desaturation to the seat medallion.
-- Sheriff transfer moves the crown between seat anchors with GSAP Flip.
-- View switching covers the complete stage before requesting the replacement projection.
+- 昼夜使用 600 ms 的色温与阶段标题切换。它从不阻塞游戏状态。
+- 玩家发言从该玩家所在一侧进入。气泡落定,不弹跳。
+- 投票结果按票数降序揭示总数,然后对选定或平票结果强调一次。
+- 淘汰对 Seat 徽章施加一次短暂的收缩与去饱和。
+- 警徽转移使用 GSAP Flip 在 Seat 锚点之间移动王冠。
+- 视图切换在请求替换投影之前遮盖完整舞台。
 
-## Continuous motion constraints
+## 持续动效约束
 
-- Animate only `transform` and `opacity` in continuous loops.
-- Pause ambient timelines while the document is hidden.
-- Do not update React state per frame.
-- Do not show invented percentages, progress, or reasoning steps.
-- Reduced-motion mode removes spatial loops and preserves explicit status copy and live content changes.
+- 持续循环中只动画 `transform` 与 `opacity`。
+- 文档隐藏时暂停氛围时间线。
+- 不逐帧更新 React state。
+- 不显示虚构的百分比、进度或推理步骤。
+- Reduced-motion 模式移除空间循环,保留明确的状态文案与实时内容变化。

@@ -1,91 +1,84 @@
-# Presentation integration
+# 呈现集成
 
-Use this reference once the Role is installed or any Role-visible fact changes. Prompt text,
-localized product copy, player strategy, and spectator effects have distinct owners.
+当 Role 已安装或任何 Role 可见事实变更时使用本参考。Prompt 文本、本地化产品文案、玩家策略
+与观战效果各有独立归属。
 
-## 1. Companion model Prompt bundle
+## 1. 配套模型 Prompt bundle
 
-Create `packages/assets/prompts/bundles/plugin-role-<slug>/`. Its basename and `bundle.json`
-`pluginId` exactly match the installed Rule plugin ID. The live ruleset semantic contribution index
-must match the bundle's Role, Ability, Phase, and plugin-event claims exactly.
+创建 `packages/assets/prompts/bundles/plugin-role-<slug>/`。其 basename 与 `bundle.json` 的
+`pluginId` 必须与已安装 Rule plugin ID 完全一致。运行中的 Ruleset 语义贡献索引必须与该
+bundle 声明的 Role、Ability、Phase 与 plugin event 完全匹配。
 
-The bundle contains:
+bundle 包含:
 
-- one Role declaration with an atomic label, complete `role.njk`, and every owned ability;
-- every Role-owned phase, with audience, daytime flag, and one complete turn template for each
-  interactive phase;
-- every Role-owned plugin event, matched declaratively by `pluginId` and `eventType`, including an
-  explicit `omit` when the event itself should not add model narration;
-- owned public announcements when the Role emits announcement codes;
-- an interrupt template for every ability offered during another phase.
+- 一份 Role 声明,含原子 label、完整 `role.njk` 与每个自有 ability;
+- 每个 Role 专属阶段,含受众、白天标记,以及每个交互式阶段的一份完整回合模板;
+- 每个 Role 专属 plugin event,以 `pluginId` 与 `eventType` 声明式匹配,当事件本身不应追加模型
+  叙述时包含显式 `omit`;
+- Role 发出公告代码时自有的公开公告;
+- 在其他阶段中提供的每个 ability 的 interrupt 模板。
 
-`role.njk` has readable `public` and `owner` branches. The public branch defines current rules and
-includes the exact source `角色介绍` from the mapped strategy Role page. The owner branch states
-identity, faction, abilities, and formal ability IDs needed for structured actions.
+`role.njk` 拥有可读的 `public` 与 `owner` 分支。public 分支定义当前规则,并逐字包含映射策略
+Role 页面的 `角色介绍` 源文。owner 分支陈述身份、阵营、ability 与结构化动作所需的正式
+ability ID。
 
-Add or extend Prompt bundle and `ContextRenderer` tests for public foundation text, owner text,
-current turn instructions, legal choices, event rendering, and absence of hidden facts.
+为公开奠基文本、owner 文本、当前回合指令、合法选项、事件渲染与隐藏事实的缺席,新增或扩展
+Prompt bundle 与 `ContextRenderer` 测试。
 
-## 2. Player strategy coverage
+## 2. 玩家策略覆盖
 
-Every installed Role maps to one page under
-`packages/assets/player-skills/werewolf-strategy/references/roles`. The page must be reachable from
-the Role index and contain `技能介绍`, `角色介绍`, and `相关阅读`, including a local article link.
-Add the Role-ID-to-page mapping in `scripts/harness/check-skills.ts`.
+每个已安装 Role 映射到
+`packages/assets/player-skills/werewolf-strategy/references/roles` 下的一个页面。该页面必须可从
+Role 索引到达,并包含 `技能介绍`、`角色介绍` 与 `相关阅读`,其中含一篇本地文章链接。在
+`scripts/harness/check-skills.ts` 中添加 Role-ID 到页面的映射。
 
-The public Prompt Role template must contain the page's `角色介绍` section verbatim. Do not invent
-or summarize the source introduction. If no suitable source page or alias exists, stop and ask the
-user which authoritative material to use. Do not run the catalog refresh merely to add one Role;
-it synchronizes the complete source catalog.
+公开 Prompt Role 模板必须逐字包含该页面的 `角色介绍` 章节。不要编造或概括源介绍。如果没有
+合适的源页面或别名,停下并询问用户应使用哪份权威素材。不要仅为新增一个 Role 而运行 catalog
+刷新;它同步完整的源 catalog。
 
-Player-only Skills remain under `packages/assets/player-skills` and are copied to
-`.agentwolf/skills`. The project coding Skill under `.agents/skills` is not copied into player
-workspaces.
+仅玩家可见的 Skill 保持在 `packages/assets/player-skills` 并被复制到 `.agentwolf/skills`。
+`.agents/skills` 下的项目编码 Skill 不会被复制进玩家 workspace。
 
-## 3. Localized product and board presentation
+## 3. 本地化产品与 board 呈现
 
-Add localized user-facing values to `packages/assets/copy/zh-CN.json`:
+向 `packages/assets/copy/zh-CN.json` 添加本地化的用户可见值:
 
-- Role display key referenced by `Role.displayNameKey`;
-- ability, phase, narration/timeline, and effect labels actually shown;
-- built-in board name and description when applicable.
+- `Role.displayNameKey` 引用的 Role 展示键;
+- 实际展示的 ability、阶段、叙述/时间线与效果标签;
+- 适用时的内置 board 名称与描述。
 
-Custom board management discovers the installed Role automatically. A built-in board also needs an
-explicit server catalog entry. Update API/integration and browser expectations that enumerate
-built-in boards or installed Role counts.
+自定义 board 管理会自动发现已安装 Role。内置 board 还需要显式的 server catalog 条目。更新
+枚举内置 board 或已安装 Role 数量的 API/集成与浏览器预期。
 
-## 4. Visibility-safe narration and effects
+## 4. 可见性安全的叙述与效果
 
-For a new plugin event, add one typed presentation in `packages/assets/src/plugin-events.ts` that:
+对于新 plugin event,在 `packages/assets/src/plugin-events.ts` 中添加一个类型化呈现,它:
 
-- parses event data at the presentation boundary;
-- returns only relevant player IDs;
-- produces localized narration or timeline text;
-- maps the already-visible event to an optional semantic effect cue.
+- 在呈现边界解析事件数据;
+- 只返回相关玩家 ID;
+- 产出本地化叙述或时间线文本;
+- 把已可见事件映射为可选的语义效果 cue。
 
-Test god, closed-eye, owning-player, faction, and unrelated player views as applicable; absence
-assertions are required for private results.
+按适用情况测试上帝、闭眼、归属玩家、阵营与无关玩家视图;私有结果必须带有缺席断言。
 
-Register active feedback in `packages/assets/src/role-effects.ts` with Role ID, Ability ID when
-applicable, localized label, bounded duration, tier, and semantic icon. Reuse the generic Web
-controller unless a genuinely new visual primitive is needed. If adding an icon primitive, extend
-the centralized Phosphor icon mapping.
+在 `packages/assets/src/role-effects.ts` 中注册主动反馈,含 Role ID、适用时的 Ability ID、本地
+化标签、有界时长、层级与语义图标。除非确需新的视觉原语,否则复用通用 Web controller。若添
+加图标原语,扩展集中的 Phosphor 图标映射。
 
-Every installed Role must satisfy one of these paths:
+每个已安装 Role 必须满足以下路径之一:
 
-- every active ability has a role-effect definition, and the Role has at least one definition; or
-- the Role has no active visual event and is added to the explicit `passiveRoleIds` exception.
+- 每个主动 ability 都有 role-effect 定义,且该 Role 至少有一个定义;或
+- 该 Role 没有主动视觉事件,并被加入显式 `passiveRoleIds` 豁免。
 
-## 5. Role badge and visual identity
+## 5. Role 徽章与视觉身份
 
-Give each installed Role a labeled semantic color that is consistent across board management,
-Match setup, spectator cards, and trajectory views:
+为每个已安装 Role 给予一个带标签的语义颜色,并在 board 管理、Match 设置、观战卡片与轨迹视
+图之间保持一致:
 
-1. add full and soft tokens in `packages/assets/styles/tokens.css`;
-2. map the Role ID in `packages/assets/styles/components.css`;
-3. keep hidden identities on the neutral `hidden` badge;
-4. update Playwright palette/count assertions and specific color checks.
+1. 在 `packages/assets/styles/tokens.css` 中添加 full 与 soft token;
+2. 在 `packages/assets/styles/components.css` 中映射 Role ID;
+3. 隐藏身份保持在中性 `hidden` 徽章上;
+4. 更新 Playwright 调色板/计数断言与具体颜色检查。
 
-Add effect-specific CSS in `packages/assets/styles/screens.css` only when the catalog's default
-effect signal is insufficient. All visual changes follow `docs/frontend.md` and use asset-owned
-tokens.
+仅当 catalog 的默认效果信号不足时,才在 `packages/assets/styles/screens.css` 中添加效果专属
+CSS。所有视觉变更遵循 `docs/frontend.md` 并使用 asset 持有的 token。

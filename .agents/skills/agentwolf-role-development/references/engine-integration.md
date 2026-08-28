@@ -1,158 +1,147 @@
-# Engine integration
+# 引擎集成
 
-Use this reference for a new Role or any change to Role semantics. Confirm exact paths with `rg`
-before editing; the ownership boundaries below are the stable contract.
+新增 Role 或任何 Role 语义变更时使用本参考。编辑前用 `rg` 确认确切路径;下方的归属边界才是
+稳定契约。
 
-## 1. Model the Role contract
+## 1. 建模 Role 契约
 
-Use branded IDs from `@agentwolf/contracts`:
+使用 `@agentwolf/contracts` 中的 branded ID:
 
-- `role-<slug>` for the Role;
-- `plugin-role-<slug>` for its Rule plugin and companion Prompt bundle;
-- `ability-<slug>-<action>` for submitted abilities;
-- `capability-<semantic-action>` for authorization shared across Roles or granted dynamically;
-- `phase-<semantic-stage>` for a Role-owned stage;
-- `event-<semantic-result>` for Role-owned plugin events;
-- `query-...` and `trigger-...` only when the behavior needs those registries.
+- Role 用 `role-<slug>`;
+- 其 Rule plugin 与配套 Prompt bundle 用 `plugin-role-<slug>`;
+- 提交的 ability 用 `ability-<slug>-<action>`;
+- 跨 Role 共享或动态授予的授权用 `capability-<semantic-action>`;
+- Role 专属阶段用 `phase-<semantic-stage>`;
+- Role 专属 plugin event 用 `event-<semantic-result>`;
+- 仅当行为需要那些 registry 时才使用 `query-...` 与 `trigger-...`。
 
-The current classic ID owners are
-`packages/game-engine/src/rulesets/classic/capabilities.ts` and
-`packages/game-engine/src/rulesets/classic/plugins/ids.ts`. Keep new constants with their semantic
-owner and expose only Role IDs or ability helpers that server code or tests actually consume from
-`packages/game-engine/src/index.ts`.
+当前经典 ID 的归属处是
+`packages/game-engine/src/rulesets/classic/capabilities.ts` 与
+`packages/game-engine/src/rulesets/classic/plugins/ids.ts`。新常量与其语义归属放在一起,只从
+`packages/game-engine/src/index.ts` 暴露 server 代码或测试真正消费的 Role ID 或 ability
+helper。
 
-The Role class extends `packages/game-engine/src/roles/base.ts` and declares:
+Role 类继承 `packages/game-engine/src/roles/base.ts` 并声明:
 
-- `id`, `displayNameKey`, `faction`, and `kind`;
-- `sharesFactionKnowledge` only when every member of that faction should receive the faction roster;
-- static `capabilities`;
-- `abilities`, where each ability declares its ID, optional required capability, accepted action
-  types, pure validation, resolution effects, and optional event outcomes.
+- `id`、`displayNameKey`、`faction` 与 `kind`;
+- 仅当该阵营的每个成员都应收到阵营名册时声明 `sharesFactionKnowledge`;
+- 静态 `capabilities`;
+- `abilities`,其中每个 ability 声明其 ID、可选的 required capability、接受的 action 类型、纯
+  校验、结算效果与可选的事件结果。
 
-An ability's `validate` function rejects illegal action shape, target, timing, prior use, and board
-policy without changing state. Its `effects` function emits semantic resolution effects. Its
-`outcomes` function translates the settled result into visible or private domain events. The
-engine records `ability.used`; use `abilityUseCount` for usage limits.
+ability 的 `validate` 函数在不改变状态的前提下拒绝非法动作形状、目标、时机、先前使用与
+board 策略。其 `effects` 函数发出语义结算效果。其 `outcomes` 函数把已结算结果转译为可见或
+私有领域事件。引擎记录 `ability.used`;使用上限用 `abilityUseCount`。
 
-Prefer capability checks to Role checks. A shared ability is registered once with
-`requiredCapability`; `RoleRegistry` makes it available to every Role or dynamically granted player
-that owns that capability. Phase actor selection uses `capability-alive:<id>` and phase activation
-uses `capability-active:<id>`.
+优先使用 capability 检查而非 Role 检查。共享 ability 以 `requiredCapability` 注册一次;
+`RoleRegistry` 使其可用于每个拥有该 capability 的 Role 或动态授予的玩家。阶段 actor 选择使用
+`capability-alive:<id>`,阶段激活使用 `capability-active:<id>`。
 
-The player action surface is the closed set in `packages/contracts/src/actions.ts`: speech, vote,
-night action, Sheriff action, and skill trigger, exposed through five MCP tools. Use the existing
-shape whose semantics match. If none can represent the Role without hiding structure in an
-`option` string, treat the work as a protocol change and update contracts, phase action types,
-validation, MCP transport, `_core` tool presentation, provider policy, and integration tests
-together.
+玩家动作面是 `packages/contracts/src/actions.ts` 中的封闭集合:发言、投票、夜晚动作、
+Sheriff 动作与 Skill 触发,通过五个 MCP 工具暴露。使用语义匹配的既有形状。如果没有一个形状
+能在不把结构隐藏进 `option` 字符串的情况下表达该 Role,则把这项工作视为协议变更,并一起
+更新 contracts、阶段动作类型、校验、MCP transport、`_core` 工具呈现、provider 策略与集成
+测试。
 
-## 2. Register one cohesive Rule plugin
+## 2. 注册一个内聚的 Rule plugin
 
-The current classic composition is under
-`packages/game-engine/src/rulesets/classic/plugins`. Add the Role plugin ID to the plugin ID owner,
-implement the Role in `rulesets/classic/roles`, and export one `RulePlugin<RulesetBuilder>` for the
-Role. Wire that plugin into the intended versioned ruleset manifest. Keep Role-specific branches
-inside the Role plugin rather than adding a Role-ID switch to kernel or generic orchestration code.
+当前经典组合位于
+`packages/game-engine/src/rulesets/classic/plugins`。把 Role plugin ID 加入 plugin ID 归属处,在
+`rulesets/classic/roles` 中实现该 Role,并为该 Role 导出一个 `RulePlugin<RulesetBuilder>`。把该
+plugin 接入目标版本化 Ruleset manifest。把 Role 专属分支保留在 Role plugin 内,而不是向内核
+或通用编排代码添加 Role-ID switch。
 
-Register only the extension points the Role needs:
+只注册该 Role 需要的扩展点:
 
-| Need                       | Registry or owner                                       | Current examples                          |
-| -------------------------- | ------------------------------------------------------- | ----------------------------------------- |
-| Role and abilities         | `roles.register`                                        | every Role plugin                         |
-| Own action stage           | `phases.insert` or `phases.register`                    | Seer, Guard, Magic Mirror Girl            |
-| Phase completion behavior  | `rules.registerPhaseHandler`                            | Idiot and functional phase plugins        |
-| Durable Role event state   | `events.register`                                       | Magic Mirror Girl, White Wolf King        |
-| Novel settlement operation | `resolution.registerEffect` and optional finalizer      | synthetic plugin runtime test             |
-| Identity or derived result | `queries.register` / `registerModifier`                 | classic identity queries                  |
-| Interactive reaction       | `triggers.registerDecision`                             | Hunter                                    |
-| Public phase interrupt     | phase interrupt capabilities plus `interrupts.register` | Werewolf, White Wolf King                 |
-| Alternate win condition    | `victories.register`                                    | classic victory and synthetic plugin test |
+| 需求               | Registry 或归属者                                  | 当前示例                                 |
+| ------------------ | -------------------------------------------------- | ---------------------------------------- |
+| Role 与 ability    | `roles.register`                                   | 每个 Role plugin                         |
+| 自有动作阶段       | `phases.insert` 或 `phases.register`               | Seer、Guard、Magic Mirror Girl           |
+| 阶段完成行为       | `rules.registerPhaseHandler`                       | Idiot 与功能性阶段 plugin                |
+| 持久 Role 事件状态 | `events.register`                                  | Magic Mirror Girl、White Wolf King       |
+| 新结算操作         | `resolution.registerEffect` 与可选 finalizer       | synthetic plugin runtime test            |
+| 身份或派生结果     | `queries.register` / `registerModifier`            | classic identity queries                 |
+| 交互式反应         | `triggers.registerDecision`                        | Hunter                                   |
+| 公开阶段 interrupt | 阶段 interrupt capability 加 `interrupts.register` | Werewolf、White Wolf King                |
+| 替代胜利条件       | `victories.register`                               | classic victory 与 synthetic plugin test |
 
-Every plugin config has a strict Zod schema. Declare dependencies by plugin ID and version when the
-plugin requires another registered semantic contract. Installation order is deterministic and
-semantic ownership is recorded automatically inside the plugin install scope.
+每个 plugin config 都有严格 Zod schema。当 plugin 需要另一个已注册语义契约时,以 plugin ID 与
+版本声明依赖。安装顺序是确定性的,语义归属会在 plugin install scope 内自动记录。
 
-### Role-owned phases
+### Role 专属阶段
 
-A Role-owned interactive `PhaseNode` declares its action type, visibility, capability or ability
-requirements, actor selector, activation predicate, and insertion points. The action contract is
-authoritative; do not infer behavior from a phase ID. Preserve parallel barrier semantics and use a
-sequential stage only when each earlier action must become visible to the next actor.
+Role 专属的交互式 `PhaseNode` 声明其动作类型、可见性、capability 或 ability 要求、actor 选择
+器、激活谓词与插入点。动作契约是权威的;不要从阶段 ID 推断行为。保持并行 barrier 语义,仅
+当每个较早的动作必须对下一个 actor 可见时才使用顺序阶段。
 
-When a Role can interrupt an existing public phase, add its capability to the owning functional
-phase's interrupt window. The functional phase owns when interrupts are legal; the Role plugin owns
-the capability and ability. Do not test for the Role ID.
+当 Role 可以 interrupt 既有公开阶段时,把它的 capability 加入归属功能性阶段的 interrupt 窗口。
+功能性阶段拥有 interrupt 何时合法;Role plugin 拥有该 capability 与 ability。不要针对 Role ID
+做测试。
 
-### Effects and settlement
+### 效果与结算
 
-Reuse a registered effect only when its semantics and interaction rules are exact. For novel
-behavior, define an `ExtensibleResolutionEffect`, a strict schema, a named lane, and an apply
-handler in the Role plugin. Use frame facts and finalizers for aggregate results. Ordering within a
-lane uses declared dependencies and stable registration order; cross-lane order follows the fixed
-resolution lane sequence. All enqueueing is bounded.
+只有当语义与交互规则完全一致时才复用已注册效果。对于新行为,在 Role plugin 中定义
+`ExtensibleResolutionEffect`、严格 schema、命名 lane 与 apply handler。对聚合结果使用 frame
+facts 与 finalizer。lane 内排序使用声明的依赖与稳定注册顺序;跨 lane 顺序遵循固定的结算 lane
+序列。所有入队都是有界的。
 
-Send deaths through the common damage/death/trigger pipeline when later reactions or victory must
-observe them. Test ordering explicitly when the Role can cause multiple deaths, prevention,
-redirection, or a death-trigger ability.
+当后续反应或胜负需要观察死亡时,通过公共伤害/死亡/trigger 管线发送死亡。当 Role 可能造成多
+重死亡、防止、转移或死亡触发 ability 时,显式测试排序。
 
-### Event-sourced Role state
+### 事件溯源的 Role 状态
 
-New Role-specific durable state uses a plugin event with:
+新的 Role 专属持久状态使用带以下要素的 plugin event:
 
-- a schema version;
-- strict state and data schemas;
-- an initial state;
-- a deterministic reducer.
+- 一个 schema 版本;
+- 严格的状态与数据 schema;
+- 一个初始状态;
+- 一个确定性 reducer。
 
-Emit the plugin event from the ability outcome or owning phase handler with its exact visibility.
-Read the reconstructed state from `GameState.pluginState` for later validation. Do not add new
-Role-specific memory mutations to the generic reducer. Add a restore test that rebuilds an engine
-from events and proves the state still controls legality.
+从 ability outcome 或归属阶段 handler 发出 plugin event,并带上其确切可见性。之后的校验从
+`GameState.pluginState` 读取重建状态。不要向通用 reducer 添加新的 Role 专属记忆变更。添加一
+个 restore 测试,从事件重建引擎并证明状态仍然控制合法性。
 
-## 3. Compose boards and rulesets
+## 3. 组合 board 与 Ruleset
 
-`BoardCatalogService.listRoles()` discovers installed Roles from the current `RoleRegistry`, so a
-new Role automatically becomes available to custom-board composition after installation. A
-built-in board still requires:
+`BoardCatalogService.listRoles()` 从当前 `RoleRegistry` 发现已安装 Role,因此新 Role 在安装后
+自动可用于自定义 board 组合。内置 board 仍需要:
 
-- a `BoardManifest` composition in `packages/game-engine/src/rulesets/classic/boards.ts`;
-- a server built-in board entry and localized name/description;
-- exports and catalog tests;
-- browser coverage for its composition.
+- `packages/game-engine/src/rulesets/classic/boards.ts` 中的 `BoardManifest` 组合;
+- server 内置 board 条目及本地化名称/描述;
+- 导出与 catalog 测试;
+- 其组合的浏览器覆盖。
 
-Validate whether the existing `BoardPolicies` can express the Role's configurable rules. A new
-policy is a wire and snapshot change: update contracts, manifest construction, Prompt facts,
-configuration UI when applicable, restore tests, and the owning architecture contract together.
+验证既有 `BoardPolicies` 能否表达该 Role 的可配置规则。新 policy 是一次 wire 与快照变更:一起
+更新 contracts、manifest 构造、Prompt facts、适用的配置 UI、restore 测试与归属架构契约。
 
-### Ruleset compatibility
+### Ruleset 兼容性
 
-The ordered installed plugins, their versions and validated configs form the ruleset fingerprint.
-Treat that identity as immutable once snapshots may exist.
+有序的已安装 plugin、其版本与校验过的配置构成 Ruleset 指纹。一旦可能存在快照,就把该身份视
+为不可变。
 
-When installing a new Role plugin or changing plugin version/configuration:
+当安装新 Role plugin 或变更 plugin 版本/配置时:
 
-1. preserve factories and exact plugin lists for existing ruleset IDs;
-2. create the next current ruleset ID/version with the new manifest;
-3. extend the snapshot schema's allowed ruleset IDs;
-4. update `apps/server/src/ruleset-catalog.ts` so each snapshot resolves its exact runtime and the
-   new ID is used only for newly created Matches;
-5. prove old snapshots still restore and mismatched fingerprints still fail closed.
+1. 为既有 Ruleset ID 保留 factory 与精确 plugin 列表;
+2. 用新 manifest 创建下一个当前 Ruleset ID/版本;
+3. 扩展快照 schema 允许的 Ruleset ID;
+4. 更新 `apps/server/src/ruleset-catalog.ts`,使每份快照解析到其精确运行时,且新 ID 只用于新
+   创建的 Match;
+5. 证明旧快照仍可恢复、不匹配指纹仍然失败关闭。
 
-Compatibility rulesets do not acquire the new Role retroactively. Simulation, trajectory audit,
-Match restore, Prompt composition, and live runtime must all obtain their runtime from the same
-`RulesetCatalog` path.
+兼容 Ruleset 不会追溯获得新 Role。仿真、轨迹审计、Match 恢复、Prompt 组合与运行时都必须从
+同一条 `RulesetCatalog` 路径获取运行时。
 
-## 4. Engine verification targets
+## 4. 引擎验证目标
 
-At minimum cover:
+至少覆盖:
 
-- valid action, every meaningful invalid target/timing/use case, and pass behavior;
-- capability authorization and absence from unrelated Roles;
-- exact phase insertion and actor selection;
-- effect ordering and all interaction policies;
-- event payload, visibility, reducer state, and restore;
-- trigger/interrupt/victory ordering when present;
-- deterministic replay for repeated seed and action sequence.
+- 合法动作、每个有意义的非法目标/时机/使用用例,以及 pass 行为;
+- capability 授权及其对无关 Role 的缺席;
+- 精确的阶段插入与 actor 选择;
+- 效果排序与全部交互策略;
+- 事件载荷、可见性、reducer 状态与恢复;
+- 存在时的 trigger/interrupt/victory 排序;
+- 相同种子与动作序列下的确定性 replay。
 
-Use `packages/game-engine/tests/plugin-runtime.test.ts` as proof that extensions need no kernel
-edits, and `plugin-roles.test.ts` as the integration style for complex production Roles.
+以 `packages/game-engine/tests/plugin-runtime.test.ts` 作为扩展无需内核改动的证明,以
+`plugin-roles.test.ts` 作为复杂生产 Role 的集成风格。

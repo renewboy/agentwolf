@@ -1,72 +1,66 @@
 ---
 name: agentwolf-role-development
-description: Implement or change a playable AgentWolf game Role across versioned ruleset plugins, Prompts, projections, effects, boards, strategy content, and verification. Use for Role semantics; do not use for Character persona cards.
+description: 在版本化 Ruleset plugin、Prompt、projection、效果、board、策略内容与验证中实现或修改一个可玩的 AgentWolf 游戏 Role。用于 Role 语义;不要用于 Character 人设卡。
 ---
 
-# AgentWolf Role development
+# AgentWolf Role 开发
 
-Deliver one playable game Role as a cohesive semantic plugin with complete player-facing and
-spectator-facing integration. A game Role controls rules, abilities, knowledge, and victory. A
-Character card controls public persona and expression; route Character-only work elsewhere.
+将一个可玩游戏 Role 作为完整的语义 plugin 交付,包含完整的玩家侧与观战侧集成。游戏 Role
+控制规则、Ability、知识与胜负;Character 卡控制公开人设与表达;仅涉及 Character 的工作请
+另行路由。
 
-## Establish the rule contract
+## 建立规则契约
 
-Before editing:
+编辑之前:
 
-1. Read the repository `AGENTS.md` chain, [game runtime](../../../docs/architecture/game-runtime.md),
-   and the [adopted rule baseline](../../../docs/reference/game-rules.md). Read only additional module
-   documents touched by the Role: Prompt/context, information synchronization, or Web client.
-2. Inspect the working tree and preserve unrelated changes. Treat existing Matches and
-   `.agentwolf/` runtime data as read-only unless the user explicitly authorizes mutation.
-3. Write down the Role's faction and kind; timing; legal actors and targets; pass rules; usage
-   limit; visibility of intent, result, and identity; interactions with protection, redirection,
-   death, Sheriff, and victory; and whether it enters a built-in board.
-4. Ask the user before implementation when any rule variant above is unspecified and different
-   choices change observable outcomes. Do not choose a folklore variant silently.
-5. Create a proposed Agent Note only when the Role changes a hard-to-reverse architecture, privacy,
-   durable-data, or shared extension contract. An ordinary Role addition needs no durable plan file.
+1. 阅读仓库 `AGENTS.md` 链、[游戏运行时](../../../docs/architecture/game-runtime.md)
+   与[已采用的规则基线](../../../docs/reference/game-rules.md)。只额外阅读被该 Role 触及的模块
+   文档:Prompt/上下文、信息同步或 Web 客户端。
+2. 检查工作树并保留无关改动。将既有 Match 与 `.agentwolf/` 运行时数据视为只读,除非用户
+   显式授权变更。
+3. 写下该 Role 的阵营与种类;时机;合法 actor 与目标;pass 规则;使用次数上限;意图、结果
+   与身份的可见性;与保护、转移、死亡、Sheriff 与胜负的交互;以及是否进入内置 board。
+4. 当上述任一规则变体未指定、且不同选择会改变可观察结果时,在实现前询问用户。不要悄悄
+   选择一个民间流变体。
+5. 仅当该 Role 改变难以逆转的架构、隐私、持久数据或共享扩展契约时,才创建 proposed Agent
+   Note。普通 Role 新增不需要持久计划文件。
 
-Choose existing examples by behavior, not by name:
+按行为而非按名字选择既有示例:
 
-- `VillagerRole` for a passive Role.
-- `SeerRole` or `GuardRole` for a normal night action.
-- `MagicMirrorGirlRole` for plugin event state and a private exact result.
-- `HunterRole` for a death decision trigger.
-- `WhiteWolfKingRole` for a public interrupt, shared faction capabilities, and chained death
-  settlement.
+- `VillagerRole`:被动 Role。
+- `SeerRole` 或 `GuardRole`:普通夜晚动作。
+- `MagicMirrorGirlRole`:plugin event 状态与私有精确结果。
+- `HunterRole`:死亡决策 trigger。
+- `WhiteWolfKingRole`:公开 interrupt、共享阵营 capability 与链式死亡结算。
 
-## Implement by semantic owner
+## 按语义归属实现
 
-Read [engine integration](references/engine-integration.md) before changing game behavior. It
-routes Role metadata, capabilities, abilities, phases, effects, plugin events, queries, triggers,
-interrupts, victory, board composition, and ruleset compatibility.
+在改动游戏行为之前阅读[引擎集成](references/engine-integration.md)。它为 Role 元数据、
+capability、ability、阶段、效果、plugin event、query、trigger、interrupt、victory、board 组成与
+Ruleset 兼容性提供路由。
 
-Read [presentation integration](references/presentation-integration.md) before making the Role
-installable or visible. It covers the companion Prompt bundle, visibility-safe narration and
-effects, localized UI assets, badge colors, player strategy pages, and built-in boards.
+在使 Role 可安装或可见之前阅读[呈现集成](references/presentation-integration.md)。它涵盖配套
+Prompt bundle、可见性安全的叙述与效果、本地化 UI 资产、徽章颜色、玩家策略页面与内置
+board。
 
-Read [verification and delivery](references/verification-and-delivery.md) before writing tests or
-closing the request. Select checks from the Role's actual behavior and run the full cross-layer gates
-for a shipped Role.
+在编写测试或关闭请求之前阅读[验证与交付](references/verification-and-delivery.md)。按 Role 的
+实际行为选择检查项,并为已交付的 Role 运行完整的跨层门禁。
 
-## Architectural invariants
+## 架构不变量
 
-- Generic kernel, Prompt runtime, and server composition code contain no concrete Role-ID or
-  Ability-ID dispatch. Use capabilities, registries, declared phase actions, and plugin-owned
-  semantics.
-- One Role plugin owns its Role, abilities, Role-specific phases, plugin events, and related
-  semantic registrations. Keep the versioned ruleset manifest declarative.
-- Validation is pure. Game changes enter as append-only events; durable Role state must reconstruct
-  from events and deterministic ruleset configuration.
-- Treat a published ruleset ID, version, ordered plugin lock, configuration, and fingerprint as
-  immutable. A changed installed manifest becomes a new current ruleset version while previous
-  snapshot resolvers remain available.
-- Every installed Role has a source-matched public introduction, a mapped player strategy page,
-  and either complete effect coverage or an explicit passive-role declaration.
+- 通用内核、Prompt 运行时与 server 组合代码不含具体 Role-ID 或 Ability-ID 分发。使用
+  capability、registry、声明的阶段动作与 plugin 持有的语义。
+- 一个 Role plugin 拥有它的 Role、ability、Role 专属阶段、plugin event 与相关语义注册。保持
+  版本化 Ruleset manifest 为声明式。
+- 校验是纯函数。游戏改动以 append-only 事件进入;持久 Role 状态必须能从事件与确定性
+  Ruleset 配置重建。
+- 将已发布的 Ruleset ID、版本、有序 plugin lock、配置与指纹视为不可变。已安装 manifest 的
+  变更会成为新的当前 Ruleset 版本,同时先前的快照 resolver 仍然可用。
+- 每个已安装 Role 拥有与源匹配的公开介绍、映射的玩家策略页面,以及完整效果覆盖或显式的
+  被动 Role 声明之一。
 
-## Completion standard
+## 完成标准
 
-Finish only when the Role can be selected through the intended board path, completes its legal and
-illegal actions through the real action gateway, restores from its event log, exposes no private
-facts to unauthorized views, renders its exact Prompt and public presentation, and passes focused,
-repository, simulation, and browser acceptance appropriate to its scope.
+只有当该 Role 可以通过预期的 board 路径被选中、通过真实 action gateway 完成其合法与非法动作、
+能从事件日志恢复、不向未授权视图暴露私有事实、渲染其精确 Prompt 与公开呈现,并通过与其范围
+相称的聚焦、仓库、仿真与浏览器验收时,才算完成。

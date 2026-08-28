@@ -1,30 +1,28 @@
-# Testing and acceptance
+# 测试与验收
 
-Tests prove external behavior and architecture boundaries. They do not substitute Agent self-report,
-and this document does not maintain a feature-by-feature coverage inventory.
+测试证明外部行为与架构边界。它们不以 Agent 自我报告为替代,本文档也不维护逐项功能的覆盖
+清单。
 
-## Test layers
+## 测试层级
 
-- The Vitest `node` project owns pure rules, schemas, rendering, normalization, catalogs, ACP
-  processes, repositories, services, and protocol integration.
-- The Vitest `web` project runs in jsdom with React Testing Library, user-event, and jest-dom. It
-  owns browser API clients, pure presentation logic, reusable interactions, hooks, page states, and
-  component behavior.
-- Property tests own broad deterministic invariants such as legal player counts, event monotonicity,
-  replay, and death/action ordering.
-- Integration tests own REST/WebSocket contracts, SQLite repositories and migrations, Match runtime,
-  ACP protocol fakes, projection, delivery, recovery, postgame, trajectory, and simulation services.
-- Contract tests parse shared fixtures at producer and consumer boundaries.
-- Simulation corpus tests replay reviewed real-Match decisions through both the game engine and
-  production orchestration with deterministic fake Sessions.
-- Browser tests own visible workflows, keyboard/focus behavior, responsive containment, live
-  reconnect, speech playback, and motion cleanup.
-- Optional live smokes own installed ACP adapter behavior, real structured actions, local Skill
-  access, and sandbox rejection. They do not run in keyless CI.
+- Vitest `node` 项目拥有纯规则、schemas、渲染、规范化、目录、ACP 进程、repositories、
+  services 与协议集成。
+- Vitest `web` 项目运行在 jsdom 中,使用 React Testing Library、user-event 与 jest-dom。它
+  拥有浏览器 API 客户端、纯表现逻辑、可复用交互、hooks、页面状态与组件行为。
+- Property tests 拥有广泛的确定性不变量,如合法玩家人数、事件单调性、replay 与死亡/动作
+  顺序。
+- 集成测试拥有 REST/WebSocket 契约、SQLite repositories 与迁移、Match 运行时、ACP 协议
+  fakes、projection、送达、恢复、赛后、轨迹与仿真服务。
+- Contract tests 在生产者与消费者边界解析共享 fixtures。
+- 仿真语料测试通过游戏引擎与生产编排、使用确定性 fake Sessions 重放已审查的真实 Match
+  决策。
+- 浏览器测试拥有可见工作流、键盘/焦点行为、响应式包含、实时重连、语音播报与动效清理。
+- 可选的 live smokes 拥有已安装 ACP 适配器行为、真实结构化动作、本地 Skill 访问与 sandbox
+  拒绝。它们不在无凭据的 CI 中运行。
 
-Detailed scenarios belong in descriptively named tests and fixtures beside their implementation.
+详细场景属于实现旁边、以描述性命名的测试与 fixture。
 
-## Commands
+## 命令
 
 ```sh
 pnpm typecheck
@@ -40,63 +38,53 @@ pnpm test:simulation
 pnpm simulation:check
 ```
 
-`pnpm check` is the deterministic repository gate: architecture, artifacts, documentation, Skills,
-types, lint, formatting, dependency hygiene, duplication, unit/integration coverage, and production
-build. It excludes credentialed model calls.
+`pnpm check` 是确定性的仓库门禁:架构、artifacts、文档、Skills、类型、lint、格式化、依赖
+卫生、重复、单元/集成覆盖与生产构建。它排除需要凭据的模型调用。
 
-Use focused Vitest or Playwright targets while iterating. Run the complete repository gate for
-cross-layer changes and `pnpm test:e2e` for user-visible browser behavior. Run live smokes only when
-provider behavior is in scope and credentials are available.
+迭代期间使用聚焦的 Vitest 或 Playwright 目标。跨层改动运行完整仓库门禁,用户可见的浏览器
+行为运行 `pnpm test:e2e`。仅在提供方行为在范围内且凭据可用时运行 live smokes。
 
-## Coverage contract
+## 覆盖率契约
 
-`pnpm test:coverage` runs the Node and Web Vitest projects together. Coverage includes product
-runtime source under `packages/*/src`, `apps/server/src`, and `apps/web/src`. Repository scripts stay
-under their dedicated static and unit checks.
+`pnpm test:coverage` 一起运行 Node 与 Web 的 Vitest 项目。覆盖率包含 `packages/*/src`、
+`apps/server/src` 与 `apps/web/src` 下的产品运行时源码。仓库脚本保持在它们专属的静态与单元
+检查之下。
 
-Every included file must reach at least 80 percent statements, branches, functions, and lines. The
-report uses 50 and 80 percent watermarks and emits terminal, JSON summary, and HTML output. The only
-coverage exclusions are behavior-free package barrels, CLI and browser launchers, error declarations,
-and the Web GSAP forwarding boundary. Do not add exclusions, ignore comments, or unreachable fallback
-tests to satisfy the threshold.
+每个纳入统计的文件必须达到至少 80% 的 statements、branches、functions 与 lines。报告使用
+50% 与 80% 水位线,并输出终端、JSON 摘要与 HTML。唯一的覆盖率豁免是无行为的 package
+barrels、CLI 与浏览器启动器、错误声明,以及 Web 的 GSAP 转发边界。不要为满足阈值而新增
+豁免、ignore 注释或不可达的兜底测试。
 
-## Browser suite isolation
+## 浏览器套件隔离
 
-Playwright specifications are grouped by product domain and may run independently. Parallel Chromium
-workers create Tool, Profile, Character, board, and Match records inside a worker-specific namespace
-and remove them in dependency order during teardown. Settings and Profile-order scenarios run in the
-dependent `chromium-configuration` project so global mutations do not race parallel scenarios.
+Playwright 规范按产品域分组,可独立运行。并行的 Chromium worker 在 worker 专属命名空间内
+创建 Tool、Profile、Character、board 与 Match 记录,并在 teardown 中按依赖顺序移除。设置与
+Profile 顺序场景在依赖型的 `chromium-configuration` 项目中运行,使全局变更不与并行场景竞争。
 
-The browser server uses an in-memory E2E database. Shared Match DTO, speech, real-time connection,
-resource, and cleanup helpers live under `e2e/fixtures`. Architecture checks reject any E2E
-specification over 500 lines.
+浏览器 server 使用内存型 E2E 数据库。共享的 Match DTO、发言、实时连接、资源与清理 helper
+位于 `e2e/fixtures` 下。架构检查拒绝超过 500 行的 E2E 规范。
 
-## Test data
+## 测试数据
 
-- Tests create uniquely named Agent Tools, Profiles, Characters, boards, Matches, and candidates.
-- Reusable-server browser tests delete every created record in teardown, including after assertions
-  fail, and verify no test event or delivery ledger remains.
-- Tests never reuse, rename, delete, or reorder user-owned runtime records.
-- Runtime databases, Sessions, generated speech, screenshots, videos, and browser traces remain under
-  ignored `.agentwolf/` or test-output directories.
-- Approved simulation fixtures contain sanitized structural decisions and reviewed semantic oracles,
-  never credentials, raw Prompts, reasoning, tool output, runtime paths, or source Match identity.
+- 测试创建唯一命名的 Agent Tools、Profiles、Characters、boards、Matches 与候选。
+- 复用 server 的浏览器测试在 teardown 中删除每一条创建的记录(包括断言失败之后),并验证
+  不残留测试事件或送达台账。
+- 测试绝不复用、重命名、删除或重排用户拥有的运行时记录。
+- 运行时数据库、Sessions、生成发言、截图、视频与浏览器轨迹保留在被忽略的 `.agentwolf/` 或
+  测试输出目录下。
+- 已批准的仿真 fixture 包含脱敏的结构化决策与已审查的语义 oracle,绝不包含凭据、原始
+  Prompt、推理、工具输出、运行时路径或源 Match 身份。
 
-## Assertion policy
+## 断言政策
 
-- Assert the authoritative event, schema, database row, protocol message, projected DTO, rendered UI,
-  or process state.
-- A test must fail when the owned behavior breaks; avoid assertions against duplicated implementation
-  details or another test's summary.
-- Visibility tests exercise god, actor, unrelated-player, faction, and closed-eye projections at the
-  server boundary before browser presentation.
-- Parallel tests freeze one actor barrier and prove no completion-order leak. Recovery tests prove the
-  same Session ID and accepted-action reconciliation.
-- Model- or user-visible prose changes inspect the actual rendered Prompt or browser artifact rather
-  than checking only source-file presence.
+- 断言权威事件、schema、数据库行、协议消息、投影 DTO、渲染 UI 或进程状态。
+- 当所拥有的行为破坏时测试必须失败;避免对复制的实现细节或另一个测试的摘要做断言。
+- 可见性测试在 server 边界、浏览器呈现之前,练习上帝、行为者、无关玩家、阵营与闭眼投影。
+- 并行测试冻结一份行为者 barrier 并证明无完成顺序泄露。恢复测试证明同一 Session ID 与
+  已接受动作的对账。
+- 模型或用户可见的行文变化检查实际渲染的 Prompt 或浏览器产物,而不只检查源文件存在。
 
-## Acceptance evidence
+## 验收证据
 
-Concrete commands and observed results are reported in the request handoff or CI. Durable Agent Notes
-may name stable verification contracts, but the repository does not store per-request completion
-plans, dated test totals, or duplicate acceptance summaries.
+具体命令与观察结果在请求交接或 CI 中报告。持久 Agent Notes 可以命名稳定的验证契约,但仓库
+不存储逐请求的完成计划、带日期的测试总数或重复的验收摘要。

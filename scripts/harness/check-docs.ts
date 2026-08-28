@@ -172,11 +172,10 @@ for (const path of nestedAgentFiles) {
     continue
   }
   const parentLink = relative(dirname(path), parentAgentsPath).replaceAll('\\', '/')
-  const parentLabel =
-    parentAgentsPath === rootAgentsPath ? 'the root AGENTS.md' : 'the parent AGENTS.md'
-  const expectedReference = `See [${parentLabel}](${parentLink})`
+  // 结构不变量:嵌套 AGENTS.md 必须以相对链接指向最近的祖先 AGENTS.md;链接文本语言不限。
+  const expectedReference = `](${parentLink})`
   if (!(await text(path)).includes(expectedReference)) {
-    errors.push(`${localPath(path)} must contain ${expectedReference}`)
+    errors.push(`${localPath(path)} must link to ${parentLink}`)
   }
 }
 

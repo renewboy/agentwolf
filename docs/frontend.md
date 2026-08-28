@@ -1,76 +1,67 @@
-# Frontend direction
+# 前端方向
 
-AgentWolf presents a desktop-first live strategy-game stage for human spectators. Its visual language
-is a moonlit tribunal: restrained, information-dense, and clearly alive without imitating model
-reasoning or invented progress.
+AgentWolf 呈现一个桌面优先的实时策略游戏舞台,面向人类观战者。其视觉语言是一场月光下的
+庭审:克制、信息密集、明确地保有生命感,而不模仿模型推理或虚构的进度。
 
-The technical browser boundary lives in [Web client architecture](architecture/web-client.md). The
-visual reference is [match-stage.png](design/reference/match-stage.png), generated from
-[match-stage.prompt.md](design/reference/match-stage.prompt.md); [match-motion.md](design/reference/match-motion.md)
-defines event-driven motion. The reference image is not a runtime background.
+技术性浏览器边界见 [Web 客户端架构](architecture/web-client.md)。视觉参考是
+[match-stage.png](design/reference/match-stage.png),由
+[match-stage.prompt.md](design/reference/match-stage.prompt.md) 生成;
+[match-motion.md](design/reference/match-motion.md) 定义事件驱动的动效。参考图不是运行时
+背景。
 
-## Visual system
+## 视觉系统
 
-- Base palette: ink navy, graphite, desaturated silver, warm amber, and a deep crimson decision
-  accent.
-- Typography: readable Chinese sans for controls and transcript, with a restrained Song-style display
-  face for the product title.
-- Surfaces: compact controls, bounded stage panels, circular player medallions, low-contrast gradients,
-  inset highlights, lunar haze, and static grain rather than glass or neon decoration.
-- Phosphor is the icon family. Emoji are not interface icons.
-- Visible identities use one labeled semantic Role badge system across setup, Match, and developer
-  views. Hidden identities use one neutral badge and never expose a Role-specific color.
+- 基础配色:墨蓝、石墨、去饱和银灰、暖琥珀,以及深绯红的决策强调色。
+- 字体:控件与文字记录使用可读的中文无衬线体,产品标题使用克制的宋体展示字型。
+- 表面:紧凑控件、有边界的舞台面板、圆形玩家徽章、低对比渐变、内嵌高光、月雾与静态颗粒,
+  而非玻璃或霓虹装饰。
+- Phosphor 是图标族。Emoji 不是界面图标。
+- 可见身份在配置、Match 与开发者视图中统一使用一套带标签的语义 Role 徽章系统。隐藏身份使用
+  同一种中性徽章,绝不暴露 Role 专属颜色。
 
-## Layout principles
+## 布局原则
 
-- The live Match uses a `100dvh` shell. The document does not scroll; the center feed owns its
-  independent history range.
-- Desktop player rails remain visible on both sides of the center stage. Narrow layouts combine them
-  into a horizontal player HUD without hiding identity-safe state.
-- Nickname is the primary Match identity. Character name, portrait, Agent configuration, and visible
-  Role state remain structured secondary information.
-- Postgame keeps the speech feed primary. Rating detail uses a separate inspector; narrow screens
-  switch explicitly between inspector and feed rather than overlaying dialogue.
-- Modal and listbox bodies own their internal scrolling and remain within mobile safe areas.
+- 实时 Match 使用 `100dvh` 外壳。文档不滚动;中央信息流拥有自己独立的历史范围。
+- 桌面端玩家栏保持在中央舞台两侧可见。窄屏布局将其合并为水平玩家 HUD,且不隐藏身份安全的
+  状态。
+- 昵称是 Match 的首要身份。Character 名、头像、Agent 配置与可见 Role 状态保持为结构化的
+  次要信息。
+- 赛后阶段保持发言信息流为主。评分详情使用独立检查器;窄屏在检查器与信息流之间显式切换,
+  而不是叠加对话。
+- Modal 与 listbox 主体拥有自己的内部滚动,并保持在移动端安全区内。
 
-Exact page composition belongs to React components and browser tests, not this direction document.
+确切的页面构成属于 React 组件与浏览器测试,不属于本方向文档。
 
-## Interaction feedback
+## 交互反馈
 
-Production selection controls use `GameSelect`; destructive actions use `ConfirmDialog`. Native
-`<select>` elements and browser alert, confirm, or prompt APIs are not product controls.
+生产环境的选择控件使用 `GameSelect`;破坏性动作使用 `ConfirmDialog`。原生 `<select>` 元素与
+浏览器的 alert、confirm、prompt API 不是产品控件。
 
-Listboxes support arrow keys, Home, End, Enter, Escape, type search, selected state, and internal
-scrolling through a portal that is not clipped by parent containers. Confirmation dialogs use the
-application overlay and visual tokens, focus the safe action first, trap focus, support Escape, block
-background keyboard and pointer input, and restore trigger focus when closed.
+Listbox 支持方向键、Home、End、Enter、Escape、输入搜索、选中状态与内部滚动,通过一个不被
+父容器裁剪的 portal 呈现。确认对话框使用应用级 overlay 与视觉 token,先聚焦安全动作、限制
+焦点、支持 Escape、阻断背景键盘与指针输入,并在关闭时恢复触发焦点。
 
-Interaction state uses text, icons, shape, or accessible state in addition to color. Control copy
-comes from `packages/assets/copy`; control styles come from `packages/assets/styles`.
+交互状态在颜色之外使用文本、图标、形状或可访问状态。控件文案来自 `packages/assets/copy`;
+控件样式来自 `packages/assets/styles`。
 
-Drag-and-drop provides a following drag image, lifted source, insertion marker, and equivalent
-keyboard ordering. Every asynchronous action exposes an explicit idle, working, success, empty, or
-error state.
+拖放提供跟随的拖拽影像、抬起的源元素、插入标记与等效的键盘排序。每个异步动作都暴露明确的
+idle、working、success、empty 或 error 状态。
 
-Repository checks reject native controls and browser prompt APIs. Browser coverage exercises opening,
-selection, cancellation, confirmation, keyboard navigation, focus containment, and focus restoration.
+仓库检查拒绝原生控件与浏览器 prompt API。浏览器覆盖练习打开、选择、取消、确认、键盘导航、
+焦点限制与焦点恢复。
 
-## Live feedback
+## 实时反馈
 
-Waiting states communicate connection, synchronization, Agent work, and recovery without percentages,
-reasoning text, or completion estimates. Continuous feedback uses transform and opacity and stops
-when the state settles.
+等待状态传达连接、同步、Agent 工作与恢复,不使用百分比、推理文本或完成时间估计。持续反馈
+使用 transform 与 opacity,并在状态落定时停止。
 
-Session and phase status comes from server snapshots. Closed-eye and unrelated-player views do not
-render private actor status. View switching covers the old projection until the next projection is
-ready. Transient reconnect preserves the last valid screen; terminal unavailable state removes it and
-does not keep retrying.
+Session 与阶段状态来自 server 快照。闭眼视角与无关玩家视图不渲染私密行为者状态。视图切换
+会遮盖旧投影,直到下一个投影就绪。瞬时重连保留最后一个有效画面;终局不可用状态将其移除并不
+再重试。
 
-## Motion and audio
+## 动效与音频
 
-Motion explains state change: startup, waiting, streamed speech, phase transition, vote resolution,
-Role action, recovery, and terminal result.
+动效解释状态变化:启动、等待、流式发言、阶段切换、投票结算、Role 动作、恢复与终局结果。
 
-Automatic speech playback identifies one active item and offers skip; manual history playback remains
-disabled until that queue is idle. Committed speech otherwise exposes manual play and stop. Audio
-failure releases progression and reports a visible outcome instead of blocking the Match.
+自动语音播报标识唯一活跃条目并提供跳过;在该队列空闲之前,手动历史播报保持禁用。除此之外,
+已提交发言提供手动播放与停止。音频失败会释放对局推进,并报告可见结果,而不是阻塞 Match。

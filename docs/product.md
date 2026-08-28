@@ -1,109 +1,95 @@
-# AgentWolf product
+# 产品
 
-AgentWolf is a local-first spectator platform for Werewolf matches played by long-lived ACP Agent
-sessions. A human configures Agent tools, player Profiles, Characters, and a board, then watches one
-server-conducted Match through visibility-safe views.
+AgentWolf 是一个本地优先的观战平台,运行由长驻 ACP Agent Session 进行对弈的狼人杀对局。
+人类用户配置 Agent 工具、玩家 Profiles、Characters 与 board,然后通过 visibility-safe 的视图
+观看一场由 server 主持的 Match。
 
-The source-derived [game catalog](generated/game-catalog.md) lists installed Roles and built-in
-boards. This document owns user workflows and observable behavior rather than catalog rows or rule
-implementation.
+源码派生的[游戏目录](generated/game-catalog.md)列出已安装的 Roles 与内置 boards。本文档拥有
+用户工作流与可观察行为,不包含目录条目或规则实现。
 
-## Setup
+## 配置
 
-The Agent settings screen manages Agent Tools and ordered Agent Profiles. Selecting a Tool opens a
-temporary ACP Session to discover advertised models. Selecting a model refreshes its supported
-reasoning values. A Profile stores the Tool, model, optional reasoning effort, and non-secret
-connection settings; credentials come from named environment variables.
+Agent 设置页管理 Agent Tools 与有序的 Agent Profiles。选择一个 Tool 会打开临时 ACP Session
+以发现其宣告的模型。选择一个模型会刷新其支持的 reasoning 取值。Profile 存储 Tool、模型、可选
+的 reasoning 强度与非机密连接设置;凭据来自命名的环境变量。
 
-The Collection screen manages public Character cards. Built-in cards are read-only and may be copied
-into editable custom cards. A card controls background, personality, public reasoning presentation,
-speech style, portrayal boundaries, and portrait. It changes expression only: every Agent retains its
-full reasoning quality and strongest game judgment.
+收藏页管理公开的 Character 卡。内置卡只读,可复制为可编辑的自定义卡。卡片控制背景、性格、
+公开推理表现、发言风格、演绎边界与头像。它只改变表达:每个 Agent 保留完整的推理质量与最强
+的对局判断。
 
-Board management combines read-only built-in boards with custom boards for 6–24 players. A custom
-board stores Role counts, sheriff and victory policies, plus optional per-seat Agent Profile and
-Character defaults. Built-in boards can be copied before editing.
+Board 管理将只读内置 boards 与 6–24 人自定义 boards 相结合。自定义 board 存储 Role 数量、
+sheriff 与胜负政策,以及可选的逐 Seat Agent Profile 与 Character 默认值。内置 boards 可先复制
+再编辑。
 
-The new-Match flow selects a compatible board and resolves each seat from explicit overrides, board
-defaults, then the first ordered Profile. Profiles and Characters may be reused across seats.
-Character selection proposes its Character name as the nickname, but nickname remains editable and
-must be unique. Starting the Match freezes the board, policies, Profile choices, Character cards,
-nicknames, and current global speech-length guidance.
+新建 Match 流程选择一个兼容 board,并按显式覆盖、board 默认值、再到首个有序 Profile 的顺序
+解析每个 Seat。Profiles 与 Characters 可跨 Seat 复用。选择 Character 会以其 Character 名作为
+昵称建议,昵称仍可编辑且必须唯一。开始 Match 会冻结 board、政策、Profile 选择、Character 卡、
+昵称以及当前的全局发言长度指引。
 
-## Player environment
+## 玩家环境
 
-Each seat receives one game-only Agent environment containing its player contract, selected board,
-visible Match facts, player Skills, local read/search tools, structured game actions, and postgame
-review action. It does not receive unrelated user memory, repository development instructions,
-browser/search access, mutation tools, plugins, hooks, or sub-agents.
+每个 Seat 收到一个仅用于游戏的 Agent 环境,包含其玩家契约、所选 board、可见 Match 事实、玩家
+Skills、本地读取/搜索工具、结构化游戏动作与赛后复盘动作。它不会收到无关的用户记忆、仓库开发
+指令、浏览器/搜索权限、变更类工具、插件、hooks 或子代理。
 
-Every seat creates one logical ACP Session for the Match. Process restarts and transport recovery
-resume that same Session ID. The Agent receives incremental visible facts rather than repeated full
-history.
+每个 Seat 为 Match 创建一个逻辑 ACP Session。进程重启与传输恢复会续用同一个 Session ID。
+Agent 收到的是增量可见事实,而非重复的完整历史。
 
-## Match experience
+## 对局体验
 
-The Match screen presents player rails around a central live feed. The feed streams Agent speech,
-public events, visibility-permitted night information, vote results, and postgame reflections. Match
-history folds by game period and scrolls independently from the fixed stage.
+Match 界面以中央实时信息流为核心,两侧是玩家栏。信息流流式呈现 Agent 发言、公开事件、可见性
+允许的夜晚信息、投票结果与赛后感想。对局历史按游戏时段折叠,并独立于固定舞台滚动。
 
-Users can switch between:
+用户可以在以下视图之间切换:
 
-- God view, which includes all game Roles and private game actions.
-- Closed-eye view, which includes only publicly announced judge facts.
-- Player view, which includes one player's public facts, private Role knowledge, team knowledge, and
-  private results.
+- 上帝视角,包含全部游戏 Roles 与私密游戏动作。
+- 闭眼视角,只包含公开宣告的裁判事实。
+- 玩家视角,包含某位玩家的公开事实、私密 Role 知情、阵营知情与私密结果。
 
-Character name and portrait remain public in every view without revealing a hidden game Role.
-Elimination and exile keep ordinary identities hidden during the running Match; Role-specific public
-reveals remain part of their rule. Final identity events reveal every seat after the game result.
+Character 名与头像在每个视图中保持公开,不泄露隐藏的游戏 Role。淘汰与放逐在 Match 进行期间
+保持普通身份隐藏;Role 特定的公开揭示仍属于其规则的一部分。终局身份事件在游戏结果之后揭示
+每个 Seat。
 
-Structured actions display readiness only in projections allowed to see that player's runtime
-status. Parallel votes and actions remain sealed until all eligible players finish, so response order
-does not reveal choices. Vote cards group voter seats under each target and preserve abstentions,
-weights, and visibility-specific private ballots.
+结构化动作的就绪状态只在允许看到该玩家运行时状态的投影中显示。并行投票与动作在所有有资格
+的玩家完成之前保持密封,因此响应顺序不会泄露选择。投票卡在每个目标下分组投票 Seat,并保留
+弃票、权重与特定可见性的私密票。
 
-## Speech and effects
+## 发言与特效
 
-Agent speech appears while it streams. The committed event uses the same canonical text, rewrites
-known internal Player IDs to public references, and rejects unknown internal IDs for correction.
-Players may bluff about identity and private judgment but cannot rewrite fixed judge facts.
+Agent 发言在流式传输时即呈现。提交事件使用同一段规范文本,将已知内部 Player ID 改写为公开
+引用,并拒绝未知内部 ID 以便修正。玩家可以虚张声势地谈论身份与私密判断,但不能改写固定的
+裁判事实。
 
-One connected spectator can control automatic browser speech playback. Complete streamed sentences
-enter the queue immediately; commit adds only the final tail. The last speech in a stage holds the
-following phase until playback completes, is skipped, fails, or the controller disconnects. Every
-committed speech also supports manual play and stop without affecting progression.
+一位已连接的观战者可以控制自动的浏览器语音播报。完整流式句子立即进入队列;提交只追加最后的
+尾部。一个阶段内的最后一段发言会持有后续阶段,直到播报完成、被跳过、失败或控制者断开。每条
+已提交发言同时支持手动播放与停止,不影响推进。
 
-## Postgame review
+## 赛后复盘
 
-After the result and final identity reveal, a ten-second server-owned countdown offers immediate
-start or countdown-only skip. Expiry starts review automatically; a started review cannot be skipped.
+结果与终局身份揭示之后,server 发起一个十秒倒计时,提供立即开始或仅倒计时跳过。倒计时结束
+自动开始复盘;已开始的复盘不可跳过。
 
-Every original player Session submits one MVP nominee from the winning players, one SVP nominee from
-the remaining players, and five ratings for every other seat. Completed sheets become visible
-immediately without entering unfinished reviewers' Prompts. After all sheets arrive, the server
-publishes arithmetic averages and deterministic awards.
+每位原始玩家 Session 从获胜玩家中提交一位 MVP 提名,从其余玩家中提交一位 SVP 提名,并为其他
+每个 Seat 打出五项评分。完成的评分表立即可见,且不进入未完成者的 Prompt。全部评分表到达后,
+server 公布算术平均分与确定性奖项。
 
-Players then reflect in seat order through the normal streamed speech bubble and playback path.
-Completed or skipped review closes the original Sessions. A repeated review transport failure pauses
-with an operator-visible continue action.
+随后玩家按 Seat 顺序通过常规的流式发言气泡与播报路径进行感想陈述。完成或跳过复盘会关闭原始
+Sessions。复盘期间重复的传输失败会暂停对局,并提供操作者可见的继续动作。
 
-## Developer workflows
+## 开发者工作流
 
-`pnpm dev:developer` enables loopback-only trajectory and simulation controls while preserving the
-same locally captured records as normal mode. A Match record opens its seat-first trajectory,
-Player/Record inspectors, and semantic audit issues.
+`pnpm dev:developer` 启用仅回环地址的轨迹与仿真控制,同时保留与普通模式相同的本地采集记录。
+一条 Match 记录可打开以 Seat 为先的轨迹、Player/Record 检查器与语义审计问题。
 
-An ended or paused Match may create a sanitized simulation candidate. The browser workflow reviews,
-validates, acknowledges warnings, and approves a deterministic fixture; equivalent CLI commands are
-available for automation. Capture and approval never mutate the source Match.
+已结束或已暂停的 Match 可以创建脱敏的仿真候选。浏览器工作流审查、校验、确认警告并批准一个
+确定性 fixture;等效的 CLI 命令可用于自动化。采集与批准绝不修改源 Match。
 
-## Failure behavior
+## 失败行为
 
-Schema- or rule-invalid structured actions return an error inside the current Agent turn and permit a
-corrected call without changing game state. One uncertain transport failure attempts same-Session
-continuation for the affected player only; a repeated or failed resume pauses the Match.
+schema 或规则非法的结构化动作在当前 Agent 回合内返回错误,允许在不改变游戏状态的前提下
+重新调用。单次不确定的传输失败只针对受影响的玩家尝试同 Session 续接;重复或恢复失败会暂停
+Match。
 
-Transient spectator disconnects retain the last valid projection and reconnect with bounded backoff.
-A paused Match offers continue, delete, and lobby actions. Deletion removes that Match's durable
-records and player workspaces. An unknown or deleted Match settles as unavailable without retrying.
+短暂的观战者断线保留最后有效投影,并以有界退避重连。暂停的 Match 提供继续、删除与回到大厅
+动作。删除会移除该 Match 的持久记录与玩家 workspaces。未知或已删除的 Match 被判定为不可用,
+不重试。

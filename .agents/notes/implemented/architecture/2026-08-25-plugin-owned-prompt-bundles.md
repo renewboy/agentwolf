@@ -1,44 +1,40 @@
-# Agent Note: Plugin-owned Prompt bundles
+# Agent Note: 插件持有的 Prompt bundles
 
 Status: implemented
 
 ## Problem
 
-A central Prompt catalog or server dispatch table repeats concrete game IDs outside their RulePlugin,
-makes every Role extension a shared edit, and risks mixing private model context into public assets.
+中央 Prompt 目录或 server 分发表在 RulePlugin 之外重复具体游戏 ID,使每次 Role 扩展都成为
+共享编辑,并存在把私有模型上下文混入公开 assets 的风险。
 
 ## Decision
 
-Every installed RulePlugin has one companion non-localized Nunjucks bundle with the same plugin ID.
-The `_core` bundle owns only Session framing, generic layouts, Character framing, references, and tool
-contracts. Functional and Role bundles own their complete Role, Ability, Phase, event, announcement,
-and interrupt presentation.
+每个已安装的 RulePlugin 拥有一份同 ID 的配套非本地化 Nunjucks bundle。`_core` bundle 只拥有
+Session 框架、通用布局、Character 框架、引用与工具契约。功能与 Role bundle 拥有各自完整的
+Role、Ability、Phase、event、公告与 interrupt 呈现。
 
-The server adapts frozen Ruleset contribution records into a plain assets-owned semantic inventory.
-The bundle registry validates exact coverage, ownership, imports, audience direction, path
-containment, and event-matcher ambiguity before rendering. `ContextRenderer` passes public and
-actor-owned visible facts rather than engine state.
+server 将冻结的 Ruleset 贡献记录适配为一份由 assets 持有的简单语义清单。bundle registry 在渲染
+之前校验精确覆盖、归属、import、受众方向、路径包含与 event-matcher 歧义。`ContextRenderer`
+传入公开与 actor 自有的可见事实,而非引擎状态。
 
-Trajectory stores exact rendered Prompt text. Runtime and fixtures carry no Prompt-version selector.
-The current contract is defined in
-[Prompt and player context](../../../../docs/architecture/prompt-and-context.md).
+Trajectory 存储精确渲染的 Prompt 文本。运行时与 fixture 不携带 Prompt 版本选择器。当前契约
+定义于
+[Prompt 与玩家上下文](../../../../docs/architecture/prompt-and-context.md)。
 
 ## Alternatives considered
 
-**Global Role, phase, and event presentation tables.** They recreate central semantic authority and
-require unrelated shared edits for each plugin.
+**全局 Role、阶段与 event 呈现表。** 它们重建中央语义权威,并要求每个 plugin 进行互不相关
+的共享编辑。
 
-**Localized Prompt dictionaries or one template per sentence.** Model instructions are not UI copy;
-fragmentation obscures complete action contracts and conditional context.
+**本地化 Prompt 词典或一句一模板。** 模型指令不是 UI 文案;碎片化会遮蔽完整的动作契约与条件
+上下文。
 
-**Prompt metadata in engine definitions.** This couples deterministic rules to assets and reverses
-the package dependency direction.
+**引擎定义中的 Prompt 元数据。** 这会把确定性规则耦合到 assets,并反转 package 依赖方向。
 
-**Version-selectable Prompt rendering.** Exact sent text is already durable evidence; runtime
-selectors would preserve obsolete presentation branches indefinitely.
+**可选择版本的 Prompt 渲染。** 精确发送的文本本身就是持久证据;运行时选择器会无限期保留
+过时的呈现分支。
 
 ## Consequences
 
-New game semantics extend Prompt presentation through the same plugin ownership boundary. Missing,
-duplicate, ambiguous, cross-audience, or path-escaping presentation fails before the first render.
-Generic runtime code and public templates remain free of concrete private game branches.
+新的游戏语义通过同一个 plugin 归属边界扩展 Prompt 呈现。缺失、重复、歧义、跨受众或路径逃逸
+的呈现会在第一次渲染之前失败。通用运行时代码与公开模板保持不含具体的私有游戏分支。

@@ -1,73 +1,60 @@
-# Web client architecture
+# Web 客户端架构
 
-## Responsibility
+## 职责
 
-The Web client presents setup catalogs, Match state, postgame review, and developer diagnostics from
-validated REST and WebSocket DTOs. It owns browser lifecycle, interaction, local presentation state,
-speech playback, and semantic effect execution.
+Web 客户端从经校验的 REST 与 WebSocket DTOs 呈现配置目录、Match 状态、赛后复盘与开发者诊断。
+它拥有浏览器生命周期、交互、本地呈现状态、语音播报与语义特效执行。
 
-[`apps/web`](../../apps/web/README.md) implements the module. Product rules, persistence, hidden-field
-filtering, and server orchestration never move into the browser.
+[`apps/web`](../../apps/web/README.md) 实现该模块。产品规则、持久化、隐藏字段过滤与 server
+编排绝不移入浏览器。
 
-## Boundaries
+## 边界
 
-- `src/api.ts` validates every server response and client message through contracts schemas.
-- Pages compose product flows; reusable components own interaction and presentation; hooks own
-  browser effects and external lifecycles.
-- The browser trusts the selected projection because the server removed unauthorized fields before
-  serialization; local hiding is never a secrecy mechanism.
+- `src/api.ts` 通过 contracts schemas 校验每一条 server 响应与客户端消息。
+- 页面组合产品流程;可复用组件拥有交互与呈现;hooks 拥有浏览器特效与外部生命周期。
+- 浏览器信任所选投影,因为 server 在序列化之前移除了未授权字段;本地隐藏从不是保密机制。
 
-## Live state
+## 实时状态
 
-`useLiveMatch` retains the last valid snapshot across transient WebSocket closure, refreshes over
-HTTP, and reconnects with bounded backoff. A view change covers the current projection before
-requesting another and establishes a new role-effect baseline.
+`useLiveMatch` 在瞬时 WebSocket 闭锁期间保留最后有效快照,通过 HTTP 刷新,并以有界退避重连。
+一次视图变更在请求另一投影之前遮盖当前投影,并建立新的角色特效基线。
 
-Unknown or deleted Matches settle on HTTP 404 without another reconnect loop. An ended Match remains
-live while postgame review is counting down, collecting sheets, reflecting, or paused. Completed and
-skipped review settle locally and close continuous presence state.
+未知或已删除的 Match 以 HTTP 404 落定,不再进入重连循环。已结束的 Match 在赛后复盘倒计时、
+收集评分表、感想或暂停期间保持活跃。完成与跳过的复盘在本地落定并关闭持续的在场状态。
 
-Session status and speech chunks arrive as server events; components do not poll model progress.
-Waiting UI may communicate liveness but never invent percentages, reasoning text, or completion
-estimates.
+Session 状态与发言分块作为 server 事件到达;组件不轮询模型进度。等待 UI 可以传达活性,但
+绝不虚构百分比、推理文本或完成时间估计。
 
-## Presentation ownership
+## 呈现归属
 
-The Match page uses a fixed `100dvh` shell. Player rails present public setup metadata and
-visibility-safe Role state; the center feed owns independent history scrolling, live speech, public
-events, votes, and postgame reflections.
+Match 页使用固定 `100dvh` 外壳。玩家栏呈现公开配置元数据与 visibility-safe 的 Role 状态;
+中央信息流拥有独立的历史滚动、实时发言、公开事件、投票与赛后感想。
 
-The [Web package contract](../../apps/web/README.md) owns shared interaction implementations.
+[Web package 契约](../../apps/web/README.md)拥有共享交互实现。
 
-The [frontend direction](../frontend.md) owns visual language, responsive layout principles, and
-motion taste. Exact screen behavior remains in components and browser tests rather than this
-architecture document.
+[前端方向](../frontend.md)拥有视觉语言、响应式布局原则与动效品味。确切的屏幕行为保留在
+组件与浏览器测试中,而不是本架构文档。
 
-## Role effects
+## 角色特效
 
-Role effects consume semantic `RoleEffectCue` values projected by the server after visibility
-filtering. Domain events contain no animation name, duration, color, or DOM instruction. The assets
-package owns effect definitions, copy, visual tokens, and duration tiers; the Web controller executes
-them through the pinned GSAP adapter in full, reduced, or off mode.
+角色特效消费 server 在可见性过滤之后投影的语义 `RoleEffectCue` 值。领域事件不含动画名、
+时长、颜色或 DOM 指令。assets package 拥有效果定义、文案、视觉 token 与时长层级;Web 控制器
+通过固定的 GSAP 适配器以 full、reduced 或 off 模式执行它们。
 
-A new active Role effect includes the semantic event, visibility, cue mapping, full/reduced behavior,
-cleanup, and browser verification. A Role without an active visual event is registered as an explicit
-passive exception. Repository checks enforce the pinned animation dependencies, single runtime import
-boundary, and Role coverage.
+新的活跃角色特效包含语义事件、可见性、cue 映射、full/reduced 行为、清理与浏览器验证。没有
+活跃视觉事件的 Role 注册为显式的 passive 例外。仓库检查强制固定的动画依赖、单一运行时
+import 边界与 Role 覆盖。
 
-## Speech playback
+## 语音播报
 
-One live connection may own automatic playback. `useSpeechPlayback` is the only browser Speech
-Synthesis owner. Complete streamed sentences enter the queue immediately; the committed event
-flushes only the final tail and supplies the sequence used for completion.
+一个实时连接可以持有自动播报。`useSpeechPlayback` 是浏览器 Speech Synthesis 的唯一持有者。
+完整流式句子立即进入队列;提交事件只冲刷最后尾部,并提供用于完成判定的序列。
 
-Manual play and stop operate on committed speech without changing Match progression. Skip,
-synthesis failure, and controller disconnect report a playback outcome so the server can release a
-held phase boundary.
+手动播放与停止作用于已提交发言,不改变 Match 推进。跳过、合成失败与控制者断开报告播报结果,
+以便 server 释放被持有的阶段边界。
 
-## Developer UI
+## 开发者 UI
 
-Developer startup exposes per-Match trajectory and simulation actions. The trajectory screen keeps
-participant selection, shared-period timeline, minimap navigation, player diagnostics, Record detail,
-and audit issues in one Match-scoped view. The simulation wizard calls the server workflow and never
-accepts arbitrary filesystem paths.
+开发者启动暴露逐 Match 的轨迹与仿真动作。轨迹屏幕将参与者选择、共享时段时间线、minimap
+导航、玩家诊断、Record 详情与审计问题保持在同一个 Match 范围视图中。仿真向导调用 server
+工作流,绝不接受任意文件系统路径。

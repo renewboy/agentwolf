@@ -1,48 +1,43 @@
-# Adopted game-rule baseline
+# 采用的游戏规则基线
 
-Werewolf implementations differ in night order, Witch self-save, Guard interaction, sheriff
-interruption, last words, and victory. AgentWolf freezes the selected variant in each board snapshot;
-the game engine and generated catalog remain the executable authority.
+狼人杀的各实现夜晚顺序、女巫自救、守卫交互、警长打断、遗言与胜负判定各不相同。AgentWolf 在
+每份 board 快照中冻结所选变体;游戏引擎与生成目录保持为可执行的权威。
 
-## Shared policies
+## 共享政策
 
-- Ordinary elimination keeps Role identity hidden until a Role-specific public reveal or Match end.
-- Standard sheriff boards use election after first-night actions and before death announcement.
-  Candidates speak, may withdraw, and original non-candidates vote. One tie creates a runoff; a second
-  tie loses the badge.
-- A living Sheriff has 1.5 vote weight, chooses daytime speech direction, and speaks last. The current
-  single-explosion policy loses the badge when a campaign explosion prevents election.
-- Night last words are first-night-only where enabled.
-- Witch uses at most one potion per night and cannot self-save. Guard and antidote on the same target
-  resolve as death. Guard may self-protect but not protect the same player on consecutive nights.
-- Night interaction order is Guard, regular Werewolf attack, Witch, then inspection Roles. The
-  Ruleset phase graph owns the exact order.
-- A regular wolf attack uses one private ballot per eligible pack member. `null` is explicit no-kill
-  and wins only by strictly outpolling every player target. A highest player-target tie uses one
-  Match- and night-stable choice.
+- 普通淘汰保持 Role 身份隐藏,直到 Role 特定的公开揭示或 Match 结束。
+- 标准警长 board 在首夜动作之后、死亡宣告之前进行警长竞选。候选人发言、可退选,原非候选人
+  投票。一次平票进入 PK;第二次平票警徽流失。
+- 存活的 Sheriff 拥有 1.5 倍投票权重,选择白天发言方向,并最后发言。当前的单次爆狼政策是:
+  竞选爆狼阻止选举产生时警徽流失。
+- 夜间遗言在启用时仅限首夜。
+- Witch 每晚最多使用一种药水,不能自救。守卫与解药落在同一目标时结算为死亡。守卫可以自守,
+  但不能在连续两晚保护同一名玩家。
+- 夜晚交互顺序是 Guard、普通 Werewolf 攻击、Witch,然后是查验类 Roles。Ruleset 阶段图拥有
+  确切顺序。
+- 普通狼人攻击由每名有资格的狼队成员投一张私密票。`null` 表示明确的空刀,且仅在严格压过
+  每个玩家目标票数时生效。玩家目标最高票平票时使用一次 Match 与夜晚内稳定的选择。
 
-Day speech order uses emitted replay-stable choices. With a living Sheriff, a single night death is
-the dead-player anchor; peaceful or multiple-death mornings use the Sheriff as anchor. Without a
-Sheriff, a single death or lowest-seat multiple death is the anchor; a peaceful night selects a stable
-start and direction.
+白天发言顺序使用已发出的、replay 稳定的选择。有存活 Sheriff 时,单一夜晚死亡以死者为锚点;
+平安夜或多人死亡时以 Sheriff 为锚点。没有 Sheriff 时,单一死亡或最低 Seat 的多人死亡为锚点;
+平安夜选择一个稳定的起点与方向。
 
-## Installed special variants
+## 已安装的特殊变体
 
-The Mirror Hidden board contains two pack Werewolves and one Awakened Hidden Wolf. The isolated Role
-and pack do not know one another, can target one another, and do not share wolf council. Awakened
-Hidden Wolf may learn once, receives copied abilities under their registered timing, and gains its own
-attack after the pack is eliminated. Learning a Werewolf grants one double attack whose same-target
-variant ignores Guard and antidote protection.
+Mirror Hidden board 包含两名狼队 Werewolf 与一名 Awakened Hidden Wolf。被隔离的 Role 与狼队
+互不知情、可以互相指定为目标,且不共享狼人会议。Awakened Hidden Wolf 可学习一次,在注册的
+时序下接收复制的能力,并在狼队被淘汰后获得自己的攻击。学习 Werewolf 授予一次双重攻击,其
+同目标变体无视 Guard 与解药保护。
 
-Magic Mirror Girl receives exact Role results and cannot inspect the same target twice. White Wolf
-King joins the pack ballot but uses its own targeted daytime detonation rather than ordinary Werewolf
-self-destruct. Resulting deaths pass through the shared trigger and victory pipeline.
+Magic Mirror Girl 收到确切的 Role 结果,且不能查验同一目标两次。White Wolf King 参与狼队
+投票,但使用自己的定向白天自爆而非普通 Werewolf 自毁。由此产生的死亡进入共享的触发与胜负
+管线。
 
-## Sources
+## 来源
 
-- [Official role, board, victory, and last-word rules](https://langrensha.com/wanfa/guize/2017/10/18/26899_719311.html)
-- [Official first-day sheriff flow](https://www.taptap.cn/moment/658304304670575860)
-- [Sheriff tie and interruption variants](https://zh.wikiversity.org/zh-cn/%E7%8B%BC%E4%BA%BA%E6%AE%BA/%E9%81%8A%E6%88%B2%E8%A7%92%E8%89%B2/%E8%AD%A6%E9%95%B7)
-- [Werewolves of Miller's Hollow rulebook](https://www.gokids.com.tw/tsaiss/gokids/rules/BestOf_EN_CH%20rules.pdf)
-- [Awakened Hidden Wolf board and inspection behavior](https://shouyou.gamersky.com/news/202409/1811620.shtml)
-- [Awakened Hidden Wolf copied abilities](https://langrensha.net/news/20240905-5.html)
+- [官方角色、板子、胜负与遗言规则](https://langrensha.com/wanfa/guize/2017/10/18/26899_719311.html)
+- [官方首日警长流程](https://www.taptap.cn/moment/658304304670575860)
+- [警长平票与打断变体](https://zh.wikiversity.org/zh-cn/%E7%8B%BC%E4%BA%BA%E6%AE%BA/%E9%81%8A%E6%88%B2%E8%A7%92%E8%89%B2/%E8%AD%A6%E9%95%B7)
+- [Werewolves of Miller's Hollow 规则书](https://www.gokids.com.tw/tsaiss/gokids/rules/BestOf_EN_CH%20rules.pdf)
+- [Awakened Hidden Wolf 板子与查验行为](https://shouyou.gamersky.com/news/202409/1811620.shtml)
+- [Awakened Hidden Wolf 复制能力](https://langrensha.net/news/20240905-5.html)

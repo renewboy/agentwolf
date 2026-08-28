@@ -1,4 +1,4 @@
 # Archived Agent Notes
 
-See [the parent AGENTS.md](../AGENTS.md). Archived Notes are frozen historical evidence, not current
-authority. Do not edit, reformat, repair, or use them as the source for present behavior.
+参见[父级 AGENTS.md](../AGENTS.md)。归档 Note 是冻结的历史证据,不是当前权威。不要编辑、
+重排、修补它们,也不要将其作为当前行为的依据。

@@ -1,96 +1,84 @@
-# Information synchronization architecture
+# 信息同步架构
 
-## Responsibility
+## 职责
 
-This module defines which facts each viewer and player may receive, how event cursors advance, when
-parallel and sequential work becomes visible, how speech playback gates phase progression, and how
-clients recover or settle.
+该模块定义每个观看者与玩家可以收到哪些事实、事件游标如何推进、并行与顺序工作何时变为可见、
+语音播报如何门控阶段推进,以及客户端如何恢复或落定。
 
-The engine owns event visibility; the server projector filters before serialization; the Prompt
-runtime and Web client consume only their projected views.
+引擎拥有事件可见性;server projector 在序列化之前过滤;Prompt 运行时与 Web 客户端只消费
+各自的投影视图。
 
-## Visibility classes
+## 可见性类别
 
-| Class      | Recipients                            | Typical facts                                                    |
-| ---------- | ------------------------------------- | ---------------------------------------------------------------- |
-| Public     | every view and player                 | announcements, public speech, public votes, deaths, final result |
-| God        | god view only                         | complete private actions and diagnostic state                    |
-| Player set | named players plus god view           | actor-private results and selected team knowledge                |
-| Faction    | ruleset-defined members plus god view | facts intentionally shared with a whole faction                  |
+| 类别       | 接收者                       | 典型事实                                 |
+| ---------- | ---------------------------- | ---------------------------------------- |
+| Public     | 每个视图与玩家               | 公告、公开发言、公开投票、死亡、最终结果 |
+| God        | 仅上帝视角                   | 完整私密动作与诊断状态                   |
+| Player set | 指名玩家加上帝视角           | 行为者私密结果与选定的阵营知情           |
+| Faction    | ruleset 定义的成员加上帝视角 | 有意与整个阵营共享的事实                 |
 
-Visibility applies to phase identity as well as event payload. A viewer who cannot know a private
-actor order receives neither the private event nor a phase/status signal that reveals it.
+可见性既适用于事件载荷,也适用于阶段身份。无法知晓某个私密行为者顺序的观看者,既收不到私密
+事件,也收不到会泄露它的阶段/状态信号。
 
-Player view contains that player's public state, private Role knowledge, faction knowledge, and
-private results. Closed-eye view contains only public judge facts. Character name and portrait are
-public setup metadata and do not reveal a hidden game Role.
+玩家视图包含该玩家的公开状态、私密 Role 知情、阵营知情与私密结果。闭眼视图只包含公开的裁判
+事实。Character 名与头像属于公开的配置元数据,不揭示隐藏的游戏 Role。
 
-## Delivery model
+## 送达模型
 
-Every event receives a Match-local monotonic sequence. A player binding stores an acknowledged
-cursor. A Prompt delivery contains only visible events after that cursor and records its exact range
-before transport. Final response acknowledges the range; invisible sequence numbers may be skipped
-without exposing their payloads.
+每个事件获得一个 Match 内单调递增序列。一个玩家绑定存储一个已确认游标。一次 Prompt 送达只
+包含该游标之后的可见事件,并在传输前记录其确切范围。最终响应确认该范围;不可见的序列号可以
+被跳过,而不暴露其载荷。
 
-A foundation source history ends at the same sequence as its cursor and renders each visible
-bootstrap fact once. Incremental Prompts do not resend the active player's own committed speech,
-because it remains in the long-lived Session.
+一份 foundation 的源历史终止于与其游标相同的序列,并将每个可见引导事实渲染一次。增量 Prompt
+不重发活跃玩家自己已提交的发言,因为它保留在长驻 Session 中。
 
-## Parallel barriers
+## 并行 barrier
 
-A parallel stage freezes one event sequence before prompting any actor. Every actor's Prompt is
-rendered from that sequence. Valid submitted actions stay sealed until all eligible turns settle;
-then the Match runtime applies them in deterministic seat order and publishes outcomes.
+并行阶段在提示任何行为者之前冻结一个事件序列。每个行为者的 Prompt 都从该序列渲染。有效提交
+的动作保持密封,直到所有有资格的回合落定;随后 Match 运行时按确定性的 Seat 顺序应用它们并
+发布结果。
 
-God view and the submitting player's own view may show the accepted Session as ready while its ACP
-turn closes. Other player and closed-eye projections receive no completion-order signal. The barrier
-therefore reveals neither another player's choice nor response timing.
+上帝视角与提交玩家自己的视图可以在其 ACP 回合关闭时将该 Session 显示为就绪。其他玩家与闭眼
+投影收不到任何完成顺序信号。因此 barrier 既不揭示其他玩家的选择,也不揭示响应时序。
 
-Vote and action barriers use the same rule. Vote Prompts are created only after all required prior
-speech commits, so every voter receives every other required speech before ballots are accepted.
+投票与动作 barrier 使用同一规则。投票 Prompt 只在全部所需先前发言提交之后创建,因此在接受
+选票之前,每名投票者都已收到其他全部所需发言。
 
-## Sequential speech and playback
+## 顺序发言与播报
 
-Sequential speech commits each speaker immediately, and the next speaker receives that public
-speech once. Agent generation may continue through all speakers in the current stage.
+顺序发言立即提交每位发言者,下一位发言者收到该公开发言一次。Agent 生成可以贯穿当前阶段的
+全部发言者继续。
 
-One live spectator connection may own automatic playback. Complete visible sentences enter its
-browser queue from stream chunks; the committed event contributes only the remaining tail and the
-stable event sequence. The final speech holds the following engine phase until that sequence is
-completed, skipped, synthesis fails, or the controller disconnects.
+一个实时观战连接可以持有自动播报。完整可见句子从流式分块进入其浏览器队列;提交事件只贡献
+剩余尾部与稳定的事件序列。最后一段发言持有后续引擎阶段,直到该序列完成、被跳过、合成失败
+或控制者断开。
 
-Speech hidden from the controlling projection creates no playback hold. Once the hold releases, a
-following vote barrier renders any remaining required speech before accepting ballots.
+对控制投影不可见的发言不产生播报持有。持有释放后,后续投票 barrier 在接受选票之前渲染任何
+剩余的所需发言。
 
-## Action and speech correction
+## 动作与发言修正
 
-Schema- and rule-invalid structured actions return a failed tool result inside the active ACP turn.
-They change no engine state, phase barrier, or delivery cursor, so the Agent may submit a valid call
-in the same turn.
+schema 与规则非法的结构化动作在活跃 ACP 回合内返回失败的工具结果。它们不改变任何引擎状态、
+阶段 barrier 或送达游标,因此 Agent 可以在同一回合内提交有效调用。
 
-Public speech preserves player-authored text while protecting Match identity references. Fixed judge
-facts such as announced deaths, vote results, and phase outcomes remain authoritative; strategic
-claims about identity or private information remain player speech.
+公开发言保留玩家撰写的文本,同时保护 Match 身份引用。固定的裁判事实(如宣告的死亡、投票
+结果与阶段结果)保持权威;关于身份或私密信息的策略性主张仍是玩家发言。
 
-## Recovery semantics
+## 恢复语义
 
-An uncertain ACP delivery receives one same-Session continuation attempt for the affected player.
-Its delivered range advances once, accepted durable actions are reconciled once, and other players
-remain untouched. A repeated or failed resume pauses the Match.
+一次不确定的 ACP 送达,针对受影响玩家获得一次同 Session 续篇尝试。其送达范围只推进一次,
+已接受的持久动作只对账一次,其他玩家保持不动。重复或失败的恢复会暂停 Match。
 
-The browser preserves its last valid snapshot during transient WebSocket closure, refreshes the
-current projection over HTTP, and reconnects with bounded backoff. View switching covers the old
-projection before requesting a new one and establishes a new role-effect sequence baseline.
+浏览器在瞬时 WebSocket 闭锁期间保留最后有效快照,通过 HTTP 刷新当前投影,并以有界退避重连。
+视图切换在请求新投影之前遮盖旧投影,并建立新的角色特效序列基线。
 
-## Terminal synchronization
+## 终局同步
 
-`match.ended` publishes the winner before final public identity events. For review-enabled Matches,
-the first ended live snapshot already contains the server-owned postgame countdown.
+`match.ended` 在最终公开身份事件之前发布获胜方。对启用复盘的 Match,首个 ended 实时快照已
+包含 server 持有的赛后倒计时。
 
-Review sheets become public as soon as accepted, while all unfinished rating Prompts retain one
-frozen terminal snapshot. A reviewer's first Prompt receives public catch-up after its regular cursor
-through the terminal sequence without advancing that cursor; retries receive only continuation.
+评分表一经接受立即公开,而所有未完成的评分 Prompt 保留一份冻结的终局快照。复盘者的首个
+Prompt 在其常规游标之后收到公开追平,直至终局序列,但不推进该游标;重试只收到续篇。
 
-Reflections use the ordinary public speech stream and final playback boundary. Completed or skipped
-review closes the original player Sessions and spectator connection. A deleted or unknown Match
-returns 404, clears retained content, and enters a non-retrying unavailable state.
+感想使用普通的公开发言流与最终播报边界。完成或跳过复盘会关闭原始玩家 Session 与观战连接。
+被删除或未知的 Match 返回 404,清除保留内容,并进入不重试的不可用状态。

@@ -1,39 +1,37 @@
-# Agent Note: Role-effect animation runtime
+# Agent Note: Role 特效动画运行时
 
 Status: implemented
 
 ## Problem
 
-Role actions need expressive browser feedback without coupling deterministic events to DOM details,
-delaying game progression, or allowing several animation runtimes to establish incompatible timing
-and cleanup models.
+Role 动作需要富有表现力的浏览器反馈,同时不能把确定性事件耦合到 DOM 细节、拖延游戏推进,
+也不能让多个动画 runtime 建立互不兼容的时序与清理模型。
 
 ## Decision
 
-AgentWolf pins `gsap@3.15.0` and `@gsap/react@2.1.2`. All GSAP imports pass through the Web motion
-adapter; Flip is the only additional registered plugin.
+AgentWolf 锁定 `gsap@3.15.0` 与 `@gsap/react@2.1.2`。所有 GSAP import 都经由 Web motion
+adapter;Flip 是唯一额外注册的 plugin。
 
-Domain events contain game semantics only. After server visibility filtering, presentation registries
-project semantic `RoleEffectCue` values. Assets owns effect metadata and timing; the Web effect
-controller owns DOM selection and timelines. Full, reduced, and off modes consume each cue once,
-remain pointer-transparent, return elements to rest, and never participate in engine timing.
+领域事件只包含游戏语义。经过 server 可见性过滤之后,呈现注册表投影语义化的 `RoleEffectCue`
+值。assets 拥有效果元数据与时序;Web effect controller 拥有 DOM 选择与 timeline。完整、减弱与
+关闭三种模式各自只消费每条 cue 一次,保持指针透明,把元素恢复到静息态,并且永不参与引擎
+时序。
 
-The current design is documented in [Web client architecture](../../../../docs/architecture/web-client.md)
-and [Frontend direction](../../../../docs/frontend.md).
+当前设计记录于 [Web 客户端架构](../../../../docs/architecture/web-client.md)
+与[前端方向](../../../../docs/frontend.md)。
 
 ## Alternatives considered
 
-**Rendering instructions in game events.** This would make replay and game semantics depend on a
-specific UI runtime and expose presentation fields across projections.
+**在游戏事件中渲染指令。** 这会让 replay 与游戏语义依赖特定的 UI runtime,并使呈现字段跨
+projection 暴露。
 
-**Multiple animation libraries.** Independent runtimes would duplicate sequencing, reduced-motion,
-cleanup, and test behavior while increasing bundle and ownership ambiguity.
+**多个动画库。** 独立 runtime 会重复时序编排、减弱动效、清理与测试行为,同时增加 bundle
+体积与归属歧义。
 
-**CSS-only effects.** CSS remains appropriate for ambient states, but Role sequences need explicit,
-seekable cleanup and bounded composition under one runtime owner.
+**纯 CSS 效果。** CSS 仍适合环境状态,但 Role 序列需要显式、可寻址的清理与有界组合,并归属
+同一个 runtime owner。
 
 ## Consequences
 
-Role effects can evolve independently from rules and replay. New active effects require semantic cue,
-visibility, asset definition, full/reduced behavior, cleanup, and browser coverage; passive Roles
-declare their lack of an active effect explicitly.
+Role 效果可以独立于规则与 replay 演进。新增主动效果需要语义 cue、可见性、asset 定义、
+完整/减弱行为、清理与浏览器覆盖;被动 Role 显式声明其没有主动效果。

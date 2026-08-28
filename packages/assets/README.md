@@ -1,24 +1,19 @@
 # Assets package
 
-`@agentwolf/assets` owns repository-authored model presentation and reusable browser presentation.
+`@agentwolf/assets` 持有仓库创作的模型呈现素材与可复用的浏览器呈现素材。
 
-## Responsibilities
+## 职责
 
-- Prompt bundle sources and strict rendering support.
-- Player Skill source trees and their build inputs.
-- Localized UI copy, narration, Role and Ability labels, and nickname words.
-- Built-in Character cards and managed portrait metadata.
-- Role-effect presentation catalog, icons, timing metadata, CSS, and design tokens.
+- Prompt bundle 源与严格渲染支持。
+- 玩家 Skill 源码树及其构建输入。
+- 本地化 UI 文案、旁白、Role 与 Ability 标签,以及昵称词库。
+- 内置 Character 卡与托管的头像元数据。
+- Role 效果呈现目录、图标、时序元数据、CSS 与 design tokens。
 
-Prompt architecture is defined in
-[Prompt and player context](../../docs/architecture/prompt-and-context.md). Browser consumption is
-defined in [Web client architecture](../../docs/architecture/web-client.md).
+Prompt 架构定义在 [Prompt 与玩家上下文](../../docs/architecture/prompt-and-context.md)。浏览器消费定义在 [Web 客户端架构](../../docs/architecture/web-client.md)。
 
-## Export boundaries
+## 导出边界
 
-The main package entry exports browser-safe copy, Character, narration, nickname, plugin-event, and
-role-effect assets. Server-only Prompt and player-Skill builders use the explicit `./prompts` and
-`./player-skills` subpaths and never enter the Web bundle.
+主包入口导出浏览器安全的文案、Character、旁白、昵称、plugin-event 与 role-effect 素材。仅 server 使用的 Prompt 与玩家 Skill 构建器使用显式的 `./prompts` 与 `./player-skills` 子路径,绝不进入 Web bundle。
 
-Assets depends on contracts but not on the game engine or server. The server adapts installed
-Ruleset semantics into plain asset-owned Prompt inventory and visible facts.
+Assets 依赖 contracts,但不依赖 game engine 或 server。server 将已安装的 Ruleset 语义适配为纯 asset 侧的 Prompt 清单与可见事实。

@@ -1,86 +1,76 @@
-# Game runtime architecture
+# 游戏运行时架构
 
-## Responsibility
+## 职责
 
-The game runtime turns a frozen board and ordered player actions into an append-only deterministic
-event stream. It owns Ruleset composition, game state reduction, phase progression, action
-validation, effect settlement, interrupts, victory, and replay.
+游戏运行时将冻结的 board 与有序的玩家动作转化为一个 append-only 的确定性事件流。它拥有
+Ruleset 组合、游戏状态归约、阶段推进、动作校验、效果结算、interrupts、胜负判定与 replay。
 
-[`packages/game-engine`](../../packages/game-engine/README.md) implements the module. It performs no
-filesystem, database, network, process, Prompt, or browser IO.
+[`packages/game-engine`](../../packages/game-engine/README.md) 实现该模块。它不执行任何文件
+系统、数据库、网络、进程、Prompt 或浏览器 IO。
 
-## Boundaries
+## 边界
 
-- Contracts supplies branded IDs and event/action schemas.
-- The server selects a versioned Ruleset, supplies actions, and persists emitted events.
-- Assets and the server present already-filtered game semantics; the engine owns no prose or visual
-  instructions.
-- Roles, faction knowledge, action capabilities, and presentation visibility are separate concepts.
+- Contracts 提供 branded IDs 与事件/动作 schemas。
+- server 选择版本化 Ruleset、提供 actions 并持久化已发出的事件。
+- Assets 与 server 呈现已过滤的游戏语义;引擎不拥有任何行文或视觉指令。
+- Roles、阵营知情、动作能力与呈现可见性是相互独立的概念。
 
-The kernel contains no concrete Role, Ability, Phase, or Plugin IDs. Concrete rules enter only
-through installed plugins and validated board configuration.
+内核中不含任何具体的 Role、Ability、Phase 或 Plugin ID。具体规则只通过已安装插件和经校验的
+board 配置进入。
 
-## Ruleset composition
+## Ruleset 组合
 
-A `RulesetBuilder` installs an ordered plugin manifest and freezes a `RulesetRuntime`. Install scopes
-record which plugin contributes each Role, Ability, Phase, plugin event, query, trigger, interrupt,
-resolution handler, and victory evaluator. Duplicate or ownerless registrations fail during build.
+`RulesetBuilder` 安装一份有序的插件清单并冻结 `RulesetRuntime`。安装作用域记录每个 Role、
+Ability、Phase、插件事件、query、trigger、interrupt、结算 handler 与胜负评估器由哪个插件
+贡献。重复或无主的注册在构建时失败。
 
-The current catalog installs `classic-v3`. Historic `classic-v1` and `classic-v2` runtimes remain
-available only for snapshots that name their exact locks. A schema-two Match snapshot stores the
-Ruleset ID/version, ordered plugin IDs and versions, configuration hashes, canonical fingerprint,
-and resolved board policies. Restore rejects a mismatched installed fingerprint.
+当前目录安装 `classic-v3`。历史 `classic-v1` 与 `classic-v2` 运行时保持可用,仅供指名其确切
+锁版本的快照使用。schema-two 的 Match 快照存储 Ruleset ID/版本、有序插件 ID 与版本、配置
+哈希、规范指纹以及解析后的 board 政策。Restore 拒绝不匹配的已安装指纹。
 
-## Phase and action flow
+## 阶段与动作流
 
-Phase plugins contribute function-owned nodes and ordered insertions into a validated graph. Each
-interactive node declares:
+Phase 插件向一张经校验的图贡献函数所有的节点与有序插入。每个交互节点声明:
 
-- action type and actor selection;
-- public, actor-private, faction, or god visibility;
-- required capabilities or allowed abilities;
-- sequential or parallel collection mode;
-- trigger and interrupt windows;
-- deterministic outgoing edges.
+- 动作类型与行为者选择;
+- 公开、行为者私密、阵营或上帝可见性;
+- 所需能力或允许的 abilities;
+- 顺序或并行收集模式;
+- trigger 与 interrupt 窗口;
+- 确定性的出边。
 
-The finalized graph has one entry, unique reachable nodes, valid edge targets, deterministic order,
-and bounded continuation. Runtime code asks the active node for actors and expectations rather than
-inferring behavior from a phase ID.
+定稿的图具有一个入口、唯一可达节点、有效边目标、确定性顺序和有界延续。运行时代码向活跃
+节点询问行为者与预期,而不是从 phase ID 推断行为。
 
-The action validator checks actor, phase, target IDs, cardinality, capabilities, Role state, and
-single-submission rules before the engine changes. A rejected action produces no event and leaves the
-expectation open for correction.
+动作校验器在引擎变化之前检查行为者、阶段、目标 IDs、基数、能力、Role 状态与单次提交规则。
+被拒绝的动作不产生事件,并保持预期开放以便修正。
 
-## Settlement
+## 结算
 
-Accepted actions become immutable intents. Effect definitions select a named lane: targeting,
-prevention, protection, damage, information, death, reaction, announcement, or victory. The queue
-orders effects by lane, definition order, and enqueue sequence.
+被接受的动作成为不可变 intent。效果定义选择一条命名 lane:targeting、prevention、protection、
+damage、information、death、reaction、announcement 或 victory。队列按 lane、定义顺序与入队
+顺序排列效果。
 
-Handlers may enqueue additional effects. Settlement continues to quiescence under a cycle bound.
-Finalizers merge deaths, saves, inspections, durable ability use, and other plugin-owned results.
-Interactive death reactions become trigger-selected skill phases before final victory evaluation.
+Handler 可以追加更多效果。结算在周期上限内持续到静息。Finalizer 合并死亡、营救、查验、持久
+能力使用以及其他插件所有的结果。交互式死亡反应在最终胜负评估之前成为 trigger 选择的技能
+阶段。
 
-Capabilities authorize both native and dynamically granted abilities. Shared mechanics such as the
-regular wolf attack are defined once; Role plugins grant or revoke the capability instead of copying
-the mechanic or branching in the kernel.
+能力(capability)同时授权原生与动态授予的 abilities。普通狼人攻击等共享机制只定义一次;
+Role 插件授予或撤销能力,而不是复制该机制或在内核中分支。
 
-## Events, visibility, and replay
+## 事件、可见性与 replay
 
-Every state change is represented by a domain event with a match-local sequence and visibility
-descriptor. Reducers reconstruct core and plugin state from the event log. Visibility filtering is
-pure and occurs before server serialization or Prompt rendering.
+每个状态变化都由一个携带 match 内序列号与可见性描述符的领域事件表示。Reducer 从事件日志
+重建核心与插件状态。可见性过滤是纯函数,发生在 server 序列化或 Prompt 渲染之前。
 
-Replay starts from the same frozen board and Ruleset fingerprint, reapplies events in order, and
-reaches the same state. Stable Match-derived choices are emitted as events, so later replay never
-depends on process randomness.
+Replay 从同一冻结 board 与 Ruleset 指纹出发,按序重放事件,并到达相同状态。稳定的 Match 派生
+选择作为事件发出,因此后续 replay 从不依赖进程随机性。
 
-## Extension contract
+## 扩展契约
 
-A new playable Role contributes its semantics through one Role plugin and companion assets. It may
-register capabilities, abilities, phases, event reducers, effects, queries, triggers, interrupts, or
-victory behavior. Shared settlement and the kernel do not gain Role-ID branches.
+新的可玩 Role 通过一个 Role 插件和配套资产贡献其语义。它可以注册能力、abilities、phases、
+事件 reducer、效果、queries、triggers、interrupts 或胜负行为。共享结算与内核不新增
+Role-ID 分支。
 
-The [Role development Skill](../../.agents/skills/agentwolf-role-development/SKILL.md) owns the
-cross-layer implementation workflow. The [game catalog](../generated/game-catalog.md) is generated
-from Role-owned manifests and board copy rather than maintained here.
+[Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md) 拥有跨层实现工作流。
+[游戏目录](../generated/game-catalog.md)从 Role 所有的清单与 board 文案生成,不在此处维护。

@@ -1,41 +1,36 @@
-# Agent Note: Durable player ACP Sessions
+# Agent Note: 持久玩家 ACP Sessions
 
 Status: implemented
 
 ## Problem
 
-Treating an Agent process as the player Session causes timeouts and server restarts to lose provider
-history, create duplicate foundations, replay acknowledged facts, and disturb players whose
-connections were healthy.
+把 Agent 进程当作玩家 Session 会让超时与 server 重启丢失 provider 历史、创建重复的奠基记录、
+重放已确认的事实,并打扰连接原本健康的玩家。
 
 ## Decision
 
-Each Match seat calls `session/new` once and persists the returned logical Session ID with its launch
-snapshot, bootstrap state, acknowledged event cursor, and accepted structured action. A process may
-restart, but it reconnects through `session/resume` using that exact ID, current player workspace,
-and refreshed MCP authorization.
+每个 Match seat 只调用一次 `session/new`,并持久保存返回的逻辑 Session ID,连同其启动快照、
+bootstrap 状态、已确认事件 cursor 与已接受的结构化动作。进程可以重启,但它通过 `session/resume`
+以完全相同的 ID、当前玩家 workspace 与刷新后的 MCP 授权重连。
 
-One uncertain delivery per player and phase may continue the healthy connection or resume that
-player's Session. The delivered range advances once, and the Session receives a compact current-stage
-continuation. A durable accepted action is reconciled without another Prompt or submission. Repeated
-failure or failed resume pauses the Match.
+每名玩家、每个阶段的一次不确定投递可以继续使用健康连接,或恢复该玩家的 Session。已投递范围
+只前进一次,并且 Session 收到一份紧凑的当前阶段续跑内容。已持久接受的动作在不追加 Prompt 或
+提交的情况下完成对账。反复失败或恢复失败会暂停 Match。
 
-Postgame review retains the same seat Sessions until completion or skip. The exact lifecycle is
-defined in [ACP Session runtime](../../../../docs/architecture/acp-session-runtime.md).
+赛后复盘保留同样的 seat Session 直至完成或跳过。确切生命周期定义于
+[ACP Session 运行时](../../../../docs/architecture/acp-session-runtime.md)。
 
 ## Alternatives considered
 
-**Create replacement Sessions after transport failure.** This loses provider history, duplicates
-foundations, and violates one player/one Session identity.
+**在传输失败后创建替代 Session。** 这会丢失 provider 历史、重复奠基记录,并违反一名玩家一个
+Session 的身份约束。
 
-**Replay complete visible history into a new Session.** AgentWolf already owns event delivery cursors;
-full replay duplicates known facts and cannot reconstruct provider-local reasoning state.
+**把完整可见历史重放进新 Session。** AgentWolf 已经持有事件投递 cursor;完整重放会重复已知
+事实,且无法重建 provider 本地的推理状态。
 
-**Restart every player together.** A player-local transport failure must not change healthy players'
-processes, cursors, or action state.
+**同时重启所有玩家。** 玩家局部的传输失败不得改变健康玩家的进程、cursor 或动作状态。
 
 ## Consequences
 
-Logical Session identity survives process and server lifetime. Recovery depends on provider resume
-support and fails closed when it is unavailable. Session bindings and accepted actions are operational
-durable state rather than diagnostics.
+逻辑 Session 身份在进程与 server 生命周期之外存续。恢复依赖 provider 的 resume 支持,并在其
+不可用时以失败关闭。Session 绑定与已接受动作是运营性的持久状态,而非诊断信息。

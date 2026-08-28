@@ -1,8 +1,5 @@
-# Contracts package guide
+# Contracts package 指南
 
-See [the root AGENTS.md](../../AGENTS.md). Read [README.md](README.md) before changing this package;
-it owns the package responsibilities, boundaries, and change contract.
+参见[根 AGENTS.md](../../AGENTS.md)。修改本包之前先阅读 [README.md](README.md);它持有包的职责、边界与变更契约。
 
-Keep cross-boundary IDs branded and parse wire, configuration, user-input, and durable values with
-their owning Zod schemas. Add producer/consumer coverage for changed contracts. Do not move rule,
-storage, server, asset, or browser behavior into this package.
+保持跨边界 IDs 为 branded,并用其所属的 Zod schemas 解析 wire、配置、用户输入与持久化值。为变更的 contracts 添加 producer/consumer 覆盖。不要将规则、存储、server、asset 或浏览器行为移入本包。
