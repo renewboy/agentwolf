@@ -1,7 +1,7 @@
 # AgentWolf server
 
 `@agentwolf/server` 是应用组合根。它连接 Fastify、SQLite、确定性引擎、Prompt 资产、ACP 玩家
-Session、MCP 动作、实时 projection、赛后复盘、轨迹与仿真。
+Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定性仿真。
 
 ## 职责
 
@@ -11,7 +11,8 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹与仿真。
 - 用于 events、Session 绑定、delivery、复盘与开发者数据的 SQLite schema 与 repository。
 - 可见性安全的视图 projection 与实时连接协调。
 - 玩家绑定的 MCP 动作传输、Prompt 上下文适配与 Session 恢复。
-- 轨迹采集/审计与仿真评审/批准工作流。
+- 轨迹采集、读取与语义审计。
+- 仿真候选采集、双 runner 评审与 fixture 批准。
 
 跨包设计拆分在[架构模块](../../docs/architecture.md)中。
 

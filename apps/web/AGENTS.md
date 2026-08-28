@@ -6,6 +6,8 @@
 浏览器归属与实时状态阅读 [Web 客户端架构](../../docs/architecture/web-client.md),
 projection/重连/播放语义阅读[信息同步](../../docs/architecture/information-synchronization.md),
 视觉或交互变更阅读[前端方向](../../docs/frontend.md)。
+开发者轨迹读取或仿真向导分别阅读[轨迹](../../docs/architecture/trajectory.md)与
+[仿真](../../docs/architecture/simulation.md)。
 
 ## 边界
 

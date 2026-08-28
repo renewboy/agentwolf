@@ -1,73 +1,266 @@
 # Match 生命周期架构
 
-## 职责
+本文描述 AgentWolf 如何把可编辑目录配置解析为一份不可变 Match，如何持久化和恢复运行时，以及
+终局后如何完成评分、感想和资源关闭。目标读者是修改 Agent/Profile、board、Character、Match
+repository、恢复、删除或 postgame review 的研发人员。游戏规则属于 GameEngine，ACP delivery 和
+浏览器实时同步由对应专项架构负责。
 
-该模块拥有从可变配置目录到一份不可变 Match 的转换、持久 Match 记录、运行时创建与恢复、
-暂停/继续/删除操作、终局结果与赛后复盘。
+## 设计目标与边界
 
-server 组合 contracts、game engine、assets、ACP Sessions、SQLite repositories 与实时投影。
-游戏规则留在引擎内;配置呈现保持在领域事件之外。
+Match 生命周期需要保证：
 
-## 目录与配置
+- 创建前目录可编辑，创建后的规则、Seat 与表达配置不随目录变化；
+- 每个 Match 绑定可验证的 Ruleset lock、board policy 和逐 Seat setup；
+- 领域事件、Session、delivery、postgame 与 trajectory 各自持久，并由明确 repository 拥有；
+- 活跃 GameEngine 和 Agent 进程可以丢弃并从持久边界恢复；
+- 暂停、继续、终局、赛后和删除拥有单向且可检查的状态转换；
+- 删除只影响目标 Match 及其 workspace，不修改共享目录或其他对局；
+- Character 只控制公开呈现，Profile 只选择 Agent 运行配置，二者都不进入规则求值。
 
-Agent Tools 描述一个 ACP 命令、参数、环境变量 allowlist、初始模式与能力提示。Agent Profiles
-将一个 Tool 绑定到所选已宣告模型、可选 reasoning 强度与非机密连接选项。Profiles 拥有一个
-显式的持久化顺序。
+`apps/server` 是生命周期组合根。contracts 定义持久/wire schema，game-engine 解释冻结 board，assets
+提供 Character 和 Prompt，ACP 运行时建立玩家 Sessions，Web 通过 API 触发受支持的生命周期动作。
 
-board 目录将只读内置 boards 与 SQLite 自定义 boards 相结合。自定义 board 拥有 Role 数量、
-sheriff 与胜负政策,以及可为空的逐 Seat Agent Profile 与 Character 默认值。被引用的 Profiles
-或 Characters 不可删除。
+## 可编辑目录与配置所有权
 
-Character 目录将资产支撑的内置项与可编辑的 SQLite 卡片以及托管的本地头像文件相结合。
-Characters 只控制公开呈现与表达;它们从不改变游戏 Role、能力、推理质量、胜负或事件状态。
+创建 Match 前，server 暴露四类目录和一份全局设置：
 
-Match 创建按此顺序解析 Seat 取值:
+| 配置            | 所有者              | 影响范围                                                           | 创建 Match 时的处理                                           |
+| --------------- | ------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Agent Tool      | Agent catalog       | ACP command、args、environment binding、默认 mode 与能力提示       | Player Session binding 保存所选 Tool 全量快照                 |
+| Agent Profile   | Agent catalog       | Tool、model、reasoning、mode、timeout 与非机密 connection 配置     | Match setup 保存 Profile ID，Session binding 保存全量 Profile |
+| board           | Board catalog       | Role 构成、人数、Sheriff、胜负政策和逐 Seat 默认 Profile/Character | 解析为 schema-two board snapshot 与 GameEngine manifest       |
+| Character       | Character catalog   | 公开名称、头像、traits、style、boundaries 与 opening               | 逐 Seat 保存不可变 Character snapshot                         |
+| global settings | settings repository | 发言字符上限                                                       | 复制到 Match setup snapshot                                   |
 
-1. 显式 Match 请求;
-2. board Seat 默认值;
-3. 首个有序 Agent Profile,或无 Character。
+内置 Tool/board/Character 来自代码或 assets，自定义项来自 SQLite。Profile 保持显式排序，作为 Seat
+没有任何 Profile 选择时的稳定 fallback。被 board 或其他目录记录引用的 Profile/Character 受到
+catalog 删除约束；同一 Profile 或 Character 可以分配给多个 Seat。
 
-昵称保持为可编辑的 Match 身份,且在 trim 后必须唯一。跨 Seat 复用同一 Profile 或 Character
-是合法的。
+Agent Tool 的 environment 只保存 process 变量名或 literal binding，不持久化解析后的 secret。
+Character portrait 上传到托管数据目录，并以 asset ID 进入 Character snapshot；领域事件不携带
+Character 卡或头像内容。
 
-## 不可变配置快照
+## 从配置到不可变 Match
 
-创建时将所选 board 存储为 schema-two 快照,包含其 Ruleset 锁与指纹、解析后的政策、Role
-构成、修订号、Agent Profile 默认值、Character 默认值,以及不可变的逐 Seat Character 卡。它
-同时快照全局发言长度偏好。
+下图说明创建请求如何经过目录解析、快照和持久化后成为可启动 runtime。
 
-之后的目录编辑不改变既有 Match。领域事件日志不含任何可变目录引用,也不含 Character 卡数据。
-上传的头像资产 ID 对历史快照保持稳定。
+```mermaid
+flowchart TD
+    Request["CreateMatchRequest<br/>board、Seat overrides、assignment"]
+    Parse["contracts schema 与 Seat 校验"]
+    Board["BoardCatalog.resolve"]
+    Seats["解析 Profile / Character / Role"]
+    Ruleset["当前 Ruleset lock + fingerprint"]
+    Snapshot["Match setup + board snapshot"]
+    Engine["GameEngine.create"]
+    Events["match.created + role assignments"]
+    Store["SQLite Match record + initial events"]
+    Runtime["MatchRuntime"]
 
-## 运行时与持久化
+    Request --> Parse --> Board
+    Board --> Seats
+    Board --> Ruleset
+    Seats --> Snapshot
+    Ruleset --> Snapshot
+    Snapshot --> Engine --> Events --> Store --> Runtime
+```
 
-`MatchManager` 解析配置、创建或恢复确定性引擎,并拥有活跃 Match 运行时。`match-runtime`
-协调引擎预期、ACP 玩家回合、动作 barrier、发言播报边界、实时快照与终局交接。
+创建流程执行以下约束：
 
-SQLite 在各自所属的 repository 中存储 Match 元数据、不可变配置、append-only 事件、送达台账、
-Session 绑定、已接受动作、复盘状态与开发者记录。server 重启从事件重建引擎状态,并恢复持久
-玩家 Session。
+1. board 决定精确人数，Seat 必须从 1 连续编号且 Match 内昵称唯一；
+2. Profile 按“请求显式值 → board Seat 默认值 → 首个有序 Profile”解析，最终每 Seat 必须有 Profile；
+3. Character 按“请求显式值（可为 null）→ board Seat 默认值 → null”解析，并立即转成 snapshot；
+4. manual Role assignment 必须与 board Role multiset 相符；random assignment 使用 Match 稳定 seed；
+5. board summary 转为 snapshot，写入 Ruleset ID/版本、plugin lock/config hash、fingerprint、政策与修订；
+6. Match setup 写入逐 Seat 名称、Profile ID、可选 manual Role、Character snapshot 和发言上限；
+7. GameEngine 产生初始事件，repository 在创建 Match record 的同一事务中保存它们；
+8. MatchManager 创建 trajectory recorder 与 MatchRuntime，并把 runtime 置入活跃表。
 
-暂停的 Match 保留其事件状态,并暴露继续与删除动作。继续恢复同一阶段与 Sessions。删除关闭
-运行时,移除所有数据库持有的 Match 记录,并只移除该 Match 在配置数据目录下的玩家 workspace。
+Match ID 同时提供可读 board 前缀与稳定随机 seed。确切 ID 生成和 wire 字段由 contracts/代码负责，
+架构只依赖其 Match 内唯一和可重放属性。
 
-## 赛后复盘
+## 快照与运行时配置
 
-赛后复盘是确定性游戏事件日志之外的 server 编排。胜负 registry 返回明确的获胜 Player ID;
-复盘冻结该集合作为 MVP 资格,并以其补集作为 SVP,不含具体 Role 或阵营分支。
+Match 使用两份互补快照：
 
-对启用复盘的 Match,终局编排会在首个 ended 快照之前创建一个十秒倒计时。观战者可以在倒计时
-期间立即开始或跳过;倒计时到期自动开始复盘,已开始的复盘不可跳过。
+- **board snapshot** 固定 Ruleset lock、Role 构成、人数、Sheriff、政策、目录来源、修订和 board 默认
+  配置；恢复时先解析 fingerprint，再重建 `BoardManifest`。
+- **setup snapshot** 固定实际逐 Seat 选择和 Match 级发言上限；它保存 Character card 内容，但只
+  保存 Profile ID。首次建立 Player Session binding 时，选中的 Profile/Tool 全量配置被进一步冻结。
 
-每个 Seat 保留其原始逻辑 ACP Session,并提交一份不可变评分表,包含 MVP 与 SVP 提名,加上为
-其他每名玩家打出的五项整数评分。评分表在工具回执之前即已持久,并立即投影到浏览器,但绝不
-进入其他复盘者的 Prompt。
+目录编辑只影响后续创建。恢复既有 Match 时，MatchManager 不重新解析当前 board/Profile/Character
+默认值；它使用 record snapshot、Session binding 和事件日志。Character 数据位于事件日志之外，
+因此改变公开表达配置不会污染游戏 replay。
 
-全部评分表存在之后,聚合计算算术平均分,并按票数、精确得分总分、再到 Match 稳定的抽签顺序
-确定奖项。原始评分表与聚合输出保持为独立的持久记录。
+## 持久化架构
 
-感想通过共享的直接发言与播报路径顺序执行。复盘恢复只续做原始 Session ID 上未完成的工作。
-重复传输失败会暂停复盘;完成或跳过复盘会关闭 Session 并完成 Match 生命周期。
+SQLite schema 按状态所有权拆分，而不是把整个 runtime 序列化成一行：
 
-赛后记录与 `match_events` 保持分离。仿真采集排除复盘行与赛后轨迹回合,使已审查的游戏事件
-fixture 保持 `match.ended` 作为其终局 oracle。
+```mermaid
+flowchart LR
+    Match["matches<br/>status、setup、board snapshot"]
+    Events["match_events<br/>append-only sequence"]
+    Sessions["player_session_bindings"]
+    Delivery["delivery_ledgers"]
+    Postgame["postgame reviews<br/>submissions、reflections、turns"]
+    Trajectory["trajectory revisions<br/>turns、records"]
+
+    Match --> Events
+    Match --> Sessions
+    Match --> Delivery
+    Match --> Postgame
+    Match --> Trajectory
+```
+
+| 持久状态                 | 写入者                    | 恢复用途                                                   |
+| ------------------------ | ------------------------- | ---------------------------------------------------------- |
+| Match record             | MatchManager/MatchRuntime | board/setup、status、paused reason 与目录列表              |
+| `match_events`           | MatchRuntime              | GameEngine replay 与 projection                            |
+| Session bindings         | PlayerRuntime             | 精确 Profile/Tool、Session ID、bootstrap 与 pending action |
+| delivery ledgers         | PlayerRuntime             | 每玩家 Prompt cursor 与不确定 attempt                      |
+| postgame records         | PostgameReviewCoordinator | 赛后状态、评分、聚合、感想和逐玩家尝试                     |
+| trajectory turns/records | trajectory recorder       | 运行时诊断与语义 audit                                     |
+
+repository 在 JSON 边界使用 contracts/本地 Zod schema 解析。`match_events` 以 `(match_id, sequence)`
+唯一；Session、delivery、submission 和 reflection 以 Match/Player 唯一。Match 删除由外键 cascade
+清理所属数据库记录。
+
+数据库使用单调 `user_version` 前向迁移。server 拒绝打开高于当前实现的 schema；新增持久结构需要
+同时提供迁移、全新数据库定义和迁移测试。
+
+## Match 运行状态
+
+Match record 与 GameEngine 共享同一组顶层状态，但各自职责不同：GameEngine 通过事件表达规则状态，
+repository 保存跨进程可发现的生命周期状态。
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: 创建 record 与初始 events
+    Draft --> Starting: 启动 Player Sessions
+    Starting --> Running: foundation 完成 + engine.start
+    Starting --> Paused: Session/配置/Prompt 失败
+    Running --> Paused: 运行时或恢复失败
+    Paused --> Running: resume 原状态与 Sessions
+    Running --> Ended: GameEngine victory
+    Ended --> Postgame: 创建 countdown
+    Postgame --> Closed: completed 或 skipped
+    Ended --> Closed: postgame disabled
+    Draft --> Deleted: 删除
+    Paused --> Deleted: 删除
+    Ended --> Deleted: 删除
+```
+
+### 创建与启动
+
+Draft runtime 已有 GameEngine 初始事件，但不启动 Agent。`beginMatch` 将异步初始化交给活跃
+MatchRuntime：先持久 status=starting 和 `match.starting`，并发建立玩家 Sessions、发送 foundation，
+全部成功后调用 `engine.start`、持久 running 并开始 action loop。任一失败都会追加 paused event、
+保存 reason 并保留可恢复状态。
+
+### 暂停与继续
+
+暂停保留 board/setup、全部事件、Session bindings、delivery、pending action 与 postgame/trajectory。
+`resumeMatch` 对活跃 runtime 原地恢复；进程重启后则先从 snapshot 和事件 restore GameEngine，再
+创建 MatchRuntime 并恢复精确 Sessions。repository 初始化会把被进程中断的未终局 Match 标为
+paused，使恢复始终需要显式操作者动作。
+
+继续前，PlayerRuntime 对账 pending action 和 delivery；MatchRuntime 补齐未确认 bootstrap，再调用
+GameEngine resume。恢复从当前 phase/action boundary 开始，不依据 Web snapshot 或 trajectory 推断
+游戏状态。
+
+### 终局
+
+GameEngine 发出 `match.ended` 和最终 reveal，MatchRuntime 将 record 标为 ended。启用赛后流程时，
+server 在首个 ended snapshot 前持久创建 countdown；关闭赛后流程的受控运行（如仿真）直接关闭
+Sessions。
+
+## 赛后复盘状态机
+
+赛后复盘是 server 编排，不属于确定性游戏事件日志。它冻结 GameEngine victory registry 返回的
+明确 winning Player IDs，并以其补集作为 losing Player IDs；MVP/SVP 资格不依赖中央 Role 或
+Faction 分支。
+
+```mermaid
+stateDiagram-v2
+    [*] --> Countdown: 终局 + 10 秒 deadline
+    Countdown --> Collecting: 操作者 start 或 deadline
+    Countdown --> Skipped: 操作者 skip
+    Collecting --> Speaking: 全员评分提交并聚合
+    Collecting --> Paused: 传输或校验失败
+    Speaking --> Paused: 感想传输失败
+    Paused --> Collecting: resumeState=collecting
+    Paused --> Speaking: resumeState=speaking
+    Speaking --> Completed: 全部感想与最终播放完成
+    Completed --> [*]
+    Skipped --> [*]
+```
+
+### 全员评分
+
+每个 Seat 使用原逻辑 ACP Session 提交一份评分表：
+
+- 从 winning 集中提名一名 MVP，从 losing 集中提名一名 SVP；候选集存在其他玩家时不能提名自己；
+- 为除自己外的每名玩家提交 information、communication、decision、objective、adaptability 五项
+  1–10 整数评分。
+
+ActionMailbox 在 accepted receipt 前调用 eligibility validator 并保存 submission。repository 对
+reviewer 唯一且允许相同重试幂等；MatchView 立即显示已接受评分表。每位模型的 Prompt 使用冻结终局
+snapshot，不包含其他评审者的评分内容。
+
+全员提交后，aggregator 为每位玩家计算各维度算术平均与 overall。MVP/SVP 先比较提名票数，再比较
+精确评分总分，仍相同时使用由 Match ID、奖项和候选 Player ID 派生的稳定 draw。原始 submissions、
+聚合 result 和 award resolution method 分别持久，浏览器可以解释结果来源。
+
+### 感想与关闭
+
+进入 speaking 后，coordinator 按 Seat 顺序请求感想。每份感想沿 direct speech stream 进入
+activeSpeech、LiveHub、SpeechBubble 和自动播报；最终文本经过 Player ID sanitization 后以 postgame
+reflection 独立保存。最后一份感想的播放边界释放后状态变为 completed，随后关闭全部原玩家
+Sessions。skip 同样关闭 Sessions；已经进入 collecting/speaking 的 review 不能跳过。
+
+逐玩家 postgame turn record 保存 submission/reflection 的 attempts、uncertain failure 和错误。
+第一次不确定失败可以在同 Session 上续篇；重复失败把 review 置为 paused 并保留精确 resumeState。
+
+## 删除与资源回收
+
+删除流程先解析精确 Match ID，再执行：
+
+1. 关闭活跃 MatchRuntime、playback、postgame coordinator 与 Player Sessions；
+2. 撤销该 Match 所有 MCP token，关闭 inactive WebSocket connections；
+3. 删除 Match row，让外键 cascade 清理事件、Session、delivery、trajectory 与 postgame 数据；
+4. 校验数据目录下的精确 Match 路径，只递归移除该 Match 的玩家 workspaces；
+5. 从 MatchManager active/inactive maps 移除引用。
+
+Agent Tools/Profiles、自定义 boards、Characters、共享玩家 Skill 输出、头像目录和其他 Match 不属于
+删除目标。未知 Match 返回 404，浏览器据此进入不可用终态。
+
+## 故障与可观测性
+
+- Create request、目录输入、snapshot 和数据库 JSON 在边界解析；Seat、引用、Role multiset 或 Ruleset
+  fingerprint 不合法时不会创建可运行 Match。
+- MatchRuntime 的规则、Prompt、Session 或持久化错误统一转为 paused 状态与可见 reason，保留恢复
+  所需记录。
+- postgame 不完整输入、重复/冲突提交和非法状态转换返回稳定 conflict；传输失败保留 turn record。
+- MatchView、领域事件、Session/delivery debug、postgame view 和 trajectory 提供从产品状态到协议
+  细节的分层观测；浏览器本地状态不作为恢复证据。
+
+## 扩展边界与不变量
+
+- 新目录字段先定义 contracts schema，再明确是否在 Match 创建时冻结；会影响既有 Match 的事实必须
+  进入 snapshot，而不是恢复时重新读取目录。
+- 新持久状态归属最窄 repository，并提供前向迁移、删除 cascade 和解析边界。
+- 新 lifecycle action 由 MatchManager/MatchRuntime 组合，不在 Web 或 GameEngine 建立平行状态机。
+- Character 永远只影响公开呈现和表达；Profile/Tool 只影响 Agent 运行配置。
+- board snapshot、setup snapshot、Session binding 和 append-only events 共同构成恢复依据。
+- postgame 数据与 game events 分离，不能改变 GameEngine replay 或 simulation 终局 oracle。
+- 删除必须先关闭运行对象，再清理精确 Match 持有的数据库与 workspace。
+
+## 深入阅读
+
+- [系统架构](../architecture.md)：跨模块状态所有权。
+- [游戏运行时](game-runtime.md)：Ruleset lock、事件与 replay。
+- [ACP Session 运行时](acp-session-runtime.md)：Session binding、delivery 与恢复。
+- [信息同步](information-synchronization.md)：首个终局 snapshot、评分和感想呈现。
+- [轨迹](trajectory.md)：诊断数据与 Match 删除边界。
+- [仿真](simulation.md)：source snapshot、事件与 postgame 排除边界。
+- [Server package](../../apps/server/README.md)：repository 与 lifecycle owner map。

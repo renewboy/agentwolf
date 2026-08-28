@@ -30,4 +30,4 @@ Web 应用运行在 `http://127.0.0.1:5173`;API 运行在 `http://127.0.0.1:4310
 
 Agent profile 将一个工具定义绑定到一个模型及其连接参数。凭据从命名的环境变量中读取,不保存在 profile 记录里。
 
-参见[产品行为](docs/product.md)、生成的[游戏目录](docs/generated/game-catalog.md)、模块化的[架构索引](docs/architecture.md)与[测试](docs/testing.md)。
+参见[产品行为](docs/product.md)、生成的[游戏目录](docs/generated/game-catalog.md)、模块化的[系统架构设计](docs/architecture.md)与[测试](docs/testing.md)。

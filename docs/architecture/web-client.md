@@ -1,60 +1,258 @@
 # Web 客户端架构
 
-## 职责
+本文描述 AgentWolf React/Vite 客户端如何消费 visibility-safe REST/WebSocket DTO，组织页面与实时
+Match 呈现，并管理 speech、motion、滚动和连接等浏览器副作用。目标读者是修改 API 适配、页面
+组合、实时状态、Match UI 或开发者检查器的研发人员。规则、持久化、Prompt 和隐藏信息过滤属于
+server 与下层模块。
 
-Web 客户端从经校验的 REST 与 WebSocket DTOs 呈现配置目录、Match 状态、赛后复盘与开发者诊断。
-它拥有浏览器生命周期、交互、本地呈现状态、语音播报与语义特效执行。
+## 设计目标与边界
 
-[`apps/web`](../../apps/web/README.md) 实现该模块。产品规则、持久化、隐藏字段过滤与 server
-编排绝不移入浏览器。
+Web 客户端同时满足以下约束：
 
-## 边界
+- 所有 server 响应和实时消息先经过 contracts schema，再进入 React state；
+- 浏览器只持有某个 `SpectatorView` 的 `MatchView`，不接收完整 Match 后自行隐藏；
+- server snapshot 是远端事实，连接、表单、播放、动效、滚动和 modal 是本地交互状态；
+- HTTP 提供初始/追平快照，WebSocket 提供实时 snapshot、speech chunks 和播放控制；
+- view 切换期间旧投影不可交互，直到新 view snapshot 完成替换；
+- speech synthesis 与 motion 可以失败或降级，但不能改变游戏规则或阻塞 Match 永久推进；
+- 用户离开 feed 最新位置后，实时更新保留其自由滚动位置并显式提示新活动；
+- developer UI 只在 server 宣告的 loopback developer mode 中出现。
 
-- `src/api.ts` 通过 contracts schemas 校验每一条 server 响应与客户端消息。
-- 页面组合产品流程;可复用组件拥有交互与呈现;hooks 拥有浏览器特效与外部生命周期。
-- 浏览器信任所选投影,因为 server 在序列化之前移除了未授权字段;本地隐藏从不是保密机制。
+[`apps/web`](../../apps/web/README.md) 只依赖 contracts 与 assets 的浏览器安全入口。Prompt runtime、
+玩家 Skill builder、GameEngine、SQLite 和 ACP 不进入 Web bundle。
 
-## 实时状态
+## 组件与依赖
 
-`useLiveMatch` 在瞬时 WebSocket 闭锁期间保留最后有效快照,通过 HTTP 刷新,并以有界退避重连。
-一次视图变更在请求另一投影之前遮盖当前投影,并建立新的角色特效基线。
+下图按状态所有权展示浏览器内部结构，而不是文件目录。
 
-未知或已删除的 Match 以 HTTP 404 落定,不再进入重连循环。已结束的 Match 在赛后复盘倒计时、
-收集评分表、感想或暂停期间保持活跃。完成与跳过的复盘在本地落定并关闭持续的在场状态。
+```mermaid
+flowchart TB
+    Contracts["contracts schemas"]
+    Assets["浏览器安全 assets<br/>文案、Character、effect catalog"]
+    API["API adapter<br/>fetch + WebSocket parse"]
 
-Session 状态与发言分块作为 server 事件到达;组件不轮询模型进度。等待 UI 可以传达活性,但
-绝不虚构百分比、推理文本或完成时间估计。
+    subgraph App["React 应用"]
+        Routes["App routes + RuntimeConfig"]
+        Pages["配置 / Lobby / Developer pages"]
+        Live["useLiveMatch<br/>远端投影与连接状态"]
+        Match["MatchPage<br/>产品流程组合"]
+        Components["Header / PlayerRail / Feed / Postgame"]
+        Speech["useSpeechPlayback"]
+        Motion["MatchMotion / RoleEffect controllers"]
+    end
 
-## 呈现归属
+    Server["Fastify REST / WebSocket"]
+    Browser["DOM、SpeechSynthesis、localStorage"]
 
-Match 页使用固定 `100dvh` 外壳。玩家栏呈现公开配置元数据与 visibility-safe 的 Role 状态;
-中央信息流拥有独立的历史滚动、实时发言、公开事件、投票与赛后感想。
+    Contracts --> API
+    Assets --> Pages
+    Assets --> Components
+    Server <--> API
+    API --> Routes
+    API --> Pages
+    API --> Live --> Match --> Components
+    Match --> Speech --> Browser
+    Match --> Motion --> Browser
+```
 
-[Web package 契约](../../apps/web/README.md)拥有共享交互实现。
+| 层                        | 主要职责                                                   | 状态边界                               |
+| ------------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `src/api.ts`              | 发起 HTTP、规范错误、逐响应 Zod parse                      | 不缓存 Match，不解释业务状态           |
+| App routes/runtime config | 组合导航、lazy Match route、developer capability gate      | 只保存 server 宣告的本次运行能力       |
+| Pages                     | 加载目录、维护表单 draft、调用生命周期 API、组合产品流程   | 表单状态可丢弃，不成为 server 配置真相 |
+| `useLiveMatch`            | HTTP 初始/追平、WebSocket、view 切换、连接状态和 MatchView | 唯一实时远端状态 owner                 |
+| MatchPage                 | 组合当前 projection、动作按钮、review panel 与呈现控制     | 不复制 server reducer                  |
+| Components                | 可复用渲染、可访问交互、局部展开/滚动状态                  | 不发明隐藏字段或 Match 状态            |
+| Hooks/controllers         | speech、GSAP、local preference 和外部生命周期清理          | 副作用受 projection sequence 驱动      |
 
-[前端方向](../frontend.md)拥有视觉语言、响应式布局原则与动效品味。确切的屏幕行为保留在
-组件与浏览器测试中,而不是本架构文档。
+## API 与路由边界
 
-## 角色特效
+`requestJson` 将非 2xx 响应转换为带 HTTP status 的 `ApiError`；204 返回 null，其余 JSON 交给调用
+方法对应的 contracts schema。目录、Match、postgame、trajectory 和 simulation 方法都返回解析后的
+类型，页面不直接处理未校验 `unknown`。
 
-角色特效消费 server 在可见性过滤之后投影的语义 `RoleEffectCue` 值。领域事件不含动画名、
-时长、颜色或 DOM 指令。assets package 拥有效果定义、文案、视觉 token 与时长层级;Web 控制器
-通过固定的 GSAP 适配器以 full、reduced 或 off 模式执行它们。
+应用路由分为两种外壳：
 
-新的活跃角色特效包含语义事件、可见性、cue 映射、full/reduced 行为、清理与浏览器验证。没有
-活跃视觉事件的 Role 注册为显式的 passive 例外。仓库检查强制固定的动画依赖、单一运行时
-import 边界与 Role 覆盖。
+- setup、Agent/Profile、board、Character、settings、Lobby 和 developer 页面位于共享 `AppShell`；
+- Match 页面使用独立全视口外壳并 lazy load，避免常规导航布局介入实时舞台。
 
-## 语音播报
+启动时 `RuntimeConfigProvider` 读取 `/api/runtime-config`。developer route 只有在
+`developerMode=true` 时可达；该值只决定客户端导航，真正的 developer API 注册与访问控制仍由
+server loopback 配置拥有。
 
-一个实时连接可以持有自动播报。`useSpeechPlayback` 是浏览器 Speech Synthesis 的唯一持有者。
-完整流式句子立即进入队列;提交事件只冲刷最后尾部,并提供用于完成判定的序列。
+## 远端状态与本地状态
 
-手动播放与停止作用于已提交发言,不改变 Match 推进。跳过、合成失败与控制者断开报告播报结果,
-以便 server 释放被持有的阶段边界。
+Web 客户端不维护一份平行 GameState。主要状态归属如下：
 
-## 开发者 UI
+| 状态                                                  | 所有者                    | 更新/失效方式                                                       |
+| ----------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| Match status、phase、Seat、timeline、winner、postgame | server `MatchView`        | HTTP 或 WebSocket snapshot 整体替换                                 |
+| 流式 `activeSpeech`                                   | `useLiveMatch`            | speech-chunk 追加，后续 snapshot 规范化为 committed 状态            |
+| `connecting/live/reconnecting/settled/unavailable`    | `useLiveMatch`            | socket、HTTP 追平、404 和完整终局驱动                               |
+| 当前 SpectatorView                                    | MatchPage                 | header 选择；server 返回对应 projection 后生效                      |
+| `viewPending`                                         | `useLiveMatch`            | 请求 view key 与 loaded snapshot view key 不同                      |
+| 自动/手动 speech queue                                | `useSpeechPlayback`       | projection、speech events、browser callbacks 与 server barrier 驱动 |
+| Role effect baseline/queue                            | `RoleEffectController`    | projection key、lastSequence、mode 与 cleanup 驱动                  |
+| presence/motion                                       | 纯派生 + GSAP controllers | MatchView、连接和 speech 状态变化时重算                             |
+| feed 展开、following-latest、scrollTop                | `MatchFeed`               | 用户输入和新增 timeline/stream 驱动                                 |
+| 表单 draft、modal、busy/error                         | 各 page/component         | 提交、取消、路由卸载时失效                                          |
 
-开发者启动暴露逐 Match 的轨迹与仿真动作。轨迹屏幕将参与者选择、共享时段时间线、minimap
-导航、玩家诊断、Record 详情与审计问题保持在同一个 Match 范围视图中。仿真向导调用 server
-工作流,绝不接受任意文件系统路径。
+这一划分使断线时可以保留最后 MatchView，同时独立清理 WebSocket、speech 和 motion 资源；重连完成
+后只需用新 snapshot 替换远端投影。
+
+## 实时 Match 数据流
+
+```mermaid
+sequenceDiagram
+    participant Page as MatchPage
+    participant Hook as useLiveMatch
+    participant HTTP as REST API
+    participant WS as Match WebSocket
+    participant UI as React Components
+    participant Effects as Speech / Motion Hooks
+
+    Page->>Hook: matchId + SpectatorView
+    Hook->>HTTP: getMatch(view)
+    HTTP-->>Hook: parsed MatchView
+    Hook->>WS: connect(view)
+    WS-->>Hook: snapshot / playback state
+    Hook-->>UI: MatchView + connection state
+    Hook-->>Effects: timeline、activeSpeech、effectCues
+
+    loop 对局运行
+        WS-->>Hook: speech-chunk
+        Hook-->>UI: activeSpeech append
+        WS-->>Hook: visibility-safe snapshot
+        Hook-->>UI: authoritative replacement
+        UI-->>Effects: sequence/projection changes
+    end
+```
+
+`useLiveMatch` 解析 URL Match ID，并发启动 HTTP 初始加载和带 view query 的 WebSocket；任一路径先到
+都用完整 snapshot 替换 MatchView。speech-chunk 只对 `activeSpeech` 做临时追加，最终
+`speech.committed` snapshot 重新建立规范 timeline。playback state 与 MatchView 分离，因为它属于
+连接 owner 而非领域投影。
+
+socket error 统一触发 close。close 后 hook 保留 MatchView，HTTP 追平当前 view，再以 250ms 到 5s
+退避重连。HTTP 404 清空 Match 并进入 unavailable；Match ended 且 postgame 完成/跳过（或不存在）
+进入 settled 并停止重连。
+
+### View 切换
+
+MatchPage 保存 `god/player/closed-eye` 和 player ID。view 改变时：
+
+1. hook 发送 `view.set`，并保持旧 snapshot 仅用于避免页面闪空；
+2. `loadedViewKey` 与请求 key 不同，`viewPending=true`；
+3. stage 设置 `aria-hidden` 与 `inert`，旧投影不能被读取或操作；
+4. server 回传新 view snapshot 后，hook 更新 MatchView 和 loaded key；
+5. speech 和 Role effect hooks 以新 projection key 重建基线。
+
+这是 UI 的过渡保护；真正的 privacy 仍由 server projection 保证。
+
+## Match 页面组合
+
+MatchPage 只组合已投影信息：
+
+- Header：board/phase、连接状态、view、audio 和 effect mode；
+- PlayerRail：公开 Character、Role、alive、Sheriff、候选和有限 Session status；
+- PresenceStage：从 Match status、postgame、连接、Session 和 speech 纯派生活动文案；
+- MatchFeed：timeline、live speech、vote detail、postgame award/reflection；
+- PostgameReviewPanel：countdown、评分进度、结果、感想与 start/skip/resume action；
+- paused/ended controls：调用 server API 后重新加载，不直接修改 MatchView。
+
+`deriveMatchPresenceState` 产生 starting、thinking、streaming、narrating、resolving、reconnecting、paused、
+ended 等呈现状态。它只影响文案和 motion，不能触发 GameEngine transition。
+
+## Feed 与滚动所有权
+
+MatchFeed 按对局周期把 timeline 组织为 setup、day/night 和 postgame groups，并只把展开集合保存在
+本地。公开 speech、vote 和 system event 使用不同组件，但都由 server 已生成的 TimelineItem 驱动。
+
+滚动策略显式区分“跟随最新”和“用户阅读历史”：
+
+- 初始位于底部或距离底部小于阈值时，新增 sequence、stream text 或 postgame result 通过下一帧
+  滚到最新；
+- 用户 pointer down、向上滚轮、PageUp/Home/ArrowUp 后立即取消待执行 scroll frame，并设置
+  `detachedByUser`；
+- detached 状态下，timeline 和虚拟 DOM 更新不修改用户 `scrollTop`，只显示“回到最新”提示；
+- 用户自行回到底部或点击提示后恢复 following-latest。
+
+因此 selected/active 内容可以在进入时定位一次，但实时 stream、group 展开和后续更新不会夺回用户
+滚动控制。
+
+## Speech playback
+
+`useSpeechPlayback` 是浏览器 SpeechSynthesis 的唯一 owner。它接收 server playback state、timeline、
+activeSpeech、projection key 和 viewPending，并维护：
+
+- committed speech queue；
+- 当前 stream job、已消费字符和完整句 units；
+- sequence outcome 与已回执 barrier 集；
+- 自动与手动播放互斥状态。
+
+流式 speech 只在完整句子形成时入队，commit 后补齐剩余尾部，并把最终 sequence 绑定到整个 stream。
+合成 end 回执 completed；error、unsupported、显式 skip、view pending 或控制权丢失回执 skipped。每个
+pending sequence 只发送一次 `speech-playback.resolve`。手动播放不连接 server barrier。
+
+projection 切换先取消 browser engine 和队列，记录被中断 sequence；新 view snapshot 到达后，只在
+该 sequence 仍可见或仍为 server pending 时重播。组件卸载、控制关闭和 Match 终局都会 cancel 当前
+utterance。
+
+## Motion 与 Role effects
+
+所有 GSAP 依赖通过 `src/motion/gsap.ts` 进入，版本由架构门禁固定。motion 分为两类：
+
+- `MatchMotionController` 根据 presence、phase、lastSequence、Sheriff 和 Session state 执行 ambient、
+  status、feed entry 与 FLIP transition；
+- `RoleEffectController` 消费 server 投影的 semantic `RoleEffectCue`，再从 assets catalog 读取 icon、
+  duration、tier 和样式。
+
+Role effect queue 只接受大于当前 baseline 的 cues，按 sequence 排序并用 cue ID 去重。首次加载和
+projection key 变化把 baseline 设为当前 `lastSequence`，避免播放历史事件。mode 为 full、reduced 或
+off；系统 reduced-motion 关闭连续/强 motion，off 同时推进 baseline，后续开启不会补播。
+
+GSAP timeline 在依赖变化时 revert，并清理 player dataset、tweens、visibility listener 和 DOM 状态。
+动画完成或失败不回写 server，也不持有 Match phase。
+
+## Developer UI
+
+developer 页面组合 trajectory summary、owner/Turn 分页、record inspector、player Session/delivery debug、
+audit issues 和 simulation wizard。实时 trajectory 使用 revision delta 追平，页面只为当前可见 Turn
+加载 Records。
+
+simulation wizard 通过 Match ID 请求 server 创建/读取候选、执行 review 并按 warning/current-behavior
+选择调用 approve。客户端不上传 fixture 内容、不接受文件路径，也不在浏览器执行 runner。
+
+## 故障与降级
+
+- API schema 失败或 HTTP error 保留在 page/hook error state，用户可以显式 retry；客户端不使用
+  未校验 payload 继续渲染。
+- WebSocket 解析错误显示连接错误，socket 关闭后走统一追平；已知 live control error 使用稳定文案。
+- SpeechSynthesis 不可用、抛错或回调 error 时自动 skip barrier，并保留文字内容。
+- reduced motion/off 模式保留完整语义 UI；动效缺失不影响操作和 Match progression。
+- 未知/删除 Match 收敛为不可用，不进行无界 reconnect。
+- 所有 effect、speech、timer、animation frame、event listener 和 socket 在 hook/component cleanup 中
+  释放。
+
+## 扩展边界与不变量
+
+- 新 server 字段先进入 contracts schema 和 server projector，再由 `api.ts`/LiveMessage parser 消费。
+- 新隐藏事实不能通过 Web 条件过滤实现；必须在 server serialization 前移除。
+- 新页面流程留在 pages，可复用交互留在 components，浏览器副作用留在 hooks/controllers。
+- 新 Role motion 由 semantic cue、assets definition 和 full/reduced 行为组成，不把 DOM/动画指令写入
+  game events。
+- server snapshot 是远端权威；Web 不能自行推进 phase、结算 vote、恢复 Session 或改写 postgame。
+- view pending 时旧投影不可交互；speech/effect sequence 在 projection 变化时重新建基线。
+- 用户显式离开最新位置后，任何实时更新都不能强制改变其滚动位置。
+- speech 与 motion 失败必须可降级且完成 cleanup，不能阻塞或改变游戏事实。
+
+## 深入阅读
+
+- [系统架构](../architecture.md)：Web 在跨包依赖和端到端回合中的位置。
+- [信息同步](information-synchronization.md)：projection、barrier、WebSocket 与播放门控协议。
+- [Match 生命周期](match-lifecycle.md)：页面可触发的 lifecycle 与 postgame 状态。
+- [轨迹](trajectory.md)：Developer UI 的 summary、page、delta、debug 与 audit 数据源。
+- [仿真](simulation.md)：simulation wizard 的 candidate、review 与 approve 契约。
+- [前端方向](../frontend.md)：视觉语言、响应式布局和动效品味。
+- [Web package](../../apps/web/README.md)：页面、组件、hook 和验证归属。
+- [测试与验收](../testing.md)：jsdom 与 Playwright 的行为边界。

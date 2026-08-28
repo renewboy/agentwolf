@@ -28,12 +28,15 @@ const required = [
   'docs/architecture/acp-session-runtime.md',
   'docs/architecture/information-synchronization.md',
   'docs/architecture/match-lifecycle.md',
-  'docs/architecture/trajectory-and-simulation.md',
+  'docs/architecture/trajectory.md',
+  'docs/architecture/simulation.md',
   'docs/architecture/web-client.md',
   'docs/frontend.md',
   'docs/testing.md',
   'docs/reference/game-rules.md',
   'docs/generated/game-catalog.md',
+  '.agents/skills/agentwolf-architecture-documentation/SKILL.md',
+  '.agents/skills/agentwolf-architecture-documentation/references/architecture-document-template.md',
   '.agents/notes/AGENTS.md',
   '.agents/notes/README.md',
   '.agents/notes/implemented/AGENTS.md',
@@ -50,6 +53,7 @@ for (const path of required) {
 
 for (const path of [
   'docs/information-sync.md',
+  'docs/architecture/trajectory-and-simulation.md',
   'docs/research/preflight.md',
   'docs/plans',
   'docs/acceptance',
@@ -80,7 +84,7 @@ const architectureFiles = [
 ]
 for (const path of architectureFiles) {
   const lines = (await text(path)).split(/\r?\n/).length
-  if (lines > 400) errors.push(`${localPath(path)} exceeds the 400-line architecture limit`)
+  if (lines > 500) errors.push(`${localPath(path)} exceeds the 500-line architecture limit`)
 }
 
 const currentStateDocs = [
@@ -187,6 +191,7 @@ const packageReadmes = [
   'packages/acp/README.md',
   'packages/assets/README.md',
 ].map((path) => resolve(projectRoot, path))
+const skillFiles = await sourceFiles(['.agents/skills'], new Set(['.md']))
 const linkSources = new Set([
   resolve(projectRoot, 'README.md'),
   resolve(projectRoot, 'artifacts_rules.md'),
@@ -194,6 +199,7 @@ const linkSources = new Set([
   ...allInstructionFiles,
   ...markdownFiles,
   ...packageReadmes,
+  ...skillFiles,
   resolve(projectRoot, '.agents/notes/README.md'),
   ...noteFiles,
 ])

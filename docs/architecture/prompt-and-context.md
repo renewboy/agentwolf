@@ -1,57 +1,253 @@
 # Prompt 与玩家上下文架构
 
-## 职责
+本文描述 AgentWolf 如何把锁定 Ruleset 的语义、某位玩家可见的 Match 事实和当前动作契约转换为
+发送给长驻 ACP Session 的 Prompt。目标读者是修改 Prompt bundle、事实投影、玩家 Skills、模型
+工具边界或上下文审计的研发人员。规则求值属于 game-engine，Session 送达与恢复属于 ACP Session
+运行时。
 
-该模块将已安装的游戏语义与某位玩家的 visibility-safe 状态转换为通过 ACP 发送的确切模型
-Prompt。它拥有 Prompt bundle 加载、语义呈现覆盖、严格 Nunjucks 渲染、玩家 Skill 送达、
-Character 框定与上下文预算审计。
+## 设计目标与信任边界
 
-Prompt 资产位于 [`packages/assets`](../../packages/assets/README.md);server 将解析后的
-Ruleset 与 Match 状态适配为 plain assets-owned 事实。
+Prompt 管线同时满足以下约束：
 
-## Bundle 归属
+- 具体 Role、Ability、Phase 和 plugin event 的模型呈现由其 RulePlugin 对应 bundle 拥有；
+- 模板只接收 server 已经按玩家身份过滤的 plain facts，不能提升事实可见性；
+- foundation、增量 turn 和恢复续篇各有明确送达边界，长驻 Session 不反复接收完整历史；
+- 玩家发言保持原始语义，裁判呈现只格式化权威事件和身份引用；
+- Prompt 源非本地化、严格渲染并在首次使用前完成 bundle 图与语义覆盖校验；
+- 玩家进程只获得游戏所需的 Skills、知识工具和动作工具，宿主开发上下文不进入模型环境；
+- 实际发送的 Prompt 与上下文 usage 被持久记录，审计依据发送时事实而非当前模板回算。
 
-模型 Prompt 使用 `packages/assets/prompts` 下的非本地化 Nunjucks bundles。`_core` 拥有 Session
-框定、通用布局、Character 框定、引用格式化、五个对局内 MCP 工具与一个赛后复盘 MCP 工具。
-功能性与 Role 插件拥有自己的 Role、Ability、Phase、事件、公告与 interrupt 呈现。
+[`packages/assets`](../../packages/assets/README.md) 拥有 Prompt schema、loader、registry、Nunjucks 源
+和玩家 Skill 构建器。server 的 `ContextRenderer` 拥有 game-engine 状态到 plain Prompt facts 的
+适配。assets 不依赖 game-engine；这一方向保证模板运行时不会绕过 server 自行读取隐藏状态。
 
-server 将已安装的 Ruleset 贡献记录适配为一份 plain 语义清单。assets loader 将 bundle 声明与
-该清单比对,并在首次渲染前冻结一份 registry。
+## 组件与数据流
 
-## 模板形态
+下图展示两条输入如何在 registry 汇合：Ruleset semantic contributions 决定必须安装哪些 bundle，
+玩家视图决定本次模板实际能看到哪些事实。
 
-结构化内容、循环与条件分支使用内聚模板。标签、过渡、工具标题与回执可以使用其语义所有者上
-的类型化单行字段。Prompt 资产不含通用字符串字典、locale 树、copy-key 查找服务、条件片段
-文件、句级模板、Prompt 版本选择器,也不含针对具体 Role、Ability、Phase 或 Plugin ID 的
-server 分支。
+```mermaid
+flowchart LR
+    subgraph Semantics["冻结语义"]
+        Plugins["Ruleset plugins"]
+        Contributions["semantic contributions"]
+        Inventory["Prompt inventory"]
+    end
 
-## 事实投影
+    subgraph Facts["玩家可见事实"]
+        State["GameState + GameEvent[]"]
+        Visibility["visibleEvents / visibleRoleId"]
+        Renderer["ContextRenderer"]
+        FactSchemas["Foundation / Turn facts"]
+    end
 
-`ContextRenderer` 将当前 Match 投影与动作预期转换为一份严格事实契约,包含可见性过滤后的
-事件、公开状态、当前动作契约与行为者自身状态。模板源由仓库持有并受路径约束在已安装 bundles
-与声明的依赖之内。公开模板不能引用更私密的资产。
+    subgraph Assets["assets-owned Prompt runtime"]
+        Loader["bundle loader"]
+        Registry["PromptBundleRegistry"]
+        Templates["strict Nunjucks templates"]
+    end
 
-## Prompt 流
+    Envelope["ContextEnvelope<br/>Prompt + sequence range"]
+    Player["PlayerRuntime"]
+    Session["持久 ACP Session"]
 
-foundation 覆盖其送达游标,并将每个可见的引导事实精确渲染一次:公开 board 规则、公开 Role
-介绍、行动 Role 与 abilities、适用的私密阵营知情,以及行动 Character 卡。它不包含任何
-seat 到 Role 的披露。
+    Plugins --> Contributions --> Inventory --> Loader
+    Loader --> Registry
+    Templates --> Loader
+    State --> Visibility --> Renderer --> FactSchemas --> Registry
+    Registry --> Envelope --> Player --> Session
+```
 
-增量回合渲染游标确认之后新可见的事件,外加一份当前阶段/动作契约。它省略玩家自己已知的已
-提交发言,同时保留所有其他必需的公开发言。不确定送达后的续篇是紧凑的,只描述当前动作边界;
-它不重放 foundation 或完整历史。
+| 组件                           | 拥有的职责                                                                      | 关键产出                          |
+| ------------------------------ | ------------------------------------------------------------------------------- | --------------------------------- |
+| semantic ownership recorder    | 记录每个 plugin 实际注册的 Role、Ability、Phase、event、query 与 trigger        | `PluginSemanticContribution[]`    |
+| `promptInventory`              | 将 Ruleset plugin 顺序、贡献、交互 phase 与 core event 类型转换为 assets 侧清单 | `PromptSemanticInventory`         |
+| bundle loader                  | 读取 manifest/templates，验证路径、imports、audience 与循环，预编译模板         | `LoadedPromptBundle[]`            |
+| `PromptBundleRegistry`         | 冻结 Role/Ability/Phase/event 的呈现所有权，匹配事件并渲染 Prompt               | foundation、turn、event narration |
+| `ContextRenderer`              | 选择玩家可见事件和 Role，构造 actor/roster/board/game/turn facts                | `ContextEnvelope`                 |
+| `PlayerRuntime`                | 把 envelope 与 delivery ledger、Session、trajectory 关联                        | 一次可确认的 ACP Prompt 送达      |
+| player Skill builder/workspace | 构建共享游戏 Skills 并链接到每个 Seat workspace                                 | 隔离的 Agent 工作目录             |
 
-可见历史保持事件顺序,并通过冻结 registry 解析 Player、Role、Ability、Phase 与 Faction 引用。
-玩家撰写的发言文本被保留,而不是由裁判呈现层重新排版。
+## Bundle 所有权与装载
 
-## 玩家环境
+Prompt 根由 `_core` 和与已安装 RulePlugin 一一对应的 bundle 构成：
 
-构建过程将完整的玩家 Skill 目录复制到 `.agentwolf/skills`。每个 Match workspace 将其
-`.agents/skills`、`.claude/skills` 与 `.trae/skills` 目录链接到该共享输出。
+- `_core` 拥有 foundation、continuation、bootstrap continuation、Character、player contract 布局，
+  通用 faction 标签、工具说明和 MCP 回执；
+- plugin bundle 拥有该 plugin 注册的 Roles、Abilities、Phases、plugin events 与公告呈现；
+- manifest 只允许声明自身语义、显式 imports 和带 audience 的 shared templates；
+- 模板引用必须位于 bundle 根内，loader 拒绝绝对路径、`..`、反斜线、symlink、动态 import 和
+  非 `.njk` 文件；
+- Prompt 根不能引入 locale/i18n 目录，模型语言保持为一份确定的游戏契约。
 
-玩家运行时暴露玩家契约、所选 Skills、本地读取/搜索工具、五个对局内动作与一个赛后复盘动作。
-环境用户记忆、无关 Skills、仓库开发指令、Web 访问、变更类工具、hooks、插件与子代理保持
-缺席。
+manifest 中每个 event/announcement presentation 必须在 `text`、`template` 和 `omit` 中恰选一种。
+event matcher 由 payload type 与可选 `where` 条件组成；registry 选择 specificity 最高的唯一匹配。
+缺失匹配或同 specificity 的重叠匹配会使 registry 构建/渲染失败，避免同一事件静默选择不同文本。
 
-每次引导轨迹将提供方报告的完整模型上下文对照 12,000 token 上限进行审计。实际发送的 Prompt
-存入轨迹;历史 Prompt 文本从不基于当前模板重新渲染。
+bundle 图同时执行两类校验：
+
+1. **安装覆盖**：每个 Ruleset contribution 中的 Role、Ability、Phase 和 plugin event 必须由同 ID
+   bundle 精确呈现，bundle 也不能声明未被插件拥有的语义；每个交互 phase 必须有 turn template，
+   每个 core event 必须有呈现或显式 omission。
+2. **audience 单调性**：跨 bundle 只能引用被导出的 shared template；public 资产只能组合 public
+   内容，player/faction 资产不能互相越权，god 资产可以组合更窄 audience。模板组合不能成为隐私
+   升级通道。
+
+首次请求某个 `RulesetRuntime` 时，server 构建 registry 并用 WeakMap 按 runtime 身份缓存。所有
+模板在冻结前预编译，缺失变量通过 Nunjucks `throwOnUndefined` 立即失败。
+
+## 可见事实投影
+
+Prompt privacy boundary 位于 `ContextRenderer` 之前，而不是 Nunjucks 条件语句中。
+
+```mermaid
+flowchart TB
+    Raw["完整 GameState 与事件日志"]
+    PlayerView["SpectatorView(playerId)"]
+    Events["visibleEvents(afterSequence)"]
+    Roles["visibleRoleId per roster seat"]
+    Facts["严格 Zod facts<br/>actor、roster、board、game、turn"]
+    Registry["PromptBundleRegistry"]
+    Prompt["最终 Prompt 文本"]
+
+    Raw --> Events
+    PlayerView --> Events
+    Raw --> Roles
+    PlayerView --> Roles
+    Events --> Facts
+    Roles --> Facts
+    Facts --> Registry --> Prompt
+```
+
+`ContextRenderer` 构造以下稳定事实：
+
+- actor：当前玩家的 Player ID、Seat、昵称、生存状态、Role、Faction 和 ability usage；
+- roster：按 Seat 排序的公开身份，以及该玩家通过自身、阵营共享、公开 reveal 或终局可知的 Role；
+- board：Role 构成、Faction、Sheriff 开关与冻结政策；
+- game：day、night、status 与 paused reason；
+- events：送达游标之后对该玩家可见且保持原 sequence 顺序的事件；
+- turn：phase、action type、speech/vote kind、可用 abilities、interrupts、Sheriff actions 和发言上限；
+- Character：仅 foundation 中该 Seat 的不可变公开表达卡。
+
+允许的 ability/interrupt 在进入 facts 前再次按 actor 当前 capability 过滤。Prompt registry 提供
+Player/Role/Ability/Phase/Faction 标签和可见事件 helper，但 helper 只能查询传入 facts，不能访问
+GameEngine 或 repository。
+
+## Prompt 生命周期与送达边界
+
+下图说明 foundation、普通 turn 与恢复续篇如何共享同一 Session，同时只发送新事实。
+
+```mermaid
+sequenceDiagram
+    participant Match as MatchRuntime
+    participant Renderer as ContextRenderer
+    participant Player as PlayerRuntime
+    participant Ledger as Delivery Ledger
+    participant ACP as ACP Session
+    participant Trace as Trajectory
+
+    Match->>Renderer: foundation(state, full history, character)
+    Renderer-->>Match: Prompt + toSequence
+    Match->>Player: bootstrap(envelope)
+    Player->>Ledger: begin(1..toSequence)
+    Player->>ACP: session/prompt foundation
+    ACP-->>Player: final response + usage
+    Player->>Ledger: acknowledge(toSequence)
+
+    Match->>Renderer: turn(after acknowledgedSequence)
+    Renderer-->>Match: 新可见 events + action contract
+    Match->>Player: takeTurn(envelope)
+    Player->>Trace: 保存实际 Prompt 与可见 sequences
+    Player->>ACP: session/prompt turn
+    ACP-->>Player: action / direct speech
+    Player->>Ledger: acknowledge(toSequence)
+
+    opt 送达不确定且无已接受动作
+        Match->>Renderer: turn(..., continuation=true)
+        Renderer-->>Match: 当前阶段续篇
+        Match->>ACP: 同 Session 继续
+    end
+```
+
+### Foundation
+
+foundation 要求输入历史的最后 sequence 与 GameState `lastSequence` 完全相同。它一次性呈现公开 board
+规则、公开 Role 说明、actor 自身 Role/Abilities、可见阵营知识、初始可见事件、完整初始 roster 和
+Character。公开 Role 说明描述 board 中存在的语义，不建立 Seat 到隐藏 Role 的映射。
+
+player-session binding 在 foundation 前处于 `bootstrapState=pending`。派发前改为 `dispatched`，
+delivery 确认后改为 `acknowledged`。若进程在派发后中断，恢复同一 Session 并发送紧凑 bootstrap
+continuation，不重发 foundation。
+
+### 增量 turn
+
+增量 turn 从玩家 `acknowledgedSequence` 之后选择事件，并附加当前 action boundary。玩家自己已经
+提交且保留在长驻 Session 中的内容通过事件呈现策略避免冗余；其他玩家的必需公开发言保持在顺序
+历史中。turn envelope 的 `toSequence` 固定为渲染时 GameState 最后 sequence。
+
+当 delivery 不确定且没有持久 pending action 时，ledger 对账该范围并将 `continuationPending` 设为
+真。下一 Prompt 使用同一 phase/actor 边界和 continuation layout，只说明当前需要完成的动作，不
+复制 foundation 或完整对局历史。
+
+### 赛后 Prompt
+
+赛后评分和感想使用独立的 `PostgamePromptAssets`，但沿用原玩家 Session。首份评分 Prompt 从该
+玩家常规 cursor 之后补齐公开终局历史，随后使用冻结的 terminal snapshot、候选集合和评分目标；
+重试使用专用 continuation。感想 Prompt 包含聚合结果与先前公开感想，并通过普通 direct speech
+stream 进入 Web。赛后数据不进入游戏事件日志。
+
+## 玩家环境与工具边界
+
+构建阶段把 `packages/assets/player-skills` 生成到 `.agentwolf/skills`。每个 Match/Player workspace
+只创建相对 symlink，使 `.agents/skills`、`.claude/skills` 和 `.trae/skills` 指向同一共享构建输出。
+
+Provider 启动策略统一执行以下环境契约：
+
+- 载入 `agentwolf-player` 与 `werewolf-strategy` 游戏 Skills；
+- 暴露本地只读知识工具和六个声明的 MCP 动作工具；
+- MCP endpoint 使用只绑定当前 Match/Player 的 bearer token；
+- 移除环境记忆、仓库项目指令、Web、插件、hooks、子代理、写入与无关开发能力；
+- Claude 额外使用严格无网络和禁止文件写入的 sandbox；Codex/Trae 通过各自配置面落实上下文、
+  Skill、Web 与工具限制。
+
+foundation Prompt 是当前对局事实，player contract/Skills 是稳定玩法与工具契约，两者不互相复制。
+每个 bootstrap trajectory 对 Provider 报告的 context usage 执行 12,000 token 预算审计。
+
+## 状态、故障与可观测性
+
+| 状态                  | 所有者                       | 生命周期                             |
+| --------------------- | ---------------------------- | ------------------------------------ |
+| Prompt 源与 manifests | assets 源目录                | 随代码版本发布，非本地化             |
+| bundle registry       | `PromptBundleRegistry`       | 按冻结 Ruleset runtime 构建并缓存    |
+| facts/envelope        | `ContextRenderer`            | 单次渲染快照，携带精确 sequence 范围 |
+| delivery cursor       | `PlayerRuntime` / repository | ACP 最终确认或恢复对账后推进         |
+| 实际 Prompt 与 usage  | trajectory                   | 发送时持久，历史记录不回算           |
+| 玩家 Skills           | assets builder / 数据目录    | 构建一次，多个 workspace 只链接      |
+
+- bundle 缺失、语义覆盖不全、非法 import、audience 越权、模板未定义值或事件呈现歧义会在 registry
+  建立或渲染时失败；MatchRuntime 在应用边界暂停 Match。
+- foundation 历史与 state sequence 不一致会拒绝渲染，避免遗漏或重复初始事实。
+- roster 玩家缺少最终 Role/Faction、公开历史 cursor 越界或 postgame terminal sequence 不匹配会
+  明确失败。
+- trajectory 保存 Prompt、可见 event sequences、usage、reasoning/message/tool updates 和错误；
+  审计重建渲染时状态并验证可见范围与 context budget，不把历史文本和当前模板逐字比较。
+
+## 扩展边界与不变量
+
+- 新 plugin 语义必须由同 ID Prompt bundle 精确覆盖；通用 Prompt runtime 不增加具体 ID dispatch。
+- 新 facts 先在 assets 侧 Zod schema 定义，再由 server 从 visibility-safe 状态适配；模板不能接收
+  原始 GameState。
+- 新跨 bundle 复用只通过带 audience 的 shared template；公开资产不能引用更私密资产。
+- 新动作工具同时更新 core manifest、MCP gateway、玩家工具 allowlist、contracts 与边界测试。
+- Prompt 只描述当前任务和事实，结构化规则仍由 GameEngine/ActionMailbox 校验。
+- 玩家撰写的 speech 不由事件 renderer 改写策略含义；未知 Player ID 在提交边界拒绝。
+- 任何历史 Prompt 的审计依据是实际存储文本、sequence 和 usage，而非当前源重新渲染。
+
+## 深入阅读
+
+- [系统架构](../architecture.md)：事实流、信任边界和端到端回合。
+- [游戏运行时](game-runtime.md)：semantic contributions、事件和动作契约来源。
+- [ACP Session 运行时](acp-session-runtime.md)：delivery ledger、Session 与恢复。
+- [信息同步](information-synchronization.md)：玩家可见事件、phase 与公开发言顺序。
+- [Assets package](../../packages/assets/README.md)：导出边界与资产所有权。
+- [游戏目录](../generated/game-catalog.md)：源码生成的 plugin/Prompt 覆盖清单。

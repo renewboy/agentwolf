@@ -12,7 +12,7 @@
 - Property tests 拥有广泛的确定性不变量,如合法玩家人数、事件单调性、replay 与死亡/动作
   顺序。
 - 集成测试拥有 REST/WebSocket 契约、SQLite repositories 与迁移、Match 运行时、ACP 协议
-  fakes、projection、送达、恢复、赛后、轨迹与仿真服务。
+  fakes、projection、送达、恢复、赛后、轨迹服务和仿真服务。
 - Contract tests 在生产者与消费者边界解析共享 fixtures。
 - 仿真语料测试通过游戏引擎与生产编排、使用确定性 fake Sessions 重放已审查的真实 Match
   决策。

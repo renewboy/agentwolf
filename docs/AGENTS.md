@@ -11,7 +11,7 @@ Agent Note 以及面向模型的持久化行文。
 | 文档                     | 拥有                       | 不拥有                  |
 | ------------------------ | -------------------------- | ----------------------- |
 | 根 `AGENTS.md`           | 常设指令与导航             | 产品或子系统设计        |
-| `docs/architecture.md`   | 系统地图与模块索引         | 模块内部                |
+| `docs/architecture.md`   | 系统边界、跨模块设计与路由 | 模块内部                |
 | `docs/architecture/*.md` | 一个主要跨包模块           | 无关模块或 package API  |
 | Package/app README       | 局部契约、失败模式、限制   | 跨包设计                |
 | `docs/product.md`        | 用户可观察行为             | 实现与测试细节          |
@@ -23,20 +23,27 @@ Agent Note 以及面向模型的持久化行文。
 
 ## 架构层级
 
-`architecture.md` 是一张地图。它只包含运行时图、依赖方向、模块索引和变更路由链接。每个主要
-模块在 `docs/architecture/` 下有一个文件;更底层的 package 细节放在 package 或 app 的
-README 中。
+`architecture.md` 负责系统边界、主要组件、端到端运行链路、跨模块状态所有权与专项导航。每个
+主要模块在 `docs/architecture/` 下有一个文件;更底层的 package 细节放在 package 或 app 的
+README 中。系统文档与专项文档都必须解释设计关系,不能退化为目录索引或实现流水账。
+
+编写、重构或审查架构文档时使用
+[AgentWolf 架构文档开发 Skill](../.agents/skills/agentwolf-architecture-documentation/SKILL.md),并按其
+[架构文档模板](../.agents/skills/agentwolf-architecture-documentation/references/architecture-document-template.md)
+选择设计问题、文档粒度与 Mermaid 制图。
 
 每个 `AGENTS.md` 不超过 200 行。`docs/architecture.md` 与 `docs/architecture/` 下每个文件
-不超过 400 行。这些是简单的可读性上限,不是内容目标:按既有语义归属拆分,而不是把无关事实
+不超过 500 行。这些是简单的可读性上限,不是内容目标:按既有语义归属拆分,而不是把无关事实
 压缩到一起。
 
 ## 更新路由
 
 - 用户工作流或可见失败变化:当读者需要改变操作方式时,更新 `product.md`。
-- Package 依赖方向或模块职责变化:更新架构索引和恰好一个模块架构文档。
+- Package 依赖方向或模块职责变化:更新系统架构和恰好一个模块架构文档。
 - 包内 API、配置或失败行为变化:更新对应 package README 或 JSDoc。
 - 可见性、送达、barrier、回放或重连变化:更新信息同步模块。
+- Turn/Record、脱敏、轨迹读取或语义审计变化:更新轨迹模块。
+- Match capture、candidate、runner 或 fixture 审批变化:更新仿真模块。
 - 视觉语言或交互原则变化:更新 `frontend.md`;屏幕细节留在代码和浏览器测试里。
 - 测试基础设施或 fixture 政策变化:更新 `testing.md`;新增覆盖不需要。
 - 新增 Role 或 board:更新源码、Prompt/策略资产、测试和生成目录。仅在扩展契约变化时才

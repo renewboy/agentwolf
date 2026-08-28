@@ -18,7 +18,9 @@ AgentWolf 是一个 TypeScript workspace,用于在长驻的 ACP Agent Session �
   MUST Read [artifacts_rules.md](artifacts_rules.md)。
 - 文档结构与行文规范:[文档标准](docs/AGENTS.md)。
 - 产品行为与 V1 范围:[产品](docs/product.md)。
-- 系统地图与模块路由:[架构索引](docs/architecture.md)。
+- 系统边界、跨模块设计与模块路由:[系统架构](docs/architecture.md)。
+- 编写、重构或审查架构设计文档:
+  [架构文档开发 Skill](.agents/skills/agentwolf-architecture-documentation/SKILL.md)。
 - 游戏内核、Rulesets、Roles、阶段、效果与胜负:
   [游戏运行时](docs/architecture/game-runtime.md)。
 - Prompt bundles、可见模型事实与玩家上下文:
@@ -29,8 +31,8 @@ AgentWolf 是一个 TypeScript workspace,用于在长驻的 ACP Agent Session �
   [信息同步](docs/architecture/information-synchronization.md)。
 - 对局配置、快照、持久化、删除与赛后复盘:
   [Match 生命周期](docs/architecture/match-lifecycle.md)。
-- 轨迹采集、审计与确定性仿真:
-  [轨迹与仿真](docs/architecture/trajectory-and-simulation.md)。
+- ACP 回合记录、脱敏、审计与开发者诊断:[轨迹](docs/architecture/trajectory.md)。
+- 真实 Match 采集、确定性 runners 与 fixture 审批:[仿真](docs/architecture/simulation.md)。
 - 浏览器归属与投影实时状态:[Web 客户端](docs/architecture/web-client.md)。
 - 视觉与交互方向:[前端](docs/frontend.md)。
 - 测试策略与命令:[测试](docs/testing.md)。

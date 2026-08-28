@@ -8,7 +8,8 @@ loopback 开发者工作流。
 - 通过 `src/api.ts` 消费并校验 REST/WebSocket DTO。
 - 在 pages 中组合产品流程,在 components 中沉淀可复用行为。
 - 在 hooks 中持有浏览器生命周期与外部副作用。
-- 呈现可见性安全的玩家状态、发言、events、votes、复盘、轨迹与仿真。
+- 呈现可见性安全的玩家状态、发言、events、votes、复盘与轨迹诊断。
+- 提供仿真 candidate 评审与批准工作流。
 - 执行语义 Role 效果与浏览器发言播放,不影响游戏时序。
 
 技术边界定义在 [Web 客户端架构](../../docs/architecture/web-client.md),视觉契约在

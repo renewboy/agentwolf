@@ -19,7 +19,7 @@ Prompt 或机密素材。
 
 CLI 与浏览器工作流调用同一个 simulation service。候选批准绝不覆盖既有 fixture,也不改动来源
 Match。当前设计记录于
-[轨迹与仿真](../../../../docs/architecture/trajectory-and-simulation.md)。
+[确定性仿真](../../../../docs/architecture/simulation.md)。
 
 ## Alternatives considered
 

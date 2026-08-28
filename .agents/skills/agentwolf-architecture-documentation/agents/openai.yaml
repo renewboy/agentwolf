@@ -1,0 +1,4 @@
+interface:
+  display_name: 'AgentWolf 架构文档开发'
+  short_description: '从当前源码编写、重构并审查 AgentWolf 架构设计文档'
+  default_prompt: '使用 $agentwolf-architecture-documentation 从当前源码编写或重构架构设计文档。'

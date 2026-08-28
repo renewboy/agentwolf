@@ -9,6 +9,10 @@ const playerSkillRoot = resolve(skillsRoot, 'agentwolf-player')
 const strategySkillRoot = resolve(skillsRoot, 'werewolf-strategy')
 const codingSkillsRoot = resolve(projectRoot, '.agents/skills')
 const roleDevelopmentSkillRoot = resolve(codingSkillsRoot, 'agentwolf-role-development')
+const architectureDocumentationSkillRoot = resolve(
+  codingSkillsRoot,
+  'agentwolf-architecture-documentation',
+)
 
 for (const playerOnlySkill of ['agentwolf-player', 'werewolf-strategy']) {
   try {
@@ -22,6 +26,11 @@ for (const playerOnlySkill of ['agentwolf-player', 'werewolf-strategy']) {
 const playerSkill = await validateSkill('agentwolf-player', playerSkillRoot)
 const strategySkill = await validateSkill('werewolf-strategy', strategySkillRoot)
 await validateSkill('agentwolf-role-development', roleDevelopmentSkillRoot)
+await validateSkill('agentwolf-architecture-documentation', architectureDocumentationSkillRoot)
+await requireFile(
+  architectureDocumentationSkillRoot,
+  'references/architecture-document-template.md',
+)
 
 const actionReference = await text(resolve(playerSkillRoot, 'references/actions.md'))
 for (const tool of [

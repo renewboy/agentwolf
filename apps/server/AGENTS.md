@@ -6,8 +6,8 @@
 只阅读被本次改动触及的架构模块:[Match 生命周期](../../docs/architecture/match-lifecycle.md)、
 [ACP Session 运行时](../../docs/architecture/acp-session-runtime.md)、
 [信息同步](../../docs/architecture/information-synchronization.md)或
-[轨迹与仿真](../../docs/architecture/trajectory-and-simulation.md)。在更改测试基础设施或
-fixture 策略前阅读[测试](../../docs/testing.md)。
+[轨迹](../../docs/architecture/trajectory.md)、[仿真](../../docs/architecture/simulation.md)。在更改
+测试基础设施或 fixture 策略前阅读[测试](../../docs/testing.md)。
 
 ## 边界
 
