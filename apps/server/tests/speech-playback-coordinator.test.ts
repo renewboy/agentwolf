@@ -24,7 +24,7 @@ describe('SpeechPlaybackCoordinator', () => {
     expect(coordinator.setEnabled(first, true)).toBe('accepted')
     expect(coordinator.setEnabled(second, true)).toBe('busy')
 
-    const pending = coordinator.waitFor(speechEvent(7, { kind: 'public' }))
+    const pending = coordinator.waitFor(playbackItem(7, { kind: 'public' }))
     expect(coordinator.stateFor(first)).toEqual({
       enabled: true,
       controlledByThisClient: true,
@@ -41,7 +41,7 @@ describe('SpeechPlaybackCoordinator', () => {
     const coordinator = createCoordinator()
     const owner = subscriber({ kind: 'god' })
     coordinator.setEnabled(owner, true)
-    const pending = coordinator.waitFor(speechEvent(9, { kind: 'faction', faction: 'werewolf' }))
+    const pending = coordinator.waitFor(playbackItem(9, { kind: 'faction', faction: 'werewolf' }))
 
     owner.view = { kind: 'closed-eye' }
     coordinator.viewChanged(owner)
@@ -58,7 +58,7 @@ describe('SpeechPlaybackCoordinator', () => {
     const coordinator = createCoordinator()
     const owner = subscriber({ kind: 'god' })
     coordinator.setEnabled(owner, true)
-    const pending = coordinator.waitFor(speechEvent(11, { kind: 'public' }))
+    const pending = coordinator.waitFor(playbackItem(11, { kind: 'public' }))
 
     coordinator.disconnect(owner)
 
@@ -73,7 +73,7 @@ describe('SpeechPlaybackCoordinator', () => {
 
 function createCoordinator(changed = vi.fn()): SpeechPlaybackCoordinator {
   return new SpeechPlaybackCoordinator({
-    isVisible: (event, view) => event.visibility.kind === 'public' || view.kind === 'god',
+    isVisible: (item, view) => item.event?.visibility.kind === 'public' || view.kind === 'god',
     onStateChange: changed,
   })
 }
@@ -99,4 +99,12 @@ function speechEvent(
       sanitized: false,
     },
   }) as SpeechCommittedEvent
+}
+
+function playbackItem(
+  sequence: number,
+  visibility: { kind: 'public' } | { kind: 'faction'; faction: 'werewolf' },
+) {
+  const event = speechEvent(sequence, visibility)
+  return { sequence, playerId, event }
 }

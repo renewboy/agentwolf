@@ -23,16 +23,52 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['packages/*/tests/**/*.test.ts', 'apps/*/tests/**/*.test.ts', 'scripts/**/*.test.ts'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'packages/*/tests/**/*.test.ts',
+            'apps/server/tests/**/*.test.ts',
+            'scripts/**/*.test.ts',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'web',
+          environment: 'jsdom',
+          include: ['apps/web/tests/**/*.{test,spec}.{ts,tsx}'],
+          setupFiles: ['apps/web/tests/setup.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json-summary'],
-      include: ['packages/*/src/**/*.ts', 'apps/server/src/**/*.ts'],
-      exclude: ['**/index.ts', '**/bin.ts', '**/errors.ts', '**/simulation-cli.ts'],
+      reporter: ['text', 'json-summary', 'html'],
+      include: ['packages/*/src/**/*.ts', 'apps/server/src/**/*.ts', 'apps/web/src/**/*.{ts,tsx}'],
+      exclude: [
+        '**/index.ts',
+        '**/bin.ts',
+        '**/errors.ts',
+        '**/simulation-cli.ts',
+        'apps/web/src/main.tsx',
+        'apps/web/src/motion/gsap.ts',
+      ],
+      watermarks: {
+        statements: [50, 80],
+        branches: [50, 80],
+        functions: [50, 80],
+        lines: [50, 80],
+      },
       thresholds: {
+        perFile: true,
         lines: 80,
         functions: 80,
-        branches: 65,
+        branches: 80,
         statements: 80,
       },
     },

@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import {
   AgentProfileInputSchema,
   AgentToolInputSchema,
+  PlayerIdSchema,
   type LiveMessage,
   type MatchId,
   type MatchView,
@@ -362,7 +363,8 @@ describe('match orchestration', () => {
     if (firstAttack?.payload.type !== 'night.attack-selected' || !firstAttack.payload.targetId) {
       throw new Error('Expected a selected wolf target')
     }
-    const attacked = final.seats.find((seat) => seat.playerId === firstAttack.payload.targetId)
+    const attackedId = firstAttack.payload.targetId
+    const attacked = final.seats.find((seat) => seat.playerId === attackedId)
     const witchId = final.seats.find((seat) => seat.roleId === 'role-witch')?.playerId
     const seerId = final.seats.find((seat) => seat.roleId === 'role-seer')?.playerId
     const witchPrompt = witchId
@@ -534,7 +536,7 @@ describe('match orchestration', () => {
     })
     server.matches.beginMatch(created.id)
 
-    const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
+    const seerId = `player-${roles.findIndex((roleId) => roleId === 'role-seer') + 1}` as PlayerId
     const corrected = await waitForMatchState(server, created.id, (match) =>
       match.timeline.some((item) => item.kind === 'seer.inspected'),
     )
@@ -640,7 +642,7 @@ describe('match orchestration', () => {
     })
     server.matches.beginMatch(created.id)
 
-    const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
+    const seerId = `player-${roles.findIndex((roleId) => roleId === 'role-seer') + 1}` as PlayerId
     const continued = await waitForMatchState(
       server,
       created.id,
@@ -651,7 +653,9 @@ describe('match orchestration', () => {
     expect(continued.status).not.toBe('paused')
     expect(
       continued.timeline.some(
-        (item) => item.kind === 'public.announcement' && item.playerIds.includes('player-3'),
+        (item) =>
+          item.kind === 'public.announcement' &&
+          item.playerIds.includes(PlayerIdSchema.parse('player-3')),
       ),
     ).toBe(true)
     expect(continued.timeline.some((item) => item.kind === 'match.paused')).toBe(false)
@@ -919,7 +923,7 @@ describe('match orchestration', () => {
       match.timeline.some((item) => item.kind === 'seer.inspected'),
     )
     expect(resumed.day).toBeGreaterThanOrEqual(1)
-    const seerId = `player-${roles.indexOf('role-seer') + 1}` as PlayerId
+    const seerId = `player-${roles.findIndex((roleId) => roleId === 'role-seer') + 1}` as PlayerId
     const recoveryPrompt = prompts
       .get(seerId)
       ?.findLast((prompt) =>

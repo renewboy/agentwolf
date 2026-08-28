@@ -15,8 +15,7 @@ Before editing:
 
 1. Read the repository `AGENTS.md` chain, [game runtime](../../../docs/architecture/game-runtime.md),
    and the [adopted rule baseline](../../../docs/reference/game-rules.md). Read only additional module
-   documents touched by the Role: Prompt/context, information synchronization, or Web client. Read
-   `docs/frontend.md` when the Role changes badge, effect, board UI, or browser behavior.
+   documents touched by the Role: Prompt/context, information synchronization, or Web client.
 2. Inspect the working tree and preserve unrelated changes. Treat existing Matches and
    `.agentwolf/` runtime data as read-only unless the user explicitly authorizes mutation.
 3. Write down the Role's faction and kind; timing; legal actors and targets; pass rules; usage
@@ -59,11 +58,6 @@ for a shipped Role.
   semantic registrations. Keep the versioned ruleset manifest declarative.
 - Validation is pure. Game changes enter as append-only events; durable Role state must reconstruct
   from events and deterministic ruleset configuration.
-- Use plugin events for new Role-specific event state. Set visibility when emitting the event, then
-  derive Prompt narration, timeline entries, and effect cues only after visibility filtering.
-- Each installed Rule plugin has exactly one non-localized Nunjucks Prompt bundle with the same
-  plugin ID. `_core` remains generic. Model Prompts state compact facts and legal action contracts;
-  they do not encode strategy decision trees.
 - Treat a published ruleset ID, version, ordered plugin lock, configuration, and fingerprint as
   immutable. A changed installed manifest becomes a new current ruleset version while previous
   snapshot resolvers remain available.

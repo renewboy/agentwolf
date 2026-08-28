@@ -3,17 +3,38 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PROTOCOL_VERSION, agent, methods, ndJsonStream } from '@agentclientprotocol/sdk'
 
-const modelOption = (currentValue = 'mock-default') => ({
-  id: 'model',
-  name: 'Model',
-  category: 'model',
-  type: 'select',
-  currentValue,
-  options: [
-    { value: 'mock-default', name: 'Mock default' },
-    { value: 'mock-model', name: 'Mock model' },
-  ],
-})
+const modelOption = (currentValue = 'mock-default') =>
+  process.env.AGENTWOLF_MOCK_MODEL_BOOLEAN === 'true'
+    ? {
+        id: 'model',
+        name: 'Model',
+        category: 'model',
+        type: 'boolean',
+        currentValue: false,
+      }
+    : {
+        id: 'model',
+        name: 'Model',
+        category: 'model',
+        type: 'select',
+        currentValue,
+        options:
+          process.env.AGENTWOLF_MOCK_NESTED_MODEL_OPTIONS === 'true'
+            ? [
+                {
+                  group: 'Models',
+                  name: 'Models',
+                  options: [
+                    { value: 'mock-default', name: 'Mock default' },
+                    { value: 'mock-model', name: 'Mock model' },
+                  ],
+                },
+              ]
+            : [
+                { value: 'mock-default', name: 'Mock default' },
+                { value: 'mock-model', name: 'Mock model' },
+              ],
+      }
 
 const reasoningValues = (model) => (model === 'mock-model' ? ['low', 'high'] : ['low', 'medium'])
 
@@ -50,16 +71,26 @@ function writeStore(store) {
 }
 
 function sessionResponse(config = { model: 'mock-default', reasoningEffort: 'medium' }) {
+  const reasoning =
+    process.env.AGENTWOLF_MOCK_DISABLE_REASONING === 'true'
+      ? []
+      : [
+          reasoningOption(config.model, config.reasoningEffort),
+          ...(process.env.AGENTWOLF_MOCK_DUPLICATE_REASONING === 'true'
+            ? [reasoningOption(config.model, config.reasoningEffort)]
+            : []),
+        ]
   return {
     modes: {
       currentModeId: 'read-only',
-      availableModes: [{ id: 'read-only', name: 'Read only' }],
+      availableModes:
+        process.env.AGENTWOLF_MOCK_DISABLE_MODES === 'true'
+          ? []
+          : [{ id: 'read-only', name: 'Read only' }],
     },
     configOptions: [
-      modelOption(config.model),
-      ...(process.env.AGENTWOLF_MOCK_DISABLE_REASONING === 'true'
-        ? []
-        : [reasoningOption(config.model, config.reasoningEffort)]),
+      ...(process.env.AGENTWOLF_MOCK_DISABLE_MODEL === 'true' ? [] : [modelOption(config.model)]),
+      ...reasoning,
     ],
   }
 }
@@ -71,7 +102,10 @@ const promptDelayMs = Math.max(
 )
 const app = agent({ name: 'AgentWolf mock agent' })
   .onRequest(methods.agent.initialize, () => ({
-    protocolVersion: PROTOCOL_VERSION,
+    protocolVersion:
+      process.env.AGENTWOLF_MOCK_PROTOCOL_MISMATCH === 'true'
+        ? PROTOCOL_VERSION + 1
+        : PROTOCOL_VERSION,
     agentCapabilities:
       process.env['AGENTWOLF_MOCK_DISABLE_RESUME'] === 'true'
         ? {}

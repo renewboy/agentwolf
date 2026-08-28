@@ -22,7 +22,7 @@ function createPlayers(board: BoardManifest): EnginePlayerInput[] {
     seat: index + 1,
     name: `测试玩家${index + 1}`,
     profileId: AgentProfileIdSchema.parse(`profile-seat-${index + 1}`),
-    roleId: roles[index],
+    roleId: roles[index]!,
   }))
 }
 

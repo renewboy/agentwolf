@@ -4,7 +4,7 @@
 
 ## Responsibilities
 
-- Non-localized Nunjucks Prompt bundles and strict rendering support.
+- Prompt bundle sources and strict rendering support.
 - Player Skill source trees and their build inputs.
 - Localized UI copy, narration, Role and Ability labels, and nickname words.
 - Built-in Character cards and managed portrait metadata.
@@ -22,18 +22,3 @@ role-effect assets. Server-only Prompt and player-Skill builders use the explici
 
 Assets depends on contracts but not on the game engine or server. The server adapts installed
 Ruleset semantics into plain asset-owned Prompt inventory and visible facts.
-
-## Prompt ownership
-
-`_core` owns shared Session/layout/tool framing. Every installed Rule plugin owns one matching bundle
-for its Role, Ability, Phase, event, announcement, and interrupt presentation. Structured or
-conditional content is a cohesive template; short labels may be typed manifest fields.
-
-Templates are repository-owned, path-contained, audience-checked, and rendered with undefined values
-treated as errors. Model text has no locale axis and does not reuse UI copy.
-
-## Presentation ownership
-
-Visible copy and CSS are centralized here so components contain no raw colors, inline styles, emoji
-icons, or unregistered user-facing strings. Role effects consume visibility-safe semantic cues and
-contain no game resolution logic.

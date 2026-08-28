@@ -15,6 +15,8 @@ import {
   MatchIdSchema,
   PlayerIdSchema,
   PostgameReviewSubmissionSchema,
+  type PlayerAction,
+  type PostgameReviewSubmission,
 } from '@agentwolf/contracts'
 import { copyPlayerSkills } from '@agentwolf/assets/player-skills'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
@@ -202,7 +204,7 @@ try {
     throw new Error('Postgame reflection did not stream any direct speech')
   }
   let resumeResult: Awaited<ReturnType<AcpPlayerSession['prompt']>> | null = null
-  let resumedAction: typeof action = null
+  let resumedAction: PlayerAction | PostgameReviewSubmission | null = null
   if (probeResume) {
     await session.close()
     session = await AcpPlayerSession.start({

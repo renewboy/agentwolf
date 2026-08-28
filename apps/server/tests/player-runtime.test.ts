@@ -6,7 +6,7 @@ import {
   PlayerIdSchema,
 } from '@agentwolf/contracts'
 import { AcpDeliveryUncertainError, type AcpPromptResult } from '@agentwolf/acp'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ActionMailbox } from '../src/action-mailbox.js'
 import { PlayerRuntime, type PlayerRuntimeStatus } from '../src/player-runtime.js'
 import {
@@ -116,13 +116,17 @@ describe('PlayerRuntime action status', () => {
         connected: true,
         finishAfterAcceptedAction: () => finishPrompt(),
         prompt: (_prompt, _timeoutMs, callbacks = {}) => {
+          callbacks.onUpdate?.({
+            sessionUpdate: 'agent_thought_chunk',
+            content: { type: 'text', text: 'thinking' },
+          })
           mailbox.submitVote(token, 'player-2')
           announceSubmission()
           emitToolReceipt = () =>
             callbacks.onUpdate?.({
               sessionUpdate: 'tool_call_update',
               toolCallId: 'accepted-vote',
-              status: 'completed',
+              status: 'failed',
             })
           return promptResult
         },
@@ -131,9 +135,17 @@ describe('PlayerRuntime action status', () => {
       onStatusChange: (_changedPlayerId, status) => statuses.push(status),
     })
     await runtime.start()
+    await runtime.start()
 
     const turn = runtime.takeTurn(
-      { prompt: '提交投票。', toSequence: 1, visibleEvents: [] },
+      {
+        prompt: '提交投票。',
+        toSequence: 1,
+        visibleEvents: [],
+        gameStatus: 'running',
+        pausedReason: null,
+        continuation: false,
+      },
       { matchId, playerId, actionType: 'vote', voteKind: 'exile' },
       PhaseIdSchema.parse('phase-day-vote'),
     )
@@ -148,6 +160,7 @@ describe('PlayerRuntime action status', () => {
       targetId: 'player-2',
     })
     expect(runtime.status).toBe('ready')
+    await runtime.close()
     await runtime.close()
   })
 
@@ -432,11 +445,14 @@ describe('PlayerRuntime action status', () => {
       ),
     ).resolves.toMatchObject({ type: 'vote', actorId: playerId, targetId: 'player-2' })
     expect(runtime.status).toBe('failed')
-    expect(binding?.pendingAction?.action).toMatchObject({ type: 'vote', targetId: 'player-2' })
+    expect((binding as PlayerSessionBinding | null)?.pendingAction?.action).toMatchObject({
+      type: 'vote',
+      targetId: 'player-2',
+    })
     expect(acknowledged).toHaveLength(1)
 
     runtime.actionSettled()
-    expect(binding?.pendingAction).toBeNull()
+    expect((binding as PlayerSessionBinding | null)?.pendingAction).toBeNull()
     await runtime.ensureReady()
     expect(starts).toEqual([null, 'session-runtime-durable-action'])
     expect(runtime.status).toBe('ready')
@@ -465,4 +481,123 @@ describe('PlayerRuntime action status', () => {
     runtime.actionSettled()
     await runtime.close()
   })
+
+  it('fails closed for unresolved, missing legacy, and mismatched resumed Session bindings', async () => {
+    const creating = edgeRuntime({ binding: createPlayerSessionBinding(edgeIdentity()) })
+    await expect(creating.runtime.start()).rejects.toThrow(/creation is unresolved/)
+    expect(creating.runtime.status).toBe('failed')
+
+    const activeBinding = withActivePlayerSession(
+      createPlayerSessionBinding(edgeIdentity()),
+      'session-edge-expected',
+    )
+    const mismatched = edgeRuntime({
+      binding: activeBinding,
+      sessionFactory: async () => edgeSession('session-edge-other'),
+    })
+    await expect(mismatched.runtime.start()).rejects.toThrow(/expected session-edge-expected/)
+    expect(mismatched.runtime.status).toBe('failed')
+
+    const missingLegacy = edgeRuntime({ binding: null, allowSessionCreation: false })
+    await expect(missingLegacy.runtime.start()).rejects.toThrow(/no durable ACP Session binding/)
+    expect(missingLegacy.runtime.status).toBe('failed')
+  })
+
+  it('skips bootstrap continuation until a dispatch has been persisted', async () => {
+    const edge = edgeRuntime({ binding: null })
+    await edge.runtime.start()
+    expect(edge.runtime.needsBootstrap).toBe(true)
+    await edge.runtime.continueBootstrap({
+      prompt: 'not dispatched',
+      toSequence: 1,
+      visibleEvents: [],
+      gameStatus: 'starting',
+      pausedReason: null,
+      continuation: true,
+    })
+    expect(edge.session.prompt).not.toHaveBeenCalled()
+    await edge.runtime.close()
+  })
 })
+
+function edgeIdentity() {
+  const matchId = MatchIdSchema.parse('match-runtime-edge')
+  const playerId = PlayerIdSchema.parse('player-1')
+  const tool = AgentToolSchema.parse({
+    id: 'tool-runtime-edge',
+    name: 'Runtime edge tool',
+    kind: 'custom',
+    command: 'runtime-edge',
+    args: [],
+    environment: {},
+    modelConfigKey: 'model',
+    builtIn: false,
+  })
+  const profile = AgentProfileSchema.parse({
+    id: 'profile-runtime-edge',
+    name: 'Runtime edge profile',
+    toolId: tool.id,
+    model: 'edge-model',
+    promptTimeoutMs: 5_000,
+    connection: {},
+    createdAt: '2026-08-28T00:00:00.000Z',
+    updatedAt: '2026-08-28T00:00:00.000Z',
+  })
+  return { matchId, playerId, profile, tool }
+}
+
+function edgeSession(sessionId: string) {
+  return {
+    sessionId,
+    connected: true,
+    finishAfterAcceptedAction: vi.fn(),
+    prompt: vi.fn(async () => ({ text: '', stopReason: 'end_turn' as const, updates: [] })),
+    close: vi.fn(async () => undefined),
+  }
+}
+
+function edgeRuntime(options: {
+  binding: PlayerSessionBinding | null
+  allowSessionCreation?: boolean
+  sessionFactory?: ConstructorParameters<typeof PlayerRuntime>[0]['sessionFactory']
+}) {
+  const identity = edgeIdentity()
+  let binding = options.binding
+  const session = edgeSession('session-runtime-edge-created')
+  const repository = {
+    getDeliveryLedger: () => null,
+    saveDeliveryLedger: () => undefined,
+    listTrajectoryTurns: () => [],
+    playerSessions: {
+      get: () => binding,
+      reserve: () => {
+        binding = createPlayerSessionBinding(identity)
+        return binding
+      },
+      activate: (_matchId: string, _playerId: string, sessionId: string) => {
+        binding = withActivePlayerSession(binding!, sessionId)
+        return binding
+      },
+      adopt: () => {
+        throw new Error('unreachable adopt')
+      },
+      markBootstrap: () => binding,
+      clearPendingAction: () => binding,
+    },
+  }
+  const runtime = new PlayerRuntime({
+    ...identity,
+    workspace: '/tmp/agentwolf-runtime-edge',
+    token: 'runtime-edge-token',
+    mcpUrl: 'http://127.0.0.1:4310/mcp',
+    mailbox: new ActionMailbox(),
+    repository: repository as never,
+    trajectory: {} as never,
+    deliveryEvents: { started: vi.fn(), acknowledged: vi.fn() },
+    sessionFactory: options.sessionFactory ?? (async () => session),
+    ...(options.allowSessionCreation === undefined
+      ? {}
+      : { allowSessionCreation: options.allowSessionCreation }),
+  })
+  return { runtime, session }
+}

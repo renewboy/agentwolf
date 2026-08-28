@@ -20,14 +20,13 @@ Stream records merge by protocol channel and ID; tool state merges by tool-call 
 in protocol order without content-based deduplication. Speech records project through the same
 canonical normalization used by the engine.
 
-Before SQLite persistence, secret-key fields, credentials, ACP metadata, environment values, and
-connection material are removed. Bounded content retains an explicit truncation marker. The exact
-Prompt sent remains immutable.
+Secret-key fields, credentials, ACP metadata, environment material, and connection values are removed
+before persistence. Bounded content records an explicit truncation marker.
 
 ## Read and audit surfaces
 
-Trajectory collection is active in every startup mode. HTTP, WebSocket, configuration, and per-Match
-developer actions exist only when the server starts in loopback developer mode.
+Trajectory collection is active in every startup mode. Navigation, HTTP, WebSocket, configuration,
+and per-Match read actions exist only when the server starts in loopback developer mode.
 
 A monotonic trajectory revision supports catch-up and live upserts. Reads page Turns first and load
 records only for referenced Turn IDs. Persistence skips live-delta normalization when a Match has no

@@ -16,7 +16,7 @@ Select every row touched by the Role:
 | Query/trigger/interrupt/victory | eligibility, negative cases, deterministic ordering, terminal priority                 |
 | Prompt                          | semantic ownership coverage, public/owner text, turn contract, private-fact absence    |
 | Projection                      | narration, player IDs, cue mapping, unauthorized-view absence                          |
-| Effects                         | catalog or passive coverage, full/reduced/off, once-only playback, cleanup             |
+| Effects                         | artifact-contract compliance plus catalog or passive coverage                          |
 | Catalog/board                   | installed Role list, custom-board validation, built-in composition, immutable snapshot |
 | Ruleset                         | new fingerprint, prior snapshot restore, mismatch rejection, shared catalog usage      |
 | Strategy                        | Role mapping, index reachability, exact source introduction, local related article     |

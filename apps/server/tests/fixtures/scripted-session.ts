@@ -73,16 +73,16 @@ export class ScriptedSession implements PlayerSession {
   readonly #token: string
   readonly #mailbox: () => ActionMailbox
   readonly #prompts: Map<PlayerId, string[]>
-  readonly #seerFault?: ScriptedSeerFault
-  readonly #uncertainSpeechOnce?: { playerId: PlayerId; value: boolean; disconnect?: boolean }
-  readonly #uncertainBootstrapOnce?: {
-    playerId: PlayerId
-    value: boolean
-    disconnect?: boolean
-  }
-  readonly #sheriffSelfDestructOnce?: { playerId: PlayerId; value: boolean }
-  readonly #postgameReviewContexts?: Map<PlayerId, ScriptedPostgameReviewContext>
-  readonly #postgameReviewGate?: ScriptedSessionOptions['postgameReviewGate']
+  readonly #seerFault: ScriptedSeerFault | undefined
+  readonly #uncertainSpeechOnce:
+    | { playerId: PlayerId; value: boolean; disconnect?: boolean }
+    | undefined
+  readonly #uncertainBootstrapOnce:
+    | { playerId: PlayerId; value: boolean; disconnect?: boolean }
+    | undefined
+  readonly #sheriffSelfDestructOnce: { playerId: PlayerId; value: boolean } | undefined
+  readonly #postgameReviewContexts: Map<PlayerId, ScriptedPostgameReviewContext> | undefined
+  readonly #postgameReviewGate: ScriptedSessionOptions['postgameReviewGate'] | undefined
   #postgameReviewContext: ScriptedPostgameReviewContext | null = null
   #night = 1
   #playerCount = 0

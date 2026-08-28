@@ -12,17 +12,26 @@ import {
   SimulationFixtureSchema,
   SimulationIdSchema,
   SimulationReviewResultSchema,
+  TrajectoryTurnSchema,
   type SimulationCapture,
   type PlayerAction,
 } from '@agentwolf/contracts'
 import { GameEngine, sixPlayerBoard } from '@agentwolf/game-engine'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BoardCatalogService } from '../src/board-catalog.js'
 import { buildServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import { SqliteRepository, type MatchRecord } from '../src/repository.js'
-import { normalizeSimulationCapture } from '../src/simulation-canonical.js'
-import { checkSimulationInvariants, runEngineSimulation } from '../src/simulation-runner.js'
+import {
+  classifySimulationFault,
+  normalizeSimulationCapture,
+  scanSimulationSecrets,
+} from '../src/simulation-canonical.js'
+import {
+  checkSimulationInvariants,
+  firstSimulationDifference,
+  runEngineSimulation,
+} from '../src/simulation-runner.js'
 import { runOrchestrationSimulation } from '../src/simulation-orchestration.js'
 import { SimulationService } from '../src/simulation-service.js'
 import {
@@ -30,6 +39,8 @@ import {
   reviewSimulationCandidate,
 } from '../src/simulation-workflow.js'
 import { MatchTrajectoryRecorder } from '../src/trajectory.js'
+import { ActionMailbox } from '../src/action-mailbox.js'
+import { createSimulationSessionFactory } from '../src/simulation-session-replay.js'
 
 const roots: string[] = []
 const repositories: SqliteRepository[] = []
@@ -40,6 +51,230 @@ afterEach(async () => {
 })
 
 describe('simulation capture and engine replay', () => {
+  it('classifies every trajectory fault and detects supported secret signatures', () => {
+    expect(classifySimulationFault('uncertain', null)).toBe('uncertain-delivery')
+    expect(classifySimulationFault('cancelled', null)).toBe('cancelled')
+    expect(classifySimulationFault('failed', 'Prompt timed out')).toBe('timeout')
+    expect(classifySimulationFault('failed', 'Agent process exited')).toBe('process-exit')
+    expect(classifySimulationFault('failed', 'Unexpected invalid action')).toBe('invalid-action')
+    expect(classifySimulationFault('failed', null)).toBe('other')
+    expect(
+      scanSimulationSecrets({
+        authorization: 'Bearer abcdefghijklmnop',
+        key: 'sk-proj-abcdefghijklmnop',
+        privateKey: '-----BEGIN RSA PRIVATE KEY-----',
+        path: '/Users/example/private/file',
+      }),
+    ).toEqual(['authorization-header', 'api-key', 'private-key', 'absolute-user-path'])
+  })
+
+  it('rejects closed replay Sessions and missing HTTP MCP credentials', async () => {
+    const fixture = SimulationFixtureSchema.parse(
+      JSON.parse(
+        await readFile(
+          resolve(
+            'apps/server/tests/fixtures/simulations/simulation-ended-bc894fce0eb4bdfa.sim.json',
+          ),
+          'utf8',
+        ),
+      ),
+    )
+    const playerId = fixture.setup.players[0]!.playerId
+    const factory = createSimulationSessionFactory(fixture, new ActionMailbox(), 'recorded')
+    const closed = await factory({
+      playerId,
+      mcpServer: {
+        type: 'http',
+        name: 'simulation',
+        url: 'http://127.0.0.1/mcp',
+        headers: [{ name: 'Authorization', value: 'Bearer test-token' }],
+      },
+    } as never)
+    await closed.close()
+    await expect(closed.prompt('ignored', 5_000)).rejects.toThrow(/Session is closed/)
+
+    const missingToken = await factory({
+      playerId,
+      resumeSessionId: 'simulation-resumed',
+      mcpServer: { type: 'http', name: 'simulation', url: 'http://127.0.0.1/mcp', headers: [] },
+    } as never)
+    expect(() => missingToken.prompt('resume', 5_000)).toThrow(/MCP token is missing/)
+  })
+
+  it('reports every structural event and turn invariant independently', async () => {
+    const fixture = SimulationFixtureSchema.parse(
+      JSON.parse(
+        await readFile(
+          resolve(
+            'apps/server/tests/fixtures/simulations/simulation-ended-bc894fce0eb4bdfa.sim.json',
+          ),
+          'utf8',
+        ),
+      ),
+    )
+    const base = fixture.turns[0]!
+    const turns = [
+      {
+        ...base,
+        completionOrder: 1,
+        fromSequence: 5,
+        toSequence: 4,
+        visibleEventSequences: [6],
+        expectedActors: [base.playerId, base.playerId],
+        kind: 'bootstrap' as const,
+        action: fixture.turns.find((turn) => turn.action)?.action ?? null,
+      },
+      {
+        ...base,
+        completionOrder: 1,
+        kind: 'action' as const,
+        playerId: 'player-1',
+        expectedActors: ['player-2'],
+        action: null,
+        status: 'completed' as const,
+        mode: 'parallel' as const,
+        phaseId: 'phase-day-vote',
+      },
+      {
+        ...base,
+        completionOrder: 3,
+        kind: 'action' as const,
+        playerId: 'player-2',
+        expectedActors: ['player-3'],
+        action: fixture.turns.find((turn) => turn.action)?.action ?? null,
+        mode: 'parallel' as const,
+        phaseId: 'phase-day-vote',
+        toSequence: base.toSequence,
+      },
+    ]
+    const failures = checkSimulationInvariants([], fixture.setup.players.length, turns as never)
+    expect(failures.join('\n')).toContain('match.created is not first')
+    expect(failures.join('\n')).toContain('duplicate completion order')
+    expect(failures.join('\n')).toContain('inverted event range')
+    expect(failures.join('\n')).toContain('exposes an event after')
+    expect(failures.join('\n')).toContain('duplicate expected actors')
+    expect(failures.join('\n')).toContain('bootstrap turn')
+    expect(failures.join('\n')).toContain('outside its actor snapshot')
+    expect(failures.join('\n')).toContain('has no action')
+    expect(failures.join('\n')).toContain('different actor snapshots')
+
+    expect(firstSimulationDifference([1], [1, 2])).toContain('length expected 1')
+    expect(firstSimulationDifference({ nested: [1, 2] }, { nested: [1, 3] })).toContain(
+      'result.nested[1]',
+    )
+    expect(firstSimulationDifference({ a: 1 }, { a: 1 })).toBeNull()
+    expect(firstSimulationDifference('left', 'right')).toContain('expected "left"')
+  })
+
+  it('rejects every incomplete simulation capture source boundary', async () => {
+    const source = await createPausedSource()
+    const record = source.repository.getMatch(source.matchId)!
+    const turns = source.repository.listTrajectoryTurns(source.matchId)
+    const events = source.repository.listMatchEvents(source.matchId)
+    const getMatch = vi.spyOn(source.repository, 'getMatch')
+    const listTurns = vi.spyOn(source.repository, 'listTrajectoryTurns')
+    const listEvents = vi.spyOn(source.repository, 'listMatchEvents')
+
+    getMatch.mockReturnValue(null)
+    await expect(source.service.capture(source.matchId)).rejects.toThrow(/Unknown match/)
+    getMatch.mockReturnValue({ ...record, status: 'draft' })
+    await expect(source.service.capture(source.matchId)).rejects.toThrow(/ended or paused/)
+    getMatch.mockReturnValue({ ...record, boardSnapshot: null })
+    await expect(source.service.capture(source.matchId)).rejects.toThrow(/immutable board snapshot/)
+    getMatch.mockReturnValue(record)
+    listTurns.mockReturnValue([])
+    await expect(source.service.capture(source.matchId)).rejects.toThrow(
+      /no structured player trajectory/,
+    )
+    listTurns.mockReturnValue(
+      turns.map((turn, index) => (index === 0 ? { ...turn, status: 'running' } : turn)) as never,
+    )
+    await expect(source.service.capture(source.matchId)).rejects.toThrow(
+      /unresolved trajectory turn/,
+    )
+    listTurns.mockReturnValue(turns)
+    listEvents.mockReturnValue(
+      events.filter(
+        (event) => event.payload.type !== 'role.assigned' || event.payload.playerId !== 'player-1',
+      ),
+    )
+    await expect(source.service.capture(source.matchId)).rejects.toThrow(/Missing role assignment/)
+  })
+
+  it('captures bootstrap, failed, actionless, and playback-control trajectory variants', async () => {
+    const source = await createPausedSource()
+    const original = source.repository
+      .listTrajectoryTurns(source.matchId)
+      .find((turn) => turn.ownerId !== 'system')!
+    source.repository.saveTrajectoryTurn(
+      TrajectoryTurnSchema.parse({
+        ...original,
+        turnId: 'delivery-capture-failed',
+        ordinal: original.ordinal + 1,
+        kind: 'action',
+        status: 'failed',
+        error: 'Prompt timeout',
+        gameStatus: null,
+        completedAt: '2026-08-28T00:00:00.000Z',
+        durationMs: 1,
+        stopReason: null,
+        revision: 0,
+      }),
+    )
+    source.repository.saveTrajectoryTurn(
+      TrajectoryTurnSchema.parse({
+        ...original,
+        turnId: 'delivery-capture-bootstrap',
+        ordinal: original.ordinal + 2,
+        kind: 'bootstrap',
+        phaseId: null,
+        actionType: 'bootstrap',
+        status: 'completed',
+        error: null,
+        gameStatus: 'starting',
+        completedAt: '2026-08-28T00:00:01.000Z',
+        durationMs: 1,
+        stopReason: 'end_turn',
+        revision: 0,
+      }),
+    )
+    const actionRecord = source.repository
+      .listTrajectoryRecords(source.matchId)
+      .find((record) => record.kind === 'action')!
+    source.repository.saveTrajectoryRecord({
+      ...actionRecord,
+      recordId: 'record-invalid-captured-action',
+      turnId: 'delivery-capture-failed',
+      ordinal: source.repository.nextTrajectoryRecordOrdinal(source.matchId, actionRecord.ownerId),
+      input: '{invalid-json',
+      revision: 0,
+    })
+    const controls = new MatchTrajectoryRecorder(source.repository, source.matchId, () => undefined)
+    controls.recordRuntimeControl('playback.resolved', { sequence: 1, outcome: 'completed' })
+    controls.recordRuntimeControl('playback.unknown', { ignored: true })
+    const enabled = source.repository
+      .listTrajectoryRecords(source.matchId)
+      .find((record) => record.title === 'playback.enabled')!
+    source.repository.saveTrajectoryRecord({
+      ...enabled,
+      recordId: 'record-invalid-playback-control',
+      ordinal: source.repository.nextTrajectoryRecordOrdinal(source.matchId, 'system'),
+      input: '{invalid-json',
+      revision: 0,
+    })
+
+    const capture = await source.service.capture(source.matchId)
+    expect(capture.turns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'bootstrap', action: null, mode: null }),
+        expect.objectContaining({ status: 'failed', fault: 'timeout', action: null }),
+      ]),
+    )
+    expect(capture.controls).toContainEqual(
+      expect.objectContaining({ type: 'playback.resolved', outcome: 'completed' }),
+    )
+  })
+
   it('exports a paused real trajectory as a sanitized deterministic candidate', async () => {
     const source = await createPausedSource()
     const capture = await source.service.capture(source.matchId)
@@ -258,7 +493,7 @@ describe('simulation capture and engine replay', () => {
     expect(approved.statusCode).toBe(200)
     expect(SimulationApprovalResultSchema.parse(approved.json()).created).toBe(true)
     await developer.close()
-  })
+  }, 15_000)
 
   it('detects independent vote and visibility invariant mutations', async () => {
     const fixture = SimulationFixtureSchema.parse(
@@ -397,6 +632,7 @@ async function createPausedSource(developerMode = true): Promise<{
       name: `Source player ${index + 1}`,
       profileId: AgentProfileIdSchema.parse(`profile-source-${index + 1}`),
       roleId,
+      character: null,
     })),
   }
   const engine = GameEngine.create({

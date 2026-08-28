@@ -7,6 +7,7 @@ const errors: string[] = []
 const required = [
   'AGENTS.md',
   'README.md',
+  'artifacts_rules.md',
   'apps/server/AGENTS.md',
   'apps/server/README.md',
   'apps/web/AGENTS.md',
@@ -48,7 +49,6 @@ for (const path of required) {
 }
 
 for (const path of [
-  'artifacts_rules.md',
   'docs/information-sync.md',
   'docs/research/preflight.md',
   'docs/plans',
@@ -190,6 +190,7 @@ const packageReadmes = [
 ].map((path) => resolve(projectRoot, path))
 const linkSources = new Set([
   resolve(projectRoot, 'README.md'),
+  resolve(projectRoot, 'artifacts_rules.md'),
   rootAgentsPath,
   ...allInstructionFiles,
   ...markdownFiles,

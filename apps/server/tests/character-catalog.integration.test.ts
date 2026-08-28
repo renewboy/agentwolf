@@ -2,7 +2,12 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { CharacterCardInput } from '@agentwolf/contracts'
+import {
+  CharacterIdSchema,
+  CharacterPortraitAssetIdSchema,
+  RoleIdSchema,
+  type CharacterCardInput,
+} from '@agentwolf/contracts'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 
 const roots: string[] = []
@@ -70,21 +75,22 @@ describe('Character catalog', () => {
       name: 'Character defaults',
       description: '',
       roles: [
-        { roleId: 'role-werewolf', count: 2 },
-        { roleId: 'role-villager', count: 2 },
-        { roleId: 'role-seer', count: 1 },
-        { roleId: 'role-hunter', count: 1 },
+        { roleId: RoleIdSchema.parse('role-werewolf'), count: 2 },
+        { roleId: RoleIdSchema.parse('role-villager'), count: 2 },
+        { roleId: RoleIdSchema.parse('role-seer'), count: 1 },
+        { roleId: RoleIdSchema.parse('role-hunter'), count: 1 },
       ],
       characters: Array.from({ length: 6 }, (_, index) => ({
         seat: index + 1,
         characterId: index < 2 ? copied.id : null,
       })),
+      agentProfiles: [],
       sheriff: false,
       victory: 'slaughter-all',
     })
     const profile = server.catalog.createProfile({
       name: 'Character test profile',
-      toolId: 'tool-trae-cli',
+      toolId: server.catalog.listTools()[0]!.id,
       model: 'test-model',
       promptTimeoutMs: 5_000,
       connection: {},
@@ -138,6 +144,66 @@ describe('Character catalog', () => {
       }),
     ).toThrow(/names must be unique/)
   })
+
+  it('enforces catalog ownership, portrait validation, and idempotent asset writes', async () => {
+    const server = await createServer()
+    const builtIn = server.characters.list()[0]!
+    expect(server.characters.summaries()).toHaveLength(12)
+    expect(server.characters.get(builtIn.id)).toEqual(builtIn)
+    expect(server.characters.require(builtIn.id)).toEqual(builtIn)
+    expect(server.characters.snapshot(builtIn.id)).toMatchObject({ id: builtIn.id })
+    expect(server.characters.portrait(builtIn.portraitAssetId)).toMatchObject({
+      mediaType: 'image/png',
+    })
+    const unknownId = CharacterIdSchema.parse('character-unknown-test')
+    expect(server.characters.get(unknownId)).toBeNull()
+    expect(() => server.characters.require(unknownId)).toThrow(/Unknown Character/)
+    expect(() => server.characters.update(builtIn.id, characterInput(builtIn))).toThrow(/read-only/)
+    expect(() => server.characters.update(unknownId, characterInput(builtIn))).toThrow(
+      /Unknown Character/,
+    )
+    expect(() => server.characters.delete(builtIn.id)).toThrow(/read-only/)
+    expect(() => server.characters.delete(unknownId)).toThrow(/Unknown Character/)
+    expect(() =>
+      server.characters.create({
+        ...characterInput(builtIn),
+        portraitAssetId: CharacterPortraitAssetIdSchema.parse('portrait-unknown-test'),
+      }),
+    ).toThrow(/Unknown Character portrait/)
+
+    await expect(
+      server.characters.uploadPortrait({ dataUrl: 'data:image/webp;base64,A' }),
+    ).rejects.toThrow(/between 1 byte and 5 MB/)
+    await expect(
+      server.characters.uploadPortrait({
+        dataUrl: `data:image/webp;base64,${Buffer.alloc(5_000_001).toString('base64')}`,
+      }),
+    ).rejects.toThrow(/between 1 byte and 5 MB/)
+    await expect(
+      server.characters.uploadPortrait({
+        dataUrl: `data:image/webp;base64,${Buffer.from('not-a-webp').toString('base64')}`,
+      }),
+    ).rejects.toThrow(/valid WebP/)
+
+    const firstAsset = await server.characters.uploadPortrait({ dataUrl: validWebpDataUrl })
+    const repeatedAsset = await server.characters.uploadPortrait({ dataUrl: validWebpDataUrl })
+    expect(repeatedAsset.id).toBe(firstAsset.id)
+    expect(server.characters.portrait(firstAsset.id)).toMatchObject({ mediaType: 'image/webp' })
+    expect(
+      server.characters.portrait(CharacterPortraitAssetIdSchema.parse('portrait-missing-test')),
+    ).toBeNull()
+
+    const created = server.characters.create({
+      ...characterInput(builtIn),
+      name: '临时角色',
+      portraitAssetId: firstAsset.id,
+    })
+    const copied = server.characters.copy(created.id)
+    expect(copied.name).toContain(created.name)
+    server.characters.delete(created.id)
+    server.characters.delete(copied.id)
+    expect(server.characters.get(created.id)).toBeNull()
+  })
 })
 
 async function createServer(): Promise<AgentWolfServer> {
@@ -161,3 +227,19 @@ async function createServer(): Promise<AgentWolfServer> {
 
 const validWebpDataUrl =
   'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v3AgAA='
+
+function characterInput(
+  character: ReturnType<AgentWolfServer['characters']['require']>,
+): CharacterCardInput {
+  return {
+    name: character.name,
+    universe: character.universe,
+    summary: character.summary,
+    personality: character.personality,
+    socialStyle: character.socialStyle,
+    reasoningPresentation: character.reasoningPresentation,
+    speechStyle: character.speechStyle,
+    boundaries: character.boundaries,
+    portraitAssetId: character.portraitAssetId,
+  }
+}

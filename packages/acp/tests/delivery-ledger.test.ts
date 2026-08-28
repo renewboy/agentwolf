@@ -30,4 +30,36 @@ describe('DeliveryLedger', () => {
     expect(ledger.snapshot()).toEqual({ acknowledgedSequence: 15, activeAttempt: null })
     expect(ledger.begin('delivery-4', 18).fromSequence).toBe(16)
   })
+
+  it('rejects backwards/mismatched transitions and safely clears only in-flight attempts', () => {
+    const ledger = new DeliveryLedger({
+      acknowledgedSequence: 5,
+      activeAttempt: {
+        id: 'restored',
+        fromSequence: 6,
+        toSequence: 8,
+        startedAt: '2026-08-28T00:00:00.000Z',
+        state: 'in-flight',
+      },
+    })
+    expect(ledger.activeAttempt?.id).toBe('restored')
+    expect(() => ledger.begin('blocked', 9)).toThrow(/must be resolved/)
+    expect(() => ledger.acknowledge('wrong')).toThrow(/not active/)
+    expect(() => ledger.markUncertain('wrong', 'x')).toThrow(/not active/)
+    expect(() => ledger.clearUnsent('wrong')).toThrow(/not active/)
+    expect(() => ledger.abandonUncertain('wrong')).toThrow(/not active/)
+    ledger.clearUnsent('restored')
+    expect(ledger.activeAttempt).toBeNull()
+    expect(() => ledger.begin('backwards', 4)).toThrow(/backwards/)
+
+    ledger.begin('equal', 5)
+    expect(ledger.acknowledge('equal')).toBe(5)
+    ledger.begin('uncertain', 6)
+    ledger.markUncertain('uncertain', 'uncertain')
+    expect(() => ledger.clearUnsent('uncertain')).toThrow(/not safely clearable/)
+
+    const inFlight = new DeliveryLedger()
+    inFlight.begin('in-flight', 1)
+    expect(() => inFlight.abandonUncertain('in-flight')).toThrow(/not uncertain/)
+  })
 })

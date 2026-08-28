@@ -21,17 +21,6 @@ they do not restate its mechanics, edge cases, test inventory, or implementation
 | Agent Note               | a major proposal or decision and its tradeoffs | execution log or current API reference |
 | Code, schemas, tests     | exact behavior and enforceable facts           | duplicated prose catalogs              |
 
-## Current-state prose
-
-- State what the system does now. Keep migration stories, failed attempts, PR narration, and future
-  ideas out of current-state documents.
-- Match detail to the reader. Product docs describe observable behavior; architecture docs describe
-  responsibilities and data flow; package READMEs describe the local consumer contract.
-- Preserve non-obvious ownership, timing, failure, privacy, and compatibility guarantees. Delete code
-  restatement and test walkthroughs.
-- A local fix normally needs code and tests only. Update standing documentation only when its owned
-  contract changed.
-
 ## Architecture hierarchy
 
 `architecture.md` is a map. It contains the runtime diagram, dependency direction, module index, and
@@ -54,6 +43,8 @@ targets: split by an existing semantic owner rather than compressing unrelated f
 - Test infrastructure or fixture policy changes: update `testing.md`; adding coverage does not.
 - Role or board additions: update source, Prompt/strategy assets, tests, and generated catalog. Update
   architecture only if an extension contract changed.
+- A local fix normally needs code and tests only. Update standing documentation only when its owned
+  contract changed.
 
 ## Agent Notes
 

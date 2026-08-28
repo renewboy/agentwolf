@@ -81,6 +81,107 @@ describe('postgame review aggregation', () => {
     expect(second.mvp).toEqual(first.mvp)
     expect(first.players.every((player) => player.overall === 7)).toBe(true)
   })
+
+  it('rejects unknown reviewers, duplicate/self/unexpected ratings, and allows a sole self nominee', () => {
+    const eligibility = outcome(['player-1'], ['player-2', 'player-3'])
+    const completeRatings = eligibility.playerIds
+      .filter((playerId) => playerId !== 'player-1')
+      .map((playerId) => rating(playerId))
+    expect(() =>
+      validatePostgameReviewSubmission(eligibility, 'player-99' as PlayerId, {
+        mvpPlayerId: 'player-1' as PlayerId,
+        svpPlayerId: 'player-2' as PlayerId,
+        ratings: completeRatings,
+      }),
+    ).toThrow(/Unknown postgame reviewer/)
+    expect(() =>
+      validatePostgameReviewSubmission(eligibility, 'player-1' as PlayerId, {
+        mvpPlayerId: 'player-1' as PlayerId,
+        svpPlayerId: 'player-2' as PlayerId,
+        ratings: [rating('player-2'), rating('player-2')],
+      }),
+    ).toThrow(/repeat a player/)
+    expect(() =>
+      validatePostgameReviewSubmission(eligibility, 'player-1' as PlayerId, {
+        mvpPlayerId: 'player-1' as PlayerId,
+        svpPlayerId: 'player-2' as PlayerId,
+        ratings: [rating('player-1'), rating('player-2')],
+      }),
+    ).toThrow(/cannot rate itself/)
+    expect(() =>
+      validatePostgameReviewSubmission(eligibility, 'player-1' as PlayerId, {
+        mvpPlayerId: 'player-1' as PlayerId,
+        svpPlayerId: 'player-2' as PlayerId,
+        ratings: [rating('player-2'), rating('player-99')],
+      }),
+    ).toThrow(/missing: player-3.*unexpected: player-99/)
+    expect(
+      validatePostgameReviewSubmission(eligibility, 'player-1' as PlayerId, {
+        mvpPlayerId: 'player-1' as PlayerId,
+        svpPlayerId: 'player-2' as PlayerId,
+        ratings: completeRatings,
+      }).mvpPlayerId,
+    ).toBe('player-1')
+  })
+
+  it('rejects incomplete/duplicate/missing reviewers and malformed rating coverage during aggregation', () => {
+    const eligibility = outcome(['player-1', 'player-2'], ['player-3', 'player-4'])
+    const valid = buildTiedSubmissions(eligibility, false)
+    expect(() => aggregatePostgameReview(eligibility, valid.slice(0, 3))).toThrow(
+      /requires 4 submissions/,
+    )
+    expect(() =>
+      aggregatePostgameReview(eligibility, [valid[0]!, valid[0]!, valid[2]!, valid[3]!]),
+    ).toThrow(/one entry per player/)
+    expect(() =>
+      aggregatePostgameReview(eligibility, [
+        valid[0]!,
+        valid[1]!,
+        valid[2]!,
+        { ...valid[3]!, reviewerId: 'player-99' as PlayerId },
+      ]),
+    ).toThrow(/Missing postgame submission/)
+    expect(() =>
+      aggregatePostgameReview(eligibility, [
+        { ...valid[0]!, ratings: [...valid[0]!.ratings, rating('player-99')] },
+        ...valid.slice(1),
+      ]),
+    ).toThrow(/Unknown rated player/)
+    expect(() =>
+      aggregatePostgameReview(eligibility, [
+        { ...valid[0]!, ratings: valid[0]!.ratings.slice(1) },
+        ...valid.slice(1),
+      ]),
+    ).toThrow(/received 2 ratings/)
+  })
+
+  it('rejects empty award pools and ballots outside an award pool', () => {
+    const noWinners = outcome([], ['player-1', 'player-2'])
+    const submissions = noWinners.playerIds.map((reviewerId) => ({
+      matchId: noWinners.matchId,
+      reviewerId,
+      mvpPlayerId: 'player-1' as PlayerId,
+      svpPlayerId: reviewerId === 'player-1' ? ('player-2' as PlayerId) : ('player-1' as PlayerId),
+      ratings: noWinners.playerIds
+        .filter((playerId) => playerId !== reviewerId)
+        .map((playerId) => rating(playerId)),
+      submittedAt: '2026-08-28T00:00:00.000Z',
+    }))
+    expect(() => aggregatePostgameReview(noWinners, submissions)).toThrow(/MVP has no eligible/)
+
+    const eligibility = outcome(['player-1'], ['player-2'])
+    const invalid = eligibility.playerIds.map((reviewerId) => ({
+      matchId: eligibility.matchId,
+      reviewerId,
+      mvpPlayerId: 'player-99' as PlayerId,
+      svpPlayerId: 'player-2' as PlayerId,
+      ratings: eligibility.playerIds
+        .filter((playerId) => playerId !== reviewerId)
+        .map((playerId) => rating(playerId)),
+      submittedAt: '2026-08-28T00:00:00.000Z',
+    }))
+    expect(() => aggregatePostgameReview(eligibility, invalid)).toThrow(/Invalid MVP ballot/)
+  })
 })
 
 function outcome(winners: string[], losers: string[]): PostgameReviewEligibility {

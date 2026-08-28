@@ -1,22 +1,369 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
-import { afterEach, describe, expect, it } from 'vitest'
+import { AbilityIdSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
+import { AgentProbeService } from '../src/agent-probe.js'
 import type { ServerConfig } from '../src/config.js'
+import { PostgameReviewConflictError } from '../src/postgame-review-repository.js'
 
 const roots: string[] = []
 const servers: AgentWolfServer[] = []
 
 afterEach(async () => {
+  vi.restoreAllMocks()
   await Promise.allSettled(servers.splice(0).map((server) => server.close()))
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
 describe('Fastify API', () => {
+  it('routes every catalog, match lifecycle, and error response surface', async () => {
+    const probeResult = {
+      ok: true,
+      models: ['route-model'],
+      reasoningEfforts: [],
+      modes: [],
+      message: 'connection-ok',
+      durationMs: 1,
+    }
+    vi.spyOn(AgentProbeService.prototype, 'discoverTool').mockResolvedValue(probeResult)
+    vi.spyOn(AgentProbeService.prototype, 'probe').mockResolvedValue(probeResult)
+    const server = await createTestServer()
+
+    expect((await server.app.inject({ method: 'GET', url: '/api/runtime-config' })).json()).toEqual(
+      { developerMode: false },
+    )
+
+    const toolInput = {
+      name: 'Route tool',
+      kind: 'custom',
+      command: process.execPath,
+      args: ['--version'],
+      environment: {},
+      initialMode: 'read-only',
+      modelConfigKey: 'model',
+    }
+    const createdTool = (
+      await server.app.inject({ method: 'POST', url: '/api/agent-tools', payload: toolInput })
+    ).json()
+    expect(
+      (
+        await server.app.inject({
+          method: 'PUT',
+          url: `/api/agent-tools/${createdTool.id}`,
+          payload: { ...toolInput, name: 'Updated route tool' },
+        })
+      ).json(),
+    ).toMatchObject({ name: 'Updated route tool' })
+    expect(
+      (
+        await server.app.inject({
+          method: 'POST',
+          url: `/api/agent-tools/${createdTool.id}/discover`,
+          payload: { model: 'route-model' },
+        })
+      ).json(),
+    ).toMatchObject({ ok: true })
+
+    const profile = (
+      await server.app.inject({
+        method: 'POST',
+        url: '/api/agent-profiles',
+        payload: {
+          name: 'Route profile',
+          toolId: createdTool.id,
+          model: 'route-model',
+          promptTimeoutMs: 5_000,
+          connection: {},
+        },
+      })
+    ).json()
+    expect(
+      (
+        await server.app.inject({
+          method: 'POST',
+          url: `/api/agent-profiles/${profile.id}/probe`,
+        })
+      ).json(),
+    ).toMatchObject({ ok: true })
+    expect(
+      (
+        await server.app.inject({
+          method: 'DELETE',
+          url: `/api/agent-tools/${createdTool.id}`,
+        })
+      ).statusCode,
+    ).toBe(500)
+    expect(
+      (
+        await server.app.inject({
+          method: 'DELETE',
+          url: `/api/agent-profiles/${profile.id}`,
+        })
+      ).statusCode,
+    ).toBe(204)
+    expect(
+      (await server.app.inject({ method: 'DELETE', url: `/api/agent-tools/${createdTool.id}` }))
+        .statusCode,
+    ).toBe(204)
+
+    const characters = (await server.app.inject({ method: 'GET', url: '/api/characters' })).json()
+    const copied = (
+      await server.app.inject({
+        method: 'POST',
+        url: `/api/characters/${characters[0].id}/copy`,
+      })
+    ).json()
+    const characterInput = {
+      name: 'Route character',
+      universe: copied.universe,
+      summary: copied.summary,
+      personality: copied.personality,
+      socialStyle: copied.socialStyle,
+      reasoningPresentation: copied.reasoningPresentation,
+      speechStyle: copied.speechStyle,
+      boundaries: copied.boundaries,
+      portraitAssetId: copied.portraitAssetId,
+    }
+    expect(
+      (
+        await server.app.inject({
+          method: 'PUT',
+          url: `/api/characters/${copied.id}`,
+          payload: characterInput,
+        })
+      ).json(),
+    ).toMatchObject({ name: 'Route character' })
+    expect(
+      (await server.app.inject({ method: 'DELETE', url: `/api/characters/${copied.id}` }))
+        .statusCode,
+    ).toBe(204)
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: '/api/character-assets/portrait-missing-route',
+        })
+      ).statusCode,
+    ).toBe(404)
+    expect(
+      (await server.app.inject({ method: 'GET', url: '/api/roles' })).json().length,
+    ).toBeGreaterThan(0)
+
+    const matchId = MatchIdSchema.parse('match-route-coverage')
+    vi.spyOn(server.matches, 'beginMatch').mockReturnValue({ id: matchId } as never)
+    vi.spyOn(server.matches, 'resumeMatch').mockResolvedValue({ id: matchId } as never)
+    vi.spyOn(server.matches, 'startPostgameReview').mockReturnValue({ id: matchId } as never)
+    vi.spyOn(server.matches, 'skipPostgameReview').mockResolvedValue({ id: matchId } as never)
+    vi.spyOn(server.matches, 'resumePostgameReview').mockReturnValue({ id: matchId } as never)
+    vi.spyOn(server.matches, 'deleteMatch').mockResolvedValue()
+    vi.spyOn(server.matches, 'getMatch').mockImplementation(
+      (_id, view) => ({ id: matchId, view }) as never,
+    )
+    for (const [path, statusCode] of [
+      ['start', 202],
+      ['resume', 202],
+      ['postgame-review/start', 202],
+      ['postgame-review/skip', 202],
+      ['postgame-review/resume', 202],
+    ] as const) {
+      expect(
+        (
+          await server.app.inject({
+            method: 'POST',
+            url: `/api/matches/${matchId}/${path}`,
+          })
+        ).statusCode,
+      ).toBe(statusCode)
+    }
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: `/api/matches/${matchId}?view=player&playerId=player-1`,
+        })
+      ).json().view,
+    ).toEqual({ kind: 'player', playerId: 'player-1' })
+    expect(
+      (await server.app.inject({ method: 'GET', url: `/api/matches/${matchId}?view=god` })).json()
+        .view,
+    ).toEqual({ kind: 'god' })
+    expect(
+      (
+        await server.app.inject({ method: 'GET', url: `/api/matches/${matchId}?view=invalid` })
+      ).json().view,
+    ).toEqual({ kind: 'closed-eye' })
+    expect(
+      (await server.app.inject({ method: 'DELETE', url: `/api/matches/${matchId}` })).statusCode,
+    ).toBe(204)
+
+    vi.spyOn(server.matches, 'startPostgameReview').mockImplementation(() => {
+      throw new PostgameReviewConflictError('already running')
+    })
+    expect(
+      (
+        await server.app.inject({
+          method: 'POST',
+          url: `/api/matches/${matchId}/postgame-review/start`,
+        })
+      ).json(),
+    ).toMatchObject({ error: 'postgame-review-conflict' })
+  })
+
+  it('rejects invalid Match ownership, seat, profile, and lifecycle transitions', async () => {
+    const server = await createTestServer()
+    const seats = Array.from({ length: 6 }, (_, index) => ({
+      seat: index + 1,
+      name: `Guarded seat ${index + 1}`,
+    }))
+    expect(() => server.matches.createMatch({ boardId: 'board-quick-6', seats } as never)).toThrow(
+      /requires at least one Agent Profile/,
+    )
+
+    const profile = server.catalog.createProfile({
+      name: 'Match guard profile',
+      toolId: server.catalog.listTools()[0]!.id,
+      model: 'guard-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    expect(() =>
+      server.matches.createMatch({ boardId: 'board-standard-9', seats } as never),
+    ).toThrow(/requires 9 seats/)
+    expect(() =>
+      server.matches.createMatch({
+        boardId: 'board-quick-6',
+        seats: seats.map((seat, index) => (index === 5 ? { ...seat, seat: 7 } : seat)),
+      } as never),
+    ).toThrow(/numbered consecutively/)
+    expect(() =>
+      server.matches.createMatch({
+        boardId: 'board-quick-6',
+        seats: seats.map((seat, index) =>
+          index === 0 ? { ...seat, profileId: 'profile-missing-match' } : seat,
+        ),
+      } as never),
+    ).toThrow(/Unknown Agent Profile/)
+    expect(() =>
+      server.matches.createMatch({
+        boardId: 'board-quick-6',
+        seats: seats.map((seat) => ({ ...seat, name: 'Duplicated', profileId: profile.id })),
+      } as never),
+    ).toThrow(/names must be unique/)
+
+    const missing = MatchIdSchema.parse('match-missing-lifecycle')
+    expect(() => server.matches.beginMatch(missing)).toThrow(/cannot start/)
+    await expect(server.matches.resumeMatch(missing)).rejects.toThrow(/Unknown match/)
+    await expect(server.matches.deleteMatch(missing)).rejects.toThrow(/Unknown match/)
+  })
+
+  it('routes developer trajectory and simulation requests with paging validation', async () => {
+    const server = await createTestServer(true)
+    const matchId = MatchIdSchema.parse('match-developer-routes')
+    const simulationId = 'simulation-route-coverage'
+    vi.spyOn(server.trajectories, 'summary').mockReturnValue({ owners: [] } as never)
+    vi.spyOn(server.trajectories, 'page').mockReturnValue({ records: [] } as never)
+    vi.spyOn(server.trajectories, 'playerDebug').mockReturnValue({ playerId: 'player-1' } as never)
+    const capture = vi
+      .spyOn(server.simulations, 'capture')
+      .mockResolvedValue({ simulationId } as never)
+    vi.spyOn(server.simulations, 'addCandidate').mockResolvedValue({ simulationId } as never)
+    vi.spyOn(server.simulations, 'review').mockReturnValue({ simulationId } as never)
+    vi.spyOn(server.simulations, 'approve').mockReturnValue({ simulationId } as never)
+
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: `/api/developer/matches/${matchId}/trajectory/summary`,
+        })
+      ).statusCode,
+    ).toBe(200)
+    for (const query of ['', '?ownerId=system&beforeTurn=4&limit=3']) {
+      expect(
+        (
+          await server.app.inject({
+            method: 'GET',
+            url: `/api/developer/matches/${matchId}/trajectory${query}`,
+          })
+        ).statusCode,
+      ).toBe(200)
+    }
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: `/api/developer/matches/${matchId}/trajectory?limit=-1`,
+        })
+      ).statusCode,
+    ).toBe(500)
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: `/api/developer/matches/${matchId}/trajectory/players/player-1`,
+        })
+      ).statusCode,
+    ).toBe(200)
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: `/api/developer/matches/${matchId}/trajectory/audit`,
+        })
+      ).statusCode,
+    ).toBe(500)
+    for (const [method, path, payload, statusCode] of [
+      ['GET', `matches/${matchId}/simulation/export`, undefined, 200],
+      ['POST', `matches/${matchId}/simulation/candidates`, undefined, 201],
+      ['POST', `matches/${matchId}/simulation/review`, undefined, 200],
+      ['POST', `simulations/${simulationId}/approve`, {}, 200],
+    ] as const) {
+      expect(
+        (
+          await server.app.inject({
+            method,
+            url: `/api/developer/${path}`,
+            ...(payload ? { payload } : {}),
+          })
+        ).statusCode,
+      ).toBe(statusCode)
+    }
+
+    capture.mockRejectedValueOnce(
+      Object.assign(new Error('source unavailable'), { name: 'SimulationSourceError' }),
+    )
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: `/api/developer/matches/${matchId}/simulation/export`,
+        })
+      ).json(),
+    ).toMatchObject({ error: 'simulation-source-unavailable' })
+  })
+
+  it('serves a built web client and closes idempotently', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-static-web-'))
+    roots.push(root)
+    const webDistPath = resolve(root, 'web')
+    await mkdir(webDistPath, { recursive: true })
+    await writeFile(resolve(webDistPath, 'index.html'), '<main>AgentWolf route fallback</main>')
+    const server = await buildServer({
+      config: testConfig(root, false, webDistPath),
+      logger: false,
+    })
+    servers.push(server)
+    const response = await server.app.inject({ method: 'GET', url: '/unmatched-client-route' })
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toContain('AgentWolf route fallback')
+    await server.close()
+    await server.close()
+  })
+
   it('supports profile, board, and draft-match HTTP workflows', async () => {
     const server = await createTestServer()
     const health = await server.app.inject({ method: 'GET', url: '/api/health' })
@@ -178,6 +525,16 @@ describe('Fastify API', () => {
     const matchId = MatchIdSchema.parse('match-mcp-001')
     const playerId = PlayerIdSchema.parse('player-1')
     const token = server.matches.mailbox.issueToken(matchId, playerId)
+    expect((await server.app.inject({ method: 'GET', url: '/mcp' })).statusCode).toBe(401)
+    expect(
+      (
+        await server.app.inject({
+          method: 'GET',
+          url: '/mcp',
+          headers: { authorization: `Bearer ${token}` },
+        })
+      ).statusCode,
+    ).toBe(405)
     server.matches.mailbox.expect({
       matchId,
       playerId,
@@ -193,7 +550,7 @@ describe('Fastify API', () => {
     const transport = new StreamableHTTPClientTransport(new URL('/mcp', address), {
       requestInit: { headers: { Authorization: `Bearer ${token}` } },
     })
-    await client.connect(transport)
+    await client.connect(transport as never)
     const tools = await client.listTools()
     expect(tools.tools.map((tool) => tool.name)).toEqual([
       'submit_speech',
@@ -268,6 +625,22 @@ describe('Fastify API', () => {
       type: 'sheriff-action',
       action: 'transfer',
       targetId: 'player-2',
+    })
+
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'skill-trigger',
+      allowedAbilityIds: [AbilityIdSchema.parse('ability-hunter-shot')],
+    })
+    const triggered = await client.callTool({
+      name: 'trigger_skill',
+      arguments: { abilityId: 'ability-hunter-shot', targetPlayerId: null },
+    })
+    expect(triggered.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'skill-trigger',
+      abilityId: 'ability-hunter-shot',
     })
 
     server.matches.mailbox.expect({
@@ -476,6 +849,10 @@ describe('Fastify API', () => {
     expect(
       (await server.app.inject({ method: 'DELETE', url: '/api/boards/board-quick-6' })).statusCode,
     ).toBe(400)
+    expect(() => server.boards.update('board-quick-6' as never, {} as never)).toThrow(/read-only/)
+    expect(() => server.boards.update('board-missing-update' as never, {} as never)).toThrow(
+      /Unknown board/,
+    )
   })
 
   it('records trajectories in normal mode and exposes them only after developer restart', async () => {
@@ -544,20 +921,27 @@ describe('Fastify API', () => {
   })
 })
 
-async function createTestServer(): Promise<AgentWolfServer> {
+async function createTestServer(developerMode = false): Promise<AgentWolfServer> {
   const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-app-'))
   roots.push(root)
-  const config: ServerConfig = {
+  const server = await buildServer({ config: testConfig(root, developerMode) })
+  servers.push(server)
+  return server
+}
+
+function testConfig(
+  root: string,
+  developerMode: boolean,
+  webDistPath = resolve(root, 'missing'),
+): ServerConfig {
+  return {
     host: '127.0.0.1',
     port: 4310,
     dataDirectory: root,
     databasePath: ':memory:',
     publicBaseUrl: 'http://127.0.0.1:4310',
     projectRoot: process.cwd(),
-    webDistPath: resolve(root, 'missing'),
-    developerMode: false,
+    webDistPath,
+    developerMode,
   }
-  const server = await buildServer({ config })
-  servers.push(server)
-  return server
 }

@@ -23,17 +23,6 @@ The bundle contains:
 includes the exact source `角色介绍` from the mapped strategy Role page. The owner branch states
 identity, faction, abilities, and formal ability IDs needed for structured actions.
 
-Prompt assets are non-localized Nunjucks. Keep labels and one-line transitions as typed atomic
-manifest fields; use cohesive templates for conditions, loops, and multi-line instructions. Do not
-create locale folders, a global string dictionary, condition-fragment files, Prompt versions,
-server-side Role dispatch, or a bundle that owns another plugin's semantic ID.
-
-`ContextRenderer` provides only visibility-filtered events, public roster/board state, the actor's
-Role and ability-use counts, and the current action contract. If a template needs a private fact,
-emit a private event or add a narrowly typed, visibility-safe fact contract; never pass raw
-`GameState`, pending hidden deaths, unrestricted plugin state, or template paths. Give the model
-compact current facts and legal choices, leaving strategic judgment to the model.
-
 Add or extend Prompt bundle and `ContextRenderer` tests for public foundation text, owner text,
 current turn instructions, legal choices, event rendering, and absence of hidden facts.
 
@@ -61,8 +50,6 @@ Add localized user-facing values to `packages/assets/copy/zh-CN.json`:
 - ability, phase, narration/timeline, and effect labels actually shown;
 - built-in board name and description when applicable.
 
-Do not place model Prompt text in localized UI copy.
-
 Custom board management discovers the installed Role automatically. A built-in board also needs an
 explicit server catalog entry. Update API/integration and browser expectations that enumerate
 built-in boards or installed Role counts.
@@ -76,24 +63,18 @@ For a new plugin event, add one typed presentation in `packages/assets/src/plugi
 - produces localized narration or timeline text;
 - maps the already-visible event to an optional semantic effect cue.
 
-The event's engine visibility remains the security boundary. Server projection filters events
-before narration and cue derivation. Test god, closed-eye, owning-player, faction, and unrelated
-player views as applicable; absence assertions are required for private results.
+Test god, closed-eye, owning-player, faction, and unrelated player views as applicable; absence
+assertions are required for private results.
 
 Register active feedback in `packages/assets/src/role-effects.ts` with Role ID, Ability ID when
 applicable, localized label, bounded duration, tier, and semantic icon. Reuse the generic Web
 controller unless a genuinely new visual primitive is needed. If adding an icon primitive, extend
-the centralized Phosphor icon mapping; do not add emoji, raw colors, inline styles, or a Role-event
-switch in React.
+the centralized Phosphor icon mapping.
 
 Every installed Role must satisfy one of these paths:
 
 - every active ability has a role-effect definition, and the Role has at least one definition; or
 - the Role has no active visual event and is added to the explicit `passiveRoleIds` exception.
-
-The Web controller provides full, reduced, and off modes. Acceptance must prove a newly visible cue
-plays at most once, private cues remain absent, projection switches do not replay history, and all
-card/stage transforms are cleaned up.
 
 ## 5. Role badge and visual identity
 

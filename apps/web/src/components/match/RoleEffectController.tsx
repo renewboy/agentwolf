@@ -58,7 +58,13 @@ export function RoleEffectController({
     baseline.current = Math.max(baseline.current, lastSequence)
     if (next.length === 0) return
     const existing = new Set(pending.current.map((cue) => cue.cueId))
-    pending.current.push(...next.filter((cue) => !existing.has(cue.cueId)))
+    pending.current.push(
+      ...next.filter((cue) => {
+        if (existing.has(cue.cueId)) return false
+        existing.add(cue.cueId)
+        return true
+      }),
+    )
     setCurrent((active) => active ?? pending.current.shift() ?? null)
   }, [cues, lastSequence, mode])
 

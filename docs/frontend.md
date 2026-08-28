@@ -20,11 +20,6 @@ defines event-driven motion. The reference image is not a runtime background.
 - Phosphor is the icon family. Emoji are not interface icons.
 - Visible identities use one labeled semantic Role badge system across setup, Match, and developer
   views. Hidden identities use one neutral badge and never expose a Role-specific color.
-- Information cannot depend on color alone; labels, icons, shape, or accessible state carry the same
-  distinction.
-
-All copy comes from `packages/assets/copy`; CSS, colors, motion values, and tokens come from
-`packages/assets/styles`.
 
 ## Layout principles
 
@@ -40,19 +35,25 @@ All copy comes from `packages/assets/copy`; CSS, colors, motion values, and toke
 
 Exact page composition belongs to React components and browser tests, not this direction document.
 
-## Interaction controls
+## Interaction feedback
 
-Selection controls use the portal-backed `GameSelect`; destructive actions use `ConfirmDialog` over
-the shared `ModalDialog` layer. Native `<select>` and browser alert/confirm/prompt calls are outside
-the product surface.
+Production selection controls use `GameSelect`; destructive actions use `ConfirmDialog`. Native
+`<select>` elements and browser alert, confirm, or prompt APIs are not product controls.
 
-Listboxes support arrows, Home, End, Enter, Escape, type search, selected state, and internal
-scrolling. Modals trap focus, default destructive confirmation to the safe action, support Escape,
-block background interaction, and restore trigger focus when closed.
+Listboxes support arrow keys, Home, End, Enter, Escape, type search, selected state, and internal
+scrolling through a portal that is not clipped by parent containers. Confirmation dialogs use the
+application overlay and visual tokens, focus the safe action first, trap focus, support Escape, block
+background keyboard and pointer input, and restore trigger focus when closed.
+
+Interaction state uses text, icons, shape, or accessible state in addition to color. Control copy
+comes from `packages/assets/copy`; control styles come from `packages/assets/styles`.
 
 Drag-and-drop provides a following drag image, lifted source, insertion marker, and equivalent
 keyboard ordering. Every asynchronous action exposes an explicit idle, working, success, empty, or
 error state.
+
+Repository checks reject native controls and browser prompt APIs. Browser coverage exercises opening,
+selection, cancellation, confirmation, keyboard navigation, focus containment, and focus restoration.
 
 ## Live feedback
 
@@ -68,12 +69,7 @@ does not keep retrying.
 ## Motion and audio
 
 Motion explains state change: startup, waiting, streamed speech, phase transition, vote resolution,
-Role action, recovery, and terminal result. Discrete effects return every element to rest and remain
-pointer-transparent.
-
-Full mode may add bounded particles and stage movement. Reduced mode keeps a static emblem and target
-pulse. Off mode consumes cues without drawing. System reduced-motion preference defaults to reduced
-mode.
+Role action, recovery, and terminal result.
 
 Automatic speech playback identifies one active item and offers skip; manual history playback remains
 disabled until that queue is idle. Committed speech otherwise exposes manual play and stop. Audio

@@ -296,4 +296,118 @@ describe('AcpPlayerSession', () => {
     await session.close()
     expect(Date.now() - startedAt).toBeLessThan(3_000)
   }, 5_000)
+
+  it('rejects protocol/config/mode contracts that cannot honor requested Session settings', async () => {
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    for (const [environment, options, expected] of [
+      [{ AGENTWOLF_MOCK_PROTOCOL_MISMATCH: 'true' }, {}, 'protocol mismatch'],
+      [{ AGENTWOLF_MOCK_DISABLE_MODEL: 'true' }, { model: 'mock-model' }, 'model configuration'],
+      [{ AGENTWOLF_MOCK_MODEL_BOOLEAN: 'true' }, { model: 'mock-model' }, 'not selectable'],
+      [
+        { AGENTWOLF_MOCK_DUPLICATE_REASONING: 'true' },
+        { reasoningEffort: 'low' },
+        'multiple thought_level',
+      ],
+      [
+        { AGENTWOLF_MOCK_DISABLE_REASONING: 'true' },
+        { reasoningEffort: 'low' },
+        'thought_level configuration',
+      ],
+      [{ AGENTWOLF_MOCK_DISABLE_MODES: 'true' }, { mode: 'read-only' }, 'does not advertise mode'],
+    ] as const) {
+      const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-invalid-config-'))
+      temporaryDirectories.push(cwd)
+      await expect(
+        AcpPlayerSession.start({
+          cwd,
+          launch: {
+            command: process.execPath,
+            args: [fixture],
+            env: { ...process.env, ...environment },
+          },
+          ...options,
+        }),
+      ).rejects.toThrow(expected)
+    }
+  }, 20_000)
+
+  it('accepts grouped model options and exposes mode/stderr/connected lifecycle getters', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-grouped-options-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const stderr: string[] = []
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: {
+        command: process.execPath,
+        args: [fixture],
+        env: { ...process.env, AGENTWOLF_MOCK_NESTED_MODEL_OPTIONS: 'true' },
+      },
+      model: 'mock-model',
+      modelConfigKey: 'missing-but-category-falls-back',
+      onStderr: (chunk) => stderr.push(chunk),
+      sessionMeta: { test: true },
+    })
+    expect(session.connected).toBe(true)
+    expect(session.availableModes).toEqual([{ id: 'read-only', name: 'Read only' }])
+    expect(session.stderrTail).toBe('')
+    expect(stderr).toEqual([])
+    await session.close()
+    await session.close()
+    expect(session.connected).toBe(false)
+    session.finishAfterAcceptedAction()
+    await expect(session.prompt('closed', 10)).rejects.toThrow(/session is closed/)
+  })
+
+  it('rejects concurrent Prompts and reports a confirmed timeout as reusable uncertainty', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-timeout-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: {
+        command: process.execPath,
+        args: [fixture],
+        env: { ...process.env, AGENTWOLF_MOCK_PROMPT_DELAY_MS: '80' },
+      },
+    })
+    const first = session.prompt('first', 1_000)
+    await expect(session.prompt('second', 1_000)).rejects.toThrow(/already has an active Prompt/)
+    await expect(first).resolves.toMatchObject({ text: '你好' })
+    await expect(session.prompt('timeout', 1)).rejects.toMatchObject({
+      name: 'AcpDeliveryUncertainError',
+      sessionReusable: true,
+    })
+    session.finishAfterAcceptedAction()
+    await session.close()
+  })
+
+  it('reports permission callbacks for allowed and denied MCP requests', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-permission-callbacks-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const requests: unknown[] = []
+    const decisions: boolean[] = []
+    const allowed = await AcpPlayerSession.start({
+      cwd,
+      launch: { command: process.execPath, args: [fixture], env: { ...process.env } },
+      approvedMcpTools: [
+        { server: 'agentwolf-player-actions', tool: 'submit_vote', title: '提交投票' },
+      ],
+      onPermissionRequest: (request) => requests.push(request),
+      onPermissionDecision: (_request, decision) => decisions.push(decision),
+    })
+    expect((await allowed.prompt('permission-check', 5_000)).text).toBe('permission-allow')
+    await allowed.close()
+    const denied = await AcpPlayerSession.start({
+      cwd,
+      launch: { command: process.execPath, args: [fixture], env: { ...process.env } },
+      onPermissionRequest: (request) => requests.push(request),
+      onPermissionDecision: (_request, decision) => decisions.push(decision),
+    })
+    expect((await denied.prompt('permission-check', 5_000)).text).toBe('permission-cancelled')
+    await denied.close()
+    expect(requests).toHaveLength(2)
+    expect(decisions).toEqual([true, false])
+  })
 })

@@ -15,6 +15,8 @@ owning documents and packages.
 
 ## Reading routes
 
+- MUST Read [artifacts_rules.md](artifacts_rules.md) before changing any durable document, prompt, runtime
+  skill, tool description, UI copy, role copy, or public announcement.
 - Documentation structure and prose: [documentation standard](docs/AGENTS.md).
 - Product behavior and V1 scope: [product](docs/product.md).
 - System map and module routing: [architecture index](docs/architecture.md).
@@ -91,8 +93,6 @@ run `pnpm test:e2e` when visible browser behavior changes.
 - Use ESM, strict TypeScript, branded cross-boundary IDs, Zod at wire/config/user-input boundaries,
   and exhaustive switches for closed unions.
 - Do not interpolate shell strings for subprocess execution.
-- Model-facing text belongs in `packages/assets/prompts`; UI copy and reusable presentation assets
-  belong in `packages/assets`.
 - Player Skill sources belong in `packages/assets/player-skills`; repository-root `.agents/skills`
   contains coding-agent Skills only.
 - Runtime secrets, Skill material, and hidden game state never enter browser bundles or public events.
@@ -107,7 +107,6 @@ run `pnpm test:e2e` when visible browser behavior changes.
 - Parallel stages use one frozen barrier snapshot and reveal results only after eligible turns settle.
 - Server projection owns secrecy; model Prompt rendering consumes already-filtered visible facts.
 - Character cards affect public expression only and remain outside game rules and durable events.
-- Trajectory collection is always on; its read surfaces exist only in loopback developer mode.
 
 The linked architecture modules own the exact contracts behind these summary invariants.
 

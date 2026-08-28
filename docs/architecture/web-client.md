@@ -14,7 +14,6 @@ filtering, and server orchestration never move into the browser.
 - `src/api.ts` validates every server response and client message through contracts schemas.
 - Pages compose product flows; reusable components own interaction and presentation; hooks own
   browser effects and external lifecycles.
-- Visible copy, CSS, colors, icons, and motion values come from `packages/assets`.
 - The browser trusts the selected projection because the server removed unauthorized fields before
   serialization; local hiding is never a secrecy mechanism.
 
@@ -38,9 +37,7 @@ The Match page uses a fixed `100dvh` shell. Player rails present public setup me
 visibility-safe Role state; the center feed owns independent history scrolling, live speech, public
 events, votes, and postgame reflections.
 
-`ModalDialog` owns the application modal layer, focus trap, Escape handling, backdrop dismissal, and
-focus restoration. `GameSelect` owns listbox placement, keyboard behavior, type search, and scrolling.
-Destructive actions compose `ConfirmDialog`; browser-native prompts are outside the product surface.
+The [Web package contract](../../apps/web/README.md) owns shared interaction implementations.
 
 The [frontend direction](../frontend.md) owns visual language, responsive layout principles, and
 motion taste. Exact screen behavior remains in components and browser tests rather than this
@@ -48,13 +45,15 @@ architecture document.
 
 ## Role effects
 
-Domain events contain game semantics only. After visibility filtering, the server presentation
-registry projects open `RoleEffectCue` IDs and stable semantic primitives. The browser consumes each
-sequence once through the assets effect catalog.
+Role effects consume semantic `RoleEffectCue` values projected by the server after visibility
+filtering. Domain events contain no animation name, duration, color, or DOM instruction. The assets
+package owns effect definitions, copy, visual tokens, and duration tiers; the Web controller executes
+them through the pinned GSAP adapter in full, reduced, or off mode.
 
-`src/motion/gsap.ts` is the only GSAP entry point. The effect controller owns DOM selection and
-timelines; overlays remain pointer-transparent and never influence engine timing. Full, reduced, and
-off modes all consume cues, return elements to rest, and honor reduced-motion preference.
+A new active Role effect includes the semantic event, visibility, cue mapping, full/reduced behavior,
+cleanup, and browser verification. A Role without an active visual event is registered as an explicit
+passive exception. Repository checks enforce the pinned animation dependencies, single runtime import
+boundary, and Role coverage.
 
 ## Speech playback
 

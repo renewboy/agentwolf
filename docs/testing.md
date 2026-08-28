@@ -5,7 +5,11 @@ and this document does not maintain a feature-by-feature coverage inventory.
 
 ## Test layers
 
-- Unit tests own pure rule, schema, rendering, normalization, catalog, and utility behavior.
+- The Vitest `node` project owns pure rules, schemas, rendering, normalization, catalogs, ACP
+  processes, repositories, services, and protocol integration.
+- The Vitest `web` project runs in jsdom with React Testing Library, user-event, and jest-dom. It
+  owns browser API clients, pure presentation logic, reusable interactions, hooks, page states, and
+  component behavior.
 - Property tests own broad deterministic invariants such as legal player counts, event monotonicity,
   replay, and death/action ordering.
 - Integration tests own REST/WebSocket contracts, SQLite repositories and migrations, Match runtime,
@@ -24,7 +28,10 @@ Detailed scenarios belong in descriptively named tests and fixtures beside their
 
 ```sh
 pnpm typecheck
+pnpm typecheck:tests
 pnpm lint
+pnpm test:web
+pnpm test:web:coverage
 pnpm test:coverage
 pnpm build
 pnpm check
@@ -40,6 +47,29 @@ build. It excludes credentialed model calls.
 Use focused Vitest or Playwright targets while iterating. Run the complete repository gate for
 cross-layer changes and `pnpm test:e2e` for user-visible browser behavior. Run live smokes only when
 provider behavior is in scope and credentials are available.
+
+## Coverage contract
+
+`pnpm test:coverage` runs the Node and Web Vitest projects together. Coverage includes product
+runtime source under `packages/*/src`, `apps/server/src`, and `apps/web/src`. Repository scripts stay
+under their dedicated static and unit checks.
+
+Every included file must reach at least 80 percent statements, branches, functions, and lines. The
+report uses 50 and 80 percent watermarks and emits terminal, JSON summary, and HTML output. The only
+coverage exclusions are behavior-free package barrels, CLI and browser launchers, error declarations,
+and the Web GSAP forwarding boundary. Do not add exclusions, ignore comments, or unreachable fallback
+tests to satisfy the threshold.
+
+## Browser suite isolation
+
+Playwright specifications are grouped by product domain and may run independently. Parallel Chromium
+workers create Tool, Profile, Character, board, and Match records inside a worker-specific namespace
+and remove them in dependency order during teardown. Settings and Profile-order scenarios run in the
+dependent `chromium-configuration` project so global mutations do not race parallel scenarios.
+
+The browser server uses an in-memory E2E database. Shared Match DTO, speech, real-time connection,
+resource, and cleanup helpers live under `e2e/fixtures`. Architecture checks reject any E2E
+specification over 500 lines.
 
 ## Test data
 

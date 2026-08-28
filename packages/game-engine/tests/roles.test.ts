@@ -23,7 +23,9 @@ describe('V1 role abilities', () => {
       targetIds: [targetId],
     }
     const ability = registry.ability(v1AbilityIds.guardProtect).ability
-    expect(ability.effects({ state: engine.state, board: guardBoard, action, actor })).toEqual([
+    expect(
+      ability.effects({ state: engine.state, board: guardBoard, roles: registry, action, actor }),
+    ).toEqual([
       {
         kind: 'protect',
         priority: 300,
@@ -44,6 +46,7 @@ describe('V1 role abilities', () => {
       ability.validate({
         state: repeatedState,
         board: guardBoard,
+        roles: registry,
         action,
         actor: repeatedState.players.get(guardId)!,
       }),
@@ -66,11 +69,22 @@ describe('V1 role abilities', () => {
       targetIds: [targetId],
     }
     expect(() =>
-      antidote.validate({ state: attacked, board: standardBoard, action: antidoteAction, actor }),
+      antidote.validate({
+        state: attacked,
+        board: standardBoard,
+        roles: registry,
+        action: antidoteAction,
+        actor,
+      }),
     ).not.toThrow()
     expect(
-      antidote.effects({ state: attacked, board: standardBoard, action: antidoteAction, actor })[0]
-        ?.kind,
+      antidote.effects({
+        state: attacked,
+        board: standardBoard,
+        roles: registry,
+        action: antidoteAction,
+        actor,
+      })[0]?.kind,
     ).toBe('protect')
 
     const selfAttacked: GameState = { ...engine.state, nightAttackTargetId: witchId }
@@ -78,6 +92,7 @@ describe('V1 role abilities', () => {
       antidote.validate({
         state: selfAttacked,
         board: standardBoard,
+        roles: registry,
         action: { ...antidoteAction, targetIds: [witchId] },
         actor,
       }),
@@ -88,6 +103,7 @@ describe('V1 role abilities', () => {
       poison.effects({
         state: engine.state,
         board: standardBoard,
+        roles: registry,
         action: { ...antidoteAction, abilityId: v1AbilityIds.witchPoison },
         actor,
       })[0],
@@ -113,14 +129,14 @@ describe('V1 role abilities', () => {
       recentDeaths: new Map([[hunterId, { playerId: hunterId, causes: ['werewolf'] }]]),
     }
     expect(() =>
-      ability.validate({ state: eligible, board: standardBoard, action, actor }),
+      ability.validate({ state: eligible, board: standardBoard, roles: registry, action, actor }),
     ).not.toThrow()
     const poisoned: GameState = {
       ...engine.state,
       recentDeaths: new Map([[hunterId, { playerId: hunterId, causes: ['poison'] }]]),
     }
     expect(() =>
-      ability.validate({ state: poisoned, board: standardBoard, action, actor }),
+      ability.validate({ state: poisoned, board: standardBoard, roles: registry, action, actor }),
     ).toThrow(/only after/)
   })
 })

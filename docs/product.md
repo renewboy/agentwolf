@@ -74,9 +74,6 @@ enter the queue immediately; commit adds only the final tail. The last speech in
 following phase until playback completes, is skipped, fails, or the controller disconnects. Every
 committed speech also supports manual play and stop without affecting progression.
 
-Visibility-safe semantic cues drive Role and sheriff effects in full, reduced, or off mode. Effects
-never delay or alter game resolution. Reduced-motion preference selects the reduced presentation.
-
 ## Postgame review
 
 After the result and final identity reveal, a ten-second server-owned countdown offers immediate

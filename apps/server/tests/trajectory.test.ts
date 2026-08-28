@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import type { RequestPermissionRequest, SessionUpdate } from '@agentclientprotocol/sdk'
 import {
+  BoardIdSchema,
   GameEventSchema,
   MatchIdSchema,
   PhaseIdSchema,
@@ -17,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { builtInAgentTools } from '@agentwolf/acp'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import { bootstrapContextBudgetIssue } from '../src/trajectory-audit.js'
+import { TrajectoryService } from '../src/trajectory-service.js'
 
 const roots: string[] = []
 const servers: AgentWolfServer[] = []
@@ -82,7 +84,7 @@ describe('trajectory capture', () => {
       connection: { endpoint: 'local', note: 'connection-should-not-leak' },
     })
     const match = server.matches.createMatch({
-      boardId: 'board-quick-6',
+      boardId: BoardIdSchema.parse('board-quick-6'),
       roleAssignment: 'random',
       seats: Array.from({ length: 6 }, (_, index) => ({
         seat: index + 1,
@@ -162,7 +164,7 @@ describe('trajectory capture', () => {
       connection: {},
     })
     const match = server.matches.createMatch({
-      boardId: 'board-quick-6',
+      boardId: BoardIdSchema.parse('board-quick-6'),
       roleAssignment: 'random',
       seats: Array.from({ length: 6 }, (_, index) => ({
         seat: index + 1,
@@ -171,6 +173,7 @@ describe('trajectory capture', () => {
       })),
     })
     const recorder = server.trajectories.recorder(match.id)
+    recorder.recordSystemEvents([])
     const fullRecordReads = vi.spyOn(server.repository, 'listTrajectoryRecords')
     const targetedRecordReads = vi.spyOn(server.repository, 'listTrajectoryRecordsForTurns')
     const ownerId = PlayerIdSchema.parse('player-1')
@@ -185,6 +188,9 @@ describe('trajectory capture', () => {
       fromSequence: 3,
       toSequence: 9,
       prompt: '完整提示词与事件 4 至 9。',
+      visibleEventSequences: [],
+      gameStatus: 'running',
+      pausedReasonAtRender: null,
     })
     for (const text of ['分析', '目标', '目标', '，', '完成。']) {
       turn.update({
@@ -197,6 +203,12 @@ describe('trajectory capture', () => {
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: '工具前消息。' },
     } as SessionUpdate)
+    turn.update({ sessionUpdate: 'user_message_chunk' } as SessionUpdate)
+    turn.update({
+      sessionUpdate: 'agent_message_chunk',
+      messageId: 'non-text',
+      content: { type: 'resource_link', name: 'resource', uri: 'memory://resource' },
+    } as unknown as SessionUpdate)
     turn.update({
       sessionUpdate: 'tool_call',
       toolCallId: 'call-1',
@@ -226,6 +238,23 @@ describe('trajectory capture', () => {
       } as unknown as RequestPermissionRequest,
       true,
     )
+    turn.permission(
+      {
+        sessionId: 'session-trace-1',
+        toolCall: {
+          toolCallId: 'call-denied',
+          name: 'denied-tool',
+          rawInput: { value: 'safe' },
+        },
+        options: [{ optionId: 'deny', kind: 'reject_once', name: 'Deny once' }],
+      } as unknown as RequestPermissionRequest,
+      false,
+    )
+    turn.diagnostic('ERROR failed diagnostic')
+    turn.diagnostic('WARNING warning diagnostic')
+    turn.diagnostic('DEBUG debug diagnostic')
+    turn.diagnostic('ordinary diagnostic')
+    turn.accepted('bigint', 1n)
     turn.update({
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: '工具后消息。' },
@@ -264,11 +293,15 @@ describe('trajectory capture', () => {
     expect(reasoning).toHaveLength(1)
     expect(reasoning[0]?.text).toBe('分析目标目标，完成。')
     const messages = page.records.filter((record) => record.kind === 'message')
-    expect(messages.map((record) => record.text)).toEqual(['工具前消息。', '工具后消息。'])
+    expect(messages.map((record) => record.text)).toEqual([
+      '工具前消息。',
+      expect.stringContaining('resource_link'),
+      '工具后消息。',
+    ])
     const toolRecord = page.records.find((record) => record.kind === 'tool')
     expect(toolRecord).toMatchObject({ status: 'completed' })
     expect(messages[0]!.ordinal).toBeLessThan(toolRecord!.ordinal)
-    expect(messages[1]!.ordinal).toBeGreaterThan(toolRecord!.ordinal)
+    expect(messages.at(-1)!.ordinal).toBeGreaterThan(toolRecord!.ordinal)
     expect(toolRecord?.input).toContain('[REDACTED]')
     expect(toolRecord?.input).not.toContain('should-not-persist')
     expect(toolRecord?.input).not.toContain('also-secret')
@@ -295,6 +328,9 @@ describe('trajectory capture', () => {
       fromSequence: 3,
       toSequence: 9,
       prompt: '恢复后的同一行动。',
+      visibleEventSequences: [],
+      gameStatus: 'running',
+      pausedReasonAtRender: null,
     })
     retry.fail(new Error('transport failed'), 'uncertain')
     unsubscribe()
@@ -332,7 +368,7 @@ describe('trajectory capture', () => {
       connection: {},
     })
     const match = server.matches.createMatch({
-      boardId: 'board-quick-6',
+      boardId: BoardIdSchema.parse('board-quick-6'),
       roleAssignment: 'random',
       seats: Array.from({ length: 6 }, (_, index) => ({
         seat: index + 1,
@@ -353,27 +389,27 @@ describe('trajectory capture', () => {
       event(1, { type: 'night.started', night: 1 }),
       event(2, {
         type: 'phase.changed',
-        phaseId: 'phase-night-witch',
+        phaseId: PhaseIdSchema.parse('phase-night-witch'),
         day: 0,
         labelKey: 'phases.nightWitch',
       }),
       event(3, { type: 'day.started', day: 1 }),
       event(4, {
         type: 'phase.changed',
-        phaseId: 'phase-sheriff-signup',
+        phaseId: PhaseIdSchema.parse('phase-sheriff-signup'),
         day: 1,
         labelKey: 'phases.sheriffSignup',
       }),
       event(5, {
         type: 'phase.changed',
-        phaseId: 'phase-day-speech',
+        phaseId: PhaseIdSchema.parse('phase-day-speech'),
         day: 1,
         labelKey: 'phases.daySpeech',
       }),
       event(6, { type: 'night.started', night: 2 }),
       event(7, {
         type: 'phase.changed',
-        phaseId: 'phase-night-seer',
+        phaseId: PhaseIdSchema.parse('phase-night-seer'),
         day: 1,
         labelKey: 'phases.nightSeer',
       }),
@@ -504,6 +540,92 @@ describe('trajectory capture', () => {
 
     const actionDelta = server.trajectories.changes(match.id, beforeActionRevision)
     expect(actionDelta.records.some((record) => record.text === canonicalSpeech)).toBe(true)
+  })
+
+  it('bounds pages, catches up subscribers, and validates player diagnostics and terminal groups', async () => {
+    const server = await createServer()
+    const profile = server.catalog.createProfile({
+      name: 'Trajectory edge profile',
+      toolId: builtInAgentTools()[0]!.id,
+      model: 'edge-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const match = server.matches.createMatch({
+      boardId: BoardIdSchema.parse('board-quick-6'),
+      roleAssignment: 'random',
+      seats: Array.from({ length: 6 }, (_, index) => ({
+        seat: index + 1,
+        name: `Edge player ${index + 1}`,
+        profileId: profile.id,
+      })),
+    })
+    const playerId = PlayerIdSchema.parse('player-1')
+    const recorder = server.trajectories.recorder(match.id)
+    for (const [turnId, kind, phaseId] of [
+      ['postgame-edge', 'postgame', null],
+      ['ended-edge', 'action', 'phase-match-ended'],
+      ['fallback-night-edge', 'action', null],
+    ] as const) {
+      const turn = recorder.beginTurn({
+        turnId,
+        ownerId: playerId,
+        sessionId: `session-${turnId}`,
+        sessionGeneration: 1,
+        kind,
+        phaseId: phaseId ? PhaseIdSchema.parse(phaseId) : null,
+        actionType: kind === 'postgame' ? 'postgame-review' : 'domain-events',
+        fromSequence: 0,
+        toSequence: server.repository.listMatchEvents(match.id).at(-1)?.sequence ?? 1,
+        prompt: turnId,
+        visibleEventSequences: [],
+        gameStatus: kind === 'postgame' ? 'ended' : 'running',
+        pausedReasonAtRender: null,
+      })
+      turn.complete('end_turn')
+    }
+    const plainFailure = recorder.beginTurn({
+      turnId: 'plain-failure-edge',
+      ownerId: playerId,
+      sessionId: 'session-plain-failure-edge',
+      sessionGeneration: 1,
+      kind: 'action',
+      phaseId: PhaseIdSchema.parse('phase-day-vote'),
+      actionType: 'vote',
+      fromSequence: 0,
+      toSequence: server.repository.listMatchEvents(match.id).at(-1)?.sequence ?? 1,
+      prompt: 'plain failure',
+      visibleEventSequences: [],
+      gameStatus: 'running',
+      pausedReasonAtRender: null,
+    })
+    plainFailure.fail('plain failure', 'failed')
+
+    const caughtUp: TrajectoryDelta[] = []
+    const unsubscribe = server.trajectories.subscribe(match.id, 0, (delta) => caughtUp.push(delta))
+    expect(caughtUp.length).toBeGreaterThan(0)
+    unsubscribe()
+    unsubscribe()
+    expect(server.trajectories.page(match.id, playerId, null, 0).turns).toHaveLength(1)
+    expect(server.trajectories.page(match.id, playerId, 3, 50).nextBeforeTurn).toBeNull()
+    expect(server.trajectories.summary(match.id).owners[0]?.label).toBeTruthy()
+    expect(server.trajectories.playerDebug(match.id, playerId).profile.model).toBe('edge-model')
+    expect(() =>
+      server.trajectories.playerDebug(match.id, PlayerIdSchema.parse('player-99')),
+    ).toThrow(/Unknown Player/)
+    expect(() =>
+      server.trajectories.summary(MatchIdSchema.parse('match-missing-trajectory')),
+    ).toThrow(/Unknown match/)
+    const withoutCatalog = new TrajectoryService(server.repository)
+    expect(() => withoutCatalog.playerDebug(match.id, playerId)).toThrow(
+      /Missing Agent configuration/,
+    )
+
+    const groups = server.trajectories
+      .page(match.id, playerId, null, 50)
+      .turns.map((turn) => turn.timelineGroup.kind)
+    expect(groups).toContain('review')
+    expect(groups).toContain('end')
   })
 })
 

@@ -74,32 +74,32 @@ test('keeps the trajectory reading position while live records arrive', async ({
   const records = Array.from({ length: 36 }, (_, index) =>
     trajectoryRecord(match.id, turn.turnId, index + 1, 1),
   )
-  const owner: TrajectoryOwnerSummary = {
+  const owner = {
     ownerId: 'player-1',
     label: '测试玩家1',
     turnCount: 1,
     recordCount: records.length,
-  }
+  } as unknown as TrajectoryOwnerSummary
   const summary: TrajectorySummary = {
     matchId: match.id,
     revision: 1,
     owners: [owner],
     turns: [turn],
   }
-  const trajectoryPage: TrajectoryPage = {
+  const trajectoryPage = {
     matchId: match.id,
     revision: 1,
     ownerId: 'player-1',
     turns: [turn],
     records,
     nextBeforeTurn: null,
-  }
-  const audit: TrajectoryAuditReport = {
+  } as unknown as TrajectoryPage
+  const audit = {
     matchId: match.id,
     ok: true,
     auditedTurns: 1,
     issues: [],
-  }
+  } as unknown as TrajectoryAuditReport
   let sendDelta: (delta: TrajectoryDelta) => void = ignoreMessage
   await page.setViewportSize({ width: 1280, height: 700 })
   await page.route('**/api/runtime-config', async (route) =>
@@ -170,7 +170,7 @@ test('keeps the trajectory reading position while live records arrive', async ({
   expect(await ledger.evaluate((element) => element.scrollTop)).toBe(0)
 })
 
-function matchFixture(id: MatchView['id']): MatchView {
+function matchFixture(id: string): MatchView {
   return {
     id,
     boardId: 'board-quick-6',
@@ -212,7 +212,7 @@ function matchFixture(id: MatchView['id']): MatchView {
     activeSpeech: null,
     winner: null,
     pausedReason: null,
-  } as MatchView
+  } as unknown as MatchView
 }
 
 function trajectoryTurn(matchId: MatchView['id']): TrajectoryTurn {
@@ -242,7 +242,7 @@ function trajectoryTurn(matchId: MatchView['id']): TrajectoryTurn {
     error: null,
     usage: null,
     revision: 1,
-  }
+  } as unknown as TrajectoryTurn
 }
 
 function playerDebugFixture(matchId: MatchView['id']): TrajectoryPlayerDebug {
@@ -287,7 +287,7 @@ function playerDebugFixture(matchId: MatchView['id']): TrajectoryPlayerDebug {
       durationMs: 100,
       error: null,
     },
-  }
+  } as unknown as TrajectoryPlayerDebug
 }
 
 function trajectoryRecord(
@@ -315,7 +315,7 @@ function trajectoryRecord(
     durationMs: null,
     truncatedFields: [],
     revision,
-  }
+  } as unknown as TrajectoryRecord
 }
 
 function ignoreMessage(_message: unknown): void {}

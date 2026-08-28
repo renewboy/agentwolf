@@ -6,7 +6,7 @@ const e2eWebPort = Number(process.env['AGENTWOLF_E2E_WEB_PORT'] ?? '5174')
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI'] ? [['html', { open: 'never' }], ['list']] : 'list',
@@ -19,6 +19,14 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: /configuration\.spec\.ts/u,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'chromium-configuration',
+      dependencies: ['chromium'],
+      fullyParallel: false,
+      testMatch: /configuration\.spec\.ts/u,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

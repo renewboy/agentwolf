@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import Database from 'better-sqlite3'
 import { AgentProfileSchema } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
+import { MatchIdSchema } from '@agentwolf/contracts'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import { migrateDatabase } from '../src/database-schema.js'
 import { SqliteRepository } from '../src/repository.js'
@@ -88,21 +89,23 @@ describe('database migration', () => {
       },
     })
     servers.push(server)
-    expect(server.repository.getMatch('match-legacy-preserved')).toMatchObject({
-      id: 'match-legacy-preserved',
-      boardId: 'board-quick-6',
-      status: 'ended',
-      boardSnapshot: {
-        id: 'board-quick-6',
-        name: '6 人快速场',
-        playerCount: 6,
-        agentProfiles: expect.arrayContaining([{ seat: 1, profileId: null }]),
+    expect(server.repository.getMatch(MatchIdSchema.parse('match-legacy-preserved'))).toMatchObject(
+      {
+        id: 'match-legacy-preserved',
+        boardId: 'board-quick-6',
+        status: 'ended',
+        boardSnapshot: {
+          id: 'board-quick-6',
+          name: '6 人快速场',
+          playerCount: 6,
+          agentProfiles: expect.arrayContaining([{ seat: 1, profileId: null }]),
+        },
+        setup: {
+          speechCharacterLimit: 300,
+          seats: expect.arrayContaining([expect.objectContaining({ character: null })]),
+        },
       },
-      setup: {
-        speechCharacterLimit: 300,
-        seats: expect.arrayContaining([expect.objectContaining({ character: null })]),
-      },
-    })
+    )
     expect(server.repository.getGlobalSettings()).toEqual({ speechCharacterLimit: 300 })
   })
 

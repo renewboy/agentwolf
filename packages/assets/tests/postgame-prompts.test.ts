@@ -1,6 +1,7 @@
-import { PlayerIdSchema } from '@agentwolf/contracts'
+import { resolve } from 'node:path'
+import { PlayerIdSchema, type PostgameReviewResult } from '@agentwolf/contracts'
 import { describe, expect, it } from 'vitest'
-import { PostgamePromptAssets } from '../src/prompts.js'
+import { PostgamePromptAssets, postgameResultFor } from '../src/prompts.js'
 
 describe('postgame Prompt assets', () => {
   it('renders a ruleset-neutral review contract and direct reflection', () => {
@@ -80,5 +81,80 @@ describe('postgame Prompt assets', () => {
     expect(reflection).toContain('此前感言')
     expect(reflection).toContain('不要调用工具')
     expect(reflection).toContain('300')
+    expect(prompts.reflectionContinuation()).toContain('继续')
+  })
+
+  it('supports an explicit Prompt root and rejects unknown roster/result players', () => {
+    const prompts = new PostgamePromptAssets({ root: resolve('packages/assets/prompts') })
+    const player1 = PlayerIdSchema.parse('player-1')
+    const player2 = PlayerIdSchema.parse('player-2')
+    const roster = [
+      {
+        playerId: player1,
+        seat: 1,
+        name: '甲',
+        roleLabel: '村民',
+        factionLabel: '好人阵营',
+      },
+      {
+        playerId: player2,
+        seat: 2,
+        name: '乙',
+        roleLabel: '狼人',
+        factionLabel: '狼人阵营',
+      },
+    ]
+    expect(() =>
+      prompts.review({
+        reviewerId: player1,
+        terminalDay: 1,
+        terminalNight: 1,
+        winnerLabel: '好人阵营',
+        publicHistory: [],
+        roster,
+        mvpCandidateIds: [PlayerIdSchema.parse('player-99')],
+        svpCandidateIds: [player2],
+        ratingTargetIds: [player2],
+      }),
+    ).toThrow(/Unknown postgame Prompt player/)
+    expect(() =>
+      prompts.review({
+        reviewerId: player1,
+        terminalDay: 1,
+        terminalNight: 1,
+        winnerLabel: '好人阵营',
+        publicHistory: [],
+        roster: [{ ...roster[0]!, extra: true }] as never,
+        mvpCandidateIds: [player1],
+        svpCandidateIds: [player2],
+        ratingTargetIds: [player2],
+      }),
+    ).toThrow()
+  })
+
+  it('selects a per-player result and rejects missing results', () => {
+    const player1 = PlayerIdSchema.parse('player-1')
+    const player2 = PlayerIdSchema.parse('player-2')
+    const result = {
+      mvp: { playerId: player1, votes: 1, resolvedBy: 'votes' },
+      svp: { playerId: player2, votes: 1, resolvedBy: 'votes' },
+      players: [
+        {
+          playerId: player1,
+          scores: {
+            information: 7,
+            communication: 7,
+            decision: 7,
+            objective: 7,
+            adaptability: 7,
+          },
+          overall: 7,
+          ratingCount: 1,
+        },
+      ],
+      completedAt: '2026-08-28T00:00:00.000Z',
+    } as PostgameReviewResult
+    expect(postgameResultFor(result, player1)?.overall).toBe(7)
+    expect(() => postgameResultFor(result, player2)).toThrow(/has no player/)
   })
 })

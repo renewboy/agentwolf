@@ -20,16 +20,13 @@ and the visual contract in [Frontend direction](../../docs/frontend.md).
 - Components own reusable interaction and rendering.
 - Hooks own WebSocket, speech, motion preference, Profile ordering, and other browser effects.
 - `src/motion/gsap.ts` is the only GSAP import boundary.
-- `packages/assets` owns copy, CSS, colors, icons, and effect metadata.
 
 Game rules, persistence, Prompt rendering, hidden-field filtering, and Match orchestration remain on
 the server. The browser never treats local hiding as authorization.
 
-## Interaction contracts
+## Interaction ownership
 
-Selection controls use `GameSelect`; destructive actions use `ConfirmDialog`; shared modal behavior
-comes from `ModalDialog`. These owners provide keyboard operation, focus containment/restoration,
-Escape behavior, portal placement, and reduced-motion support.
+`GameSelect`, `ConfirmDialog`, and `ModalDialog` own the shared selection and modal implementations.
 
 The Match document stays fixed to the viewport while the central feed owns history scrolling.
 Transient reconnect retains the last valid snapshot. Ended and unavailable Matches settle according

@@ -1,6 +1,7 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   AbilityIdSchema,
   MatchIdSchema,
@@ -12,6 +13,16 @@ import {
 } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadPromptBundles, type PromptSemanticInventory } from '../src/prompts.js'
+import { PromptBundleManifestSchema } from '../src/prompts/schema.js'
+import {
+  bundleEventPresentations,
+  loadPromptBundle,
+  promptEnvironment,
+  resolvePromptRoot,
+  validateCorePromptTools,
+  validatePromptBundleGraph,
+  type LoadedPromptBundle,
+} from '../src/prompts/loader.js'
 
 const roots: string[] = []
 
@@ -20,6 +31,142 @@ afterEach(async () => {
 })
 
 describe('Prompt bundle runtime', () => {
+  it('rejects malformed manifests at every refinement boundary', () => {
+    const pluginId = PluginIdSchema.parse('plugin-schema-test')
+    const roleId = RoleIdSchema.parse('role-schema-test')
+    const malformed = [
+      {
+        pluginId,
+        roles: [{ id: roleId, label: '角色', template: '/escape.njk' }],
+      },
+      {
+        pluginId,
+        roles: [{ id: roleId, label: '两行\n角色', template: 'role.njk' }],
+      },
+      {
+        pluginId,
+        roles: [{ id: roleId, label: '{% if true %}', template: 'role.njk' }],
+      },
+      { pluginId: '_core' },
+      { pluginId, imports: [pluginId, pluginId] },
+      { pluginId, events: [{ eventType: 'day.completed', audience: 'public' }] },
+    ]
+
+    for (const manifest of malformed) {
+      expect(PromptBundleManifestSchema.safeParse(manifest).success).toBe(false)
+    }
+  })
+
+  it('loads frozen bundles and rejects missing, mismatched, unsupported, and linked files', async () => {
+    const fixture = await promptFixture()
+    const directory = join(fixture.root, 'bundles', fixture.pluginId)
+    expect(resolvePromptRoot(pathToFileURL(fixture.root))).toBe(await realpath(fixture.root))
+    expect(loadPromptBundle(fixture.pluginId, directory).id).toBe(fixture.pluginId)
+    expect(() => loadPromptBundle(fixture.pluginId, join(fixture.root, 'missing'))).toThrow(
+      /Missing Prompt bundle/,
+    )
+    expect(() => loadPromptBundle(PluginIdSchema.parse('plugin-other'), directory)).toThrow(
+      /declares/,
+    )
+
+    await writeFile(join(directory, 'unsupported.txt'), 'not a Prompt template')
+    expect(() => loadPromptBundle(fixture.pluginId, directory)).toThrow(/Unsupported Prompt bundle/)
+
+    const linked = await promptFixture()
+    const linkedDirectory = join(linked.root, 'bundles', linked.pluginId)
+    await symlink(join(linkedDirectory, 'role.njk'), join(linkedDirectory, 'linked.njk'))
+    expect(() => loadPromptBundle(linked.pluginId, linkedDirectory)).toThrow(
+      /cannot contain symlinks/,
+    )
+  })
+
+  it('rejects missing templates and unknown frozen template lookups', async () => {
+    const fixture = await promptFixture()
+    const directory = join(fixture.root, 'bundles', fixture.pluginId)
+    const manifestPath = join(directory, 'bundle.json')
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+      roles: Array<{ template: string }>
+    }
+    manifest.roles[0]!.template = 'missing.njk'
+    await writeFile(manifestPath, JSON.stringify(manifest))
+    expect(() => loadPromptBundle(fixture.pluginId, directory)).toThrow(
+      /references missing template/,
+    )
+
+    const coreFixture = await promptFixture()
+    const core = loadPromptBundle('_core', join(coreFixture.root, '_core'))
+    const environment = promptEnvironment([core])
+    expect(() => environment.getTemplate('_core/missing.njk', true)).toThrow(
+      /Unknown Prompt template/,
+    )
+  })
+
+  it('normalizes announcement presentation variants and validates core tool uniqueness', async () => {
+    const pluginId = PluginIdSchema.parse('plugin-announcement-test')
+    const manifest = PromptBundleManifestSchema.parse({
+      pluginId,
+      announcements: [
+        { code: 'text', audience: 'public', text: 'text' },
+        { code: 'template', audience: 'public', template: 'event.njk' },
+        { code: 'omit', audience: 'god', omit: true },
+      ],
+    })
+    expect(bundleEventPresentations(manifest)).toEqual([
+      expect.objectContaining({ where: { code: 'text' }, text: 'text' }),
+      expect.objectContaining({ where: { code: 'template' }, template: 'event.njk' }),
+      expect.objectContaining({ where: { code: 'omit' }, omit: true }),
+    ])
+
+    const fixture = await promptFixture()
+    const core = loadPromptBundle('_core', join(fixture.root, '_core'))
+    const tools = core.manifest.core!.tools.map((tool, index) =>
+      index === 1 ? { ...tool, name: core.manifest.core!.tools[0]!.name } : tool,
+    )
+    expect(() =>
+      validateCorePromptTools({
+        ...core.manifest,
+        core: { ...core.manifest.core!, tools },
+      }),
+    ).toThrow(/must be unique/)
+  })
+
+  it('rejects missing and cyclic imports plus dynamic and unqualified template imports', async () => {
+    const fixture = await promptFixture()
+    const core = loadPromptBundle('_core', join(fixture.root, '_core'))
+    const plugin = loadPromptBundle(
+      fixture.pluginId,
+      join(fixture.root, 'bundles', fixture.pluginId),
+    )
+    const missingId = PluginIdSchema.parse('plugin-missing-import')
+    expect(() =>
+      validatePromptBundleGraph([
+        core,
+        { ...plugin, manifest: { ...plugin.manifest, imports: [missingId] } },
+      ]),
+    ).toThrow(/imports missing/)
+
+    const firstId = PluginIdSchema.parse('plugin-cycle-first')
+    const secondId = PluginIdSchema.parse('plugin-cycle-second')
+    const bundle = (id: typeof firstId, imports: (typeof firstId)[]): LoadedPromptBundle => ({
+      id,
+      root: fixture.root,
+      manifest: PromptBundleManifestSchema.parse({ pluginId: id, imports }),
+      templates: new Map(),
+    })
+    expect(() =>
+      validatePromptBundleGraph([bundle(firstId, [secondId]), bundle(secondId, [firstId])]),
+    ).toThrow(/import cycle/)
+
+    for (const [source, message] of [
+      ['{% include target %}', 'dynamic import'],
+      ['{% include "local.njk" %}', 'unqualified import'],
+    ] as const) {
+      const templates = new Map(plugin.templates)
+      templates.set(`${plugin.id}/turn.njk`, source)
+      expect(() => validatePromptBundleGraph([core, { ...plugin, templates }])).toThrow(message)
+    }
+  })
+
   it('installs a synthetic Role, Ability, Phase, and plugin event without a production catalog', async () => {
     const fixture = await promptFixture()
     const registry = loadPromptBundles(fixture.inventory, { root: fixture.root })

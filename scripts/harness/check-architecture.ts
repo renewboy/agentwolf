@@ -19,11 +19,22 @@ const allowedInternalDependencies: Readonly<Record<string, ReadonlySet<string>>>
 }
 
 const files = await sourceFiles(roots, new Set(['.ts', '.tsx']))
+const e2eFiles = await sourceFiles(['e2e'], new Set(['.ts']))
 const maxProductionFileLines = 600
+const maxE2eSpecFileLines = 500
 const productionFileLineLimitOverrides = new Map<string, number>([
   ['packages/game-engine/src/engine.ts', 800],
 ])
 const errors: string[] = []
+for (const path of e2eFiles.filter((candidate) => localPath(candidate).endsWith('.spec.ts'))) {
+  const relativePath = localPath(path)
+  const lines = (await text(path)).split(/\r?\n/).length
+  if (lines > maxE2eSpecFileLines) {
+    errors.push(
+      `${relativePath} has ${lines} lines; E2E specs are limited to ${maxE2eSpecFileLines}`,
+    )
+  }
+}
 for (const path of files) {
   const relativePath = localPath(path)
   const content = await text(path)

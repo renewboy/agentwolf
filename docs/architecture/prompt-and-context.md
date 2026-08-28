@@ -9,48 +9,30 @@ strict Nunjucks rendering, player Skill delivery, Character framing, and context
 Prompt assets live in [`packages/assets`](../../packages/assets/README.md); the server adapts the
 resolved Ruleset and Match state into plain assets-owned facts.
 
-## Boundaries
+## Bundle ownership
 
-- The game engine owns rules and visibility, never Prompt paths or prose.
-- Assets owns Prompt schemas, templates, labels, rendering, and player Skill sources without
-  importing the game engine.
-- The server owns Ruleset adaptation and constructs already-filtered facts; generic server code does
-  not dispatch on concrete game semantic IDs.
-- Prompt runtime is server-only and never enters the Web dependency graph.
-- Repository-owned templates are executable presentation assets; user text is never template source.
+Model Prompts use non-localized Nunjucks bundles under `packages/assets/prompts`. `_core` owns Session
+framing, generic layouts, Character framing, reference formatting, five in-game MCP tools, and one
+postgame-review MCP tool. Functional and Role plugins own their Role, Ability, Phase, event,
+announcement, and interrupt presentation.
 
-## Bundle graph
+The server adapts installed Ruleset contribution records into a plain semantic inventory. The assets
+loader compares bundle claims with that inventory and freezes one registry before the first render.
 
-Every installed Rule plugin has one companion directory under `packages/assets/prompts/bundles`
-whose basename equals the plugin ID. The `_core` bundle is the only non-plugin bundle.
+## Template forms
 
-`_core` owns Session framing, foundation and continuation layouts, generic speech/action layouts,
-Character framing, reference helpers, and the in-game and postgame tool declarations. Functional and
-Role bundles own their complete Role, Ability, Phase, plugin-event, announcement, and interrupt
-presentation.
+Structured content, loops, and conditional branches use cohesive templates. Labels, transitions, tool
+titles, and receipts may use typed single-line fields on their semantic owner. Prompt assets contain
+no generic string dictionary, locale tree, copy-key lookup service, condition-fragment files,
+sentence-level templates, Prompt-version selector, or server branch on concrete Role, Ability, Phase,
+or Plugin IDs.
 
-The loader parses strict manifests, resolves real paths within declared bundle roots, validates
-imports and audience direction, compiles templates with `throwOnUndefined`, and freezes one registry
-before rendering. It compares bundle claims with Ruleset semantic contributions so every installed
-Role, Ability, Phase, and plugin event has exactly one owner and a presentation or explicit omission.
+## Fact projection
 
-Declarative event matchers use validated scalar fields after visibility filtering. The most specific
-matching presentation wins; equal specificity is an error. Matchers contain no regex, callback,
-source code, or unrestricted predicate.
-
-## Visible facts
-
-`ContextRenderer` passes only:
-
-- public board and roster facts;
-- the acting player's Role, abilities, use counts, and private knowledge;
-- the current action descriptor and legal targets;
-- the acting seat's immutable Character snapshot;
-- events already filtered for that player.
-
-It does not pass `GameState`, pending hidden deaths, secret events, raw plugin state, runtime paths,
-credentials, or template source. Public templates cannot import faction-private or actor-private
-assets.
+`ContextRenderer` converts the current Match projection and action expectation into a strict fact
+contract containing visibility-filtered events, public state, the current action contract, and the
+actor's own state. Template source is repository-owned and path-contained within installed bundles
+and declared dependencies. Public templates cannot reference more private assets.
 
 ## Prompt flows
 

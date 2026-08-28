@@ -209,15 +209,15 @@ describe('GameEngine', () => {
         (event) => event.payload.type === 'vote.resolved' && event.payload.kind === 'wolf-kill',
       )
       if (resolved?.payload.type !== 'vote.resolved') throw new Error('Missing wolf vote result')
-      return { engine, resolved, targets, wolves }
+      return { engine, resolved: resolved.payload, targets, wolves }
     }
 
     const first = run()
     const second = run()
-    expect(first.resolved.payload.tiedPlayerIds).toEqual(first.targets)
-    expect(first.resolved.payload.selectedPlayerId).not.toBeNull()
-    expect(first.targets).toContain(first.resolved.payload.selectedPlayerId)
-    expect(second.resolved.payload.selectedPlayerId).toBe(first.resolved.payload.selectedPlayerId)
+    expect(first.resolved.tiedPlayerIds).toEqual(first.targets)
+    expect(first.resolved.selectedPlayerId).not.toBeNull()
+    expect(first.targets).toContain(first.resolved.selectedPlayerId)
+    expect(second.resolved.selectedPlayerId).toBe(first.resolved.selectedPlayerId)
     expect(
       first.engine.events
         .filter((event) => event.payload.type === 'vote.cast' && event.payload.kind === 'wolf-kill')
@@ -228,7 +228,7 @@ describe('GameEngine', () => {
         ?.payload,
     ).toEqual({
       type: 'night.attack-selected',
-      targetId: first.resolved.payload.selectedPlayerId,
+      targetId: first.resolved.selectedPlayerId,
     })
   })
 

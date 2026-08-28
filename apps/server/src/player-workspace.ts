@@ -27,7 +27,7 @@ export async function removeMatchPlayerWorkspaces(
   const matchesRoot = resolve(dataDirectory, 'matches')
   const matchRoot = resolve(matchesRoot, matchId)
   const localPath = relative(matchesRoot, matchRoot)
-  if (localPath !== matchId) {
+  if (localPath !== matchId || localPath.startsWith('..')) {
     throw new Error(`Invalid Match workspace path: ${matchRoot}`)
   }
   await rm(matchRoot, { recursive: true, force: true })

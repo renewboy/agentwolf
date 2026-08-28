@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@agentwolf/contracts": ["./packages/contracts/src/index.ts"],
+      "@agentwolf/assets": ["./packages/assets/src/index.ts"],
+      "@agentwolf/assets/prompts": ["./packages/assets/src/prompts.ts"],
+      "@agentwolf/assets/player-skills": ["./packages/assets/src/player-skills.ts"],
+      "@agentwolf/game-engine": ["./packages/game-engine/src/index.ts"],
+      "@agentwolf/acp": ["./packages/acp/src/index.ts"]
+    },
+    "types": ["node", "vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": [
+    "packages/*/tests/**/*.ts",
+    "apps/server/tests/**/*.ts",
+    "apps/web/tests/**/*.ts",
+    "apps/web/tests/**/*.tsx",
+    "e2e/**/*.ts",
+    "scripts/**/*.test.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
+}
