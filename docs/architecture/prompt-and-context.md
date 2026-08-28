@@ -208,7 +208,9 @@ Provider 启动策略统一执行以下环境契约：
 - MCP endpoint 使用只绑定当前 Match/Player 的 bearer token；
 - 移除环境记忆、仓库项目指令、Web、插件、hooks、子代理、写入与无关开发能力；
 - Claude 额外使用严格无网络和禁止文件写入的 sandbox；Codex/Trae 通过各自配置面落实上下文、
-  Skill、Web 与工具限制。
+  Skill、Web 与工具限制；CodeBuddy 使用替换式 system prompt、空 settings source、严格 MCP、只读
+  工具白名单，并关闭环境记忆与子代理入口；玩家 bearer token 只进入进程环境绑定，不进入启动
+  参数中的 MCP 配置文本。
 
 foundation Prompt 是当前对局事实，player contract/Skills 是稳定玩法与工具契约，两者不互相复制。
 每个 bootstrap trajectory 对 Provider 报告的 context usage 执行 12,000 token 预算审计。

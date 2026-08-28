@@ -9,7 +9,7 @@ const reasoningEffort = argumentsAfterModel
 const prompt = argumentsAfterModel.find((argument) => !argument.startsWith('--'))
 if (!kind || !model) {
   throw new Error(
-    'Usage: pnpm smoke:acp <trae-cli|codex|claude> <model> [--reasoning-effort=<value>] [prompt]',
+    'Usage: pnpm smoke:acp <trae-cli|codex|claude|codebuddy> <model> [--reasoning-effort=<value>] [prompt]',
   )
 }
 const tool = builtInAgentTools().find((entry) => entry.kind === kind)

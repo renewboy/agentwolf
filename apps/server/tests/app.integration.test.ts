@@ -369,7 +369,17 @@ describe('Fastify API', () => {
     const health = await server.app.inject({ method: 'GET', url: '/api/health' })
     expect(health.json()).toEqual({ ok: true })
     const tools = (await server.app.inject({ method: 'GET', url: '/api/agent-tools' })).json()
-    expect(tools).toHaveLength(3)
+    expect(tools).toHaveLength(4)
+    expect(tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'tool-codebuddy',
+          name: 'CodeBuddy',
+          kind: 'codebuddy',
+          builtIn: true,
+        }),
+      ]),
+    )
     expect((await server.app.inject({ method: 'GET', url: '/api/settings' })).json()).toEqual({
       speechCharacterLimit: 300,
     })

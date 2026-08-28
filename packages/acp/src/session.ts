@@ -41,6 +41,7 @@ export interface AcpSessionStartOptions {
   readonly onStderr?: (chunk: string) => void
   readonly resumeSessionId?: string
   readonly requireSessionResume?: boolean
+  readonly verifyUnadvertisedSessionResume?: boolean
 }
 
 export interface AcpPromptCallbacks {
@@ -124,7 +125,12 @@ export class AcpPlayerSession {
       }
       const supportsResume =
         initialized.agentCapabilities?.sessionCapabilities?.resume !== undefined
-      if ((options.requireSessionResume || options.resumeSessionId) && !supportsResume) {
+      const canVerifyUnadvertisedResume = options.verifyUnadvertisedSessionResume === true
+      if (
+        (options.requireSessionResume || options.resumeSessionId) &&
+        !supportsResume &&
+        !canVerifyUnadvertisedResume
+      ) {
         throw new Error('ACP agent does not advertise session.resume')
       }
 
@@ -144,11 +150,18 @@ export class AcpPlayerSession {
         availableModes = response.modes?.availableModes ?? []
         configOptions = await configureSession(context, sessionId, response, options)
       } else {
-        const response = await context.request(methods.agent.session.new, {
+        const created = await context.request(methods.agent.session.new, {
           ...request,
           ...(options.sessionMeta ? { _meta: { ...options.sessionMeta } } : {}),
         })
-        sessionId = response.sessionId
+        sessionId = created.sessionId
+        const response =
+          options.requireSessionResume && !supportsResume && canVerifyUnadvertisedResume
+            ? await context.request(methods.agent.session.resume, {
+                sessionId,
+                ...request,
+              })
+            : created
         availableModes = response.modes?.availableModes ?? []
         configOptions = await configureSession(context, sessionId, response, options)
       }
@@ -339,6 +352,10 @@ function permissionDecision(request: RequestPermissionRequest, options: AcpSessi
         rawInput['server'] === approved.server &&
         rawInput['tool'] === approved.tool) ||
       (isRecord(rawInput) &&
+        typeof rawInput['toolName'] === 'string' &&
+        canonicalMcpToolName(rawInput['toolName']) ===
+          canonicalMcpToolName(`mcp__${approved.server}__${approved.tool}`)) ||
+      (isRecord(rawInput) &&
         rawInput['server_name'] === approved.server &&
         isRecord(rawInput['request']) &&
         isRecord(rawInput['request']['_meta']) &&
@@ -357,6 +374,10 @@ function permissionDecision(request: RequestPermissionRequest, options: AcpSessi
   return allowed && selection
     ? { outcome: { outcome: 'selected' as const, optionId: selection.optionId } }
     : { outcome: { outcome: 'cancelled' as const } }
+}
+
+function canonicalMcpToolName(value: string): string {
+  return value.toLowerCase().replaceAll(/[-.]/g, '_')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

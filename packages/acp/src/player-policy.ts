@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import type { McpServer } from '@agentclientprotocol/sdk'
 import type { AgentTool, AgentToolKind } from '@agentwolf/contracts'
 import { resolveLaunchSpec, type ProcessLaunchSpec } from './tool-catalog.js'
 
@@ -12,17 +13,23 @@ export const playerActionToolNames = [
 ] as const
 
 export const playerKnowledgeToolNames = ['Read', 'Grep', 'Glob', 'Bash', 'Skill'] as const
+const codebuddyPlayerKnowledgeToolNames = ['Read', 'Grep', 'Glob'] as const
 
 export function playerApprovedToolNames(kind: AgentToolKind): readonly string[] {
-  return kind === 'trae-cli'
-    ? [...playerActionToolNames, ...playerKnowledgeToolNames]
-    : playerActionToolNames
+  if (kind === 'trae-cli') return [...playerActionToolNames, ...playerKnowledgeToolNames]
+  if (kind === 'codebuddy') {
+    return [...playerActionToolNames, ...codebuddyPlayerKnowledgeToolNames]
+  }
+  return playerActionToolNames
 }
 
 export const playerBootstrapContextBudget = 12_000
 
 const playerMcpFunctionNames = playerActionToolNames.map(
   (tool) => `mcp__agentwolf_player_actions__${tool}`,
+)
+const codebuddyPlayerMcpFunctionNames = playerActionToolNames.map(
+  (tool) => `mcp__agentwolf-player-actions__${tool}`,
 )
 const traeCodingToolNames = [
   'Read',
@@ -143,7 +150,38 @@ const codexPlayerConfig = {
   web_search: 'disabled',
 } as const
 
-export function resolvePlayerLaunchSpec(tool: AgentTool, workspace: string): ProcessLaunchSpec {
+const codebuddyPlayerArgs = [
+  '--agent',
+  'cli',
+  '--setting-sources',
+  '',
+  '--tools',
+  [
+    ...codebuddyPlayerKnowledgeToolNames,
+    ...codebuddyPlayerMcpFunctionNames.map((tool) => `NoDefer(${tool})`),
+  ].join(','),
+  '--allowedTools',
+  codebuddyPlayerMcpFunctionNames.join(','),
+  '--permission-mode',
+  'dontAsk',
+] as const
+
+const codebuddyPlayerEnvironment = {
+  CODEBUDDY_CODE_DISABLE_AUTO_MEMORY: '1',
+  CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS: '1',
+  CODEBUDDY_DISABLE_AUTO_MEMORY: '1',
+  CODEBUDDY_DISABLE_FORK_SUBAGENT: '1',
+  CODEBUDDY_MAIN_AGENT_ENABLED: '0',
+  CODEBUDDY_MEMORY_ENABLED: '0',
+  CODEBUDDY_TEAM_MEMORY_ENABLED: '0',
+  CODEBUDDY_TYPED_MEMORY_ENABLED: '0',
+} as const
+
+export function resolvePlayerLaunchSpec(
+  tool: AgentTool,
+  workspace: string,
+  mcpServers: readonly McpServer[] = [],
+): ProcessLaunchSpec {
   const launch = resolveLaunchSpec(tool)
   const modelInstructions = resolve(workspace, '.agents', 'skills', 'agentwolf-player', 'SKILL.md')
   if (tool.kind === 'trae-cli') {
@@ -174,7 +212,49 @@ export function resolvePlayerLaunchSpec(tool: AgentTool, workspace: string): Pro
       },
     }
   }
+  if (tool.kind === 'codebuddy') {
+    const mcp = codebuddyMcpLaunchConfig(mcpServers)
+    return {
+      ...launch,
+      args: [
+        ...launch.args,
+        ...codebuddyPlayerArgs,
+        '--system-prompt-file',
+        modelInstructions,
+        ...mcp.args,
+      ],
+      env: { ...launch.env, ...codebuddyPlayerEnvironment, ...mcp.env },
+    }
+  }
   return launch
+}
+
+function codebuddyMcpLaunchConfig(mcpServers: readonly McpServer[]): {
+  readonly args: readonly string[]
+  readonly env: NodeJS.ProcessEnv
+} {
+  const environment: NodeJS.ProcessEnv = {}
+  const entries = mcpServers.map((server, serverIndex) => {
+    if (!('type' in server) || server.type !== 'http') {
+      throw new Error(`CodeBuddy player MCP server ${server.name} must use HTTP transport`)
+    }
+    const headers = Object.fromEntries(
+      server.headers.map((header, headerIndex) => {
+        const variable = `AGENTWOLF_CODEBUDDY_MCP_${serverIndex}_HEADER_${headerIndex}`
+        environment[variable] = header.value
+        return [header.name, `\${${variable}}`]
+      }),
+    )
+    return [server.name, { type: 'http', url: server.url, headers }] as const
+  })
+  return {
+    args: [
+      '--mcp-config',
+      JSON.stringify({ mcpServers: Object.fromEntries(entries) }),
+      '--strict-mcp-config',
+    ],
+    env: environment,
+  }
 }
 
 export function playerSessionMeta(

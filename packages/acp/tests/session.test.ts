@@ -206,6 +206,45 @@ describe('AcpPlayerSession', () => {
     })
   })
 
+  it('verifies and uses a provider-specific unadvertised session/resume implementation', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-unadvertised-resume-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const launch = {
+      command: process.execPath,
+      args: [fixture],
+      env: { ...process.env, AGENTWOLF_MOCK_DISABLE_RESUME: 'true' },
+    }
+    const created = await AcpPlayerSession.start({
+      cwd,
+      launch,
+      requireSessionResume: true,
+      verifyUnadvertisedSessionResume: true,
+    })
+    const sessionId = created.sessionId
+    await created.close()
+
+    const afterCreate = JSON.parse(
+      await readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8'),
+    ) as { newCount: number; resumeCount: number }
+    expect(afterCreate).toMatchObject({ newCount: 1, resumeCount: 1 })
+
+    const resumed = await AcpPlayerSession.start({
+      cwd,
+      launch,
+      resumeSessionId: sessionId,
+      requireSessionResume: true,
+      verifyUnadvertisedSessionResume: true,
+    })
+    expect(resumed.sessionId).toBe(sessionId)
+    await resumed.close()
+
+    const afterResume = JSON.parse(
+      await readFile(resolve(cwd, '.mock-agent-sessions.json'), 'utf8'),
+    ) as { newCount: number; resumeCount: number }
+    expect(afterResume).toMatchObject({ newCount: 1, resumeCount: 2 })
+  })
+
   it('fails before session/new when a Match player Agent cannot resume Sessions', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-no-resume-'))
     temporaryDirectories.push(cwd)
@@ -252,6 +291,9 @@ describe('AcpPlayerSession', () => {
       ],
     })
     expect((await session.prompt('permission-check', 5_000)).text).toBe('permission-allow')
+    expect((await session.prompt('permission-check-codebuddy', 5_000)).text).toBe(
+      'permission-allow',
+    )
     expect((await session.prompt('permission-check-codex', 5_000)).text).toBe(
       'permission-cancelled',
     )
@@ -275,6 +317,9 @@ describe('AcpPlayerSession', () => {
       model: 'mock-model',
     })
     expect((await denied.prompt('permission-check', 5_000)).text).toBe('permission-cancelled')
+    expect((await denied.prompt('permission-check-codebuddy', 5_000)).text).toBe(
+      'permission-cancelled',
+    )
     expect((await denied.prompt('permission-check-codex', 5_000)).text).toBe('permission-cancelled')
     await denied.close()
   })

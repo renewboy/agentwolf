@@ -4,22 +4,25 @@ import { describe, expect, it } from 'vitest'
 import { builtInAgentTools, resolveLaunchSpec } from '../src/index.js'
 
 describe('built-in ACP tools', () => {
-  it('resolves bundled Codex and Claude adapters without npx network access', async () => {
+  it('resolves bundled adapters and the native CodeBuddy command without npx network access', async () => {
     const tools = builtInAgentTools()
     const codex = tools.find((tool) => tool.kind === 'codex')!
     const claude = tools.find((tool) => tool.kind === 'claude')!
+    const codebuddy = tools.find((tool) => tool.kind === 'codebuddy')!
     const codexLaunch = resolveLaunchSpec(codex)
     const claudeLaunch = resolveLaunchSpec(claude)
+    const codebuddyLaunch = resolveLaunchSpec(codebuddy)
 
     expect(codexLaunch.command).toBe(process.execPath)
     expect(claudeLaunch.command).toBe(process.execPath)
+    expect(codebuddyLaunch).toMatchObject({ command: 'codebuddy', args: ['--acp'] })
     await access(codexLaunch.args[0]!)
     await access(claudeLaunch.args[0]!)
   })
 
   it('lists every built-in and resolves raw/literal/process bindings and tokens', () => {
     const tools = builtInAgentTools()
-    expect(tools.map(({ kind }) => kind)).toEqual(['trae-cli', 'codex', 'claude'])
+    expect(tools.map(({ kind }) => kind)).toEqual(['trae-cli', 'codex', 'claude', 'codebuddy'])
     const variable = 'AGENTWOLF_TOOL_CATALOG_TEST'
     process.env[variable] = 'from-process'
     try {

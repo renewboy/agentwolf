@@ -54,6 +54,17 @@ export function builtInAgentTools(): readonly AgentTool[] {
       modelConfigKey: 'model',
       builtIn: true,
     }),
+    AgentToolSchema.parse({
+      id: 'tool-codebuddy',
+      name: 'CodeBuddy',
+      kind: 'codebuddy',
+      command: 'codebuddy',
+      args: ['--acp'],
+      environment: {},
+      initialMode: 'dontAsk',
+      modelConfigKey: 'model',
+      builtIn: true,
+    }),
   ]
 }
 

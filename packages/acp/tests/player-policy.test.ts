@@ -19,6 +19,12 @@ describe('game-only player process policy', () => {
     ])
     expect(playerApprovedToolNames('codex')).toEqual(playerActionToolNames)
     expect(playerApprovedToolNames('claude')).toEqual(playerActionToolNames)
+    expect(playerApprovedToolNames('codebuddy')).toEqual([
+      ...playerActionToolNames,
+      'Read',
+      'Grep',
+      'Glob',
+    ])
   })
 
   it('starts Trae with local strategy tools and structured game actions', () => {
@@ -119,6 +125,70 @@ describe('game-only player process policy', () => {
     )
   })
 
+  it('starts CodeBuddy with a replacement player prompt and only local read/game tools', () => {
+    const tool = builtInAgentTools().find((entry) => entry.kind === 'codebuddy')!
+    const launch = resolvePlayerLaunchSpec(tool, '/runtime/player-3', [
+      {
+        type: 'http',
+        name: 'agentwolf-player-actions',
+        url: 'http://127.0.0.1:4310/mcp',
+        headers: [{ name: 'Authorization', value: 'Bearer player-secret' }],
+      },
+    ])
+    const settingsSourceIndex = launch.args.indexOf('--setting-sources')
+    const serializedMcpConfig = optionValues(launch.args, '--mcp-config')[0]!
+    const mcpConfig = JSON.parse(serializedMcpConfig) as {
+      mcpServers: Record<string, { type: string; url: string; headers: Record<string, string> }>
+    }
+
+    expect(launch.command).toBe('codebuddy')
+    expect(launch.args).toContain('--acp')
+    expect(launch.args[settingsSourceIndex + 1]).toBe('')
+    expect(optionValues(launch.args, '--tools')).toEqual([
+      [
+        'Read',
+        'Grep',
+        'Glob',
+        ...playerActionToolNames.map((name) => `NoDefer(mcp__agentwolf-player-actions__${name})`),
+      ].join(','),
+    ])
+    expect(optionValues(launch.args, '--allowedTools')).toEqual([
+      playerActionToolNames.map((name) => `mcp__agentwolf-player-actions__${name}`).join(','),
+    ])
+    expect(optionValues(launch.args, '--permission-mode')).toEqual(['dontAsk'])
+    expect(optionValues(launch.args, '--system-prompt-file')).toEqual([
+      '/runtime/player-3/.agents/skills/agentwolf-player/SKILL.md',
+    ])
+    expect(launch.args).toContain('--strict-mcp-config')
+    expect(mcpConfig.mcpServers['agentwolf-player-actions']).toEqual({
+      type: 'http',
+      url: 'http://127.0.0.1:4310/mcp',
+      headers: { Authorization: '${AGENTWOLF_CODEBUDDY_MCP_0_HEADER_0}' },
+    })
+    expect(serializedMcpConfig).not.toContain('player-secret')
+    expect(launch.env).toMatchObject({
+      AGENTWOLF_CODEBUDDY_MCP_0_HEADER_0: 'Bearer player-secret',
+      CODEBUDDY_CODE_DISABLE_AUTO_MEMORY: '1',
+      CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS: '1',
+      CODEBUDDY_DISABLE_AUTO_MEMORY: '1',
+      CODEBUDDY_DISABLE_FORK_SUBAGENT: '1',
+      CODEBUDDY_MAIN_AGENT_ENABLED: '0',
+      CODEBUDDY_MEMORY_ENABLED: '0',
+      CODEBUDDY_TEAM_MEMORY_ENABLED: '0',
+      CODEBUDDY_TYPED_MEMORY_ENABLED: '0',
+    })
+    expect(() =>
+      resolvePlayerLaunchSpec(tool, '/runtime/player-3', [
+        {
+          name: 'stdio-actions',
+          command: '/runtime/mcp-server',
+          args: [],
+          env: [],
+        },
+      ]),
+    ).toThrow(/must use HTTP transport/)
+  })
+
   it('gives Claude only sandboxed local strategy tools and no ambient settings source', () => {
     expect(playerSessionMeta('claude', 'PLAYER CONTRACT')).toEqual({
       claudeCode: {
@@ -147,6 +217,7 @@ describe('game-only player process policy', () => {
       },
     })
     expect(playerSessionMeta('trae-cli', 'PLAYER CONTRACT')).toEqual({})
+    expect(playerSessionMeta('codebuddy', 'PLAYER CONTRACT')).toEqual({})
   })
 })
 

@@ -29,7 +29,7 @@ const toolKind = AgentToolKindSchema.parse(
 )
 const model =
   process.argv.slice(2).find((argument) => !argument.startsWith('--')) ??
-  (toolKind === 'claude' ? undefined : 'gpt-5.6-luna')
+  (toolKind === 'claude' ? undefined : toolKind === 'codebuddy' ? 'hy3' : 'gpt-5.6-luna')
 const reasoningEffort = process.argv
   .find((argument) => argument.startsWith('--reasoning-effort='))
   ?.slice('--reasoning-effort='.length)
@@ -108,9 +108,17 @@ try {
   }
   expectSubmission()
   const submittedTool = probePostgameReview ? 'submit_postgame_review' : 'submit_vote'
+  const playerMcpServer = {
+    type: 'http' as const,
+    name: 'agentwolf-player-actions',
+    url: `${address}/mcp`,
+    headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
+  }
   const sessionOptions: AcpSessionStartOptions = {
     cwd: workspace,
-    launch: isolated ? resolvePlayerLaunchSpec(tool, workspace) : resolveLaunchSpec(tool),
+    launch: isolated
+      ? resolvePlayerLaunchSpec(tool, workspace, [playerMcpServer])
+      : resolveLaunchSpec(tool),
     ...(model ? { model } : {}),
     ...(reasoningEffort ? { reasoningEffort } : {}),
     modelConfigKey: tool.modelConfigKey,
@@ -125,14 +133,7 @@ try {
         : {}),
       agentwolf: { matchId, playerId },
     },
-    mcpServers: [
-      {
-        type: 'http',
-        name: 'agentwolf-player-actions',
-        url: `${address}/mcp`,
-        headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
-      },
-    ],
+    mcpServers: toolKind === 'codebuddy' && isolated ? [] : [playerMcpServer],
     approvedToolNames: isolated ? playerApprovedToolNames(toolKind) : [submittedTool],
     allowOpaqueMcpPermissions: toolKind === 'codex',
     approvedMcpTools: [
@@ -145,6 +146,7 @@ try {
     onStderr: (chunk) => stderrChunks.push(chunk),
     onPermissionRequest: (request) => permissionRequests.push(request),
     requireSessionResume: true,
+    verifyUnadvertisedSessionResume: toolKind === 'codebuddy',
   }
   session = await AcpPlayerSession.start(sessionOptions)
   const initialSessionId = session.sessionId
@@ -247,7 +249,9 @@ try {
     : null
   const strategyProbe = probeStrategy
     ? await session.prompt(
-        "Use Bash to run exactly: rg -n '统一战线' .agents/skills/werewolf-strategy/references/articles/2023080801.md . Do not call a game action. Reply only 统一战线 after the command succeeds.",
+        toolKind === 'codebuddy'
+          ? "Use Grep to find '统一战线' in .agents/skills/werewolf-strategy/references/articles/2023080801.md. Do not call a game action. Reply only 统一战线 after the search succeeds."
+          : "Use Bash to run exactly: rg -n '统一战线' .agents/skills/werewolf-strategy/references/articles/2023080801.md . Do not call a game action. Reply only 统一战线 after the command succeeds.",
         120_000,
       )
     : null

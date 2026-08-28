@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { AgentProfileIdSchema, AgentToolIdSchema } from './ids.js'
 
-export const AgentToolKindSchema = z.enum(['trae-cli', 'codex', 'claude', 'custom'])
+export const AgentToolKindSchema = z.enum(['trae-cli', 'codex', 'claude', 'codebuddy', 'custom'])
 export type AgentToolKind = z.infer<typeof AgentToolKindSchema>
 
 export const EnvironmentBindingSchema = z.discriminatedUnion('source', [

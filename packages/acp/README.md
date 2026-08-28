@@ -4,7 +4,7 @@
 
 ## 职责
 
-- 内置的 Trae、Codex、Claude 与自定义 Agent Tool 定义。
+- 内置的 Trae、Codex、Claude、CodeBuddy 与自定义 Agent Tool 定义。
 - ACP stdio 进程启动、初始化、Session 创建/恢复、更新与关闭。
 - Provider 特有的仅游戏启动策略与 sandbox 能力声明。
 - 通用的 delivery-ledger 类型与不确定送达错误。

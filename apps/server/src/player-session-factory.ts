@@ -39,23 +39,25 @@ export type PlayerSessionFactory = (options: {
 
 export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
   const mode = options.profile.mode ?? options.tool.initialMode
+  const mcpServers = [options.mcpServer]
   // ACP processes may report provider defaults after resume; the Profile remains authoritative.
   return AcpPlayerSession.start({
     cwd: options.cwd,
-    launch: resolvePlayerLaunchSpec(options.tool, options.cwd),
+    launch: resolvePlayerLaunchSpec(options.tool, options.cwd, mcpServers),
     model: options.profile.model,
     modelConfigKey: options.tool.modelConfigKey,
     ...(options.profile.reasoningEffort
       ? { reasoningEffort: options.profile.reasoningEffort }
       : {}),
     ...(mode ? { mode } : {}),
-    mcpServers: [options.mcpServer],
+    mcpServers: options.tool.kind === 'codebuddy' ? [] : mcpServers,
     sessionMeta: {
       ...playerSessionMeta(options.tool.kind, promptCore.playerContract()),
       agentwolf: { matchId: options.matchId, playerId: options.playerId },
     },
     approvedToolNames: playerApprovedToolNames(options.tool.kind),
     requireSessionResume: true,
+    verifyUnadvertisedSessionResume: options.tool.kind === 'codebuddy',
     ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
     allowOpaqueMcpPermissions: options.tool.kind === 'codex',
     approvedMcpTools: playerActionToolNames.map((tool) => ({

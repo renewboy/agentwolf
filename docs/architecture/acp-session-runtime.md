@@ -86,15 +86,18 @@ stateDiagram-v2
 运行时拒绝再次调用 `session/new`，因为第一次创建结果可能已经存在于 Provider。
 
 已有 active binding 时，PlayerRuntime 只用持久 Session ID 调用 `session/resume`。返回 ID 必须逐字
-一致；Provider 必须在 initialize capabilities 中声明 resume。`session/new` 的唯一通用调用点位于
-ACP package，server 只能通过 factory 请求“创建”或“恢复给定 ID”。
+一致。Provider 通过 initialize capabilities 声明 resume；内置 CodeBuddy 适配在首次 `session/new`
+后以同一 ID 立即执行一次 `session/resume` 验证，验证成功后才允许 foundation。`session/new` 的唯一
+通用调用点位于 ACP package，server 只能通过 factory 请求“创建”或“恢复给定 ID”。
 
 `AcpPlayerSession.start` 的装配顺序为：
 
-1. 根据 Tool 与玩家隔离策略生成 command、args、environment 和 workspace；
+1. 根据 Tool 与玩家隔离策略生成 command、args、environment 和 workspace；CodeBuddy 的单玩家 MCP
+   endpoint 进入严格的临时启动配置，header 值只通过进程环境绑定；
 2. 通过 guardian 启动 stdio 进程，建立 NDJSON ACP connection；
-3. 协商精确协议版本并检查 `session.resume` capability；
-4. 调用 `session/new` 或 `session/resume`，同时传入玩家绑定 MCP server；
+3. 协商精确协议版本并检查或验证 `session.resume` 能力；
+4. 调用 `session/new` 或 `session/resume` 并连接玩家绑定 MCP server；CodeBuddy 使用进程启动时预载的
+   endpoint，其他 Provider 通过 ACP Session request 接收 endpoint；
 5. 从 Agent 宣告的 config options 中设置 Profile model、可选 reasoning effort 和 mode；
 6. 只允许声明的知识工具与 AgentWolf action tools 通过 permission request。
 
@@ -204,8 +207,8 @@ delivery.started/acknowledged 同时写入 god-visible 领域事件，用于将 
 
 1. 有 pending action：`takeTurn` 先验证其仍匹配当前 expectation，直接返回给 MatchRuntime；
 2. 无 pending action：重新渲染当前 TurnDescriptor，使用 continuation Prompt；
-3. binding 缺失、resume capability 缺失、Provider 拒绝 ID、返回 ID 不同或再次失败：MatchRuntime
-   追加 `match.paused` 并持久化 paused reason。
+3. binding 缺失、resume 能力检查或验证失败、Provider 拒绝 ID、返回 ID 不同或再次失败：
+   MatchRuntime 追加 `match.paused` 并持久化 paused reason。
 
 server 启动时 repository 将未完成 Match 标记为 paused。操作者 resume 后，MatchManager 从 board
 snapshot 与事件日志恢复 GameEngine，创建 PlayerRuntime，读取原 bindings 与 ledgers，恢复全部原始
@@ -249,6 +252,8 @@ Prompt timeout 或 cancel 未确认都会以显式 lifecycle/delivery error 上�
 
 - 新 Provider 只扩展 Tool catalog、launch policy 和 factory 适配，必须保持相同 Session、Prompt、
   permission、stream 和 close 契约。
+- Provider 必须声明 `session.resume`，或由内置适配在 foundation 前以新建的同一 Session ID 完成
+  一次标准 `session/resume` 验证；恢复路径不使用 `session/load`。
 - Match 级重试、pending action、cursor 与 pause 策略留在 server，不能下沉到 Provider adapter。
 - `session/new` 只服务没有 binding 的首次创建；任何恢复都使用持久 Session ID。
 - 一个 PlayerRuntime 同时最多有一个 active Prompt 和一个 active delivery。

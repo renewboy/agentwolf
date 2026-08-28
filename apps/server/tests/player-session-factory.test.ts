@@ -81,7 +81,7 @@ describe('defaultPlayerSessionFactory', () => {
         onPermissionDecision,
       }),
     ).resolves.toMatchObject({ sessionId: 'session-1' })
-    expect(mocks.resolveLaunch).toHaveBeenCalledWith(tool, '/tmp/player')
+    expect(mocks.resolveLaunch).toHaveBeenCalledWith(tool, '/tmp/player', [mcpServer])
     expect(mocks.start).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd: '/tmp/player',
@@ -92,6 +92,7 @@ describe('defaultPlayerSessionFactory', () => {
         mcpServers: [mcpServer],
         requireSessionResume: true,
         resumeSessionId: 'session-old',
+        verifyUnadvertisedSessionResume: false,
         allowOpaqueMcpPermissions: false,
         approvedToolNames: ['approved-custom'],
         onStderr,
@@ -133,11 +134,35 @@ describe('defaultPlayerSessionFactory', () => {
       playerId: PlayerIdSchema.parse('player-2'),
     })
     const options = mocks.start.mock.calls[0]![0]
-    expect(options).toMatchObject({ mode: 'tool-mode', allowOpaqueMcpPermissions: true })
+    expect(options).toMatchObject({
+      mode: 'tool-mode',
+      allowOpaqueMcpPermissions: true,
+      verifyUnadvertisedSessionResume: false,
+    })
     expect(options).not.toHaveProperty('reasoningEffort')
     expect(options).not.toHaveProperty('resumeSessionId')
     expect(options).not.toHaveProperty('onStderr')
     expect(options).not.toHaveProperty('onPermissionDecision')
+  })
+
+  it('enables the verified unadvertised resume path only for CodeBuddy', async () => {
+    const mcpServer = { name: 'codebuddy-mcp' } as never
+    const codebuddyTool = { ...tool, kind: 'codebuddy' } as AgentTool
+    await defaultPlayerSessionFactory({
+      cwd: '/tmp/codebuddy',
+      tool: codebuddyTool,
+      profile,
+      mcpServer,
+      matchId: MatchIdSchema.parse('match-session-codebuddy'),
+      playerId: PlayerIdSchema.parse('player-4'),
+    })
+
+    expect(mocks.start.mock.calls[0]![0]).toMatchObject({
+      allowOpaqueMcpPermissions: false,
+      mcpServers: [],
+      verifyUnadvertisedSessionResume: true,
+    })
+    expect(mocks.resolveLaunch).toHaveBeenCalledWith(codebuddyTool, '/tmp/codebuddy', [mcpServer])
   })
 
   it('omits mode when neither Profile nor Tool supplies one and propagates startup failure', async () => {
