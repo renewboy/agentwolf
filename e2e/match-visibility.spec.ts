@@ -81,6 +81,84 @@ test('renders a private night phase through its generic projection', async ({
   await expect(page.getByText('觉醒隐狼行动', { exact: true })).toHaveCount(0)
 })
 
+test('shows Cupid relationship markers only in authorized spectator views', async ({
+  page,
+  resources: _resources,
+}) => {
+  const source = thinkingMatchFixture()
+  const cupidId = 'player-1'
+  const loverIds = ['player-2', 'player-4']
+  const base = { ...source, id: 'match-private-cupid-marker-test' } as MatchView
+  const projection = (view: { kind: string; playerId?: string }): MatchView => {
+    const canSeeLovers =
+      view.kind === 'god' ||
+      (view.kind === 'player' && [cupidId, ...loverIds].includes(view.playerId ?? ''))
+    return {
+      ...base,
+      seats: base.seats.map((seat) => ({
+        ...seat,
+        markers: canSeeLovers && loverIds.includes(seat.playerId) ? ['cupid-lover'] : [],
+      })),
+    }
+  }
+  await page.route(`**/api/matches/${base.id}?*`, async (route) => {
+    const url = new URL(route.request().url())
+    await route.fulfill({
+      json: projection({
+        kind: url.searchParams.get('view') ?? 'god',
+        ...(url.searchParams.get('playerId')
+          ? { playerId: url.searchParams.get('playerId')! }
+          : {}),
+      }),
+    })
+  })
+  await page.routeWebSocket('**/live?*', (socket) => {
+    if (!socket.url().includes(base.id)) return
+    const sendSnapshot = (view: { kind: string; playerId?: string }): void => {
+      socket.send(JSON.stringify({ type: 'snapshot', view, data: projection(view) }))
+    }
+    const url = new URL(socket.url())
+    sendSnapshot({
+      kind: url.searchParams.get('view') ?? 'god',
+      ...(url.searchParams.get('playerId') ? { playerId: url.searchParams.get('playerId')! } : {}),
+    })
+    socket.onMessage((value) => {
+      const message = JSON.parse(String(value)) as {
+        type: string
+        view?: { kind: string; playerId?: string }
+      }
+      if (message.type === 'view.set' && message.view) sendSnapshot(message.view)
+    })
+  })
+
+  await page.goto(`/matches/${base.id}`)
+  const desktopMarkers = page.locator(
+    '.aw-stage-grid .aw-player-marker[data-marker-id="cupid-lover"]',
+  )
+  await expect(desktopMarkers).toHaveCount(2)
+  await expect(desktopMarkers).toHaveText(['情侣', '情侣'])
+  await expect(desktopMarkers.first()).toHaveCSS('color', 'rgb(231, 143, 168)')
+
+  await page.getByRole('button', { name: '闭眼视角' }).click()
+  await expect(desktopMarkers).toHaveCount(0)
+  await page.getByRole('button', { name: '玩家视角' }).click()
+  await expect(desktopMarkers).toHaveCount(2)
+  const playerSelect = page.getByRole('combobox', { name: '选择玩家视角' })
+  await playerSelect.click()
+  await page.getByRole('option', { name: '3 号玩家 测试玩家3', exact: true }).click()
+  await expect(desktopMarkers).toHaveCount(0)
+  await playerSelect.click()
+  await page.getByRole('option', { name: '2 号玩家 测试玩家2', exact: true }).click()
+  await expect(desktopMarkers).toHaveCount(2)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  const mobileMarkers = page.locator(
+    '.aw-mobile-roster .aw-player-marker[data-marker-id="cupid-lover"]',
+  )
+  await expect(mobileMarkers).toHaveCount(2)
+  await expect(mobileMarkers.first()).toBeVisible()
+})
+
 test('shows private wolf ballots in god and Werewolf player views only', async ({
   page,
   resources: _resources,

@@ -172,7 +172,7 @@ describe('Prompt bundle runtime', () => {
     const registry = loadPromptBundles(fixture.inventory, { root: fixture.root })
     expect(registry.roleLabel(fixture.roleId)).toBe('合成身份')
     expect(registry.abilityLabel(fixture.abilityId)).toBe('合成能力')
-    expect(registry.phaseLabel(fixture.phaseId)).toBe('合成阶段')
+    expect(registry.phasePresentation(fixture.phaseId).label).toBe('合成阶段')
 
     const playerId = PlayerIdSchema.parse('player-1')
     const event = {
@@ -201,6 +201,7 @@ describe('Prompt bundle runtime', () => {
       roster: [{ playerId, seat: 1, name: '合成玩家', alive: true }],
       board: {
         roles: [{ roleId: fixture.roleId, faction: 'independent', count: 1 }],
+        nightActionOrder: [{ phaseId: fixture.phaseId, firstNightOnly: false }],
         sheriff: false,
         policies: policies(),
       },
@@ -210,6 +211,7 @@ describe('Prompt bundle runtime', () => {
         phaseId: fixture.phaseId,
         actionType: 'night-action',
         allowedAbilityIds: [fixture.abilityId],
+        passAllowed: true,
         interruptAbilityIds: [],
         sheriffActions: [],
       },

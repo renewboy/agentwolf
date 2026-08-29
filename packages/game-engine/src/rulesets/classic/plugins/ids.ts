@@ -22,4 +22,5 @@ export const classicPluginIds = {
   magicMirrorGirl: PluginIdSchema.parse('plugin-role-magic-mirror-girl'),
   whiteWolfKing: PluginIdSchema.parse('plugin-role-white-wolf-king'),
   awakenedHiddenWolf: PluginIdSchema.parse('plugin-role-awakened-hidden-wolf'),
+  cupid: PluginIdSchema.parse('plugin-role-cupid'),
 } as const

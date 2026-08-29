@@ -184,6 +184,11 @@
   --aw-role-background: var(--aw-role-awakened-hidden-wolf-soft);
 }
 
+.aw-role-badge[data-role-id='role-cupid'] {
+  --aw-role-color: var(--aw-role-cupid);
+  --aw-role-background: var(--aw-role-cupid-soft);
+}
+
 .aw-field {
   display: grid;
   gap: 8px;

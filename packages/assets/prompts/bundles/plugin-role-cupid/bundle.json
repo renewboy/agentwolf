@@ -1,0 +1,47 @@
+{
+  "pluginId": "plugin-role-cupid",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-cupid",
+      "label": "丘比特",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-cupid-link",
+          "label": "爱之箭",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-cupid",
+      "label": "丘比特连线",
+      "audience": "player",
+      "daytime": false,
+      "template": "turn.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-cupid",
+        "eventType": "event-cupid-linked"
+      },
+      "audience": "player",
+      "template": "linked.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-cupid",
+        "eventType": "event-cupid-linked-death"
+      },
+      "audience": "public",
+      "template": "linked-death.njk"
+    }
+  ]
+}

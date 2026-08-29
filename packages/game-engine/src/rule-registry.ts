@@ -5,9 +5,10 @@ import {
   type GameEvent,
   type GameEventPayload,
   type PhaseId,
+  type PlayerAction,
   type PlayerId,
 } from '@agentwolf/contracts'
-import type { BoardManifest, GameState } from './types.js'
+import type { BoardManifest, GameState, PhaseNode } from './types.js'
 import type { RoleRegistry } from './roles/registry.js'
 import type { ResolutionRegistry } from './plugins/resolution-registry.js'
 import type { VictoryRegistry } from './plugins/victory-registry.js'
@@ -29,6 +30,7 @@ export interface RuleRuntime {
 export type ActorSelector = (runtime: RuleRuntime) => readonly PlayerId[]
 export type RulePredicate = (runtime: RuleRuntime) => boolean
 export type PhaseCompletionHandler = (runtime: RuleRuntime) => void
+export type ActionValidator = (node: PhaseNode, action: PlayerAction, runtime: RuleRuntime) => void
 
 export interface PhaseHandlerOptions {
   readonly id?: string
@@ -42,11 +44,32 @@ interface RegisteredPhaseHandler {
   readonly handler: PhaseCompletionHandler
 }
 
+interface RegisteredActionValidator {
+  readonly id: string
+  readonly order: number
+  readonly sequence: number
+  readonly validate: ActionValidator
+}
+
 export class RuleRegistry {
   readonly #actors = new Map<string, ActorSelector>()
   readonly #predicates = new Map<string, RulePredicate>()
   readonly #phaseHandlers = new Map<PhaseId, RegisteredPhaseHandler[]>()
+  readonly #actionValidators: RegisteredActionValidator[] = []
   #phaseHandlerSequence = 0
+  #actionValidatorSequence = 0
+  #deathEventsConfigured = false
+  #persistDeathTiming = false
+
+  public get persistDeathTiming(): boolean {
+    return this.#persistDeathTiming
+  }
+
+  public configureDeathEvents(options: { readonly persistTiming: boolean }): void {
+    if (this.#deathEventsConfigured) throw new Error('Death event policy is already configured')
+    this.#deathEventsConfigured = true
+    this.#persistDeathTiming = options.persistTiming
+  }
 
   public registerActorSelector(name: string, selector: ActorSelector): void {
     if (this.#actors.has(name)) throw new Error(`Duplicate actor selector ${name}`)
@@ -75,6 +98,22 @@ export class RuleRegistry {
       handler,
     })
     this.#phaseHandlers.set(phaseId, handlers)
+  }
+
+  public registerActionValidator(
+    id: string,
+    validate: ActionValidator,
+    options: { readonly order?: number } = {},
+  ): void {
+    if (this.#actionValidators.some((entry) => entry.id === id)) {
+      throw new Error(`Duplicate action validator ${id}`)
+    }
+    this.#actionValidators.push({
+      id,
+      order: options.order ?? 0,
+      sequence: ++this.#actionValidatorSequence,
+      validate,
+    })
   }
 
   public selectActors(name: string | undefined, runtime: RuleRuntime): readonly PlayerId[] {
@@ -118,6 +157,14 @@ export class RuleRegistry {
       (left, right) => left.order - right.order || left.sequence - right.sequence,
     )
     for (const entry of handlers) entry.handler(runtime)
+  }
+
+  public validateAction(node: PhaseNode, action: PlayerAction, runtime: RuleRuntime): void {
+    for (const entry of [...this.#actionValidators].sort(
+      (left, right) => left.order - right.order || left.sequence - right.sequence,
+    )) {
+      entry.validate(node, action, runtime)
+    }
   }
 }
 

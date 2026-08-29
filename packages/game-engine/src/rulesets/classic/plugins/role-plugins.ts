@@ -23,11 +23,15 @@ import {
   whiteWolfDetonationDataSchema,
   whiteWolfStateSchema,
 } from '../roles/white-wolf-king.js'
-import { awakenedHiddenWolfPlugin } from './awakened-hidden-wolf-plugin.js'
+import {
+  awakenedHiddenWolfPlugin,
+  awakenedHiddenWolfV2Plugin,
+} from './awakened-hidden-wolf-plugin.js'
+import { cupidPlugin } from './cupid-plugin.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
-export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
+export const classicV3RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   rolePlugin(classicPluginIds.villager, () => new VillagerRole()),
   rolePlugin(classicPluginIds.werewolf, () => new WerewolfRole()),
   rolePlugin(classicPluginIds.seer, () => new SeerRole(), {
@@ -187,7 +191,13 @@ export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   awakenedHiddenWolfPlugin,
 ]
 
-export const classicV2RolePlugins = classicRolePlugins.filter(
+export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
+  ...classicV3RolePlugins.filter((plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf),
+  awakenedHiddenWolfV2Plugin,
+  cupidPlugin,
+]
+
+export const classicV2RolePlugins = classicV3RolePlugins.filter(
   (plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf,
 )
 

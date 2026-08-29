@@ -227,6 +227,19 @@ describe('MatchHeader', () => {
 })
 
 describe('PlayerRail and postgame summaries', () => {
+  it('renders a projected relationship marker beside the Role badge', () => {
+    const seats = matchView().seats.map((seat, index) => ({
+      ...seat,
+      markers: index === 0 ? ['cupid-lover'] : [],
+    })) as SeatView[]
+    render(<PlayerRail phaseId="phase-day-vote" postgameReview={null} seats={seats} side="left" />)
+
+    const marker = screen.getByLabelText('情侣')
+    expect(marker).toHaveAttribute('data-marker-id', 'cupid-lover')
+    expect(marker.closest('.aw-player-card')).toHaveAttribute('data-player-id', 'player-1')
+    expect(screen.getByText('二号玩家').closest('.aw-player-card')).not.toContainElement(marker)
+  })
+
   it('renders character, sheriff, candidate, elimination, awards, and postgame statuses', () => {
     const seats = matchView().seats.map((seat, index) => ({
       ...seat,

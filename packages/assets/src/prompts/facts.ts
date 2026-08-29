@@ -51,6 +51,16 @@ export const PromptBoardFactSchema = z
         })
         .strict(),
     ),
+    nightActionOrder: z
+      .array(
+        z
+          .object({
+            phaseId: PhaseIdSchema,
+            firstNightOnly: z.boolean(),
+          })
+          .strict(),
+      )
+      .default([]),
     sheriff: z.boolean(),
     policies: PromptBoardPoliciesSchema,
   })
@@ -87,6 +97,7 @@ export const PromptTurnFactSchema = z
     voteKind: z.string().optional(),
     abilityId: AbilityIdSchema.optional(),
     allowedAbilityIds: z.array(AbilityIdSchema).default([]),
+    passAllowed: z.boolean().default(true),
     interruptAbilityIds: z.array(AbilityIdSchema).default([]),
     sheriffActions: z.array(SheriffActionKindSchema).default([]),
   })

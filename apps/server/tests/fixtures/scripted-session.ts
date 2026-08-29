@@ -86,6 +86,7 @@ export class ScriptedSession implements PlayerSession {
   #postgameReviewContext: ScriptedPostgameReviewContext | null = null
   #night = 1
   #playerCount = 0
+  #cupidGame = false
   #closed = false
   readonly #closedPromise: Promise<void>
   #signalClosed!: () => void
@@ -133,6 +134,9 @@ export class ScriptedSession implements PlayerSession {
     history.push(prompt)
     this.#prompts.set(this.#playerId, history)
     this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
+    if (prompt.includes('丘比特是第三方阵营角色') || prompt.includes('ability-cupid-link')) {
+      this.#cupidGame = true
+    }
     this.#playerCount = Math.max(
       this.#playerCount,
       ...[...prompt.matchAll(/player-(\d+)/g)].map((match) => Number(match[1])),
@@ -239,15 +243,30 @@ export class ScriptedSession implements PlayerSession {
       }
     } else if (phase === 'sheriffTransfer') {
       this.#mailbox().submitSheriffAction(this.#token, 'destroy-badge', null)
+    } else if (phase === 'nightCupid') {
+      this.#mailbox().submitNightAction(this.#token, 'ability-cupid-link', [
+        'player-1',
+        this.#playerCount === 6 ? 'player-2' : 'player-5',
+      ])
     } else if (phase === 'nightWolfVote') {
       const quickTargets = [5, 6, 3, 4]
-      const targetSeat = this.#playerCount === 6 ? quickTargets[this.#night - 1] : 4 + this.#night
+      const cupidTargets = this.#playerCount === 6 ? [3, 5] : [12, 5, 6, 7, 8]
+      const targetSeat = this.#cupidGame
+        ? cupidTargets[this.#night - 1]
+        : this.#playerCount === 6
+          ? quickTargets[this.#night - 1]
+          : 4 + this.#night
       if (!targetSeat) throw new Error(`No scripted wolf target for night ${this.#night}`)
       this.#mailbox().submitVote(this.#token, `player-${targetSeat}`)
-    } else if (phase === 'dayVote') this.#mailbox().submitVote(this.#token, null)
-    else if (phase === 'nightWitch') {
+    } else if (phase === 'dayVote') {
+      this.#mailbox().submitVote(
+        this.#token,
+        this.#cupidGame && this.#playerCount === 6 ? 'player-4' : null,
+      )
+    } else if (phase === 'nightWitch') {
       this.#mailbox().submitNightAction(this.#token, 'ability-witch-antidote', [], 'pass')
     } else if (phase === 'nightSeer') {
+      const targetId = this.#cupidGame && this.#night >= 3 ? 'player-2' : 'player-1'
       if (this.#seerFault?.value) {
         this.#seerFault.value = false
         if (this.#seerFault.behavior === 'correct-in-turn') {
@@ -257,11 +276,11 @@ export class ScriptedSession implements PlayerSession {
             this.#seerFault.rejectedReasons?.push(
               error instanceof Error ? error.message : String(error),
             )
-            this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', ['player-1'])
+            this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', [targetId])
           }
         }
       } else {
-        this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', ['player-1'])
+        this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', [targetId])
       }
     } else if (phase === 'hunterShot') {
       this.#mailbox().submitSkillTrigger(this.#token, 'ability-hunter-shot', null, 'pass')
@@ -291,6 +310,7 @@ function lastNumber(text: string, pattern: RegExp): number | null {
 }
 
 function latestPhase(prompt: string): string | null {
+  if (prompt.includes('ability-cupid-link')) return 'nightCupid'
   if (prompt.includes('ability-hunter-shot')) return 'hunterShot'
   if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
   if (prompt.includes('ability-witch-antidote')) return 'nightWitch'

@@ -19,6 +19,7 @@ export function matchView(overrides: Partial<Record<keyof MatchView, unknown>> =
         canVote: true,
         sheriff: false,
         active: true,
+        markers: [],
         roleId: 'role-villager',
         roleName: '平民',
         faction: 'village',
@@ -33,6 +34,7 @@ export function matchView(overrides: Partial<Record<keyof MatchView, unknown>> =
         canVote: true,
         sheriff: true,
         active: false,
+        markers: [],
         roleId: 'role-werewolf',
         roleName: '狼人',
         faction: 'werewolf',
@@ -42,6 +44,7 @@ export function matchView(overrides: Partial<Record<keyof MatchView, unknown>> =
     timeline: [],
     activeSpeech: null,
     winner: null,
+    winningPlayerIds: [],
     pausedReason: null,
     ...overrides,
   } as unknown as MatchView

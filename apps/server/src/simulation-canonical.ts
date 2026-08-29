@@ -190,6 +190,7 @@ export function simulationCheckpoint(
     night: state.night,
     phaseId: state.phaseId,
     winner: state.winner,
+    winningPlayerIds: [...state.winningPlayerIds],
     sheriffId: state.sheriff.holderId,
     alivePlayerIds: ordered.filter((player) => player.alive).map((player) => player.id),
     votingPlayerIds: ordered.filter((player) => player.canVote).map((player) => player.id),

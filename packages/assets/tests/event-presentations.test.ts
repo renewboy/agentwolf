@@ -10,9 +10,11 @@ import {
 import { renderEventNarration, type NarrationCatalog } from '../src/narration.js'
 import {
   pluginEventEffect,
+  pluginEventPlayerMarkers,
   pluginEventPlayerIds,
   renderPluginEventNarration,
 } from '../src/plugin-events.js'
+import { getPlayerMarkerDefinition } from '../src/player-markers.js'
 import { getRoleEffectDefinition } from '../src/role-effects.js'
 
 const player1 = 'player-1' as PlayerId
@@ -69,6 +71,14 @@ describe('copy catalog', () => {
     expect(getRoleEffectDefinition('werewolf-attack')).toMatchObject({ tier: 'large' })
     expect(getRoleEffectDefinition('seer-inspect')).toMatchObject({ tier: 'medium' })
     expect(() => getRoleEffectDefinition('unknown-effect')).toThrow(/Unknown role effect/)
+  })
+
+  it('resolves known player markers and rejects unknown marker IDs', () => {
+    expect(getPlayerMarkerDefinition('cupid-lover')).toMatchObject({
+      labelKey: 'playerMarkers.cupidLover',
+      icon: 'heart',
+    })
+    expect(() => getPlayerMarkerDefinition('unknown-marker')).toThrow(/Unknown player marker/)
   })
 })
 
@@ -144,15 +154,35 @@ describe('plugin event presentations', () => {
     }
   })
 
+  it('contributes persistent lover markers only from the Cupid link event', () => {
+    const linked = plugin('plugin-role-cupid', 'event-cupid-linked', {
+      loverIds: [player1, player2],
+    })
+    expect(pluginEventPlayerMarkers(linked)).toEqual([
+      { markerId: 'cupid-lover', playerIds: [player1, player2] },
+    ])
+    expect(
+      pluginEventPlayerMarkers(
+        plugin('plugin-role-cupid', 'event-cupid-linked-death', {
+          sourceId: player1,
+          targetId: player2,
+          timing: 'night',
+        }),
+      ),
+    ).toEqual([])
+  })
+
   it('ignores unrelated and unknown events', () => {
     const ordinary = event({ type: 'night.started', night: 1 })
     expect(renderPluginEventNarration(ordinary, catalog)).toBeNull()
     expect(pluginEventPlayerIds(ordinary)).toEqual([])
     expect(pluginEventEffect(ordinary)).toBeNull()
+    expect(pluginEventPlayerMarkers(ordinary)).toEqual([])
     const unknown = plugin('plugin-unknown', 'event-unknown', {})
     expect(renderPluginEventNarration(unknown, catalog)).toBeNull()
     expect(pluginEventPlayerIds(unknown)).toEqual([])
     expect(pluginEventEffect(unknown)).toBeNull()
+    expect(pluginEventPlayerMarkers(unknown)).toEqual([])
   })
 
   it('rejects malformed plugin payloads and unknown narration players', () => {
@@ -171,6 +201,7 @@ describe('plugin event presentations', () => {
       ],
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-poisoned', null, 'target'],
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-attacked', null, 'attack'],
+      ['plugin-role-cupid', 'event-cupid-linked', null, 'Cupid link'],
       [
         'plugin-role-awakened-hidden-wolf',
         'event-awakened-hidden-wolf-attacked',

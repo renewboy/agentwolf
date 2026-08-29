@@ -10,6 +10,9 @@ import {
   GameEngine,
   awakenedHiddenWolfEventTypes,
   createClassicRuleset,
+  cupidAbilityIds,
+  cupidBoard,
+  cupidEventTypes,
   magicMirrorInspectedEventType,
   mirrorHiddenBoard,
 } from '@agentwolf/game-engine'
@@ -17,6 +20,161 @@ import { describe, expect, it } from 'vitest'
 import { projectMatch } from '../src/projector.js'
 
 describe('plugin event projection', () => {
+  it('keeps Cupid phase and lovers private while publishing linked death', () => {
+    const ruleset = createClassicRuleset()
+    const matchId = MatchIdSchema.parse('match-cupid-private-projection')
+    const roleIds = cupidBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId,
+      board: cupidBoard,
+      ruleset,
+      roleAssignment: 'manual',
+      seed: 1,
+      players: roleIds.map((roleId, index) => ({
+        id: playerIdForSeat(index + 1),
+        seat: index + 1,
+        name: `Cupid player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-cupid-${index + 1}`),
+        roleId,
+      })),
+    })
+    engine.start()
+    const cupid = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-cupid',
+    )!
+    const wolf = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-werewolf',
+    )!
+    const villager = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-villager',
+    )!
+    const unrelated = [...engine.state.players.values()].find(
+      (player) => player.id !== cupid.id && player.id !== wolf.id && player.id !== villager.id,
+    )!
+    const phaseOptions = {
+      matchId,
+      board: cupidBoard,
+      boardName: 'Cupid projection board',
+      state: engine.state,
+      events: engine.events,
+      roles: ruleset.roles,
+    }
+    expect(projectMatch({ ...phaseOptions, view: { kind: 'closed-eye' } })).toMatchObject({
+      phaseId: 'phase-night-hidden',
+      phaseLabel: '夜间行动',
+    })
+    expect(
+      projectMatch({ ...phaseOptions, view: { kind: 'player', playerId: unrelated.id } }),
+    ).toMatchObject({ phaseId: 'phase-night-hidden' })
+    expect(
+      projectMatch({ ...phaseOptions, view: { kind: 'player', playerId: cupid.id } }),
+    ).toMatchObject({ phaseId: 'phase-night-cupid', phaseLabel: '丘比特连线' })
+
+    engine.submit({
+      type: 'night-action',
+      matchId,
+      actorId: cupid.id,
+      abilityId: cupidAbilityIds.link,
+      targetIds: [wolf.id, villager.id],
+    })
+    const linkedOptions = { ...phaseOptions, state: engine.state, events: engine.events }
+    for (const playerId of [cupid.id, wolf.id, villager.id]) {
+      const view = projectMatch({
+        ...linkedOptions,
+        view: { kind: 'player', playerId },
+      })
+      expect(view.timeline.some((item) => item.title.includes('情侣'))).toBe(true)
+      expect(view.effectCues.some((cue) => cue.effectId === 'cupid-link')).toBe(true)
+      expect(
+        view.seats
+          .filter((seat) => seat.markers.includes('cupid-lover'))
+          .map((seat) => seat.playerId),
+      ).toEqual([wolf.id, villager.id])
+    }
+    const godView = projectMatch({ ...linkedOptions, view: { kind: 'god' } })
+    expect(
+      godView.seats
+        .filter((seat) => seat.markers.includes('cupid-lover'))
+        .map((seat) => seat.playerId),
+    ).toEqual([wolf.id, villager.id])
+    for (const view of [
+      { kind: 'closed-eye' as const },
+      { kind: 'player' as const, playerId: unrelated.id },
+    ]) {
+      const projected = projectMatch({ ...linkedOptions, view })
+      expect(projected.timeline.some((item) => item.title.includes('情侣'))).toBe(false)
+      expect(projected.effectCues.some((cue) => cue.effectId === 'cupid-link')).toBe(false)
+      expect(projected.seats.every((seat) => seat.markers.length === 0)).toBe(true)
+    }
+    const wolfView = projectMatch({
+      ...linkedOptions,
+      view: { kind: 'player', playerId: wolf.id },
+    })
+    expect(wolfView.seats.find((seat) => seat.playerId === villager.id)?.roleId).toBeUndefined()
+    const cupidView = projectMatch({
+      ...linkedOptions,
+      view: { kind: 'player', playerId: cupid.id },
+    })
+    expect(cupidView.seats.find((seat) => seat.playerId === wolf.id)?.roleId).toBeUndefined()
+
+    const linkedDeath = GameEventSchema.parse({
+      matchId,
+      sequence: engine.state.lastSequence + 1,
+      occurredAt: '2026-08-29T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'plugin.event',
+        pluginId: 'plugin-role-cupid',
+        eventType: cupidEventTypes.linkedDeath,
+        schemaVersion: 1,
+        data: { sourceId: wolf.id, targetId: villager.id, timing: 'night' },
+      },
+    })
+    const publicView = projectMatch({
+      ...linkedOptions,
+      events: [...engine.events, linkedDeath],
+      view: { kind: 'closed-eye' },
+    })
+    expect(publicView.timeline.at(-1)?.title).toContain('因情侣关系殉情')
+    expect(publicView.effectCues.at(-1)?.effectId).toBe('cupid-linked-death')
+
+    const winningPlayerIds = [cupid.id, wolf.id, villager.id]
+    const ended = GameEventSchema.parse({
+      matchId,
+      sequence: linkedDeath.sequence + 1,
+      occurredAt: '2026-08-29T00:00:01.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'match.ended',
+        winner: 'independent',
+        winningPlayerIds,
+        reason: 'cupid-lovers-last-standing',
+      },
+    })
+    expect(
+      projectMatch({
+        ...linkedOptions,
+        state: {
+          ...engine.state,
+          status: 'ended',
+          winner: 'independent',
+          winningPlayerIds,
+          lastSequence: ended.sequence,
+        },
+        events: [...engine.events, linkedDeath, ended],
+        view: { kind: 'closed-eye' },
+      }),
+    ).toMatchObject({
+      winner: 'independent',
+      winningPlayerIds,
+      timeline: expect.arrayContaining([
+        expect.objectContaining({ kind: 'match.ended', playerIds: winningPlayerIds }),
+      ]),
+    })
+  })
+
   it('narrates and animates a private Magic Mirror result only for permitted views', () => {
     const ruleset = createClassicRuleset()
     const matchId = MatchIdSchema.parse('match-plugin-projection')

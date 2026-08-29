@@ -4,6 +4,9 @@ import { AbilityIdSchema, PlayerIdSchema, RoleIdSchema } from './ids.js'
 export const RoleEffectIdSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{2,95}$/)
 export type RoleEffectId = z.infer<typeof RoleEffectIdSchema>
 
+export const PlayerMarkerIdSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{2,95}$/)
+export type PlayerMarkerId = z.infer<typeof PlayerMarkerIdSchema>
+
 export const RoleEffectCueSchema = z.object({
   cueId: z.string().min(1).max(160),
   sequence: z.number().int().positive(),

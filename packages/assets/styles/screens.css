@@ -2183,6 +2183,40 @@
   font-size: 9px;
 }
 
+.aw-player-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.aw-player-rail--right .aw-player-card__badges {
+  justify-content: flex-end;
+}
+
+.aw-player-marker {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  min-height: 19px;
+  padding: 0 6px;
+  border: 1px solid currentcolor;
+  border-radius: var(--aw-radius-control);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.aw-player-marker[data-tone='rose'] {
+  color: var(--aw-role-cupid);
+  background: var(--aw-role-cupid-soft);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+
 .aw-player-card__agent {
   color: var(--aw-color-text-muted);
   font-size: 9px;

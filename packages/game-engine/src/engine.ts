@@ -20,6 +20,7 @@ import {
   validateTurnAction,
 } from './action-validator.js'
 import { appendActionOutcome } from './action-outcome.js'
+import { appendAutomaticDeathAnnouncements, resolveDeathBatch } from './death-resolution.js'
 import type {
   GameEngineOptions,
   GameEngineRestoreOptions,
@@ -214,6 +215,9 @@ export class GameEngine {
       ...(definition.type === 'vote' ? { voteKind: expectedVoteKind(node) } : {}),
       ...(abilityId ? { abilityId } : {}),
       ...(allowedAbilityIds.length > 0 ? { allowedAbilityIds } : {}),
+      ...(definition.type === 'night-action' || definition.type === 'skill-trigger'
+        ? { passAllowed: definition.passAllowed ?? true }
+        : {}),
       ...(interruptAbilityIds.length > 0 ? { interruptAbilityIds } : {}),
       ...(definition.type === 'sheriff-action' ? { sheriffActions: [...definition.actions] } : {}),
     }
@@ -532,6 +536,7 @@ export class GameEngine {
         this.#ruleset.triggers,
       )
     }
+    this.#rules.validateAction(node, action, this.#runtime())
     return { node, interrupt }
   }
 
@@ -560,18 +565,21 @@ export class GameEngine {
       { type: 'ability.used', playerId: actor.id, abilityId: action.abilityId, count },
       visibility.players([actor.id]),
     )
-    for (const death of result.pendingDeaths) {
+    const resolvedDeaths = resolveDeathBatch(this.#runtime(), result.pendingDeaths, 'day')
+    for (const { death } of resolvedDeaths) {
       this.#append(
         {
           type: 'player.died',
           playerId: death.playerId,
           causes: [...death.causes],
           announced: true,
+          ...(this.#rules.persistDeathTiming ? { timing: death.timing } : {}),
         },
         visibility.god,
       )
     }
     appendAbilityOutcomes(this.#runtime(), action, result)
+    appendAutomaticDeathAnnouncements(this.#runtime(), resolvedDeaths)
     const handler = this.#ruleset.interrupts.handler(interrupt.handlerId)
     for (const event of handler.events?.(this.#runtime(), interrupt, result) ?? []) {
       this.#append(event.payload, event.visibility)

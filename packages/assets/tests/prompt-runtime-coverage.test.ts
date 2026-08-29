@@ -95,9 +95,10 @@ describe('Prompt runtime behavior matrix', () => {
     expect(() => registry.abilityLabel(AbilityIdSchema.parse('ability-unknown'))).toThrow(
       /Unknown Prompt Ability/,
     )
-    expect(() => registry.phaseLabel(PhaseIdSchema.parse('phase-unknown'))).toThrow(
+    expect(() => registry.phasePresentation(PhaseIdSchema.parse('phase-unknown'))).toThrow(
       /Unknown Prompt Phase/,
     )
+    expect(registry.phasePresentation(phaseId).daytime).toBe(true)
     expect(() =>
       registry.renderEventNarration(
         foundationFacts([gameEvent({ type: 'day.started', day: 1 })], false),
@@ -453,6 +454,7 @@ function foundationFacts(events: GameEvent[], character: boolean) {
     ],
     board: {
       roles: [{ roleId, faction: 'village' as const, count: 2 }],
+      nightActionOrder: [{ phaseId, firstNightOnly: false }],
       sheriff: false,
       policies: policies(),
     },
@@ -474,6 +476,7 @@ function turnFacts(events: GameEvent[], continuation: boolean) {
       phaseId,
       actionType: 'night-action' as const,
       allowedAbilityIds: [abilityId],
+      passAllowed: true,
       interruptAbilityIds: [abilityId],
       sheriffActions: [],
     },

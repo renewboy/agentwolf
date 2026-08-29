@@ -86,6 +86,10 @@ sequence cursor，保持事件原顺序。
 公开淘汰状态从 public announcements/events 派生。closed-eye 和普通 player 在 Match 运行中不会因为
 GameState 已将玩家置死而提前看到私密死亡；projector 只在公开淘汰后改变外部 alive 状态。
 
+玩家卡片标识同样只从已过滤事件派生。plugin event 可以贡献带语义 ID 的持久标识，projector 将其
+归入对应 Seat 后再写入 `MatchView`。情侣标识来自私有连线事件，因此只有 god、Cupid 与两名情侣的
+投影包含该标识；无关 player 和 closed-eye 的 DTO 中没有这项关系事实。
+
 ### Phase 与 Session 状态
 
 `PhaseNode.presentation` 可以是 public、actors 或 god。无权看到精确 phase 的 view 收到节点声明的
@@ -101,11 +105,12 @@ Session status 只向 god、该玩家本人或当前公开发言者暴露；其�
 
 1. 使用 `visibleEvents` 取得该 view 的事件；
 2. 选择精确或隐藏 phase；
-3. 对每个 Seat 计算公开 alive/canVote、可见 Role、公开 Character、Sheriff 与有限 Session status；
+3. 对每个 Seat 计算公开 alive/canVote、可见 Role、事件授权的玩家标识、公开 Character、Sheriff 与
+   有限 Session status；
 4. 只从过滤后事件建立 timeline、vote detail 与 semantic effect cues；
 5. 从可见 `speech.started/committed` 恢复 active speech；
 6. 加入 server-owned postgame view 与当前 reflection stream；
-7. 用 `MatchViewSchema` 校验完整 DTO。
+7. 终局投影保留获胜 Faction 与明确获胜 Player IDs，再用 `MatchViewSchema` 校验完整 DTO。
 
 实时 snapshot 始终携带 subscriber 当前 `SpectatorView`。收到 `view.set` 后，server 先更新 subscriber
 view，再重新投影 snapshot，并让 SpeechPlaybackCoordinator 检查当前 pending speech 是否仍可见。
@@ -222,9 +227,9 @@ sequence 时恢复。
 
 ## 终局与赛后同步
 
-GameEngine 先发出 public `match.ended`，再按稳定顺序发出最终 Role reveals。MatchRuntime 在启用赛后
-复盘时暂缓首个 ended snapshot，先持久创建 countdown record，再广播包含 winner、全部最终身份和
-十秒 deadline 的一致快照。
+GameEngine 先发出带明确获胜 Player IDs 的 public `match.ended`，再按稳定顺序发出最终 Role reveals。
+MatchRuntime 在启用赛后复盘时暂缓首个 ended snapshot，先持久创建 countdown record，再广播包含
+winner、获胜玩家、全部最终身份和十秒 deadline 的一致快照。
 
 赛后同步遵守以下顺序：
 

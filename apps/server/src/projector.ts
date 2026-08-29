@@ -7,6 +7,7 @@ import {
   type GameEvent,
   type MatchId,
   type MatchView,
+  type PlayerMarkerId,
   type PostgameReviewView,
   type TimelineItem,
   type PlayerId,
@@ -18,6 +19,7 @@ import {
   getCopy,
   getRoleEffectDefinition,
   pluginEventEffect,
+  pluginEventPlayerMarkers,
   pluginEventPlayerIds,
   registeredEventEffect,
   registeredEventPlayerIds,
@@ -73,6 +75,7 @@ function localizePausedReason(reason: string | null): string | null {
 
 export function projectMatch(options: ProjectMatchOptions): MatchView {
   const projectedEvents = visibleEvents(options.events, options.view, options.state)
+  const playerMarkers = projectPlayerMarkers(projectedEvents)
   const phase = projectedPhase(options)
   const publicDead = publiclyEliminatedPlayerIds(options.events)
   const catalog = {
@@ -137,6 +140,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
             sheriffElectionPhases.has(options.state.phaseId ?? '') &&
             options.state.sheriff.standingCandidates.has(player.id),
           active: activeSpeech?.playerId === player.id && !activeSpeech.final,
+          markers: playerMarkers.get(player.id) ?? [],
           ...(roleId
             ? {
                 roleId,
@@ -167,9 +171,29 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
     effectCues: projectRoleEffectCues(projectedEvents),
     activeSpeech,
     winner: winnerEvent?.payload.type === 'match.ended' ? winnerEvent.payload.winner : null,
+    winningPlayerIds:
+      winnerEvent?.payload.type === 'match.ended'
+        ? (winnerEvent.payload.winningPlayerIds ?? options.state.winningPlayerIds)
+        : [],
     pausedReason: localizePausedReason(options.state.pausedReason),
     postgameReview: options.postgameReview ?? null,
   })
+}
+
+export function projectPlayerMarkers(
+  events: readonly GameEvent[],
+): ReadonlyMap<PlayerId, readonly PlayerMarkerId[]> {
+  const markers = new Map<PlayerId, Set<PlayerMarkerId>>()
+  for (const event of events) {
+    for (const marker of pluginEventPlayerMarkers(event)) {
+      for (const playerId of marker.playerIds) {
+        const playerMarkers = markers.get(playerId) ?? new Set<PlayerMarkerId>()
+        playerMarkers.add(marker.markerId)
+        markers.set(playerId, playerMarkers)
+      }
+    }
+  }
+  return new Map([...markers].map(([playerId, markerIds]) => [playerId, [...markerIds]]))
 }
 
 function projectedPhase(options: ProjectMatchOptions): {
@@ -507,7 +531,9 @@ function playerIdsForEvent(event: GameEvent): PlayerId[] {
     case 'day.interrupted':
     case 'day.completed':
     case 'match.resumed':
+      return []
     case 'match.ended':
+      return payload.winningPlayerIds ?? []
     case 'plugin.event':
       return pluginEventPlayerIds(event)
     default:

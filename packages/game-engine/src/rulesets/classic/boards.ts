@@ -80,6 +80,15 @@ export const guardBoard = twelvePlayerBoard('board-guard-12', [
   { roleId: RoleIdSchema.parse('role-guard'), count: 1 },
 ])
 
+export const cupidBoard = twelvePlayerBoard('board-cupid-12', [
+  { roleId: RoleIdSchema.parse('role-werewolf'), count: 4 },
+  { roleId: RoleIdSchema.parse('role-villager'), count: 4 },
+  { roleId: RoleIdSchema.parse('role-seer'), count: 1 },
+  { roleId: RoleIdSchema.parse('role-witch'), count: 1 },
+  { roleId: RoleIdSchema.parse('role-hunter'), count: 1 },
+  { roleId: RoleIdSchema.parse('role-cupid'), count: 1 },
+])
+
 export const mirrorHiddenBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-mirror-hidden-10'),
   playerCount: 10,
@@ -123,6 +132,7 @@ const boards = new Map(
     ninePlayerBoard,
     standardBoard,
     guardBoard,
+    cupidBoard,
     mirrorHiddenBoard,
     whiteWolfKingBoard,
   ].map((board) => [board.id, board]),

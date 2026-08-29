@@ -26,6 +26,7 @@ export interface RoleEffectDefinition {
     | 'transfer'
     | 'mirror'
     | 'burst'
+    | 'heart'
 }
 
 export const roleEffectCatalog: Readonly<Record<string, RoleEffectDefinition>> = {
@@ -190,6 +191,24 @@ export const roleEffectCatalog: Readonly<Record<string, RoleEffectDefinition>> =
     tier: 'large',
     durationMs: 760,
     icon: 'burst',
+  },
+  'cupid-link': {
+    id: 'cupid-link',
+    roleId: RoleIdSchema.parse('role-cupid'),
+    abilityId: AbilityIdSchema.parse('ability-cupid-link'),
+    labelKey: 'effects.cupidLink',
+    tier: 'medium',
+    durationMs: 620,
+    icon: 'heart',
+  },
+  'cupid-linked-death': {
+    id: 'cupid-linked-death',
+    roleId: RoleIdSchema.parse('role-cupid'),
+    abilityId: null,
+    labelKey: 'effects.cupidLinkedDeath',
+    tier: 'large',
+    durationMs: 720,
+    icon: 'heart',
   },
 }
 

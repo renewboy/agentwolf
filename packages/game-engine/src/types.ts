@@ -3,6 +3,7 @@ import type {
   AgentProfileId,
   BoardId,
   CapabilityId,
+  DeathTiming,
   EventSequence,
   Faction,
   GameEvent,
@@ -68,6 +69,7 @@ export type PhaseActionDefinition =
       readonly type: 'night-action'
       readonly abilityIds: readonly AbilityId[]
       readonly capabilityIds?: readonly CapabilityId[]
+      readonly passAllowed?: boolean
       readonly visibility: PhaseActionVisibility
     }
   | {
@@ -81,6 +83,7 @@ export type PhaseActionDefinition =
       readonly capabilityIds?: readonly CapabilityId[]
       readonly abilitySource?: 'decision-trigger'
       readonly triggerSignal?: string
+      readonly passAllowed?: boolean
       readonly validation: 'role-ability'
       readonly visibility: PhaseActionVisibility
     }
@@ -148,6 +151,11 @@ export interface SheriffState {
 export interface PendingDeath {
   readonly playerId: PlayerId
   readonly causes: readonly string[]
+  readonly timing?: DeathTiming
+}
+
+export interface TimedDeath extends PendingDeath {
+  readonly timing: DeathTiming
 }
 
 export interface GameState {
@@ -178,6 +186,7 @@ export interface GameState {
   readonly preventedExilePlayerId: PlayerId | null
   readonly lastSequence: EventSequence
   readonly winner: Faction | null
+  readonly winningPlayerIds: readonly PlayerId[]
   readonly pausedReason: string | null
 }
 

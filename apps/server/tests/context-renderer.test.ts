@@ -10,6 +10,8 @@ import { builtInCharacterCards } from '@agentwolf/assets'
 import {
   GameEngine,
   createClassicRuleset,
+  cupidAbilityIds,
+  cupidBoard,
   guardBoard,
   mirrorHiddenBoard,
   ninePlayerBoard,
@@ -25,6 +27,114 @@ import { describe, expect, it } from 'vitest'
 import { ContextRenderer } from '../src/context-renderer.js'
 
 describe('plugin-owned Prompt rendering', () => {
+  it('renders Cupid as a mandatory private first-night contract without leaking lover roles', async () => {
+    const setup = createBoardEngine(cupidBoard)
+    const cupid = setup.players.find((player) => player.roleId === 'role-cupid')!
+    const wolf = setup.players.find((player) => player.roleId === 'role-werewolf')!
+    const villager = setup.players.find((player) => player.roleId === 'role-villager')!
+    const unrelated = setup.players.find(
+      (player) => player.id !== cupid.id && player.id !== wolf.id && player.id !== villager.id,
+    )!
+    const foundation = await setup.renderer.foundation(
+      setup.engine.state,
+      cupidBoard,
+      cupid.id,
+      setup.engine.events,
+    )
+    expect(foundation.prompt).toContain('你的身份是丘比特')
+    expect(foundation.prompt).toContain('属于第三方阵营')
+    expect(foundation.prompt).toContain('丘比特是第三方阵营角色')
+    expect(foundation.prompt).not.toContain('丘比特是第三方角色')
+    expect(foundation.prompt).not.toContain('具体 Role')
+    expect(foundation.prompt).toContain(
+      '夜间行动顺序（仅执行本夜可用的行动）：丘比特连线（仅首夜） → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动。',
+    )
+
+    setup.engine.start()
+    const turn = setup.engine.currentTurn()
+    if (!turn) throw new Error('Expected Cupid turn')
+    const turnPrompt = await setup.renderer.turn(
+      setup.engine.state,
+      cupidBoard,
+      setup.engine.events,
+      cupid.id,
+      0,
+      turn,
+      300,
+    )
+    expect(turn.passAllowed).toBe(false)
+    expect(turnPrompt.prompt).toContain(cupidAbilityIds.link)
+    expect(turnPrompt.prompt).toContain('本阶段不能放弃')
+
+    setup.engine.submit({
+      type: 'night-action',
+      matchId: setup.engine.state.matchId,
+      actorId: cupid.id,
+      abilityId: cupidAbilityIds.link,
+      targetIds: [wolf.id, villager.id],
+    })
+    const linkEvent = setup.engine.events.find(
+      (event) =>
+        event.payload.type === 'plugin.event' && event.payload.eventType === 'event-cupid-linked',
+    )!
+    const renderFor = (playerId: typeof cupid.id) =>
+      setup.renderer.turn(
+        setup.engine.state,
+        cupidBoard,
+        setup.engine.events,
+        playerId,
+        linkEvent.sequence - 1,
+        daySpeechTurn(playerId),
+        300,
+      )
+    const wolfPrompt = (await renderFor(wolf.id)).prompt
+    expect(wolfPrompt).toContain(`你与${villager.seat} 号玩家`)
+    expect(wolfPrompt).toContain('不知道对方的具体身份')
+    expect(wolfPrompt).not.toContain('具体 Role')
+    expect(wolfPrompt).not.toContain(`你的情侣是${villager.seat} 号玩家（村民）`)
+    const cupidPrompt = (await renderFor(cupid.id)).prompt
+    expect(cupidPrompt).toContain(`你连接的情侣是${wolf.seat} 号玩家`)
+    expect(cupidPrompt).toContain('你不知道他们的具体身份')
+    expect(cupidPrompt).not.toContain(`${wolf.seat} 号玩家（狼人）`)
+    expect(cupidPrompt).not.toContain(`${villager.seat} 号玩家（村民）`)
+    expect((await renderFor(unrelated.id)).prompt).not.toContain('成为情侣')
+  })
+
+  it('derives every board night action order from the installed phase graph', async () => {
+    const cases = [
+      {
+        board: sixPlayerBoard,
+        order: '狼队商议 → 狼队袭击投票 → 预言家行动',
+      },
+      {
+        board: guardBoard,
+        order: '守卫行动 → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动',
+      },
+      {
+        board: cupidBoard,
+        order: '丘比特连线（仅首夜） → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动',
+      },
+      {
+        board: mirrorHiddenBoard,
+        order:
+          '守卫行动 → 狼队商议 → 狼队袭击投票 → 觉醒隐狼行动 → 女巫行动 → 魔镜少女行动 → 觉醒隐狼复制技能 → 觉醒隐狼学习',
+      },
+    ] as const
+
+    for (const { board, order } of cases) {
+      const setup = createBoardEngine(board)
+      const prompt = (
+        await setup.renderer.foundation(
+          setup.engine.state,
+          board,
+          setup.players[0]!.id,
+          setup.engine.events,
+        )
+      ).prompt
+      expect(prompt).toContain(`夜间行动顺序（仅执行本夜可用的行动）：${order}。`)
+    }
+  })
+
   it('omits phase transitions while retaining the current action contract', async () => {
     const setup = createBoardEngine(guardBoard)
     setup.engine.start()

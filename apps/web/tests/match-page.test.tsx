@@ -391,6 +391,29 @@ describe('MatchPage', () => {
     await waitFor(() => expect(screen.getByTestId('postgame')).toHaveTextContent('open:false'))
   })
 
+  it('names the exact winning players for a third-party ending', () => {
+    presence.current = 'ended'
+    setLive(
+      matchView({
+        status: 'ended',
+        winner: 'independent',
+        winningPlayerIds: ['player-1', 'player-2'],
+      }),
+    )
+    renderPage()
+    expect(document.querySelector('.aw-presence__copy strong')).toHaveTextContent(
+      '第三方阵营获胜：1号 一号玩家、2号 二号玩家',
+    )
+  })
+
+  it('keeps an ordinary faction ending concise when explicit winners match the faction', () => {
+    presence.current = 'ended'
+    setLive(matchView({ status: 'ended', winner: 'village', winningPlayerIds: ['player-1'] }))
+    renderPage()
+    expect(document.querySelector('.aw-presence__copy strong')).toHaveTextContent('好人阵营获胜')
+    expect(document.querySelector('.aw-presence__copy strong')).not.toHaveTextContent('一号玩家')
+  })
+
   it('resumes and deletes paused matches, including Error and string failures', async () => {
     const paused = matchView({ status: 'paused', pausedReason: 'agent failed' })
     setLive(paused)

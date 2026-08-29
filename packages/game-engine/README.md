@@ -5,7 +5,7 @@
 ## 职责
 
 - 版本化的 Ruleset 与 RulePlugin 安装。
-- Role、Ability、capability、phase、query、trigger、interrupt、event、resolution 与胜负 registries。
+- Role、Ability、capability、phase、action validator、query、trigger、interrupt、event、resolution 与胜负 registries。
 - 内置与自定义 board manifests。
 - 纯函数的动作校验、状态归约、可见性过滤、发言规范化与 replay。
 - 确定性的投票裁决、发言顺序、效果结算与终局评估。
@@ -20,7 +20,7 @@
 
 ## 扩展点
 
-RulePlugin 通过 `RulesetBuilder` 在某个安装作用域下注册语义。注册会记录插件归属者,并在重复时失败。新 Roles 使用这些 registries,而不是修改内核的中央 switch。
+RulePlugin 通过 `RulesetBuilder` 在某个安装作用域下注册语义。注册会记录插件归属者,并在重复时失败。新 Roles 使用这些 registries,而不是修改内核的中央 switch。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory modifier 组合;终局候选始终携带明确获胜 Player IDs。
 
 Boards 选择冻结的 phase 图与策略。已发布的 schema-two 快照绑定唯一确切的 Ruleset lock 与 fingerprint;不兼容的已安装语义会导致 restore 失败。
 

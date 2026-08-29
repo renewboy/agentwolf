@@ -11,6 +11,7 @@
     "magicMirrorGirl": "魔镜少女",
     "whiteWolfKing": "白狼王",
     "awakenedHiddenWolf": "觉醒隐狼",
+    "cupid": "丘比特",
     "sheriff": "警长"
   },
   "abilities": {
@@ -28,7 +29,8 @@
     "awakenedHiddenWolfPoison": "使用复制毒药",
     "awakenedHiddenWolfShield": "使用机械盾",
     "awakenedHiddenWolfKill": "觉醒狼刀",
-    "awakenedHiddenWolfDoubleKill": "觉醒双刀"
+    "awakenedHiddenWolfDoubleKill": "觉醒双刀",
+    "cupidLink": "爱之箭"
   },
   "effects": {
     "werewolfAttack": "狼人夜袭",
@@ -47,12 +49,17 @@
     "awakenedHiddenWolfShield": "觉醒隐狼机械盾",
     "awakenedHiddenWolfKill": "觉醒隐狼夜袭",
     "awakenedHiddenWolfDoubleKill": "觉醒隐狼双刀",
+    "cupidLink": "爱之箭连线",
+    "cupidLinkedDeath": "情侣殉情",
     "sheriffElected": "获得警徽",
     "sheriffTransferred": "移交警徽",
     "mode": "技能特效",
     "full": "完整",
     "reduced": "精简",
     "off": "关闭"
+  },
+  "playerMarkers": {
+    "cupidLover": "情侣"
   },
   "boards": {
     "quick6": {
@@ -70,6 +77,10 @@
     "guard12": {
       "name": "12 人守卫场",
       "description": "预言家、女巫、猎人、守卫，四狼四民，上警屠边。"
+    },
+    "cupid12": {
+      "name": "12 人预女猎爱场",
+      "description": "预言家、女巫、猎人、丘比特，四狼四民，上警屠边。"
     },
     "mirrorHidden10": {
       "name": "10 人镜隐迷踪局",
@@ -92,6 +103,7 @@
     "nightAwakenedHiddenWolfAttack": "觉醒隐狼行动",
     "nightAwakenedHiddenWolfCopy": "觉醒隐狼复制技能",
     "nightAwakenedHiddenWolfLearn": "觉醒隐狼学习",
+    "nightCupid": "丘比特连线",
     "nightResolve": "夜间结算",
     "sheriffSignup": "警长竞选报名",
     "sheriffSpeech": "警上发言",
@@ -158,6 +170,9 @@
     "awakenedHiddenWolfPoisoned": "你对{{player}}使用了复制毒药。",
     "awakenedHiddenWolfProtected": "你对{{player}}使用了机械盾。",
     "awakenedHiddenWolfAttacked": "你本夜的袭击目标是{{players}}。",
+    "cupidLinked": "{{players}}成为情侣。",
+    "cupidLinkedForPlayer": "你与{{player}}成为情侣。",
+    "cupidLinkedDeath": "{{source}}出局，{{target}}因情侣关系殉情。",
     "factionMembers": "你的狼人队友是：{{players}}。",
     "factionNoTeammates": "你没有狼人队友。",
     "werewolfMembers": "狼人阵营成员：{{players}}。",
@@ -587,6 +602,7 @@
     "audioPlaybackFailed": "这段发言播放失败",
     "audioPlaybackFailedSkipped": "语音播报失败，已跳过当前发言",
     "winner": "{{faction}}获胜",
+    "winnerWithPlayers": "{{faction}}获胜：{{players}}",
     "sessionFailed": "Agent 连接异常",
     "eventEmpty": "等待裁判公布事件",
     "backLobby": "返回大厅",

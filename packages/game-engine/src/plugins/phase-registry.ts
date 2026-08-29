@@ -6,6 +6,7 @@ export interface PhaseInsertion {
   readonly node: PhaseNode
   readonly after: PhaseId | null
   readonly before: PhaseId
+  readonly rewireIncoming?: boolean
 }
 
 export class PhaseGraphRegistry {
@@ -70,6 +71,15 @@ export class PhaseGraphRegistry {
           throw new Error(
             `Phase ${insertion.node.id} cannot precede ${insertion.before}; current entry is ${entry}`,
           )
+        }
+        if (insertion.rewireIncoming) {
+          for (const [nodeId, node] of nodes) {
+            if (nodeId === insertion.node.id) continue
+            const edges = node.edges.map((edge) =>
+              edge.to === insertion.before ? { ...edge, to: insertion.node.id } : edge,
+            )
+            nodes.set(nodeId, { ...node, edges })
+          }
         }
         entry = insertion.node.id
         continue

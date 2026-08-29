@@ -52,17 +52,17 @@ flowchart LR
     Reducer --> State
 ```
 
-| 组件                  | 拥有的决策或状态                                                                                                   | 输入与产出                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `RulesetBuilder`      | plugin 安装顺序、依赖、配置 schema 与语义所有权                                                                    | RulePlugin 列表 → 冻结 `RulesetRuntime`                   |
-| registries            | Role/Ability、actor selector、phase handler、effect、query、trigger、interrupt、plugin event 与 victory 的唯一注册 | plugin 贡献 → 可按契约查询的行为集合                      |
-| `PhaseGraphRegistry`  | phase 节点、入口和有序插入，保证引用有效且全部可达                                                                 | plugin nodes/insertions → `PhaseGraph`                    |
-| `GameEngine`          | 当前 action boundary、事件序列与派生 GameState                                                                     | board、Ruleset、动作 → 新事件与下一 `TurnDescriptor`      |
-| action validator      | 当前 actor、动作类型、能力、目标、基数、使用次数与 Role 自定义规则                                                 | `PhaseNode` + GameState + action → 接受或 `RuleViolation` |
-| `ResolutionRegistry`  | effect lane、同 lane 顺序、动态入队与 finalizer 合并                                                               | abilities 产生的 effects → `ResolutionResult`             |
-| plugin event registry | typed plugin state 的 schema 与 reducer                                                                            | `plugin.event` → plugin state 分片                        |
-| victory registry      | 多个胜负 evaluator 的一致性与明确获胜 Player IDs                                                                   | 终局上下文 → 唯一 victory candidate                       |
-| event reducer         | 从领域事件重建所有核心与 plugin 状态                                                                               | 旧 GameState + GameEvent → 新 GameState                   |
+| 组件                  | 拥有的决策或状态                                                                                                                     | 输入与产出                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| `RulesetBuilder`      | plugin 安装顺序、依赖、配置 schema 与语义所有权                                                                                      | RulePlugin 列表 → 冻结 `RulesetRuntime`                   |
+| registries            | Role/Ability、actor selector、action validator、phase handler、effect、query、trigger、interrupt、plugin event 与 victory 的唯一注册 | plugin 贡献 → 可按契约查询的行为集合                      |
+| `PhaseGraphRegistry`  | phase 节点、循环入口和有序插入，保证返回边、引用与可达性有效                                                                         | plugin nodes/insertions → `PhaseGraph`                    |
+| `GameEngine`          | 当前 action boundary、事件序列与派生 GameState                                                                                       | board、Ruleset、动作 → 新事件与下一 `TurnDescriptor`      |
+| action validator      | 当前 actor、动作类型、能力、目标、基数、使用次数与 Role 自定义规则                                                                   | `PhaseNode` + GameState + action → 接受或 `RuleViolation` |
+| `ResolutionRegistry`  | effect lane、同 lane 顺序、动态入队与 finalizer 合并                                                                                 | abilities 产生的 effects → `ResolutionResult`             |
+| plugin event registry | typed plugin state 的 schema 与 reducer                                                                                              | `plugin.event` → plugin state 分片                        |
+| victory registry      | 基础 evaluator 的一致性、有序 modifier 与明确获胜 Player IDs                                                                         | 终局上下文 → 唯一 victory candidate                       |
+| event reducer         | 从领域事件重建所有核心与 plugin 状态                                                                                                 | 旧 GameState + GameEvent → 新 GameState                   |
 
 ## Ruleset 组合与锁定
 
@@ -104,7 +104,8 @@ Ruleset 构建时验证入口、边目标、插入关系和可达性。运行时
 直到交互 action boundary、终局或无出边；循环有明确上限，错误图不会无限推进。
 
 `currentTurn` 从当前节点直接导出 `TurnDescriptor`，包括 actors、动作类型、允许 abilities、动态
-decision-trigger abilities 和 interrupts。server 不需要根据 phase ID 猜测动作语义。
+decision-trigger abilities、pass 许可和 interrupts。包裹循环入口的 phase insertion 同时重写返回旧入口
+的边，使首夜阶段与后续夜晚共享一条循环边界。server 不需要根据 phase ID 猜测动作语义。
 
 ## 动作提交与阶段推进
 
@@ -140,7 +141,8 @@ sequenceDiagram
 2. sequential 节点只接受当前首个 actor；
 3. action type 与 `PhaseNode.action` 对齐；
 4. ability/capability、目标 IDs、目标数量、pass 语义和次数限制通过 Role registry 校验；
-5. decision trigger 或 interrupt 还需通过其声明的 signal、context 与 handler 契约。
+5. plugin 注册的有序 action validators 对关系或规则组合贡献额外纯校验；
+6. decision trigger 或 interrupt 还需通过其声明的 signal、context 与 handler 契约。
 
 拒绝动作不追加事件、不改变 `completedActors`、不推进 phase。接受动作先规范化并发出
 `action.submitted`，随后把动作的稳定结果表示成更多事件，最后发出 god-visible 的
@@ -178,8 +180,9 @@ flowchart LR
 有界步数，未知 effect、跨 lane 排序或依赖环会失败。finalizers 按稳定顺序读取 frame facts，将死亡、
 营救、查验和 ability 消耗等贡献合并成 `ResolutionResult`。
 
-Ability outcomes 再把结算结果转换为带 visibility 的领域事件。交互式死亡反应通过 trigger/interrupt
-进入新的 action boundary，胜负 evaluator 在规则规定的时机读取已经结算的状态并返回明确获胜
+Ability outcomes 再把结算结果转换为带 visibility 的领域事件。自动死亡 trigger 在一个有界批次中
+展开并去重连锁死亡，继承原死亡的昼夜时点；随后才开放交互式死亡 trigger/interrupt。基础胜负
+evaluator 产生候选，有序 modifier 可以依据 plugin state 补充、阻断或替换候选，最终返回明确获胜
 Player IDs。
 
 ## 事件、状态与 replay
@@ -188,7 +191,8 @@ Player IDs。
 验证 plugin event schema，然后立即调用 reducer。核心 reducer 负责 Match、phase、玩家、Sheriff、
 死亡、投票、能力、capability 和终局状态；plugin event registry 负责各插件的 `pluginState` 分片。
 
-事件可见性有 public、god、players 和 faction 四类。引擎决定事件事实和初始可见性；server 结合观看者
+事件可见性有 public、god、players 和 faction 四类。死亡事实记录原因与昼夜时点，终局事实记录
+Faction 与明确获胜 Player IDs。引擎决定事件事实和初始可见性；server 结合观看者
 身份、公开淘汰、Role reveal 和 phase presentation 构造最终视图。精确投影规则属于
 [信息同步架构](information-synchronization.md)。
 
@@ -199,7 +203,7 @@ GameEngine restore 只额外应用持久 Match status 与 paused reason；它不
 ## 扩展边界
 
 - 新 Role 通过 Role plugin 注册 Role、abilities、capabilities、专属 phases、events、effects、queries、
-  triggers、interrupts 或 victory 贡献；跨层实现使用
+  action validators、triggers、interrupts 或 victory modifier；跨层实现使用
   [Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md)。
 - 新共享机制进入最窄 registry；只在多个插件需要同一契约时扩展通用类型。
 - 新 phase 行为通过节点声明、selector、predicate 和 handler 表达，server 与 action validator 不添加
@@ -223,6 +227,7 @@ GameEngine restore 只额外应用持久 Match status 与 paused reason；它不
 - GameState 的规则变化只来自已校验并按序追加的 GameEvent。
 - 通用内核不包含具体 Role、Ability、Phase 或 Plugin ID 分支。
 - PhaseNode 是 actor、action、visibility、interrupt 和控制流的语义来源。
+- 自动死亡反应先形成完整死亡批次，交互式死亡技能与胜负只读取该稳定结果。
 - Ability 产生 effects，ResolutionRegistry 结算共享交互，Role plugin 产生其 outcomes。
 - Ruleset lock 和 fingerprint 决定 replay 解释器，目录当前值不能改写既有 Match。
 - 引擎只声明 visibility；server projection 才是外部消费者的保密边界。

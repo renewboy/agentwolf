@@ -123,10 +123,11 @@ flowchart TB
 
 - actor：当前玩家的 Player ID、Seat、昵称、生存状态、Role、Faction 和 ability usage；
 - roster：按 Seat 排序的公开身份，以及该玩家通过自身、阵营共享、公开 reveal 或终局可知的 Role；
-- board：Role 构成、Faction、Sheriff 开关与冻结政策；
+- board：Role 构成、Faction、Sheriff 开关、冻结政策，以及从 phase graph 提取并按当前板子过滤的
+  夜间行动顺序；
 - game：day、night、status 与 paused reason；
 - events：送达游标之后对该玩家可见且保持原 sequence 顺序的事件；
-- turn：phase、action type、speech/vote kind、可用 abilities、interrupts、Sheriff actions 和发言上限；
+- turn：phase、action type、speech/vote kind、可用 abilities、pass 许可、interrupts、Sheriff actions 和发言上限；
 - Character：仅 foundation 中该 Seat 的不可变公开表达卡。
 
 允许的 ability/interrupt 在进入 facts 前再次按 actor 当前 capability 过滤。Prompt registry 提供
@@ -172,8 +173,8 @@ sequenceDiagram
 ### Foundation
 
 foundation 要求输入历史的最后 sequence 与 GameState `lastSequence` 完全相同。它一次性呈现公开 board
-规则、公开 Role 说明、actor 自身 Role/Abilities、可见阵营知识、初始可见事件、完整初始 roster 和
-Character。公开 Role 说明描述 board 中存在的语义，不建立 Seat 到隐藏 Role 的映射。
+规则、夜间行动顺序、公开 Role 说明、actor 自身 Role/Abilities、可见阵营知识、初始可见事件、完整
+初始 roster 和 Character。公开 Role 说明描述 board 中存在的语义，不建立 Seat 到隐藏 Role 的映射。
 
 player-session binding 在 foundation 前处于 `bootstrapState=pending`。派发前改为 `dispatched`，
 delivery 确认后改为 `acknowledged`。若进程在派发后中断，恢复同一 Session 并发送紧凑 bootstrap

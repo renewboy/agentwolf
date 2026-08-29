@@ -11,7 +11,7 @@ import {
   type PlayerId,
 } from '@agentwolf/contracts'
 import { type AcpPromptResult } from '@agentwolf/acp'
-import { sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
+import { cupidBoard, sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
@@ -41,6 +41,99 @@ afterEach(async () => {
 })
 
 describe('match orchestration', () => {
+  it('runs a Cupid board through the real mailbox and captures its exact terminal winners', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-cupid-runtime-'))
+    temporaryDirectories.push(root)
+    let server: AgentWolfServer
+    const prompts = new Map<PlayerId, string[]>()
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: true,
+    }
+    server = await buildServer({
+      config,
+      sessionFactory: scriptedSessionFactory({
+        prompts,
+        mailbox: () => server.matches.mailbox,
+      }),
+    })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: 'Cupid scripted ACP',
+      kind: 'custom',
+      command: 'cupid-scripted-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Cupid scripted player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = cupidBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = server.matches.createMatch({
+      boardId: cupidBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Cupid runtime player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    server.matches.beginMatch(created.id)
+    const terminal = await waitForMatch(server, created.id)
+    if (terminal.status === 'paused') throw new Error(terminal.pausedReason ?? 'Cupid Match paused')
+    expect(terminal).toMatchObject({
+      status: 'ended',
+      winner: 'werewolf',
+      winningPlayerIds: ['player-2', 'player-3', 'player-4'],
+      postgameReview: {
+        winningPlayerIds: ['player-2', 'player-3', 'player-4'],
+      },
+    })
+    const events = server.repository.listMatchEvents(created.id)
+    const linked = events.find(
+      (event) =>
+        event.payload.type === 'plugin.event' && event.payload.eventType === 'event-cupid-linked',
+    )
+    expect(linked?.visibility).toEqual({
+      kind: 'players',
+      playerIds: ['player-12', 'player-1', 'player-5'],
+    })
+    expect(
+      events.find(
+        (event) =>
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === 'event-cupid-linked-death',
+      )?.payload,
+    ).toMatchObject({
+      data: { sourceId: 'player-5', targetId: 'player-1', timing: 'night' },
+    })
+    expect(events.findLast((event) => event.payload.type === 'match.ended')?.payload).toMatchObject(
+      {
+        winner: 'werewolf',
+        winningPlayerIds: ['player-2', 'player-3', 'player-4'],
+      },
+    )
+    expect(await server.simulations.addCandidate(created.id)).toMatchObject({ created: true })
+    expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
+      ok: true,
+      issues: [],
+    })
+  }, 20_000)
+
   it('generates a speech round ahead but holds its following phase at the final playback', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-playback-gate-'))
     temporaryDirectories.push(root)

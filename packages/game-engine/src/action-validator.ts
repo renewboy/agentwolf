@@ -74,6 +74,7 @@ export function validateTurnAction(
         `${action.abilityId} does not accept ${action.type}`,
       )
       if (action.option === 'pass') {
+        assertRule(definition.passAllowed !== false, `${node.id} does not allow pass`)
         assertRule(action.targetIds.length === 0, 'A pass action cannot have targets')
         return
       }
@@ -87,6 +88,9 @@ export function validateTurnAction(
         allowedSkillAbilityIds(definition, actor, state, board, roles, triggers),
         action.abilityId,
       )
+      if (action.option === 'pass') {
+        assertRule(definition.passAllowed !== false, `${node.id} does not allow pass`)
+      }
       validateRoleSkill(action, state, board, roles, actor)
       return
   }

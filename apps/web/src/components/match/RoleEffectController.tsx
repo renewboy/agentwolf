@@ -4,6 +4,7 @@ import {
   Crown,
   Drop,
   Eye,
+  Heart,
   MoonStars,
   Shield,
   Skull,
@@ -181,6 +182,7 @@ function effectIcon(icon: (typeof roleEffectCatalog)[string]['icon']): ReactNode
     transfer: <ArrowsLeftRight size={34} weight="bold" />,
     mirror: <Eye size={34} weight="duotone" />,
     burst: <Skull size={34} weight="duotone" />,
+    heart: <Heart size={34} weight="fill" />,
   }
   return icons[icon]
 }

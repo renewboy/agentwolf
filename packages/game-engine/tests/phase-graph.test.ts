@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { PhaseIdSchema } from '@agentwolf/contracts'
-import { createClassicRuleset, expectedVoteKind, phaseSpeechKind } from '../src/index.js'
+import {
+  createClassicRuleset,
+  createClassicV3Ruleset,
+  expectedVoteKind,
+  phaseSpeechKind,
+} from '../src/index.js'
 
 const classicRuleset = createClassicRuleset()
 const classicPhaseGraph = classicRuleset.phases
@@ -17,6 +22,12 @@ describe('phase plugin ownership', () => {
     expect(contribution('plugin-role-witch')).toEqual(['phase-night-witch'])
     expect(contribution('plugin-classic-day')).toContain('phase-day-speech')
     expect(contribution('plugin-classic-terminal')).toEqual(['phase-match-ended'])
+    expect(contribution('plugin-role-cupid')).toEqual(['phase-night-cupid'])
+    expect(classicPhaseGraph.entry).toBe('phase-night-cupid')
+    expect(createClassicV3Ruleset().phases.entry).toBe('phase-night-guard')
+    expect(
+      phaseNode('phase-day-resolve').edges.some((edge) => edge.to === 'phase-night-cupid'),
+    ).toBe(true)
   })
 })
 

@@ -45,6 +45,8 @@
 本局采用{% if board.policies.victory == 'slaughter-edge' %}屠边{% else %}屠城{% endif %}规则。
 {% if board.sheriff %}首日进行警长竞选，首位警上发言玩家由裁判确定。警长拥有 1.5 票并决定白天发言方向：昨夜单死时选择死左或死右；平安夜或多人死亡时选择警左或警右。警长始终最后发言并总结归票。{% else %}本局不设警长竞选与警徽。昨夜单死时，裁判从死者一侧第一名存活玩家开始并确定方向；多人死亡时以座位号最小的死者为基准并确定方向；平安夜时由裁判确定起点和方向。{% endif %}
 {% if board.policies.nightLastWords == 'first-night-only' %}首夜死亡玩家有遗言，所有白天出局玩家有遗言。{% elif board.policies.nightLastWords == 'every-night' %}每晚死亡玩家及所有白天出局玩家都有遗言。{% else %}夜间死亡玩家没有遗言，白天出局玩家有遗言。{% endif %}
+{% if board.nightActionOrder.length %}夜间行动顺序（仅执行本夜可用的行动）：{% for step in board.nightActionOrder %}{{ helpers.phase(step.phaseId) }}{% if step.firstNightOnly %}（仅首夜）{% endif %}{% if not loop.last %} → {% endif %}{% endfor %}。
+{% endif %}
 
 # 当前对局进程
 

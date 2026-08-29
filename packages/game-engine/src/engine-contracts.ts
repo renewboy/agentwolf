@@ -55,6 +55,7 @@ export interface TurnDescriptor {
   readonly voteKind?: Extract<PlayerAction, { type: 'vote' }>['kind']
   readonly abilityId?: AbilityId
   readonly allowedAbilityIds?: readonly AbilityId[]
+  readonly passAllowed?: boolean
   readonly interruptAbilityIds?: readonly AbilityId[]
   readonly sheriffActions?: readonly Extract<PlayerAction, { type: 'sheriff-action' }>['action'][]
 }

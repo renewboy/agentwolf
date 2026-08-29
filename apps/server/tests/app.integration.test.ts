@@ -149,9 +149,14 @@ describe('Fastify API', () => {
         })
       ).statusCode,
     ).toBe(404)
-    expect(
-      (await server.app.inject({ method: 'GET', url: '/api/roles' })).json().length,
-    ).toBeGreaterThan(0)
+    const roleCatalog = (await server.app.inject({ method: 'GET', url: '/api/roles' })).json()
+    expect(roleCatalog.length).toBeGreaterThan(0)
+    expect(roleCatalog).toContainEqual({
+      id: 'role-cupid',
+      name: '丘比特',
+      faction: 'independent',
+      kind: 'independent',
+    })
 
     const matchId = MatchIdSchema.parse('match-route-coverage')
     vi.spyOn(server.matches, 'beginMatch').mockReturnValue({ id: matchId } as never)
@@ -455,6 +460,7 @@ describe('Fastify API', () => {
       'board-standard-9',
       'board-standard-12',
       'board-guard-12',
+      'board-cupid-12',
       'board-mirror-hidden-10',
       'board-white-wolf-king-12',
     ])
@@ -754,6 +760,24 @@ describe('Fastify API', () => {
     expect(duplicateHiddenWolf.json().message).toContain(
       'role-awakened-hidden-wolf allows at most 1',
     )
+    const duplicateCupid = await server.app.inject({
+      method: 'POST',
+      url: '/api/boards',
+      payload: {
+        name: '非法双丘比特板子',
+        description: '',
+        roles: [
+          { roleId: 'role-cupid', count: 2 },
+          { roleId: 'role-werewolf', count: 1 },
+          { roleId: 'role-villager', count: 2 },
+          { roleId: 'role-seer', count: 1 },
+        ],
+        sheriff: false,
+        victory: 'slaughter-edge',
+      },
+    })
+    expect(duplicateCupid.statusCode).toBe(400)
+    expect(duplicateCupid.json().message).toContain('role-cupid allows at most 1')
     const unknownAgentDefault = await server.app.inject({
       method: 'POST',
       url: '/api/boards',
@@ -805,8 +829,8 @@ describe('Fastify API', () => {
     const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
     expect(snapshot).toMatchObject({
       schemaVersion: 2,
-      rulesetId: 'classic-v3',
-      ruleset: { id: 'ruleset-classic-v3', version: 3 },
+      rulesetId: 'classic-v4',
+      ruleset: { id: 'ruleset-classic-v4', version: 4 },
       policies: { victory: 'slaughter-all' },
       agentProfiles: expect.arrayContaining([
         { seat: 1, profileId: boardProfile.id },

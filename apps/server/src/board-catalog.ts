@@ -17,6 +17,7 @@ import {
   RuleViolation,
   boardManifestFromSnapshot,
   classicBoardPolicyDefaults,
+  cupidBoard,
   guardBoard,
   mirrorHiddenBoard,
   ninePlayerBoard,
@@ -56,6 +57,11 @@ const builtInBoards: readonly BuiltInBoardDefinition[] = [
     manifest: guardBoard,
     nameKey: 'boards.guard12.name',
     descriptionKey: 'boards.guard12.description',
+  },
+  {
+    manifest: cupidBoard,
+    nameKey: 'boards.cupid12.name',
+    descriptionKey: 'boards.cupid12.description',
   },
   {
     manifest: mirrorHiddenBoard,

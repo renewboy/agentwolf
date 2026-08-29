@@ -18,6 +18,9 @@ import { JsonValueSchema } from './plugins.js'
 export const FactionSchema = z.enum(['village', 'werewolf', 'independent'])
 export type Faction = z.infer<typeof FactionSchema>
 
+export const DeathTimingSchema = z.enum(['day', 'night'])
+export type DeathTiming = z.infer<typeof DeathTimingSchema>
+
 export const EventVisibilitySchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('public') }),
   z.object({ kind: z.literal('god') }),
@@ -182,6 +185,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     type: z.literal('death.pending'),
     playerId: PlayerIdSchema,
     causes: z.array(z.string()).min(1),
+    timing: DeathTimingSchema.optional(),
   }),
   z.object({
     type: z.literal('death.cancelled'),
@@ -208,6 +212,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     playerId: PlayerIdSchema,
     causes: z.array(z.string()).min(1),
     announced: z.boolean(),
+    timing: DeathTimingSchema.optional(),
   }),
   z.object({
     type: z.literal('players.eliminated-publicly'),
@@ -273,6 +278,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('match.ended'),
     winner: FactionSchema,
+    winningPlayerIds: z.array(PlayerIdSchema).min(1).optional(),
     reason: z.string(),
   }),
 ])

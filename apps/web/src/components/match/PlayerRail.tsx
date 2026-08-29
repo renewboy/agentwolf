@@ -1,6 +1,6 @@
-import { Crown, HandPalm, Medal, Skull, Trophy } from '@phosphor-icons/react'
-import { getCopy } from '@agentwolf/assets'
-import type { PostgameReviewView, SeatView } from '@agentwolf/contracts'
+import { Crown, HandPalm, Heart, Medal, Skull, Trophy } from '@phosphor-icons/react'
+import { getCopy, getPlayerMarkerDefinition, type PlayerMarkerDefinition } from '@agentwolf/assets'
+import type { PlayerMarkerId, PostgameReviewView, SeatView } from '@agentwolf/contracts'
 import { RoleBadge } from '../RoleBadge.js'
 import { characterPortraitUrl } from '../../character-portraits.js'
 import { formatAgentConfiguration } from '../../agent-configuration.js'
@@ -140,11 +140,16 @@ function PlayerCard({
         {seat.character ? (
           <span className="aw-player-card__character">{seat.character.name}</span>
         ) : null}
-        <RoleBadge
-          className="aw-player-card__role"
-          label={seat.roleName ?? getCopy('match.roleHidden')}
-          roleId={seat.roleId}
-        />
+        <div className="aw-player-card__badges">
+          <RoleBadge
+            className="aw-player-card__role"
+            label={seat.roleName ?? getCopy('match.roleHidden')}
+            roleId={seat.roleId}
+          />
+          {(seat.markers ?? []).map((markerId) => (
+            <PlayerMarkerBadge key={markerId} markerId={markerId} />
+          ))}
+        </div>
         <span className="aw-player-card__status">
           <span className="aw-player-card__status-mark" aria-hidden />
           {statusLabel}
@@ -155,4 +160,28 @@ function PlayerCard({
       </span>
     </article>
   )
+}
+
+function PlayerMarkerBadge({ markerId }: { readonly markerId: PlayerMarkerId }) {
+  const definition = getPlayerMarkerDefinition(markerId)
+  const label = getCopy(definition.labelKey)
+  return (
+    <span
+      className="aw-player-marker"
+      data-marker-id={definition.id}
+      data-tone={definition.tone}
+      aria-label={label}
+    >
+      <PlayerMarkerIcon icon={definition.icon} />
+      {label}
+    </span>
+  )
+}
+
+function PlayerMarkerIcon({ icon }: { readonly icon: PlayerMarkerDefinition['icon'] }) {
+  switch (icon) {
+    case 'heart':
+      return <Heart size={11} weight="fill" aria-hidden />
+  }
+  throw new Error('Unknown player marker icon')
 }

@@ -183,8 +183,8 @@ export class PromptBundleRegistry {
     return this.#ability(abilityId).presentation.label
   }
 
-  public phaseLabel(phaseId: PhaseId): string {
-    return this.#phase(phaseId).presentation.label
+  public phasePresentation(phaseId: PhaseId): PromptPhasePresentation {
+    return this.#phase(phaseId).presentation
   }
 
   public factionLabel(faction: Faction): string {
@@ -310,7 +310,7 @@ export class PromptBundleRegistry {
           .map((player) => player.playerId),
       role: (roleId: RoleId) => this.roleLabel(roleId),
       ability: (abilityId: AbilityId) => this.abilityLabel(abilityId),
-      phase: (phaseId: PhaseId) => this.phaseLabel(phaseId),
+      phase: (phaseId: PhaseId) => this.phasePresentation(phaseId).label,
       faction: (faction: Faction) => this.factionLabel(faction),
       visibleEvent: (eventType: string) =>
         [...events].reverse().find((event) => event.payload.type === eventType)?.payload ?? null,

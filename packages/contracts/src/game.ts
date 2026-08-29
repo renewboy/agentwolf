@@ -9,7 +9,7 @@ import {
 } from './ids.js'
 import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
 import { AgentConfigurationSummarySchema } from './agents.js'
-import { RoleEffectCueSchema } from './effects.js'
+import { PlayerMarkerIdSchema, RoleEffectCueSchema } from './effects.js'
 import { RulesetLockSchema } from './plugins.js'
 import { PostgameReviewViewSchema } from './postgame.js'
 import { SpeechCharacterLimitSchema } from './settings.js'
@@ -149,7 +149,7 @@ const MatchBoardSnapshotV1Schema = z.object({
 
 const MatchBoardSnapshotV2Schema = z.object({
   schemaVersion: z.literal(2),
-  rulesetId: z.enum(['classic-v1', 'classic-v2', 'classic-v3']),
+  rulesetId: z.enum(['classic-v1', 'classic-v2', 'classic-v3', 'classic-v4']),
   ruleset: RulesetLockSchema,
   policies: BoardPolicySnapshotSchema,
   ...MatchBoardSnapshotFields,
@@ -179,6 +179,7 @@ export const SeatViewSchema = z.object({
   sheriff: z.boolean(),
   sheriffCandidate: z.boolean().default(false),
   active: z.boolean(),
+  markers: z.array(PlayerMarkerIdSchema).default([]),
   roleId: RoleIdSchema.optional(),
   roleName: z.string().optional(),
   faction: z.enum(['village', 'werewolf', 'independent']).optional(),
@@ -227,6 +228,7 @@ export const MatchViewSchema = z.object({
     })
     .nullable(),
   winner: z.enum(['village', 'werewolf', 'independent']).nullable(),
+  winningPlayerIds: z.array(PlayerIdSchema).default([]),
   pausedReason: z.string().nullable(),
   postgameReview: PostgameReviewViewSchema.nullable().default(null),
 })

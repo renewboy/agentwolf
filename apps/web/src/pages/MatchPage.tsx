@@ -403,9 +403,31 @@ function presenceLabel(
     case 'paused':
       return getCopy('match.presencePaused')
     case 'ended':
-      return match.winner
-        ? formatCopy(getCopy('match.winner'), { faction: getCopy(`factions.${match.winner}`) })
-        : getCopy('match.presenceEnded')
+      if (!match.winner) return getCopy('match.presenceEnded')
+      const factionWinnerIds = match.seats
+        .filter((seat) => seat.faction === match.winner)
+        .map((seat) => seat.playerId)
+        .sort()
+      const explicitWinnerIds = [...match.winningPlayerIds].sort()
+      const hasDynamicWinners =
+        explicitWinnerIds.length > 0 &&
+        (explicitWinnerIds.length !== factionWinnerIds.length ||
+          explicitWinnerIds.some((playerId, index) => playerId !== factionWinnerIds[index]))
+      if (!hasDynamicWinners) {
+        return formatCopy(getCopy('match.winner'), { faction: getCopy(`factions.${match.winner}`) })
+      }
+      const winningPlayers = match.seats
+        .filter((seat) => match.winningPlayerIds.includes(seat.playerId))
+        .map((seat) =>
+          formatCopy(getCopy('postgame.playerShort'), { seat: seat.seat, name: seat.name }),
+        )
+        .join('、')
+      return winningPlayers
+        ? formatCopy(getCopy('match.winnerWithPlayers'), {
+            faction: getCopy(`factions.${match.winner}`),
+            players: winningPlayers,
+          })
+        : formatCopy(getCopy('match.winner'), { faction: getCopy(`factions.${match.winner}`) })
     case 'initial-loading':
       return getCopy('match.syncing')
     case 'awaiting-actions':

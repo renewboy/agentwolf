@@ -24,11 +24,13 @@ import {
   RoleRegistry,
   RuleRegistry,
   SemanticOwnershipRecorder,
+  TriggerRegistry,
   VictoryRegistry,
   classicCapabilities,
   classicIdentityQueries,
   createClassicRuleset,
   standardBoard,
+  v1AbilityIds,
   visibility,
   type AbilityDefinition,
   type GameState,
@@ -225,6 +227,50 @@ describe('small registries', () => {
       }),
     })
     expect(registry.evaluate(context)?.winningPlayerIds).toEqual(['player-1', 'player-2'])
+    const modifierCalls: string[] = []
+    registry.registerModifier({
+      id: 'later',
+      order: 10,
+      transform: (_context, current) => {
+        modifierCalls.push('later')
+        return current
+      },
+    })
+    registry.registerModifier({
+      id: 'first',
+      order: -10,
+      transform: (_context, current) => {
+        modifierCalls.push('first')
+        return current
+          ? {
+              ...current,
+              winningPlayerIds: [...current.winningPlayerIds, PlayerIdSchema.parse('player-3')],
+            }
+          : null
+      },
+    })
+    expect(registry.evaluate(context)?.winningPlayerIds).toEqual([
+      'player-1',
+      'player-2',
+      'player-3',
+    ])
+    expect(modifierCalls).toEqual(['first', 'later'])
+    expect(() =>
+      registry.registerModifier({ id: 'first', transform: (_context, current) => current }),
+    ).toThrow(/Duplicate victory modifier/)
+
+    const created = new VictoryRegistry()
+    created.registerModifier({
+      id: 'create',
+      transform: () => ({
+        winner: 'independent',
+        winningPlayerIds: [player1()],
+        reason: 'created',
+      }),
+    })
+    expect(created.evaluate(context)?.winner).toBe('independent')
+    created.registerModifier({ id: 'suppress', transform: () => null })
+    expect(created.evaluate(context)).toBeNull()
 
     const repeated = new VictoryRegistry()
     repeated.register({
@@ -323,6 +369,140 @@ describe('semantic ownership', () => {
   })
 })
 
+describe('automatic death trigger registry', () => {
+  it('expands, de-duplicates, records ownership, and rejects invalid reactions', () => {
+    const engine = createManualEngine(standardBoard)
+    const players = [...engine.state.players.values()]
+    const first = players[0]!
+    const second = players[1]!
+    const owner = new SemanticOwnershipRecorder()
+    owner.begin(pluginId)
+    const registry = new TriggerRegistry(owner)
+    const triggerId = TriggerIdSchema.parse('trigger-test-automatic-death')
+    registry.registerAutomaticDeath({
+      id: triggerId,
+      signal: 'player-death',
+      react: ({ death }) =>
+        death.playerId === first.id
+          ? [{ death: { playerId: second.id, causes: ['linked'], timing: death.timing } }]
+          : [],
+    })
+    owner.end(pluginId)
+    expect(
+      registry.resolveDeaths([{ playerId: first.id, causes: ['poison'], timing: 'night' }], {
+        state: engine.state,
+        board: standardBoard,
+        roles: createClassicRuleset().roles,
+      }),
+    ).toMatchObject([
+      { death: { playerId: first.id, causes: ['poison'], timing: 'night' }, original: true },
+      { death: { playerId: second.id, causes: ['linked'], timing: 'night' }, original: false },
+    ])
+    expect(
+      registry.resolveDeaths(
+        [
+          { playerId: first.id, causes: ['poison'], timing: 'night' },
+          { playerId: first.id, causes: ['werewolf'], timing: 'night' },
+        ],
+        { state: engine.state, board: standardBoard, roles: createClassicRuleset().roles },
+      )[0]?.death.causes,
+    ).toEqual(['poison', 'werewolf'])
+    expect(
+      registry.resolveDeaths(
+        [
+          { playerId: first.id, causes: ['poison'], timing: 'night' },
+          { playerId: second.id, causes: ['werewolf'], timing: 'night' },
+        ],
+        { state: engine.state, board: standardBoard, roles: createClassicRuleset().roles },
+      )[1]?.death.causes,
+    ).toEqual(['werewolf', 'linked'])
+    expect(owner.contributions([pluginId])[0]?.triggerIds).toEqual([triggerId])
+    expect(() =>
+      registry.registerAutomaticDeath({ id: triggerId, signal: 'player-death', react: () => [] }),
+    ).toThrow(/Duplicate trigger/)
+
+    const duplicateDecision = new TriggerRegistry()
+    const decisionId = TriggerIdSchema.parse('trigger-test-duplicate-decision')
+    duplicateDecision.registerDecision({
+      id: decisionId,
+      signal: 'test',
+      abilityId,
+      eligible: () => true,
+    })
+    expect(() =>
+      duplicateDecision.registerDecision({
+        id: decisionId,
+        signal: 'test',
+        abilityId,
+        eligible: () => true,
+      }),
+    ).toThrow(/Duplicate decision trigger/)
+    expect(() =>
+      duplicateDecision.registerAutomaticDeath({
+        id: decisionId,
+        signal: 'player-death',
+        react: () => [],
+      }),
+    ).toThrow(/Duplicate trigger/)
+
+    const ruleset = createClassicRuleset()
+    const hunter = players.find((player) => player.roleId === 'role-hunter')!
+    const hunterState: GameState = {
+      ...engine.state,
+      recentDeaths: new Map([
+        [hunter.id, { playerId: hunter.id, causes: ['werewolf'], timing: 'night' }],
+      ]),
+    }
+    expect(
+      ruleset.triggers.abilityIdsFor(
+        'player-death',
+        hunter,
+        hunterState,
+        standardBoard,
+        ruleset.roles,
+      ),
+    ).toContain(v1AbilityIds.hunterShot)
+
+    const conflict = new TriggerRegistry()
+    conflict.registerAutomaticDeath({
+      id: TriggerIdSchema.parse('trigger-test-conflicting-death'),
+      signal: 'player-death',
+      react: () => [{ death: { playerId: second.id, causes: ['linked'], timing: 'day' } }],
+    })
+    expect(() =>
+      conflict.resolveDeaths(
+        [
+          { playerId: first.id, causes: ['poison'], timing: 'night' },
+          { playerId: second.id, causes: ['werewolf'], timing: 'night' },
+        ],
+        { state: engine.state, board: standardBoard, roles: createClassicRuleset().roles },
+      ),
+    ).toThrow(/conflicting timing/)
+
+    const unknown = new TriggerRegistry()
+    unknown.registerAutomaticDeath({
+      id: TriggerIdSchema.parse('trigger-test-unknown-death'),
+      signal: 'player-death',
+      react: () => [
+        {
+          death: {
+            playerId: PlayerIdSchema.parse('player-99'),
+            causes: ['linked'],
+            timing: 'day',
+          },
+        },
+      ],
+    })
+    expect(() =>
+      unknown.resolveDeaths([{ playerId: first.id, causes: ['exile'], timing: 'day' }], {
+        state: engine.state,
+        board: standardBoard,
+        roles: createClassicRuleset().roles,
+      }),
+    ).toThrow(/unknown player/)
+  })
+})
+
 describe('plugin event and rule registries', () => {
   it('validates/applies typed plugin events and legacy reducers', () => {
     const owner = new SemanticOwnershipRecorder()
@@ -365,6 +545,12 @@ describe('plugin event and rule registries', () => {
   it('selects/evaluates dynamic and registered rules and orders phase handlers', () => {
     const registry = new RuleRegistry()
     const runtime = engineRuntime()
+    expect(registry.persistDeathTiming).toBe(false)
+    registry.configureDeathEvents({ persistTiming: true })
+    expect(registry.persistDeathTiming).toBe(true)
+    expect(() => registry.configureDeathEvents({ persistTiming: false })).toThrow(
+      /already configured/,
+    )
     expect(registry.selectActors(undefined, runtime)).toEqual([])
     expect(registry.evaluate(undefined, runtime)).toBe(true)
     expect(registry.selectActors('faction-alive:village', runtime).length).toBeGreaterThan(0)
@@ -395,6 +581,25 @@ describe('plugin event and rule registries', () => {
     registry.complete(phaseA, runtime)
     registry.complete(phaseB, runtime)
     expect(calls).toEqual(['first', 'late', 'same'])
+    const validationCalls: string[] = []
+    registry.registerActionValidator('late', () => validationCalls.push('late'), { order: 2 })
+    registry.registerActionValidator('first', () => validationCalls.push('first'), { order: 1 })
+    registry.registerActionValidator('same', () => validationCalls.push('same'), { order: 2 })
+    expect(() => registry.registerActionValidator('first', () => undefined)).toThrow(
+      /Duplicate action validator/,
+    )
+    registry.validateAction(
+      { id: phaseA, labelKey: 'phases.dayResolve', mode: 'automatic', edges: [] },
+      {
+        type: 'vote',
+        matchId: runtime.state.matchId,
+        actorId: player1(),
+        targetId: null,
+        kind: 'exile',
+      },
+      runtime,
+    )
+    expect(validationCalls).toEqual(['first', 'late', 'same'])
     expect(visibility.public).toEqual({ kind: 'public' })
     expect(visibility.god).toEqual({ kind: 'god' })
     expect(visibility.players([player1()])).toEqual({ kind: 'players', playerIds: [player1()] })

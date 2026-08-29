@@ -1,14 +1,17 @@
 import {
+  DeathTimingSchema,
   PlayerIdSchema,
   PluginEventTypeSchema,
   PluginIdSchema,
   RoleIdSchema,
   type GameEvent,
+  type PlayerMarkerId,
   type PlayerId,
   type RoleEffectId,
 } from '@agentwolf/contracts'
 import { formatCopy, getCopy } from './catalog.js'
 import type { NarrationCatalog } from './narration.js'
+import { cupidLoverMarkerId } from './player-markers.js'
 
 interface PluginEventEffect {
   readonly effectId: RoleEffectId
@@ -17,12 +20,18 @@ interface PluginEventEffect {
   readonly variant: string | null
 }
 
+export interface PluginEventPlayerMarker {
+  readonly markerId: PlayerMarkerId
+  readonly playerIds: readonly PlayerId[]
+}
+
 interface PluginEventPresentation {
   readonly pluginId: string
   readonly eventType: string
   playerIds(data: unknown): PlayerId[]
   narrate(data: unknown, catalog: NarrationCatalog): string
   effect(data: unknown): PluginEventEffect | null
+  playerMarkers?(data: unknown): PluginEventPlayerMarker[]
 }
 
 const magicMirrorPluginId = PluginIdSchema.parse('plugin-role-magic-mirror-girl')
@@ -37,6 +46,11 @@ const awakenedHiddenWolfEventTypes = {
   poisoned: PluginEventTypeSchema.parse('event-awakened-hidden-wolf-poisoned'),
   protected: PluginEventTypeSchema.parse('event-awakened-hidden-wolf-protected'),
   attacked: PluginEventTypeSchema.parse('event-awakened-hidden-wolf-attacked'),
+} as const
+const cupidPluginId = PluginIdSchema.parse('plugin-role-cupid')
+const cupidEventTypes = {
+  linked: PluginEventTypeSchema.parse('event-cupid-linked'),
+  linkedDeath: PluginEventTypeSchema.parse('event-cupid-linked-death'),
 } as const
 
 const presentations: readonly PluginEventPresentation[] = [
@@ -204,6 +218,60 @@ const presentations: readonly PluginEventPresentation[] = [
       }
     },
   },
+  {
+    pluginId: cupidPluginId,
+    eventType: cupidEventTypes.linked,
+    playerIds: (data) => [...cupidLinkData(data).loverIds],
+    narrate: (data, catalog) => {
+      const { loverIds } = cupidLinkData(data)
+      const viewer = catalog.viewerPlayerId
+      const partnerId =
+        viewer === loverIds[0] ? loverIds[1] : viewer === loverIds[1] ? loverIds[0] : null
+      return partnerId
+        ? formatCopy(getCopy('narration.cupidLinkedForPlayer'), {
+            player: playerLabel(partnerId, catalog),
+          })
+        : formatCopy(getCopy('narration.cupidLinked'), {
+            players: loverIds.map((playerId) => playerLabel(playerId, catalog)).join('、'),
+          })
+    },
+    effect: (data) => ({
+      effectId: 'cupid-link',
+      sourcePlayerIds: [],
+      targetPlayerIds: [...cupidLinkData(data).loverIds],
+      variant: null,
+    }),
+    playerMarkers: (data) => [
+      {
+        markerId: cupidLoverMarkerId,
+        playerIds: [...cupidLinkData(data).loverIds],
+      },
+    ],
+  },
+  {
+    pluginId: cupidPluginId,
+    eventType: cupidEventTypes.linkedDeath,
+    playerIds: (data) => {
+      const parsed = cupidLinkedDeathData(data)
+      return [parsed.sourceId, parsed.targetId]
+    },
+    narrate: (data, catalog) => {
+      const parsed = cupidLinkedDeathData(data)
+      return formatCopy(getCopy('narration.cupidLinkedDeath'), {
+        source: playerLabel(parsed.sourceId, catalog),
+        target: playerLabel(parsed.targetId, catalog),
+      })
+    },
+    effect: (data) => {
+      const parsed = cupidLinkedDeathData(data)
+      return {
+        effectId: 'cupid-linked-death',
+        sourcePlayerIds: [parsed.sourceId],
+        targetPlayerIds: [parsed.targetId],
+        variant: parsed.timing,
+      }
+    },
+  },
 ]
 
 export function renderPluginEventNarration(
@@ -222,6 +290,11 @@ export function pluginEventPlayerIds(event: GameEvent): PlayerId[] {
 export function pluginEventEffect(event: GameEvent): PluginEventEffect | null {
   if (event.payload.type !== 'plugin.event') return null
   return definition(event.payload)?.effect(event.payload.data) ?? null
+}
+
+export function pluginEventPlayerMarkers(event: GameEvent): PluginEventPlayerMarker[] {
+  if (event.payload.type !== 'plugin.event') return []
+  return definition(event.payload)?.playerMarkers?.(event.payload.data) ?? []
 }
 
 function definition(payload: Extract<GameEvent['payload'], { type: 'plugin.event' }>) {
@@ -285,6 +358,28 @@ function awakenedAttackData(data: unknown) {
   return {
     actorId: PlayerIdSchema.parse(record['actorId']),
     targetIds: record['targetIds'].map((targetId) => PlayerIdSchema.parse(targetId)),
+  }
+}
+
+function cupidLinkData(data: unknown) {
+  const record = pluginData(data, 'Cupid link')
+  if (!Array.isArray(record['loverIds']) || record['loverIds'].length !== 2) {
+    throw new Error('Invalid Cupid lovers')
+  }
+  const loverIds = record['loverIds'].map((playerId) => PlayerIdSchema.parse(playerId)) as [
+    PlayerId,
+    PlayerId,
+  ]
+  if (loverIds[0] === loverIds[1]) throw new Error('Cupid lovers must be distinct')
+  return { loverIds }
+}
+
+function cupidLinkedDeathData(data: unknown) {
+  const record = pluginData(data, 'Cupid linked death')
+  return {
+    sourceId: PlayerIdSchema.parse(record['sourceId']),
+    targetId: PlayerIdSchema.parse(record['targetId']),
+    timing: DeathTimingSchema.parse(record['timing']),
   }
 }
 

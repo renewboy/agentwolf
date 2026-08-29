@@ -154,7 +154,7 @@ MatchPage 保存 `god/player/closed-eye` 和 player ID。view 改变时：
 MatchPage 只组合已投影信息：
 
 - Header：board/phase、连接状态、view、audio 和 effect mode；
-- PlayerRail：公开 Character、Role、alive、Sheriff、候选和有限 Session status；
+- PlayerRail：公开 Character、Role、alive、Sheriff、候选、投影授权的玩家标识和有限 Session status；
 - PresenceStage：从 Match status、postgame、连接、Session 和 speech 纯派生活动文案；
 - MatchFeed：timeline、live speech、vote detail、postgame award/reflection；
 - PostgameReviewPanel：countdown、评分进度、结果、感想与 start/skip/resume action；

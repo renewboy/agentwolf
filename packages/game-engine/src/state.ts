@@ -33,6 +33,7 @@ export function emptyGameState(matchId: MatchId, board: BoardManifest): GameStat
     preventedExilePlayerId: null,
     lastSequence: 0,
     winner: null,
+    winningPlayerIds: [],
     pausedReason: null,
   }
 }
@@ -173,9 +174,14 @@ export function reduceGameEvent(
     case 'death.pending': {
       const pendingDeaths = new Map(next.pendingDeaths)
       const previous = pendingDeaths.get(payload.playerId)
+      const timing = payload.timing ?? inferDeathTiming(payload.causes)
+      if (previous?.timing && previous.timing !== timing) {
+        throw new Error(`Pending death ${payload.playerId} has conflicting timing`)
+      }
       pendingDeaths.set(payload.playerId, {
         playerId: payload.playerId,
         causes: [...new Set([...(previous?.causes ?? []), ...payload.causes])],
+        timing,
       })
       next = { ...next, pendingDeaths }
       break
@@ -202,7 +208,11 @@ export function reduceGameEvent(
       const pendingDeaths = new Map(next.pendingDeaths)
       pendingDeaths.delete(payload.playerId)
       const recentDeaths = new Map(next.recentDeaths)
-      recentDeaths.set(payload.playerId, { playerId: payload.playerId, causes: payload.causes })
+      recentDeaths.set(payload.playerId, {
+        playerId: payload.playerId,
+        causes: payload.causes,
+        timing: payload.timing ?? inferDeathTiming(payload.causes),
+      })
       next = {
         ...next,
         pendingDeaths,
@@ -259,7 +269,12 @@ export function reduceGameEvent(
       next = { ...next, status: 'running', pausedReason: null }
       break
     case 'match.ended':
-      next = { ...next, status: 'ended', winner: payload.winner }
+      next = {
+        ...next,
+        status: 'ended',
+        winner: payload.winner,
+        winningPlayerIds: payload.winningPlayerIds ?? [],
+      }
       break
     case 'vote.resolved':
       next = {
@@ -290,6 +305,10 @@ export function reduceGameEvent(
       break
   }
   return next
+}
+
+function inferDeathTiming(causes: readonly string[]): 'day' | 'night' {
+  return causes.some((cause) => cause === 'werewolf' || cause === 'poison') ? 'night' : 'day'
 }
 
 export function replayGame(

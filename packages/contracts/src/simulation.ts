@@ -106,6 +106,7 @@ export const SimulationCheckpointSchema = z.object({
   night: z.number().int().nonnegative(),
   phaseId: PhaseIdSchema.nullable(),
   winner: FactionSchema.nullable(),
+  winningPlayerIds: z.array(PlayerIdSchema).default([]),
   sheriffId: PlayerIdSchema.nullable(),
   alivePlayerIds: z.array(PlayerIdSchema),
   votingPlayerIds: z.array(PlayerIdSchema),

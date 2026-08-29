@@ -7,6 +7,7 @@ This reference is generated from Role-owned Prompt manifests and localized built
 ## Roles
 
 - `role-awakened-hidden-wolf` — 觉醒隐狼
+- `role-cupid` — 丘比特
 - `role-guard` — 守卫
 - `role-hunter` — 猎人
 - `role-idiot` — 白痴
@@ -34,6 +35,10 @@ This reference is generated from Role-owned Prompt manifests and localized built
 ### 12 人守卫场
 
 预言家、女巫、猎人、守卫，四狼四民，上警屠边。
+
+### 12 人预女猎爱场
+
+预言家、女巫、猎人、丘比特，四狼四民，上警屠边。
 
 ### 10 人镜隐迷踪局
 

@@ -1,6 +1,12 @@
-import { PhaseIdSchema, type PlayerAction, type PlayerId } from '@agentwolf/contracts'
+import {
+  PhaseIdSchema,
+  type DeathTiming,
+  type PlayerAction,
+  type PlayerId,
+} from '@agentwolf/contracts'
+import { appendIndividualDeaths } from '../../../death-resolution.js'
 import { assertRule } from '../../../errors.js'
-import { visibility, type RuleRuntime } from '../../../rule-registry.js'
+import type { RuleRuntime } from '../../../rule-registry.js'
 
 export function phase(id: string): ReturnType<typeof PhaseIdSchema.parse> {
   return PhaseIdSchema.parse(id)
@@ -18,22 +24,10 @@ export function appendFinalDeath(
   runtime: RuleRuntime,
   playerId: PlayerId,
   causes: readonly string[],
+  timing: DeathTiming = 'day',
+  persistTiming = true,
 ): void {
-  const player = runtime.state.players.get(playerId)
-  assertRule(player, `Unknown death target ${playerId}`)
-  runtime.append(
-    { type: 'player.died', playerId, causes: [...causes], announced: false },
-    visibility.god,
-  )
-  runtime.append(
-    {
-      type: 'public.announcement',
-      code: 'player-eliminated',
-      playerIds: [playerId],
-      params: {},
-    },
-    visibility.public,
-  )
+  appendIndividualDeaths(runtime, [{ playerId, causes }], timing, persistTiming)
 }
 
 export function currentNightActions(runtime: RuleRuntime): PlayerAction[] {

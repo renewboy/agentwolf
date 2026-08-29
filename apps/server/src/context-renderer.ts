@@ -1,7 +1,9 @@
 import type {
   CharacterCardSnapshot,
   GameEvent,
+  PhaseId,
   PlayerId,
+  RoleId,
   SpectatorView,
 } from '@agentwolf/contracts'
 import {
@@ -9,6 +11,8 @@ import {
   visibleRoleId,
   type BoardManifest,
   type GameState,
+  type PhaseNode,
+  type RuleRuntime,
   type RulesetRuntime,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
@@ -60,7 +64,7 @@ export class ContextRenderer {
       prompt: this.#prompts.renderFoundation({
         actor: actorFact(player),
         roster: rosterFacts(state, historyEvents, { kind: 'player', playerId }),
-        board: boardFacts(board, this.#ruleset),
+        board: boardFacts(board, this.#ruleset, this.#prompts, state, historyEvents),
         game: gameFacts(state),
         events: [...projected],
         character,
@@ -92,7 +96,7 @@ export class ContextRenderer {
       prompt: this.#prompts.renderTurn({
         actor: actorFact(player),
         roster: rosterFacts(state, events, { kind: 'player', playerId }),
-        board: boardFacts(board, this.#ruleset),
+        board: boardFacts(board, this.#ruleset, this.#prompts, state, events),
         game: gameFacts(state),
         events: [...projected],
         turn: {
@@ -102,6 +106,7 @@ export class ContextRenderer {
           ...(turn.voteKind ? { voteKind: turn.voteKind } : {}),
           ...(turn.abilityId ? { abilityId: turn.abilityId } : {}),
           allowedAbilityIds: (turn.allowedAbilityIds ?? []).filter(canUse),
+          passAllowed: turn.passAllowed ?? true,
           interruptAbilityIds: (turn.interruptAbilityIds ?? []).filter(canUse),
           sheriffActions: [...(turn.sheriffActions ?? [])],
         },
@@ -153,7 +158,7 @@ export class ContextRenderer {
       narration: this.#prompts.renderEventNarration({
         actor: actorFact(actor),
         roster: rosterFacts(state, history, { kind: 'closed-eye' }),
-        board: boardFacts(board, this.#ruleset),
+        board: boardFacts(board, this.#ruleset, this.#prompts, state, history),
         game: gameFacts(state),
         events: narrationEvents,
         character: null,
@@ -194,15 +199,127 @@ function rosterFacts(state: GameState, events: readonly GameEvent[], view: Spect
     }))
 }
 
-function boardFacts(board: BoardManifest, ruleset: RulesetRuntime) {
+function boardFacts(
+  board: BoardManifest,
+  ruleset: RulesetRuntime,
+  prompts: ReturnType<typeof promptRegistryFor>,
+  state: GameState,
+  events: readonly GameEvent[],
+) {
   return {
     roles: board.roles.map((slot) => ({
       roleId: slot.roleId,
       faction: ruleset.roles.role(slot.roleId).faction,
       count: slot.count,
     })),
+    nightActionOrder: nightActionOrderFacts(board, ruleset, prompts, state, events),
     sheriff: board.sheriff,
     policies: { ...board.policies },
+  }
+}
+
+function nightActionOrderFacts(
+  board: BoardManifest,
+  ruleset: RulesetRuntime,
+  prompts: ReturnType<typeof promptRegistryFor>,
+  state: GameState,
+  events: readonly GameEvent[],
+): { phaseId: PhaseId; firstNightOnly: boolean }[] {
+  const boardRoleIds = new Set(board.roles.map((slot) => slot.roleId))
+  const ordered: { phaseId: PhaseId; firstNightOnly: boolean }[] = []
+  const visited = new Set<PhaseId>()
+  let phaseId: PhaseId | undefined = ruleset.phases.entry
+
+  while (phaseId) {
+    if (visited.has(phaseId)) {
+      throw new Error(`Night action order contains a cycle before daytime: ${phaseId}`)
+    }
+    visited.add(phaseId)
+    const node = ruleset.phases.nodes.get(phaseId)
+    if (!node) throw new Error(`Night action order references missing phase ${phaseId}`)
+    if (prompts.phasePresentation(node.id).daytime) break
+
+    const firstNight = promptRuleRuntime(state, board, ruleset, events, node, 1)
+    const laterNight = promptRuleRuntime(state, board, ruleset, events, node, 2)
+    if (node.action && phaseAppliesToBoard(node, boardRoleIds, ruleset, firstNight, laterNight)) {
+      const activeOnFirstNight = ruleset.rules.evaluate(node.activeWhen, firstNight)
+      const activeOnLaterNights = ruleset.rules.evaluate(node.activeWhen, laterNight)
+      ordered.push({
+        phaseId: node.id,
+        firstNightOnly: activeOnFirstNight && !activeOnLaterNights,
+      })
+    }
+
+    phaseId = node.edges.find((edge) => !edge.when)?.to
+  }
+
+  return ordered
+}
+
+function phaseAppliesToBoard(
+  node: PhaseNode,
+  boardRoleIds: ReadonlySet<RoleId>,
+  ruleset: RulesetRuntime,
+  firstNight: RuleRuntime,
+  laterNight: RuleRuntime,
+): boolean {
+  if (!node.action) return false
+  const abilityIds =
+    node.action.type === 'vote'
+      ? node.action.abilityId
+        ? [node.action.abilityId]
+        : []
+      : node.action.type === 'night-action' || node.action.type === 'skill-trigger'
+        ? node.action.abilityIds
+        : []
+  for (const abilityId of abilityIds) {
+    if (boardRoleIds.has(ruleset.roles.ability(abilityId).role.id)) return true
+  }
+
+  const capabilityIds =
+    node.action.type === 'night-action' || node.action.type === 'skill-trigger'
+      ? (node.action.capabilityIds ?? [])
+      : []
+  for (const capabilityId of capabilityIds) {
+    const roleIds = ruleset.roles
+      .abilityIdsForCapability(capabilityId)
+      .map((abilityId) => ruleset.roles.ability(abilityId).role.id)
+    if (roleIds.some((roleId) => boardRoleIds.has(roleId))) return true
+  }
+
+  return (
+    ruleset.rules.selectActors(node.actorSelector, firstNight).length > 0 ||
+    ruleset.rules.selectActors(node.actorSelector, laterNight).length > 0
+  )
+}
+
+function promptRuleRuntime(
+  state: GameState,
+  board: BoardManifest,
+  ruleset: RulesetRuntime,
+  events: readonly GameEvent[],
+  node: PhaseNode,
+  night: number,
+): RuleRuntime {
+  return {
+    state: {
+      ...state,
+      status: 'running',
+      day: night - 1,
+      night,
+      phaseId: node.id,
+      phaseLabelKey: node.labelKey,
+    },
+    board: { ...board, phases: ruleset.phases },
+    events,
+    roles: ruleset.roles,
+    resolution: ruleset.resolution,
+    victories: ruleset.victories,
+    queries: ruleset.queries,
+    triggers: ruleset.triggers,
+    append: () => {
+      throw new Error('Prompt rule projection cannot append events')
+    },
   }
 }
 
