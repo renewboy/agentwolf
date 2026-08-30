@@ -1,0 +1,4 @@
+[submodule "vendor/agent-arena-core"]
+	path = vendor/agent-arena-core
+	url = https://github.com/renewboy/agent-arena-core.git
+	branch = main
