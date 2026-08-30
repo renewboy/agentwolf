@@ -59,6 +59,15 @@ importers:
 
   apps/server:
     dependencies:
+      '@agent-arena/contracts':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/contracts
+      '@agent-arena/match-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/match-runtime
+      '@agent-arena/simulation':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/simulation
       '@agent-arena/trajectory':
         specifier: workspace:*
         version: link:../../vendor/agent-arena-core/packages/trajectory
@@ -166,6 +175,9 @@ importers:
 
   packages/assets:
     dependencies:
+      '@agent-arena/prompt-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/prompt-runtime
       '@agentwolf/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -206,6 +218,9 @@ importers:
 
   scripts:
     dependencies:
+      '@agent-arena/harness':
+        specifier: workspace:*
+        version: link:../vendor/agent-arena-core/packages/harness
       '@agentwolf/acp':
         specifier: workspace:*
         version: link:../packages/acp

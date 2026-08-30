@@ -57,6 +57,7 @@ flowchart LR
 | 组件                  | 拥有的决策或状态                                                                                                                     | 输入与产出                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
 | Agent Arena Core      | plugin 拓扑安装、semantic ownership、组合图、query/resolution 算法、Ruleset lock 与确定性选择                                        | 通用 plugin/registry contracts → 可复用基础机制           |
+| `AgentWolfGameModule` | 将现有 state/action/event/visibility/turn 映射为 Core GameModule、observation 与 decision boundary                                   | 产品事件与状态 → Core Match runtime contract              |
 | `RulesetBuilder`      | plugin 安装顺序、依赖、配置 schema 与语义所有权                                                                                      | RulePlugin 列表 → 冻结 `RulesetRuntime`                   |
 | registries            | Role/Ability、actor selector、action validator、phase handler、effect、query、trigger、interrupt、plugin event 与 victory 的唯一注册 | plugin 贡献 → 可按契约查询的行为集合                      |
 | `PhaseGraphRegistry`  | phase 节点、循环入口和有序插入，保证返回边、引用与可达性有效                                                                         | plugin nodes/insertions → `PhaseGraph`                    |
@@ -157,6 +158,10 @@ sequenceDiagram
 `phase.actor-completed`。sequential 节点宣布下一位 speech actor；parallel 节点只在所有 actor
 完成后进入 completion handler。server 可以对顺序发言使用 deferred continuation，在外部播报边界
 释放后再调用 `continueAfterDeferredAction`，但 phase 语义仍由引擎持有。
+
+GameModule adapter 从 phase ID、最后一条非 delivery 领域事件 sequence 与当前 actors 派生稳定 decision
+ID，因此 Prompt delivery 记录不会改变 active boundary。普通非发言 action batch 经 Core gateway 密封后
+按 actor 顺序提交；发言、rolling interrupt 和 playback 由 server 产品执行器继续控制。
 
 ## Ability 与 effect 结算
 

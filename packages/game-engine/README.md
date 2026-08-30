@@ -8,6 +8,7 @@
 - Role、Ability、capability、phase、action validator、query、trigger、interrupt、event、resolution 与胜负 registries。
 - 内置与自定义 board manifests。
 - 纯函数的动作校验、状态归约、可见性过滤、发言规范化与 replay。
+- `AgentWolfGameModule` 对现有 action/event/audience/observation 的 Core `GameModule` 适配。
 - 确定性的投票裁决、发言顺序、效果结算与终局评估。
 
 完整的跨包模型见[游戏运行时架构](../../docs/architecture/game-runtime.md)。
@@ -25,6 +26,10 @@ RulePlugin 通过 `RulesetBuilder` 在安装作用域下注册语义。Core plug
 记录依赖、配置和归属;AgentWolf registrar 持有 Role、Ability、Phase、event、query、trigger、
 interrupt 与 victory registries。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory
 modifier 组合;终局候选携带明确获胜 Player IDs。
+
+GameModule adapter 从当前 `TurnDescriptor` 派生稳定 decision boundary，将 AgentWolf visibility 映射为
+public/host/participants/group，并在不改变持久事件格式的前提下向 Core Match runtime 暴露 observation
+和 action batch。
 
 Boards 选择冻结的 phase 图与策略。唯一 Match snapshot schema 绑定 Ruleset family、当前 revision、
 plugin lock 与 fingerprint；只有 Catalog 当前 revision 具有 restore 能力，终局历史由 server archive

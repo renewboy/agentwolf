@@ -155,6 +155,10 @@ god view 与提交玩家自己的 view 可以通过有限 Session status 观察�
 view 收不到 actor completion 或响应时长。GameEngine 的 `phase.actor-completed` 为 god-visible，
 barrier 对外只在全部动作按稳定顺序提交后发布结果。
 
+普通并行 action 由 Core MatchOrchestrator/ActionGateway 收集并按冻结 actor 顺序 seal。AgentWolf
+participant driver 仍通过 PlayerRuntime、ActionMailbox 和持久 pending action 完成真实 ACP 回合。
+speech stream、rolling listener 与播放门控属于产品执行边界，不进入通用 barrier。
+
 投票使用同一 barrier。进入 vote phase 前，前置 sequential speech phase 已经提交所有必需发言，
 并且最后一个发言的外部播放边界已经释放，因此每位投票者的冻结 Prompt 包含相同的完整公开发言集。
 

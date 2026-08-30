@@ -13,8 +13,17 @@ export default defineConfig({
       '@agent-arena/game-runtime': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/game-runtime/src/index.ts', import.meta.url),
       ),
+      '@agent-arena/match-runtime': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/match-runtime/src/index.ts', import.meta.url),
+      ),
+      '@agent-arena/prompt-runtime': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/prompt-runtime/src/index.ts', import.meta.url),
+      ),
       '@agent-arena/ruleset': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/ruleset/src/index.ts', import.meta.url),
+      ),
+      '@agent-arena/simulation': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/simulation/src/index.ts', import.meta.url),
       ),
       '@agent-arena/trajectory': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/trajectory/src/index.ts', import.meta.url),

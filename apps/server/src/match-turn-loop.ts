@@ -4,11 +4,16 @@ import { findCommittedSpeech, settleActions } from './match-runtime-helpers.js'
 import type { PreparedActorTurn } from './match-runtime-types.js'
 import type { PlayerRuntime } from './player-runtime.js'
 import type { RollingSpeechInterruptCoordinator } from './rolling-speech-interrupt.js'
+import type { SessionBindingStore } from '@agent-arena/contracts'
+import { runCoreMatchTurn } from './arena-match-turn.js'
+import type { AgentWolfArenaRuntimeContext } from './arena-runtime-context.js'
 import { submitRollingSpeechInterrupt, takeRollingSpeechTurn } from './rolling-speech-turn.js'
 import type { SpeechPlaybackCoordinator } from './speech-playback-coordinator.js'
 
 export interface MatchTurnLoopOptions {
   readonly engine: GameEngine
+  readonly arena: Pick<AgentWolfArenaRuntimeContext, 'module'>
+  readonly arenaSessions: SessionBindingStore
   readonly speechInterrupts: RollingSpeechInterruptCoordinator | null
   readonly playback: SpeechPlaybackCoordinator
   readonly isDisposed: () => boolean
@@ -34,6 +39,10 @@ export async function runMatchTurn(
     throw new Error(
       `Rule engine stopped without an actionable turn at ${options.engine.state.phaseId}`,
     )
+  }
+  if (turn.actionType !== 'speech') {
+    options.speechInterrupts?.stopAll()
+    return runCoreMatchTurn(options)
   }
   const actorIds = turn.mode === 'sequential' ? turn.actors.slice(0, 1) : [...turn.actors]
   if (options.speechInterrupts && turn.mode === 'sequential' && turn.actionType === 'speech') {

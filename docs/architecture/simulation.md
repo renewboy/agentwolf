@@ -19,9 +19,10 @@ capture、规范化、runner、评审或批准工作流的研发人员。仿真�
 - warnings、secret scan、runner divergence 和 oracle 接受都需要明确决策；
 - candidate 与 fixture 均采用非覆盖写入。
 
-`SimulationService` 持有生产数据到 candidate 的采集；canonical helpers 持有 ID/时间/事件规范化；
-`simulation-workflow` 持有评审与批准；两个 runner 持有独立执行路径。轨迹模块只提供只读 Turn/Record
-事实与 audit 结果，详见[轨迹架构](trajectory.md)。
+`SimulationService` 持有生产数据到 candidate 的采集；AgentWolf canonical helpers 持有 ID/时间/事件
+规范化；Core `AdaptedSimulationWorkflow` 持有双 runner 评审、批准与不可覆盖写入；AgentWolf artifact
+adapter 保持当前 schemas、review DTO 与 fixture 格式。两个 runner 持有独立执行路径。轨迹模块只
+提供只读 Turn/Record 事实与 audit 结果，详见[轨迹架构](trajectory.md)。
 
 ## 组件与数据流
 
@@ -34,7 +35,7 @@ flowchart LR
     Capture["SimulationService.capture"]
     Canonical["规范化 IDs、actions、events、checkpoint"]
     Inbox["candidate inbox"]
-    Workflow["review / approve workflow"]
+    Workflow["Core adapted review / approve workflow"]
     EngineRunner["game-engine runner"]
     RuntimeRunner["MatchRuntime runner"]
     Fixture["approved fixture corpus"]
@@ -52,7 +53,7 @@ flowchart LR
 | --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------ |
 | `SimulationService`   | source eligibility、动作/控制提取、trajectory audit 与 candidate 构造        | `SimulationCapture`                        |
 | canonical helpers     | 稳定 ID/时间替换、事件/action 规范化、checkpoint、fingerprint 与 secret scan | canonical setup/turns/events               |
-| `simulation-workflow` | candidate 读取、双 runner 重复执行、warning/secret gate 与非覆盖批准         | review/approval result                     |
+| Core adapted workflow | candidate 读取、双 runner 重复执行、warning/secret gate 与非覆盖批准         | game-owned review/approval result          |
 | engine runner         | 直接驱动全新 GameEngine action boundaries                                    | canonical events 与 checkpoint             |
 | orchestration runner  | 驱动真实 MatchRuntime、ActionMailbox、内存 repository 与 fake Sessions       | 编排结果、trajectory audit 与 barrier 检查 |
 | approved corpus       | 保存人工接受的 setup、turns、controls、variants 与 oracle                    | 免凭据回归 fixture                         |

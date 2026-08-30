@@ -28,6 +28,7 @@ import {
 } from './match-runtime-helpers.js'
 import { runMatchTurn } from './match-turn-loop.js'
 import type { MatchRuntimeOptions, PreparedActorTurn } from './match-runtime-types.js'
+import { AgentWolfArenaRuntimeContext } from './arena-runtime-context.js'
 import { createMatchPostgameCoordinator, ensurePostgameCountdown } from './match-postgame.js'
 import { PlayerRuntime } from './player-runtime.js'
 import { PostgameReviewCoordinator } from './postgame-review-coordinator.js'
@@ -42,6 +43,7 @@ export class MatchRuntime {
   readonly #options: MatchRuntimeOptions
   readonly #roles: RoleRegistry
   readonly #renderer: ContextRenderer
+  readonly #arena: AgentWolfArenaRuntimeContext
   readonly #hub = new LiveHub()
   readonly #playback: SpeechPlaybackCoordinator
   readonly #speechInterrupts: RollingSpeechInterruptCoordinator | null
@@ -58,6 +60,7 @@ export class MatchRuntime {
     this.#options = options
     this.#roles = options.ruleset.roles
     this.#renderer = new ContextRenderer(options.ruleset)
+    this.#arena = new AgentWolfArenaRuntimeContext(options)
     this.#playback = new SpeechPlaybackCoordinator({
       isVisible: (item, view) =>
         item.event ? canViewEvent(item.event, view, this.engine.state) : true,
@@ -102,7 +105,6 @@ export class MatchRuntime {
       throw error
     }
   }
-
   public project(view: SpectatorView): MatchView {
     return projectMatch({
       matchId: this.engine.state.matchId,
@@ -124,7 +126,6 @@ export class MatchRuntime {
       ...(this.#postgame ? { activeSpeech: this.#postgame.activeSpeech } : {}),
     })
   }
-
   public connect(subscriber: LiveSubscriber): LiveConnection {
     const unsubscribe = this.#hub.subscribe(subscriber)
     this.#sendSnapshot(subscriber)
@@ -140,12 +141,10 @@ export class MatchRuntime {
       },
     }
   }
-
   public subscribe(subscriber: LiveSubscriber): () => void {
     const connection = this.connect(subscriber)
     return () => connection.close()
   }
-
   public async close(): Promise<void> {
     this.#disposed = true
     this.#speechInterrupts?.stopAll()
@@ -157,7 +156,6 @@ export class MatchRuntime {
     if (this.#startPromise) await Promise.allSettled([this.#startPromise])
     await this.#closePlayerSessions()
   }
-
   public async resume(): Promise<void> {
     if (this.#disposed) throw new Error(`Match runtime ${this.engine.state.matchId} is closed`)
     if (this.#players.size < this.engine.state.players.size) {
@@ -180,7 +178,6 @@ export class MatchRuntime {
     this.#broadcastSnapshot()
     void this.#run()
   }
-
   public activatePostgameReview(): void {
     this.#requirePostgame().activate()
   }
@@ -309,6 +306,8 @@ export class MatchRuntime {
       while (!this.#disposed && this.engine.state.status === 'running') {
         const result = await runMatchTurn({
           engine: this.engine,
+          arena: this.#arena,
+          arenaSessions: this.#arena.sessions,
           speechInterrupts: this.#speechInterrupts,
           playback: this.#playback,
           isDisposed: () => this.#disposed,

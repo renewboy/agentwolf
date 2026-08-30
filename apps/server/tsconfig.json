@@ -9,6 +9,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     { "path": "../../vendor/agent-arena-core/packages/trajectory" },
+    { "path": "../../vendor/agent-arena-core/packages/simulation" },
+    { "path": "../../vendor/agent-arena-core/packages/match-runtime" },
+    { "path": "../../vendor/agent-arena-core/packages/contracts" },
     { "path": "../../packages/contracts" },
     { "path": "../../packages/assets" },
     { "path": "../../packages/game-engine" },

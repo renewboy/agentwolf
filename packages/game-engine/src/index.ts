@@ -1,5 +1,6 @@
 export * from './rulesets/classic/boards.js'
 export * from './action-validator.js'
+export * from './arena-game-module.js'
 export * from './engine.js'
 export * from './engine-contracts.js'
 export * from './death-resolution.js'

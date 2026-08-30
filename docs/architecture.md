@@ -72,7 +72,7 @@ SQLite 保存恢复所需的权威记录；WebSocket、当前进程中的 GameSt
 
 ```mermaid
 flowchart TB
-    Core["Agent Arena Core<br/>本仓消费的 Ruleset、ACP、trajectory、deterministic"]
+    Core["Agent Arena Core<br/>Ruleset、Game/Match/Prompt/ACP runtime、storage、trajectory、simulation、harness"]
     Contracts["contracts<br/>branded IDs、Zod schemas、wire DTO"]
     Engine["game-engine<br/>Ruleset、事件归约、replay"]
     Assets["assets<br/>Prompt bundles、文案、效果"]
@@ -83,6 +83,7 @@ flowchart TB
     Engine --> Contracts
     Engine --> Core
     Assets --> Contracts
+    Assets --> Core
     ACP --> Contracts
     ACP --> Core
     Server --> Contracts
@@ -96,7 +97,7 @@ flowchart TB
 
 | 组件                                                                | 主要职责                                                                                     | 稳定边界                                                |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供规则、ACP、Prompt、Match 编排、存储、trajectory、simulation 与验证基础机制               | 本仓只通过固定 revision 的公开入口选择性消费            |
+| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供规则、ACP、Prompt、Match 编排、存储、trajectory、simulation 与验证基础机制               | 本仓通过游戏/应用 adapters 消费固定 revision            |
 | [`contracts`](../packages/contracts/README.md)                      | 定义跨 JSON、数据库、进程和浏览器边界的 IDs、动作、事件、配置、视图与诊断 schemas            | 不求值规则、不执行 IO、不拥有 UI 或编排                 |
 | [`game-engine`](../packages/game-engine/README.md)                  | 组合狼人杀 registries,校验动作,推进 phase 图,结算 effects,发出事件并重建状态                 | 依赖 AgentWolf contracts 与固定 Core revision;保持无 IO |
 | [`assets`](../packages/assets/README.md)                            | 持有 plugin-owned Prompt、玩家 Skills、本地化文案、Character 与 Role 效果定义                | server-only Prompt/Skill 入口与浏览器安全导出分离       |
@@ -108,10 +109,11 @@ flowchart TB
 回合，`PlayerRuntime` 管理单个 Seat 的 delivery，repositories 管理持久状态，projector 构造
 观看者视图。它们共享 contracts，但不能建立第二套规则状态或 Session 历史。
 
-当前直接消费边界是：game-engine 使用 Core contracts/ruleset/game-runtime；acp package 使用 Core
-acp-runtime；server 使用 Core trajectory。Core 的 prompt-runtime、match-runtime、store ports、
-storage-sqlite、harness 与 testkit 已作为独立平台能力存在，但不参与当前 AgentWolf Match 运行链；
-AgentWolf 仍由 assets、MatchRuntime、现有 repositories 与仓库 harness 持有对应产品职责。
+当前直接消费边界是：game-engine 提供 Core GameModule adapter 并使用 Ruleset/game runtime；assets 将
+现有 Prompt manifests/facts 接入 Core prompt runtime；acp package 使用 Core ACP runtime；server 将普通
+action boundary、Session binding、trajectory 与 simulation workflow 接入 Core。MatchRuntime、现有
+SQLite repositories、ContextRenderer、rolling speech/playback、postgame 与 Web projector 继续拥有
+AgentWolf 产品语义。
 
 ## 控制面与事实流
 

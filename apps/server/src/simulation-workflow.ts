@@ -1,5 +1,10 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { relative, resolve } from 'node:path'
+import { resolve } from 'node:path'
+import {
+  AdaptedSimulationWorkflow,
+  AdaptedSimulationWorkflowError,
+  type AdaptedSimulationReviewResult,
+  type SimulationArtifactAdapter,
+} from '@agent-arena/simulation'
 import {
   SimulationApprovalResultSchema,
   SimulationCaptureSchema,
@@ -8,8 +13,9 @@ import {
   SimulationReviewResultSchema,
   type SimulationApprovalRequest,
   type SimulationCapture,
-  type SimulationId,
-  type SimulationRunReport,
+  type SimulationExpected,
+  type SimulationFixture,
+  type SimulationReviewedExpected,
   type SimulationVariant,
 } from '@agentwolf/contracts'
 import type { ServerConfig } from './config.js'
@@ -23,11 +29,52 @@ import { runEngineSimulation } from './simulation-runner.js'
 
 type WorkflowConfig = Pick<ServerConfig, 'dataDirectory' | 'projectRoot'>
 
-interface ReviewDetails {
-  readonly capture: SimulationCapture
-  readonly engine: SimulationRunReport
-  readonly orchestration: SimulationRunReport
-  readonly result: ReturnType<typeof SimulationReviewResultSchema.parse>
+const adapter: SimulationArtifactAdapter<
+  SimulationCapture,
+  SimulationFixture,
+  SimulationExpected,
+  SimulationReviewedExpected,
+  SimulationVariant
+> = {
+  parseCapture: (input) => SimulationCaptureSchema.parse(input),
+  parseFixture: (input) => SimulationFixtureSchema.parse(input),
+  normalizeCapture: normalizeSimulationCapture,
+  describeCapture: (capture) => ({
+    simulationId: capture.simulationId,
+    sourceStatus: capture.source.status,
+    sourceFingerprint: capture.source.fingerprint,
+    warnings: capture.warnings,
+    turnCount: capture.turns.length,
+    eventCount: capture.observed.events.length,
+    observed: capture.observed,
+  }),
+  reviewedExpected: reviewedSimulationExpected,
+  variants: (capture) => defaultVariants(capture.source.status),
+  buildFixture: (capture, accepted, variants) =>
+    SimulationFixtureSchema.parse({
+      schemaVersion: 1,
+      stage: 'approved',
+      simulationId: capture.simulationId,
+      title: capture.title,
+      source: {
+        status: capture.source.status,
+        cutoffSequence: capture.source.cutoffSequence,
+        fingerprint: capture.source.fingerprint,
+      },
+      setup: capture.setup,
+      turns: capture.turns,
+      controls: capture.controls,
+      expected: reviewedSimulationExpected(accepted),
+      variants,
+      browser: false,
+    }),
+  describeFixture: (fixture) => ({
+    sourceFingerprint: fixture.source.fingerprint,
+    expected: fixture.expected,
+    variants: fixture.variants,
+  }),
+  scanSecrets: scanSimulationSecrets,
+  sameExpected: (left, right) => JSON.stringify(left) === JSON.stringify(right),
 }
 
 export class SimulationWorkflowError extends Error {
@@ -38,7 +85,9 @@ export class SimulationWorkflowError extends Error {
 }
 
 export async function reviewSimulationCandidate(config: WorkflowConfig, idValue: string) {
-  return (await reviewDetails(config, SimulationIdSchema.parse(idValue))).result
+  const id = SimulationIdSchema.parse(idValue)
+  const result = await translate(() => workflow(config).reviewCandidate(id))
+  return legacyReview(result)
 }
 
 export async function approveSimulationCandidate(
@@ -47,120 +96,67 @@ export async function approveSimulationCandidate(
   options: SimulationApprovalRequest,
 ) {
   const id = SimulationIdSchema.parse(idValue)
-  const review = await reviewDetails(config, id)
-  if (review.result.secretWarnings.length > 0) {
-    throw new SimulationWorkflowError(
-      `Capture contains sensitive content: ${review.result.secretWarnings.join(', ')}`,
-    )
-  }
-  if (review.result.warnings.length > 0 && !options.acknowledgeWarnings) {
-    throw new SimulationWorkflowError('Capture warnings must be acknowledged before approval')
-  }
-  if (!review.result.canApprove && !options.acceptCurrent) {
-    throw new SimulationWorkflowError('Captured behavior differs from the current implementation')
-  }
-  if (options.acceptCurrent && !review.result.canAcceptCurrent) {
-    throw new SimulationWorkflowError('Current engine and orchestration results cannot be accepted')
-  }
-  const variants = defaultVariants(review.capture.source.status)
-  const fixture = SimulationFixtureSchema.parse({
-    schemaVersion: 1,
-    stage: 'approved',
-    simulationId: review.capture.simulationId,
-    title: review.capture.title,
-    source: {
-      status: review.capture.source.status,
-      cutoffSequence: review.capture.source.cutoffSequence,
-      fingerprint: review.capture.source.fingerprint,
-    },
-    setup: review.capture.setup,
-    turns: review.capture.turns,
-    controls: review.capture.controls,
-    expected: reviewedSimulationExpected(
-      options.acceptCurrent ? review.engine.actual : review.capture.observed,
-    ),
-    variants,
-    browser: false,
-  })
-  const directory = approvedDirectory(config)
-  await mkdir(directory, { recursive: true })
-  const path = resolve(directory, `${id}.sim.json`)
-  let created = true
-  let approvedVariants = variants
-  try {
-    await writeFile(path, `${JSON.stringify(fixture, null, 2)}\n`, { flag: 'wx' })
-  } catch (error) {
-    if (!isAlreadyExists(error)) throw error
-    const existing = SimulationFixtureSchema.parse(JSON.parse(await readFile(path, 'utf8')))
-    if (existing.source.fingerprint !== fixture.source.fingerprint) {
-      throw new SimulationWorkflowError('An approved fixture with this ID contains other data')
-    }
-    if (JSON.stringify(existing.expected) !== JSON.stringify(fixture.expected)) {
-      throw new SimulationWorkflowError('The approved fixture contains another reviewed result')
-    }
-    approvedVariants = existing.variants
-    created = false
-  }
-  return SimulationApprovalResultSchema.parse({
-    simulationId: id,
-    relativePath: relative(config.projectRoot, path),
-    created,
-    variants: approvedVariants,
-  })
+  const result = await translate(() => workflow(config).approveCandidate(id, options))
+  return SimulationApprovalResultSchema.parse(result)
 }
 
-export async function readSimulationCandidate(
+export function readSimulationCandidate(
   config: WorkflowConfig,
   idValue: string,
 ): Promise<SimulationCapture> {
-  const id = SimulationIdSchema.parse(idValue)
-  return normalizeSimulationCapture(
-    SimulationCaptureSchema.parse(JSON.parse(await readFile(candidatePath(config, id), 'utf8'))),
-  )
+  return workflow(config).readCandidate(SimulationIdSchema.parse(idValue))
 }
 
-async function reviewDetails(config: WorkflowConfig, id: SimulationId): Promise<ReviewDetails> {
-  const capture = await readSimulationCandidate(config, id)
-  const engine = runEngineSimulation(capture)
-  const repeatedEngine = runEngineSimulation(capture)
-  const orchestration = await runOrchestrationSimulation(capture, {
+function workflow(config: WorkflowConfig) {
+  return new AdaptedSimulationWorkflow({
     projectRoot: config.projectRoot,
+    candidateDirectory: resolve(config.dataDirectory, 'simulations', 'inbox'),
+    fixtureDirectory: resolve(config.projectRoot, 'apps/server/tests/fixtures/simulations'),
+    reviewVariant: 'recorded' as const,
+    adapter,
+    runners: [
+      {
+        id: 'runner-engine',
+        run: async (input, variant) => ({
+          ...runEngineSimulation(input, variant),
+          runnerId: 'runner-engine',
+        }),
+      },
+      {
+        id: 'runner-orchestration',
+        run: async (input, variant) => ({
+          ...(await runOrchestrationSimulation(input, {
+            projectRoot: config.projectRoot,
+            variant,
+          })),
+          runnerId: 'runner-orchestration',
+        }),
+      },
+    ],
   })
-  const repeatedOrchestration = await runOrchestrationSimulation(capture, {
-    projectRoot: config.projectRoot,
-  })
-  const deterministic = sameResult(engine, repeatedEngine)
-  const orchestrationDeterministic = sameResult(orchestration, repeatedOrchestration)
-  const runnersAgree = sameResult(engine, orchestration)
-  const secretWarnings = scanSimulationSecrets(capture)
-  const canAcceptCurrent =
-    deterministic && orchestrationDeterministic && runnersAgree && secretWarnings.length === 0
-  const result = SimulationReviewResultSchema.parse({
-    simulationId: id,
-    relativePath: relative(config.projectRoot, candidatePath(config, id)),
-    sourceStatus: capture.source.status,
-    turns: capture.turns.length,
-    events: capture.observed.events.length,
-    deterministic,
+}
+
+function legacyReview(result: AdaptedSimulationReviewResult) {
+  const engine = result.runners.find((runner) => runner.runnerId === 'runner-engine')
+  const orchestration = result.runners.find((runner) => runner.runnerId === 'runner-orchestration')
+  if (!engine || !orchestration) throw new SimulationWorkflowError('Missing simulation runner')
+  return SimulationReviewResultSchema.parse({
+    simulationId: result.simulationId,
+    relativePath: result.relativePath,
+    sourceStatus: result.sourceStatus,
+    turns: result.turns,
+    events: result.events,
+    deterministic: engine.deterministic,
     replayOk: engine.ok,
-    orchestrationDeterministic,
+    orchestrationDeterministic: orchestration.deterministic,
     orchestrationOk: orchestration.ok,
-    runnersAgree,
-    canApprove: canAcceptCurrent && engine.ok && orchestration.ok,
-    canAcceptCurrent,
-    failures: [...new Set([...engine.failures, ...orchestration.failures])],
-    warnings: capture.warnings,
-    secretWarnings,
+    runnersAgree: result.runnersAgree,
+    canApprove: result.canApprove,
+    canAcceptCurrent: result.canAcceptCurrent,
+    failures: result.failures,
+    warnings: result.warnings,
+    secretWarnings: result.secretWarnings,
   })
-  return { capture, engine, orchestration, result }
-}
-
-function candidatePath(config: WorkflowConfig, id: SimulationId): string {
-  return resolve(config.dataDirectory, 'simulations', 'inbox', `${id}.sim.json`)
-}
-
-function approvedDirectory(config: WorkflowConfig): string {
-  return resolve(config.projectRoot, 'apps/server/tests/fixtures/simulations')
 }
 
 function defaultVariants(status: SimulationCapture['source']['status']): SimulationVariant[] {
@@ -178,10 +174,24 @@ function defaultVariants(status: SimulationCapture['source']['status']): Simulat
       ]
 }
 
-function sameResult(left: SimulationRunReport, right: SimulationRunReport): boolean {
-  return JSON.stringify(left.actual) === JSON.stringify(right.actual)
+async function translate<Value>(operation: () => Promise<Value>): Promise<Value> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (!(error instanceof AdaptedSimulationWorkflowError)) throw error
+    throw new SimulationWorkflowError(legacyMessage(error))
+  }
 }
 
-function isAlreadyExists(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'code' in error && error.code === 'EEXIST'
+function legacyMessage(error: AdaptedSimulationWorkflowError): string {
+  switch (error.code) {
+    case 'warning-acknowledgement':
+      return 'Capture warnings must be acknowledged before approval'
+    case 'observed-mismatch':
+      return 'Captured behavior differs from the current implementation'
+    case 'runner-rejection':
+      return 'Current engine and orchestration results cannot be accepted'
+    default:
+      return error.message
+  }
 }

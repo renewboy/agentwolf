@@ -16,6 +16,9 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@agent-arena/contracts": "workspace:*",
+    "@agent-arena/match-runtime": "workspace:*",
+    "@agent-arena/simulation": "workspace:*",
     "@agent-arena/trajectory": "workspace:*",
     "@agentclientprotocol/sdk": "1.4.0",
     "@agentwolf/acp": "workspace:*",

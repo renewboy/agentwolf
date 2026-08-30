@@ -53,15 +53,15 @@ flowchart LR
     MCP --> Pending
 ```
 
-| 组件                      | 拥有的状态或决策                                                                    | 不跨越的边界                                              |
-| ------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `MatchRuntime`            | 当前 TurnDescriptor、并发 actor 集、自动恢复次数与 Match pause                      | 不创建 ACP Session ID，不篡改 delivery ledger             |
-| `PlayerRuntime`           | 单玩家 Session 连接、delivery、pending action 对账、状态与 trajectory               | 不判断 phase/Role 规则，校验委托给 expectation/GameEngine |
-| player-session repository | durable profile/tool snapshot、binding state、Session ID、bootstrap、pending action | 不启动进程，不解释 ACP response                           |
-| `DeliveryLedger`          | Core 中的 `acknowledgedSequence` 与最多一个 active attempt                          | 不保存 Prompt 文本或游戏动作                              |
-| `ActionMailbox`           | token 绑定、当前 expectation、内存 action handoff                                   | 不成为持久动作所有者；接受回调立即写 repository           |
-| Core `AcpSession`         | ACP 连接、协议协商、逻辑 Session 操作、单个 active Prompt                           | 不决定 Match 恢复或替换 Session                           |
-| Core `AgentProcess`       | 子进程组、stderr tail 与 TERM/KILL 关闭                                             | 不理解协议消息或游戏状态                                  |
+| 组件                      | 拥有的状态或决策                                                                          | 不跨越的边界                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `MatchRuntime`            | 当前 TurnDescriptor、并发 actor 集、自动恢复次数与 Match pause                            | 不创建 ACP Session ID，不篡改 delivery ledger             |
+| `PlayerRuntime`           | 单玩家 Session 连接、delivery、pending action 对账、Core participant driver 与 trajectory | 不判断 phase/Role 规则，校验委托给 expectation/GameEngine |
+| player-session repository | durable profile/tool snapshot、binding state、Session ID、bootstrap、pending action       | 不启动进程，不解释 ACP response                           |
+| `DeliveryLedger`          | Core 中的 `acknowledgedSequence` 与最多一个 active attempt                                | 不保存 Prompt 文本或游戏动作                              |
+| `ActionMailbox`           | token 绑定、当前 expectation、内存 action handoff                                         | 不成为持久动作所有者；接受回调立即写 repository           |
+| Core `AcpSession`         | ACP 连接、协议协商、逻辑 Session 操作、单个 active Prompt                                 | 不决定 Match 恢复或替换 Session                           |
+| Core `AgentProcess`       | 子进程组、stderr tail 与 TERM/KILL 关闭                                                   | 不理解协议消息或游戏状态                                  |
 
 ## Session 建立与配置
 

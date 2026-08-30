@@ -133,6 +133,10 @@ repository 在 JSON 边界使用 contracts/本地 Zod schema 解析。`match_eve
 数据库使用单调 `user_version` 前向迁移。server 拒绝打开高于当前实现的 schema；新增持久结构需要
 同时提供迁移、全新数据库定义和迁移测试。
 
+`AgentWolfSessionBindingStore` 将既有 player Session repository 暴露为 Core store port。产品 binding
+继续保存完整 Profile/Tool snapshot 和 delivery ID；Core accepted callback 复用同一 pending action，
+不创建第二张表。Match 删除仍由 MatchManager 的外键 cascade 统一拥有。
+
 ## Match 运行状态
 
 Match record 与 GameEngine 共享同一组顶层状态，但各自职责不同：GameEngine 通过事件表达规则状态，

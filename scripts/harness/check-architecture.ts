@@ -19,10 +19,10 @@ const allowedInternalDependencies: Readonly<Record<string, ReadonlySet<string>>>
 }
 const allowedCoreDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
   contracts: new Set(),
-  assets: new Set(),
+  assets: new Set(['prompt-runtime']),
   'game-engine': new Set(['contracts', 'game-runtime', 'ruleset']),
   acp: new Set(['acp-runtime']),
-  server: new Set(['trajectory']),
+  server: new Set(['contracts', 'match-runtime', 'simulation', 'trajectory']),
   web: new Set(),
 }
 

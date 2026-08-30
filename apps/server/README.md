@@ -22,6 +22,9 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 - `repository.ts` 与各聚焦 repository:持久化 SQLite 访问。
 - `match-manager.ts`:Match 创建、查找、恢复与删除。
 - `match-runtime.ts`:活跃回合编排与 engine/action 边界。
+- `arena-runtime-context.ts`:组装 AgentWolf GameModule 与 Core Match/Session runtime。
+- `arena-match-turn.ts`:将普通非发言 boundary 交给 Core MatchOrchestrator/ActionGateway。
+- `arena-session-store.ts`:将既有 player Session binding repository 适配为 Core store port。
 - `match-archive.ts`:终局 spectator projections 与 audit 的规则无关冻结边界。
 - `projector.ts`:server 持有的可见性安全 DTO。
 - `mcp.ts`:玩家绑定的结构化动作传输。
@@ -30,7 +33,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 - `trajectory.ts`:Match Turn 创建、system events、runtime controls 与 revision publication。
 - `trajectory-turn-recorder.ts`:将 AgentWolf schemas/repository 适配到 Core Turn/Record recorder。
 - `trajectory-service` 与 `trajectory-audit`:读取、projection、实时 delta 与语义审计。
-- `simulation*`:候选采集、runners、工作流与 fixture 批准。
+- `simulation*`:AgentWolf capture/canonical/runners 与 Core adapted workflow/fixture 批准。
 
 新行为归属现有最窄的 owner。游戏规则留在 game-engine,通用 ACP 进程行为留在 acp,schema 留在
 contracts,模型/UI 呈现留在 assets。

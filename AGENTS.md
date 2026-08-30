@@ -70,8 +70,8 @@ contracts <- game-engine
              web
 ```
 
-- `contracts` 与 `game-engine` 不 import server、Web、ACP、文件系统、网络或资产代码;`game-engine`
-  只从固定 Core revision 消费 Ruleset 与确定性运行时公开入口。
+- `contracts` 与 `game-engine` 不 import server、Web、ACP、文件系统、网络或资产代码。game-engine、
+  assets、acp、server 与 repository harness 只从固定 Core revision 消费各自允许的公开入口。
 - server 在序列化前过滤每个视图;浏览器永远收不到隐藏字段。
 - 为可机械校验的依赖或隐私规则添加可执行的架构检查。
 

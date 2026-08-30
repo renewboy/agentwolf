@@ -17,9 +17,11 @@ Prompt 管线同时满足以下约束：
 - 玩家进程只获得游戏所需的 Skills、知识工具和动作工具，宿主开发上下文不进入模型环境；
 - 实际发送的 Prompt 与上下文 usage 被持久记录，审计依据发送时事实而非当前模板回算。
 
-[`packages/assets`](../../packages/assets/README.md) 拥有 Prompt schema、loader、registry、Nunjucks 源
-和玩家 Skill 构建器。server 的 `ContextRenderer` 拥有 game-engine 状态到 plain Prompt facts 的
-适配。assets 不依赖 game-engine；这一方向保证模板运行时不会绕过 server 自行读取隐藏状态。
+[Core Prompt runtime](../../vendor/agent-arena-core/packages/prompt-runtime/README.md) 拥有路径包含、静态
+import、依赖环、预编译、audience 单调性、声明式 matcher 与 semantic coverage 算法。
+[`packages/assets`](../../packages/assets/README.md) 拥有 AgentWolf manifest schema、bundle 源、facts、
+helpers 与 registry 呈现。server 的 `ContextRenderer` 拥有 game-engine 状态到 plain Prompt facts 的
+适配；assets 不依赖 game-engine，因此模板运行时不能绕过 server 读取隐藏状态。
 
 ## 组件与数据流
 
@@ -41,8 +43,8 @@ flowchart LR
         FactSchemas["Foundation / Turn facts"]
     end
 
-    subgraph Assets["assets-owned Prompt runtime"]
-        Loader["bundle loader"]
+    subgraph Assets["Prompt runtime + AgentWolf assets"]
+        Loader["Core bundle loader"]
         Registry["PromptBundleRegistry"]
         Templates["strict Nunjucks templates"]
     end
@@ -62,7 +64,7 @@ flowchart LR
 | ------------------------------ | ------------------------------------------------------------------------------- | --------------------------------- |
 | semantic ownership recorder    | 记录每个 plugin 实际注册的 Role、Ability、Phase、event、query 与 trigger        | `PluginSemanticContribution[]`    |
 | `promptInventory`              | 将 Ruleset plugin 顺序、贡献、交互 phase 与 core event 类型转换为 assets 侧清单 | `PromptSemanticInventory`         |
-| bundle loader                  | 读取 manifest/templates，验证路径、imports、audience 与循环，预编译模板         | `LoadedPromptBundle[]`            |
+| Core bundle runtime            | 读取模板，验证路径、imports、audience、matcher 与循环，预编译模板               | `LoadedPromptBundle[]`            |
 | `PromptBundleRegistry`         | 冻结 Role/Ability/Phase/event 的呈现所有权，匹配事件并渲染 Prompt               | foundation、turn、event narration |
 | `ContextRenderer`              | 选择玩家可见事件和 Role，构造 actor/roster/board/game/turn facts                | `ContextEnvelope`                 |
 | `PlayerRuntime`                | 把 envelope 与 delivery ledger、Session、trajectory 关联                        | 一次可确认的 ACP Prompt 送达      |
@@ -259,4 +261,6 @@ foundation Prompt 是当前对局事实，turn Prompt 提供 Role 化的行动�
 - [ACP Session 运行时](acp-session-runtime.md)：delivery ledger、Session 与恢复。
 - [信息同步](information-synchronization.md)：玩家可见事件、phase 与公开发言顺序。
 - [Assets package](../../packages/assets/README.md)：导出边界与资产所有权。
+- [Core Prompt runtime](../../vendor/agent-arena-core/packages/prompt-runtime/README.md)：bundle 安全、
+  静态 audience、matcher 与 semantic coverage。
 - [游戏目录](../generated/game-catalog.md)：源码生成的 plugin/Prompt 覆盖清单。

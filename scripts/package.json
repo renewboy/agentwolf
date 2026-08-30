@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@agent-arena/harness": "workspace:*",
     "@agentwolf/acp": "workspace:*"
   }
 }

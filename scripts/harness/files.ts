@@ -1,52 +1,36 @@
-import { lstat, readdir, readFile } from 'node:fs/promises'
-import { extname, relative, resolve } from 'node:path'
+import { resolve } from 'node:path'
+import { discoverRepositoryFiles, readRepositoryText, repositoryPath } from '@agent-arena/harness'
 
 export const projectRoot = resolve(import.meta.dirname, '..', '..')
 
-export async function sourceFiles(
+const ignoredNames = new Set([
+  '.agentwolf',
+  '.git',
+  'coverage',
+  'dist',
+  'dist-types',
+  'node_modules',
+])
+
+export function sourceFiles(
   roots: readonly string[],
   extensions: ReadonlySet<string>,
   baseRoot = projectRoot,
 ): Promise<string[]> {
-  const files: string[] = []
-  for (const root of roots) await walk(resolve(baseRoot, root), files, extensions)
-  return files.sort()
+  return discoverRepositoryFiles({
+    projectRoot: baseRoot,
+    roots,
+    extensions,
+    ignoredNames,
+  })
 }
 
-async function walk(path: string, files: string[], extensions: ReadonlySet<string>): Promise<void> {
-  const entries = await readdir(path, { withFileTypes: true })
-  for (const entry of entries) {
-    if (
-      entry.name === '.agentwolf' ||
-      entry.name === '.git' ||
-      entry.name === 'dist' ||
-      entry.name === 'dist-types' ||
-      entry.name === 'node_modules'
-    )
-      continue
-    const child = resolve(path, entry.name)
-    if (entry.isDirectory() && !(await isNestedRepository(child))) {
-      await walk(child, files, extensions)
-    } else if (extensions.has(extname(entry.name))) files.push(child)
-  }
-}
-
-async function isNestedRepository(path: string): Promise<boolean> {
-  try {
-    const marker = await lstat(resolve(path, '.git'))
-    return marker.isFile() || marker.isDirectory()
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false
-    throw error
-  }
-}
-
-export async function text(path: string): Promise<string> {
-  return readFile(path, 'utf8')
+export function text(path: string): Promise<string> {
+  return readRepositoryText(path)
 }
 
 export function localPath(path: string): string {
-  return relative(projectRoot, path).replaceAll('\\', '/')
+  return repositoryPath(projectRoot, path)
 }
 
 export function failIfErrors(errors: readonly string[], title: string): void {
