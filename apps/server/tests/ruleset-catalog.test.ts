@@ -4,6 +4,7 @@ import {
   createClassicV2Ruleset,
   createClassicV3Ruleset,
   createClassicV4Ruleset,
+  createClassicV5Ruleset,
   guardBoard,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
@@ -35,7 +36,7 @@ describe('RulesetCatalog', () => {
     expect(resolved.version).toBe(2)
     expect(resolved.roles.list().map((role) => role.id)).not.toContain('role-awakened-hidden-wolf')
     expect(resolved.plugins).toEqual(classicV2.plugins)
-    expect(catalog.current().id).toBe('ruleset-classic-v5')
+    expect(catalog.current().id).toBe('ruleset-classic-v6')
   })
 
   it('resolves classic-v3 without installing Cupid or changing its plugin lock', () => {
@@ -94,6 +95,41 @@ describe('RulesetCatalog', () => {
     expect(resolved.plugins).toEqual(classicV4.plugins)
     expect(
       createClassicRuleset().plugins.find((plugin) => plugin.id === 'plugin-role-cupid'),
-    ).toMatchObject({ version: 2 })
+    ).toMatchObject({ version: 3 })
+  })
+
+  it('resolves the exact classic-v5 Cupid v2 fingerprint', () => {
+    const catalog = new RulesetCatalog()
+    const classicV5 = createClassicV5Ruleset()
+    const classicV5Lock = catalog.lock(classicV5)
+    expect(classicV5Lock.fingerprint).toBe(
+      'cc2ba7b8b42c2238c81d00c37a8d50713dbe432911b2fe1c154f2198d20e850e',
+    )
+    expect(classicV5.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(2)
+    expect(classicV5.plugins.find((plugin) => plugin.id === 'plugin-classic-night')?.version).toBe(
+      2,
+    )
+    const snapshot = MatchBoardSnapshotSchema.parse({
+      schemaVersion: 2,
+      rulesetId: 'classic-v5',
+      ruleset: classicV5Lock,
+      policies: guardBoard.policies,
+      id: guardBoard.id,
+      name: 'Classic V5 guard board',
+      description: '',
+      roles: guardBoard.roles,
+      characters: [],
+      playerCount: guardBoard.playerCount,
+      sheriff: guardBoard.sheriff,
+      victory: guardBoard.policies.victory,
+      source: 'built-in',
+      revision: 1,
+    })
+
+    expect(catalog.forSnapshot(snapshot).plugins).toEqual(classicV5.plugins)
+    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic-v6', version: 6 })
+    expect(
+      catalog.current().plugins.find((plugin) => plugin.id === 'plugin-classic-night'),
+    ).toMatchObject({ version: 3 })
   })
 })

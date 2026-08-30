@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BoardIdSchema,
   GameEventSchema,
   PhaseIdSchema,
+  RoleIdSchema,
   type EventVisibility,
   type GameEvent,
   type GameEventPayload,
@@ -13,10 +15,12 @@ import {
   classicIdentityQueries,
   createClassicRuleset,
   createClassicV4Ruleset,
+  createClassicV5Ruleset,
   cupidAbilityIds,
   cupidBoard,
   cupidEventTypes,
   cupidState,
+  publiclyEliminatedPlayerIds,
   reduceGameEvent,
   v1AbilityIds,
   type BoardManifest,
@@ -32,6 +36,17 @@ const guardCupidBoard: BoardManifest = {
   roles: noSheriffCupidBoard.roles.map((slot) =>
     slot.roleId === 'role-hunter' ? { roleId: 'role-guard' as typeof slot.roleId, count: 1 } : slot,
   ),
+}
+const terminalCupidBoard: BoardManifest = {
+  ...noSheriffCupidBoard,
+  id: BoardIdSchema.parse('board-cupid-terminal-6'),
+  playerCount: 6,
+  roles: [
+    { roleId: RoleIdSchema.parse('role-werewolf'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-villager'), count: 3 },
+    { roleId: RoleIdSchema.parse('role-seer'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-cupid'), count: 1 },
+  ],
 }
 
 describe('Cupid Role plugin', () => {
@@ -168,7 +183,7 @@ describe('Cupid Role plugin', () => {
 
   it('publishes the final lover relationship after every Role reveal', () => {
     const ruleset = createClassicRuleset()
-    expect(ruleset.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(2)
+    expect(ruleset.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(3)
     const engine = linkedEngine('mixed')
     const loverIds = cupidState(engine.state).loverIds!
     const cupidId = actor(engine, 'role-cupid')
@@ -241,6 +256,23 @@ describe('Cupid Role plugin', () => {
         causes: ['linked'],
         timing: cause === 'werewolf' ? 'night' : 'day',
       })
+      expect(resolved[1]).toMatchObject({
+        announcement: 'events-only',
+        events: [
+          {
+            payload: {
+              schemaVersion: 2,
+              data: { presentation: 'partner-only' },
+            },
+          },
+          {
+            payload: {
+              type: 'players.eliminated-publicly',
+              playerIds: [resolved[1]!.death.playerId],
+            },
+          },
+        ],
+      })
     }
     const simultaneous = ruleset.triggers.resolveDeaths(
       [
@@ -299,6 +331,178 @@ describe('Cupid Role plugin', () => {
     expect(engine.state.status).toBe('running')
   })
 
+  it('announces a night-linked pair only in the dawn death list and gives both first-night last words', () => {
+    const engine = linkedEngine('mixed')
+    const [wolfId, villagerId] = cupidState(engine.state).loverIds!
+    playNight(engine, { wolfTargetId: villagerId })
+
+    const deathList = engine.events.find(
+      (event) =>
+        event.visibility.kind === 'public' &&
+        event.payload.type === 'public.announcement' &&
+        event.payload.code === 'night-deaths',
+    )
+    if (deathList?.payload.type !== 'public.announcement') {
+      throw new Error('Missing public night death list')
+    }
+    expect(new Set(deathList.payload.playerIds)).toEqual(new Set([wolfId, villagerId]))
+    const linkedDeath = engine.events.find(
+      (event) =>
+        event.payload.type === 'plugin.event' &&
+        event.payload.eventType === cupidEventTypes.linkedDeath,
+    )
+    expect(linkedDeath).toMatchObject({
+      visibility: { kind: 'god' },
+      payload: {
+        schemaVersion: 2,
+        data: { sourceId: villagerId, targetId: wolfId, presentation: 'partner-only' },
+      },
+    })
+    expect(
+      engine.events.some(
+        (event) =>
+          event.visibility.kind === 'public' &&
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === cupidEventTypes.linkedDeath,
+      ),
+    ).toBe(false)
+    expect(engine.state.phaseId).toBe('phase-last-words')
+    expect(new Set(engine.expectedActors())).toEqual(new Set([wolfId, villagerId]))
+  })
+
+  it('does not give a night-linked pair last words after the first night', () => {
+    const engine = linkedEngine('good')
+    const loverIds = cupidState(engine.state).loverIds!
+    playNight(engine, { wolfTargetId: null })
+    speakUntilVote(engine)
+    submitExpected(engine, (actorId) => voteAction(engine, actorId, null, 'exile'))
+    expect(engine.state.night).toBe(2)
+
+    const nightStartSequence = engine.events.findLast(
+      (event) => event.payload.type === 'night.started',
+    )!.sequence
+    playNight(engine, { wolfTargetId: loverIds[0] })
+
+    expect(engine.state.phaseId).not.toBe('phase-last-words')
+    expect(
+      engine.events.some(
+        (event) =>
+          event.sequence > nightStartSequence &&
+          event.payload.type === 'speech.started' &&
+          event.payload.kind === 'last-words',
+      ),
+    ).toBe(false)
+  })
+
+  it('announces a daytime exile before the partner death and finishes both last words before victory', () => {
+    const engine = createManualEngine(terminalCupidBoard)
+    engine.start()
+    const cupidId = actor(engine, 'role-cupid')
+    const wolfId = actor(engine, 'role-werewolf')
+    const villagerId = actor(engine, 'role-villager')
+    engine.submit(linkAction(engine, cupidId, [wolfId, villagerId]))
+    playNight(engine, { wolfTargetId: cupidId })
+    expect(engine.state.phaseId).toBe('phase-last-words')
+    engine.submit({
+      type: 'speech',
+      matchId: engine.state.matchId,
+      actorId: cupidId,
+      kind: 'last-words',
+      text: '首夜遗言结束。',
+    })
+    speakUntilVote(engine)
+
+    const beforeVote = engine.events.length
+    submitExpected(engine, (actorId) =>
+      voteAction(
+        engine,
+        actorId,
+        actorId === wolfId || actorId === villagerId ? null : villagerId,
+        'exile',
+      ),
+    )
+
+    const publicDeaths = engine.events
+      .slice(beforeVote)
+      .filter(
+        (event) =>
+          event.visibility.kind === 'public' &&
+          ((event.payload.type === 'public.announcement' &&
+            event.payload.code === 'player-eliminated') ||
+            (event.payload.type === 'plugin.event' &&
+              event.payload.eventType === cupidEventTypes.linkedDeath)),
+      )
+    expect(publicDeaths).toHaveLength(2)
+    expect(publicDeaths[0]).toMatchObject({
+      payload: { type: 'public.announcement', playerIds: [villagerId] },
+    })
+    expect(publicDeaths[1]).toMatchObject({
+      payload: {
+        type: 'plugin.event',
+        schemaVersion: 2,
+        data: { sourceId: villagerId, targetId: wolfId, presentation: 'partner-only' },
+      },
+    })
+    const publicDead = publiclyEliminatedPlayerIds(engine.events)
+    expect([cupidId, villagerId, wolfId].every((playerId) => publicDead.has(playerId))).toBe(true)
+    expect(engine.state.status).toBe('running')
+    expect(engine.state.phaseId).toBe('phase-last-words')
+    expect(engine.expectedActors()).toEqual([villagerId, wolfId])
+
+    for (const actorId of [villagerId, wolfId]) {
+      engine.submit({
+        type: 'speech',
+        matchId: engine.state.matchId,
+        actorId,
+        kind: 'last-words',
+        text: '白天遗言结束。',
+      })
+    }
+    expect(engine.state.status).toBe('ended')
+    expect(engine.state.winner).toBe('village')
+    const terminalSequence = engine.events.findLast(
+      (event) => event.payload.type === 'match.ended',
+    )!.sequence
+    expect(
+      engine.events
+        .filter(
+          (event) =>
+            event.payload.type === 'speech.committed' &&
+            event.payload.kind === 'last-words' &&
+            (event.payload.playerId === villagerId || event.payload.playerId === wolfId),
+        )
+        .map((event) => {
+          if (event.payload.type !== 'speech.committed') throw new Error('Expected last words')
+          return [event.payload.playerId, event.sequence < terminalSequence]
+        }),
+    ).toEqual([
+      [villagerId, true],
+      [wolfId, true],
+    ])
+  })
+
+  it('keeps the classic-v5 linked-death presentation contract intact', () => {
+    const legacy = createClassicV5Ruleset()
+    const engine = linkedEngine('mixed')
+    const [wolfId, villagerId] = cupidState(engine.state).loverIds!
+    const resolved = legacy.triggers.resolveDeaths(
+      [{ playerId: villagerId, causes: ['werewolf'], timing: 'night' }],
+      { state: engine.state, board: noSheriffCupidBoard, roles: legacy.roles },
+    )
+
+    expect(resolved[1]).toMatchObject({
+      death: { playerId: wolfId, causes: ['linked'], timing: 'night' },
+      original: false,
+      events: [
+        {
+          visibility: { kind: 'public' },
+          payload: { schemaVersion: 1, data: { sourceId: villagerId, targetId: wolfId } },
+        },
+      ],
+    })
+    expect(resolved[1]?.announcement).toBeUndefined()
+  })
+
   it('keeps an originally killed Hunter trigger while suppressing a linked Hunter trigger', () => {
     const engine = linkedEngine('hunter-wolf')
     const hunterId = actor(engine, 'role-hunter')
@@ -312,6 +516,48 @@ describe('Cupid Role plugin', () => {
     expect(engine.state.phaseId).toBe('phase-death-triggers')
     expect(engine.activeActor()).toBe(hunterId)
     expect(engine.currentTurn()?.allowedAbilityIds).toContain(v1AbilityIds.hunterShot)
+  })
+
+  it('publishes a partner death caused by a dawn Hunter shot while preserving night last-word timing', () => {
+    const engine = linkedEngine('mixed')
+    const hunterId = actor(engine, 'role-hunter')
+    const [wolfId, villagerId] = cupidState(engine.state).loverIds!
+    playNight(engine, { wolfTargetId: hunterId })
+    expect(engine.state.phaseId).toBe('phase-death-triggers')
+
+    engine.submit({
+      type: 'skill-trigger',
+      matchId: engine.state.matchId,
+      actorId: hunterId,
+      abilityId: v1AbilityIds.hunterShot,
+      targetId: villagerId,
+    })
+
+    const deathList = engine.events.find(
+      (event) =>
+        event.payload.type === 'public.announcement' && event.payload.code === 'night-deaths',
+    )
+    expect(deathList).toMatchObject({ payload: { playerIds: [hunterId] } })
+    const linkedDeath = engine.events.findLast(
+      (event) =>
+        event.payload.type === 'plugin.event' &&
+        event.payload.eventType === cupidEventTypes.linkedDeath,
+    )
+    expect(linkedDeath).toMatchObject({
+      visibility: { kind: 'public' },
+      payload: {
+        data: {
+          sourceId: villagerId,
+          targetId: wolfId,
+          timing: 'night',
+          presentation: 'partner-only',
+        },
+      },
+    })
+    expect(engine.state.recentDeaths.get(villagerId)?.timing).toBe('night')
+    expect(engine.state.recentDeaths.get(wolfId)?.timing).toBe('night')
+    expect(engine.state.phaseId).toBe('phase-last-words')
+    expect(new Set(engine.expectedActors())).toEqual(new Set([hunterId, wolfId, villagerId]))
   })
 
   it('does not let a Guard protection prevent linked death', () => {
@@ -393,13 +639,23 @@ describe('Cupid Role plugin', () => {
       timing: 'day',
     })
     expect(
+      engine.events.find(
+        (event) =>
+          event.visibility.kind === 'public' &&
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === cupidEventTypes.linkedDeath,
+      ),
+    ).toMatchObject({
+      payload: { data: { sourceId: wolfId, targetId: villagerId, presentation: 'partner-only' } },
+    })
+    expect(
       engine.events.some(
         (event) =>
           event.payload.type === 'public.announcement' &&
           event.payload.code === 'player-eliminated' &&
           event.payload.playerIds.includes(villagerId),
       ),
-    ).toBe(true)
+    ).toBe(false)
   })
 })
 

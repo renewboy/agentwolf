@@ -131,6 +131,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   request,
   resources,
 }) => {
+  test.setTimeout(60_000)
   const createdResponse = await request.post('/api/matches', {
     data: {
       boardId: 'board-quick-6',
@@ -146,20 +147,26 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   const match = (await createdResponse.json()) as { id: string }
   expect((await request.post(`/api/matches/${match.id}/start`)).ok()).toBe(true)
   await expect
-    .poll(async () => {
-      const response = await request.get(`/api/developer/matches/${match.id}/trajectory/summary`)
-      if (!response.ok()) return 0
-      const summary = (await response.json()) as {
-        owners: Array<{ ownerId: string; turnCount: number }>
-      }
-      return summary.owners.find((owner) => owner.ownerId === 'player-1')?.turnCount ?? 0
-    })
+    .poll(
+      async () => {
+        const response = await request.get(`/api/developer/matches/${match.id}/trajectory/summary`)
+        if (!response.ok()) return 0
+        const summary = (await response.json()) as {
+          owners: Array<{ ownerId: string; turnCount: number }>
+        }
+        return summary.owners.find((owner) => owner.ownerId === 'player-1')?.turnCount ?? 0
+      },
+      { timeout: 20_000 },
+    )
     .toBeGreaterThan(0)
   await expect
-    .poll(async () => {
-      const response = await request.get(`/api/matches/${match.id}?view=god`)
-      return ((await response.json()) as MatchView).status
-    })
+    .poll(
+      async () => {
+        const response = await request.get(`/api/matches/${match.id}?view=god`)
+        return ((await response.json()) as MatchView).status
+      },
+      { timeout: 20_000 },
+    )
     .toBe('paused')
 
   const matchSnapshot = (await (

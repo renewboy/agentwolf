@@ -173,6 +173,24 @@ describe('plugin event presentations', () => {
     ).toEqual([])
   })
 
+  it('keeps legacy linked-death narration and renders the current partner-only announcement', () => {
+    const legacy = plugin('plugin-role-cupid', 'event-cupid-linked-death', {
+      sourceId: player1,
+      targetId: player2,
+      timing: 'day',
+    })
+    const current = plugin('plugin-role-cupid', 'event-cupid-linked-death', {
+      sourceId: player1,
+      targetId: player2,
+      timing: 'day',
+      presentation: 'partner-only',
+    })
+
+    expect(renderPluginEventNarration(legacy, catalog)).toContain('一号出局')
+    expect(renderPluginEventNarration(current, catalog)).toContain('二号因情侣关系殉情')
+    expect(renderPluginEventNarration(current, catalog)).not.toContain('一号出局')
+  })
+
   it('ignores unrelated and unknown events', () => {
     const ordinary = event({ type: 'night.started', night: 1 })
     expect(renderPluginEventNarration(ordinary, catalog)).toBeNull()
@@ -203,6 +221,17 @@ describe('plugin event presentations', () => {
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-poisoned', null, 'target'],
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-attacked', null, 'attack'],
       ['plugin-role-cupid', 'event-cupid-linked', null, 'Cupid link'],
+      [
+        'plugin-role-cupid',
+        'event-cupid-linked-death',
+        {
+          sourceId: player1,
+          targetId: player2,
+          timing: 'day',
+          presentation: 'combined',
+        },
+        'presentation',
+      ],
       [
         'plugin-role-awakened-hidden-wolf',
         'event-awakened-hidden-wolf-attacked',

@@ -1,1 +1,1 @@
-{{ helpers.player(payload.data.sourceId) }}出局，{{ helpers.player(payload.data.targetId) }}因情侣关系殉情。
+{% if payload.data.presentation == "partner-only" %}{{ helpers.player(payload.data.targetId) }}因情侣关系殉情。{% else %}{{ helpers.player(payload.data.sourceId) }}出局，{{ helpers.player(payload.data.targetId) }}因情侣关系殉情。{% endif %}

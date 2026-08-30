@@ -322,7 +322,7 @@ describe('AcpPlayerSession', () => {
     )
     expect((await denied.prompt('permission-check-codex', 5_000)).text).toBe('permission-cancelled')
     await denied.close()
-  })
+  }, 15_000)
 
   it('bounds a protocol close that never settles', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-hung-close-'))

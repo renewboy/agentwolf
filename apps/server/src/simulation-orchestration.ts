@@ -13,7 +13,7 @@ import {
   type SimulationRunReport,
   type SimulationVariant,
 } from '@agentwolf/contracts'
-import { GameEngine, type BoardManifest } from '@agentwolf/game-engine'
+import { GameEngine, type BoardManifest, type RulesetRuntime } from '@agentwolf/game-engine'
 import { ActionMailbox } from './action-mailbox.js'
 import { AgentCatalogService } from './agent-catalog.js'
 import { BoardCatalogService } from './board-catalog.js'
@@ -64,6 +64,7 @@ export async function runOrchestrationSimulation(
     const catalog = new AgentCatalogService(repository)
     const rulesets = new RulesetCatalog()
     const boards = new BoardCatalogService(repository, null, rulesets)
+    const ruleset = rulesets.forSnapshot(simulation.setup.board)
     saveSimulationAgents(repository, simulation)
     const { board, engine } = createSimulationEngine(simulation)
     const timestamp = '2000-01-01T00:00:00.000Z'
@@ -110,7 +111,7 @@ export async function runOrchestrationSimulation(
       config,
       mailbox,
       trajectory: new TrajectoryService(repository).recorder(simulation.setup.matchId),
-      ruleset: rulesets.forSnapshot(simulation.setup.board),
+      ruleset,
       sessionFactory,
       sessionConcurrency: simulation.setup.players.length,
       postgameReviewEnabled: false,
@@ -135,7 +136,9 @@ export async function runOrchestrationSimulation(
         ),
       )
     }
-    failures.push(...checkParallelPromptBarriers(repository, simulation.setup.matchId, board))
+    failures.push(
+      ...checkParallelPromptBarriers(repository, simulation.setup.matchId, board, ruleset),
+    )
     const normalization = createSimulationNormalization(
       simulation.setup.board,
       simulation.setup.players,
@@ -237,6 +240,7 @@ function checkParallelPromptBarriers(
   repository: SqliteRepository,
   matchId: SimulationInput['setup']['matchId'],
   board: BoardManifest,
+  ruleset: RulesetRuntime,
 ): string[] {
   const failures: string[] = []
   const turns = repository
@@ -264,6 +268,7 @@ function checkParallelPromptBarriers(
       events: repository.listMatchEvents(matchId).filter((event) => event.sequence <= boundary),
       status: 'running',
       pausedReason: null,
+      ruleset,
     })
     const expected = engine.currentTurn()?.actors ?? []
     if (expected.length !== owners.size || expected.some((playerId) => !owners.has(playerId))) {

@@ -5,14 +5,16 @@ import { resolveDaySpeechOrder } from '../../../speech-order.js'
 import { emitVoteResolution } from '../../../vote-resolution.js'
 import { classicPluginIds } from './ids.js'
 import { classicCapabilities } from '../capabilities.js'
-import { appendFinalDeath, bySeat, phase } from './shared.js'
+import { afterDeathBatchEdges, appendFinalDeath, bySeat, phase } from './shared.js'
 
-export const classicDayPlugin = createClassicDayPlugin(2, true)
-export const classicV1DayPlugin = createClassicDayPlugin(1, false)
+export const classicDayPlugin = createClassicDayPlugin(3, true, true)
+export const classicV2DayPlugin = createClassicDayPlugin(2, true, false)
+export const classicV1DayPlugin = createClassicDayPlugin(1, false, false)
 
 function createClassicDayPlugin(
   version: number,
   persistDeathTiming: boolean,
+  preserveTerminalLastWords: boolean,
 ): RulePlugin<RulesetBuilder> {
   return {
     id: classicPluginIds.day,
@@ -85,13 +87,9 @@ function createClassicDayPlugin(
           id: phase('phase-day-resolve'),
           labelKey: 'phases.dayResolve',
           mode: 'automatic',
-          edges: [
-            { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
-            { to: phase('phase-match-ended'), when: 'has-winner' },
-            { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
-            { to: phase('phase-last-words'), when: 'has-last-words' },
+          edges: afterDeathBatchEdges(preserveTerminalLastWords, [
             { to: phase('phase-night-guard') },
-          ],
+          ]),
         },
       ])
       interrupts.register({
@@ -111,6 +109,9 @@ function createClassicDayPlugin(
             : [],
         nextPhase: (runtime, definition) => {
           if (rules.evaluate('has-death-trigger', runtime)) return phase('phase-death-triggers')
+          if (preserveTerminalLastWords && rules.evaluate('has-terminal-last-words', runtime)) {
+            return phase('phase-last-words')
+          }
           if (rules.evaluate('has-winner', runtime)) return phase('phase-match-ended')
           if (definition.context === 'sheriff-election') return phase('phase-day-announcement')
           if (rules.evaluate('dead-sheriff-holds-badge', runtime)) {

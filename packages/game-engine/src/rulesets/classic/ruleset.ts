@@ -4,10 +4,18 @@ import { RulesetBuilder, type RulesetRuntime } from '../../plugins/ruleset.js'
 import { evaluateVictory } from './victory.js'
 import { registerClassicResolution } from './resolution-registry.js'
 import { classicIdentityQueryPlugin } from './identity-queries.js'
-import { classicDayPlugin, classicV1DayPlugin } from './plugins/day-plugin.js'
-import { classicDeathPlugin, classicV1DeathPlugin } from './plugins/death-plugin.js'
+import { classicDayPlugin, classicV1DayPlugin, classicV2DayPlugin } from './plugins/day-plugin.js'
+import {
+  classicDeathPlugin,
+  classicV1DeathPlugin,
+  classicV2DeathPlugin,
+} from './plugins/death-plugin.js'
 import { classicPluginIds } from './plugins/ids.js'
-import { classicNightPlugin, classicV1NightPlugin } from './plugins/night-plugin.js'
+import {
+  classicNightPlugin,
+  classicV1NightPlugin,
+  classicV2NightPlugin,
+} from './plugins/night-plugin.js'
 import { classicLegacyEventPlugin } from './plugins/legacy-event-plugin.js'
 import { classicPhasePlugin } from './plugins/phase-plugin.js'
 import {
@@ -16,6 +24,7 @@ import {
   classicV2RolePlugins,
   classicV3RolePlugins,
   classicV4RolePlugins,
+  classicV5RolePlugins,
 } from './plugins/role-plugins.js'
 import { classicSheriffPlugin } from './plugins/sheriff-plugin.js'
 import { classicTerminalPlugin, classicV1TerminalPlugin } from './plugins/terminal-plugin.js'
@@ -67,6 +76,13 @@ const currentFlowPlugins = {
   terminal: classicTerminalPlugin,
 } as const
 
+const v2FlowPlugins = {
+  night: classicV2NightPlugin,
+  death: classicV2DeathPlugin,
+  day: classicV2DayPlugin,
+  terminal: classicTerminalPlugin,
+} as const
+
 const legacyFlowPlugins = {
   night: classicV1NightPlugin,
   death: classicV1DeathPlugin,
@@ -76,9 +92,17 @@ const legacyFlowPlugins = {
 
 export function createClassicRuleset(): RulesetRuntime {
   return new RulesetBuilder({
+    id: RulesetIdSchema.parse('ruleset-classic-v6'),
+    version: 6,
+    plugins: plugins(classicRolePlugins, classicWolfTeamPlugin, currentFlowPlugins),
+  }).build()
+}
+
+export function createClassicV5Ruleset(): RulesetRuntime {
+  return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic-v5'),
     version: 5,
-    plugins: plugins(classicRolePlugins, classicWolfTeamPlugin, currentFlowPlugins),
+    plugins: plugins(classicV5RolePlugins, classicWolfTeamPlugin, v2FlowPlugins),
   }).build()
 }
 
@@ -86,7 +110,7 @@ export function createClassicV4Ruleset(): RulesetRuntime {
   return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic-v4'),
     version: 4,
-    plugins: plugins(classicV4RolePlugins, classicWolfTeamPlugin, currentFlowPlugins),
+    plugins: plugins(classicV4RolePlugins, classicWolfTeamPlugin, v2FlowPlugins),
   }).build()
 }
 

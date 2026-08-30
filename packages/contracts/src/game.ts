@@ -149,7 +149,14 @@ const MatchBoardSnapshotV1Schema = z.object({
 
 const MatchBoardSnapshotV2Schema = z.object({
   schemaVersion: z.literal(2),
-  rulesetId: z.enum(['classic-v1', 'classic-v2', 'classic-v3', 'classic-v4', 'classic-v5']),
+  rulesetId: z.enum([
+    'classic-v1',
+    'classic-v2',
+    'classic-v3',
+    'classic-v4',
+    'classic-v5',
+    'classic-v6',
+  ]),
   ruleset: RulesetLockSchema,
   policies: BoardPolicySnapshotSchema,
   ...MatchBoardSnapshotFields,

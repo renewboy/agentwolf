@@ -46,6 +46,9 @@ describe('plugin-owned Prompt rendering', () => {
     expect(foundation.prompt).toContain('丘比特是第三方阵营角色')
     expect(foundation.prompt).not.toContain('丘比特是第三方角色')
     expect(foundation.prompt).not.toContain('具体 Role')
+    expect(foundation.prompt).toContain('夜间形成的情侣死亡在天亮合并到死亡名单中')
+    expect(foundation.prompt).toContain('白天放逐先宣布被放逐者出局，再立即宣布另一方殉情')
+    expect(foundation.prompt).toContain('两人继承同一死亡时点和遗言资格')
     expect(foundation.prompt).toContain(
       '夜间行动顺序（仅执行本夜可用的行动）：丘比特连线（仅首夜） → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动。',
     )
@@ -99,10 +102,40 @@ describe('plugin-owned Prompt rendering', () => {
     expect(cupidPrompt).not.toContain(`${villager.seat} 号玩家（村民）`)
     expect((await renderFor(unrelated.id)).prompt).not.toContain('成为情侣')
 
-    const reveal = GameEventSchema.parse({
+    const linkedDeath = GameEventSchema.parse({
       matchId: setup.engine.state.matchId,
       sequence: setup.engine.state.lastSequence + 1,
       occurredAt: '2026-08-30T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'plugin.event',
+        pluginId: 'plugin-role-cupid',
+        eventType: 'event-cupid-linked-death',
+        schemaVersion: 2,
+        data: {
+          sourceId: wolf.id,
+          targetId: villager.id,
+          timing: 'day',
+          presentation: 'partner-only',
+        },
+      },
+    })
+    const linkedDeathPrompt = await setup.renderer.turn(
+      withEvent(setup.engine.state, linkedDeath),
+      cupidBoard,
+      [...setup.engine.events, linkedDeath],
+      unrelated.id,
+      linkedDeath.sequence - 1,
+      daySpeechTurn(unrelated.id),
+      300,
+    )
+    expect(linkedDeathPrompt.prompt).toContain(`${villager.seat} 号玩家因情侣关系殉情。`)
+    expect(linkedDeathPrompt.prompt).not.toContain('出局，')
+
+    const reveal = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: linkedDeath.sequence + 1,
+      occurredAt: '2026-08-30T00:00:01.000Z',
       visibility: { kind: 'public' },
       payload: {
         type: 'public.announcement',
@@ -114,7 +147,7 @@ describe('plugin-owned Prompt rendering', () => {
     const revealedPrompt = await setup.renderer.turn(
       withEvent(setup.engine.state, reveal),
       cupidBoard,
-      [...setup.engine.events, reveal],
+      [...setup.engine.events, linkedDeath, reveal],
       unrelated.id,
       reveal.sequence - 1,
       daySpeechTurn(unrelated.id),

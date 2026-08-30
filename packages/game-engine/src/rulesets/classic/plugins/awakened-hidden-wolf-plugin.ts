@@ -85,6 +85,16 @@ export const awakenedHiddenWolfV2Plugin: RulePlugin<RulesetBuilder> = {
   ),
 }
 
+export const awakenedHiddenWolfV3Plugin: RulePlugin<RulesetBuilder> = {
+  ...awakenedHiddenWolfPlugin,
+  version: 3,
+  requires: (awakenedHiddenWolfPlugin.requires ?? []).map((requirement) =>
+    requirement.id === classicPluginIds.night || requirement.id === classicPluginIds.death
+      ? { ...requirement, version: 3 }
+      : requirement,
+  ),
+}
+
 function registerEvents(events: RulesetBuilder['events']): void {
   events.register({
     pluginId: classicPluginIds.awakenedHiddenWolf,

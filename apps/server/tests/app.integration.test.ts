@@ -829,8 +829,8 @@ describe('Fastify API', () => {
     const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
     expect(snapshot).toMatchObject({
       schemaVersion: 2,
-      rulesetId: 'classic-v5',
-      ruleset: { id: 'ruleset-classic-v5', version: 5 },
+      rulesetId: 'classic-v6',
+      ruleset: { id: 'ruleset-classic-v6', version: 6 },
       policies: { victory: 'slaughter-all' },
       agentProfiles: expect.arrayContaining([
         { seat: 1, profileId: boardProfile.id },

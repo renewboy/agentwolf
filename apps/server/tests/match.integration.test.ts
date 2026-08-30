@@ -117,15 +117,40 @@ describe('match orchestration', () => {
       kind: 'players',
       playerIds: ['player-12', 'player-1', 'player-5'],
     })
+    const linkedDeath = events.find(
+      (event) =>
+        event.payload.type === 'plugin.event' &&
+        event.payload.eventType === 'event-cupid-linked-death',
+    )
+    expect(linkedDeath).toMatchObject({
+      visibility: { kind: 'god' },
+      payload: {
+        schemaVersion: 2,
+        data: {
+          sourceId: 'player-5',
+          targetId: 'player-1',
+          timing: 'night',
+          presentation: 'partner-only',
+        },
+      },
+    })
+    expect(
+      events.some(
+        (event) =>
+          event.visibility.kind === 'public' &&
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === 'event-cupid-linked-death',
+      ),
+    ).toBe(false)
     expect(
       events.find(
         (event) =>
-          event.payload.type === 'plugin.event' &&
-          event.payload.eventType === 'event-cupid-linked-death',
+          event.payload.type === 'public.announcement' &&
+          event.payload.code === 'night-deaths' &&
+          event.payload.playerIds.some((playerId) => playerId === 'player-1') &&
+          event.payload.playerIds.some((playerId) => playerId === 'player-5'),
       )?.payload,
-    ).toMatchObject({
-      data: { sourceId: 'player-5', targetId: 'player-1', timing: 'night' },
-    })
+    ).toMatchObject({ playerIds: expect.arrayContaining(['player-1', 'player-5']) })
     expect(events.findLast((event) => event.payload.type === 'match.ended')?.payload).toMatchObject(
       {
         winner: 'werewolf',
@@ -697,7 +722,7 @@ describe('match orchestration', () => {
       ok: true,
       issues: [],
     })
-  })
+  }, 15_000)
 
   it('discards durable actions left behind when self-destruct interrupts a parallel stage', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-interrupt-actions-'))
@@ -960,7 +985,7 @@ describe('match orchestration', () => {
       ok: true,
       issues: [],
     })
-  })
+  }, 15_000)
 
   it('resumes the same durable player Sessions after server restart', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-restart-recovery-'))

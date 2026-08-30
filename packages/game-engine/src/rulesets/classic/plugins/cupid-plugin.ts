@@ -12,6 +12,7 @@ import {
   cupidEventTypes,
   cupidLinkDataSchema,
   cupidLinkedDeathDataSchema,
+  cupidLinkedDeathV1DataSchema,
   cupidPlayerId,
   cupidState,
   cupidStateSchema,
@@ -25,12 +26,14 @@ const hiddenNightPhaseId = phase('phase-night-hidden')
 const matchEndedPhaseId = phase('phase-match-ended')
 const linkedDeathTriggerId = TriggerIdSchema.parse('trigger-cupid-linked-death')
 
-export const cupidV1Plugin = createCupidPlugin(1, false)
-export const cupidPlugin = createCupidPlugin(2, true)
+export const cupidV1Plugin = createCupidPlugin(1, false, false)
+export const cupidV2Plugin = createCupidPlugin(2, true, false)
+export const cupidPlugin = createCupidPlugin(3, true, true)
 
 function createCupidPlugin(
   version: number,
   revealLoversAtEnd: boolean,
+  useContextualDeathPresentation: boolean,
 ): RulePlugin<RulesetBuilder> {
   return {
     id: classicPluginIds.cupid,
@@ -39,9 +42,9 @@ function createCupidPlugin(
       { id: classicPluginIds.phases, version: 1 },
       { id: classicPluginIds.guard, version: 1 },
       { id: classicPluginIds.victory, version: 1 },
-      { id: classicPluginIds.night, version: 2 },
-      { id: classicPluginIds.death, version: 2 },
-      { id: classicPluginIds.day, version: 2 },
+      { id: classicPluginIds.night, version: useContextualDeathPresentation ? 3 : 2 },
+      { id: classicPluginIds.death, version: useContextualDeathPresentation ? 3 : 2 },
+      { id: classicPluginIds.day, version: useContextualDeathPresentation ? 3 : 2 },
       { id: classicPluginIds.terminal, version: 2 },
     ],
     register: ({ events, phases, roles, rules, triggers, victories }) => {
@@ -60,18 +63,33 @@ function createCupidPlugin(
           return { ...state, loverIds: data.loverIds }
         },
       })
-      events.register({
-        pluginId: classicPluginIds.cupid,
-        eventType: cupidEventTypes.linkedDeath,
-        schemaVersion: 1,
-        stateSchema: cupidStateSchema,
-        dataSchema: cupidLinkedDeathDataSchema,
-        initialState: initialCupidState,
-        reduce: (state, data) => ({
-          ...state,
-          linkedDeaths: [...state.linkedDeaths, data],
-        }),
-      })
+      if (useContextualDeathPresentation) {
+        events.register({
+          pluginId: classicPluginIds.cupid,
+          eventType: cupidEventTypes.linkedDeath,
+          schemaVersion: 2,
+          stateSchema: cupidStateSchema,
+          dataSchema: cupidLinkedDeathDataSchema,
+          initialState: initialCupidState,
+          reduce: (state, data) => ({
+            ...state,
+            linkedDeaths: [...state.linkedDeaths, data],
+          }),
+        })
+      } else {
+        events.register({
+          pluginId: classicPluginIds.cupid,
+          eventType: cupidEventTypes.linkedDeath,
+          schemaVersion: 1,
+          stateSchema: cupidStateSchema,
+          dataSchema: cupidLinkedDeathV1DataSchema,
+          initialState: initialCupidState,
+          reduce: (state, data) => ({
+            ...state,
+            linkedDeaths: [...state.linkedDeaths, data],
+          }),
+        })
+      }
       phases.insert({
         node: {
           id: cupidPhaseId,
@@ -123,17 +141,36 @@ function createCupidPlugin(
           return [
             {
               death: { playerId: targetId, causes: ['linked'], timing: death.timing },
+              ...(useContextualDeathPresentation ? { announcement: 'events-only' as const } : {}),
               events: [
                 {
                   payload: {
                     type: 'plugin.event',
                     pluginId: classicPluginIds.cupid,
                     eventType: cupidEventTypes.linkedDeath,
-                    schemaVersion: 1,
-                    data: { sourceId: death.playerId, targetId, timing: death.timing },
+                    schemaVersion: useContextualDeathPresentation ? 2 : 1,
+                    data: {
+                      sourceId: death.playerId,
+                      targetId,
+                      timing: death.timing,
+                      ...(useContextualDeathPresentation
+                        ? { presentation: 'partner-only' as const }
+                        : {}),
+                    },
                   },
                   visibility: visibility.public,
                 },
+                ...(useContextualDeathPresentation
+                  ? [
+                      {
+                        payload: {
+                          type: 'players.eliminated-publicly' as const,
+                          playerIds: [targetId],
+                        },
+                        visibility: visibility.public,
+                      },
+                    ]
+                  : []),
               ],
             },
           ]

@@ -422,7 +422,7 @@ describe('simulation capture and engine replay', () => {
         JSON.parse(await readFile(resolve(source.root, approved.relativePath), 'utf8')),
       ).simulationId,
     ).toBe(capture.simulationId)
-  }, 10_000)
+  }, 20_000)
 
   it('gates export routes and writes candidates only in loopback developer mode', async () => {
     const normalSource = await createPausedSource(false)

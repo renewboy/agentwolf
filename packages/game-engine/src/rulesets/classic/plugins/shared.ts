@@ -7,6 +7,7 @@ import {
 import { appendIndividualDeaths } from '../../../death-resolution.js'
 import { assertRule } from '../../../errors.js'
 import type { RuleRuntime } from '../../../rule-registry.js'
+import type { PhaseEdge } from '../../../types.js'
 
 export function phase(id: string): ReturnType<typeof PhaseIdSchema.parse> {
   return PhaseIdSchema.parse(id)
@@ -28,6 +29,22 @@ export function appendFinalDeath(
   persistTiming = true,
 ): void {
   appendIndividualDeaths(runtime, [{ playerId, causes }], timing, persistTiming)
+}
+
+export function afterDeathBatchEdges(
+  preserveTerminalLastWords: boolean,
+  tail: readonly PhaseEdge[],
+): PhaseEdge[] {
+  return [
+    { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
+    ...(preserveTerminalLastWords
+      ? [{ to: phase('phase-last-words'), when: 'has-terminal-last-words' }]
+      : []),
+    { to: phase('phase-match-ended'), when: 'has-winner' },
+    { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
+    { to: phase('phase-last-words'), when: 'has-last-words' },
+    ...tail,
+  ]
 }
 
 export function currentNightActions(runtime: RuleRuntime): PlayerAction[] {

@@ -100,6 +100,7 @@ export class SimulationService {
     )
     const warnings: string[] = []
     const manifest = this.#boards.resolveSnapshot(match.boardSnapshot).manifest
+    const ruleset = this.#boards.rulesetForSnapshot(match.boardSnapshot)
     const acceptedActions = new Set(
       events
         .filter((event) => event.payload.type === 'action.submitted')
@@ -122,6 +123,7 @@ export class SimulationService {
             events: history,
             status: turn.gameStatus ?? 'running',
             pausedReason: turn.pausedReasonAtRender,
+            ruleset,
           }).currentTurn()
         } catch (error) {
           warnings.push(`turn-reconstruction:${turn.turnId}:${describe(error)}`)
@@ -158,12 +160,7 @@ export class SimulationService {
       })
     })
     const canonicalEvents = canonicalizeSimulationEvents(events, normalization)
-    const replayed = replayGame(
-      matchId,
-      manifest,
-      events,
-      this.#boards.rulesetForSnapshot(match.boardSnapshot),
-    )
+    const replayed = replayGame(matchId, manifest, events, ruleset)
     const observed = {
       events: canonicalEvents,
       checkpoint: simulationCheckpoint(replayed, match.status, canonicalEvents.length),

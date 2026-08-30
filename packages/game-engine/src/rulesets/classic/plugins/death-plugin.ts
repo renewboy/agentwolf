@@ -1,18 +1,20 @@
-import type { PlayerAction } from '@agentwolf/contracts'
+import type { PlayerAction, PlayerId } from '@agentwolf/contracts'
 import { assertRule } from '../../../errors.js'
 import type { RulePlugin } from '../../../plugins/loader.js'
 import type { RulesetBuilder } from '../../../plugins/ruleset.js'
 import { appendAbilityOutcomes, effectsForActions } from '../../../resolution.js'
 import { visibility, type RuleRuntime } from '../../../rule-registry.js'
 import { classicPluginIds } from './ids.js'
-import { appendFinalDeath, bySeat, phase } from './shared.js'
+import { afterDeathBatchEdges, appendFinalDeath, bySeat, phase } from './shared.js'
 
-export const classicDeathPlugin = createClassicDeathPlugin(2, true)
-export const classicV1DeathPlugin = createClassicDeathPlugin(1, false)
+export const classicDeathPlugin = createClassicDeathPlugin(3, true, true)
+export const classicV2DeathPlugin = createClassicDeathPlugin(2, true, false)
+export const classicV1DeathPlugin = createClassicDeathPlugin(1, false, false)
 
 function createClassicDeathPlugin(
   version: number,
   useDeathTiming: boolean,
+  preserveTerminalLastWords: boolean,
 ): RulePlugin<RulesetBuilder> {
   return {
     id: classicPluginIds.death,
@@ -33,14 +35,10 @@ function createClassicDeathPlugin(
             visibility: 'actor',
           },
           actorSelector: 'pending-death-trigger-owners',
-          edges: [
-            { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
-            { to: phase('phase-match-ended'), when: 'has-winner' },
-            { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
-            { to: phase('phase-last-words'), when: 'has-last-words' },
+          edges: afterDeathBatchEdges(preserveTerminalLastWords, [
             { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
             { to: phase('phase-day-speech-order') },
-          ],
+          ]),
         },
         {
           id: phase('phase-last-words'),
@@ -48,11 +46,18 @@ function createClassicDeathPlugin(
           mode: 'sequential',
           action: { type: 'speech', kind: 'last-words', visibility: 'public' },
           actorSelector: 'last-words-eligible',
-          edges: [
-            { to: phase('phase-match-ended'), when: 'has-winner' },
-            { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
-            { to: phase('phase-day-speech-order') },
-          ],
+          edges: preserveTerminalLastWords
+            ? [
+                { to: phase('phase-match-ended'), when: 'has-winner' },
+                { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
+                { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+                { to: phase('phase-day-speech-order') },
+              ]
+            : [
+                { to: phase('phase-match-ended'), when: 'has-winner' },
+                { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+                { to: phase('phase-day-speech-order') },
+              ],
         },
       ])
       rules.registerActorSelector('pending-death-trigger-owners', (runtime) =>
@@ -75,24 +80,25 @@ function createClassicDeathPlugin(
             .map((death) => death.playerId),
         ),
       )
-      rules.registerActorSelector('last-words-eligible', (runtime) =>
-        bySeat(
-          runtime,
-          [...runtime.state.recentDeaths.values()]
-            .filter((death) => {
-              const nightDeath = useDeathTiming
-                ? death.timing === 'night'
-                : death.causes.some((cause) => cause === 'werewolf' || cause === 'poison')
-              if (!nightDeath) return true
-              if (runtime.board.policies.nightLastWords === 'every-night') return true
-              return (
-                runtime.board.policies.nightLastWords === 'first-night-only' &&
-                runtime.state.day === 1
-              )
-            })
-            .map((death) => death.playerId),
-        ),
-      )
+      rules.registerActorSelector('last-words-eligible', (runtime) => {
+        const eligible = [...runtime.state.recentDeaths.values()].filter((death) => {
+          if (preserveTerminalLastWords && hasDeliveredLastWords(runtime, death.playerId)) {
+            return false
+          }
+          const nightDeath = useDeathTiming
+            ? death.timing === 'night'
+            : death.causes.some((cause) => cause === 'werewolf' || cause === 'poison')
+          if (!nightDeath) return true
+          if (runtime.board.policies.nightLastWords === 'every-night') return true
+          return (
+            runtime.board.policies.nightLastWords === 'first-night-only' && runtime.state.day === 1
+          )
+        })
+        const playerIds = eligible.map((death) => death.playerId)
+        return preserveTerminalLastWords && eligible.every((death) => death.timing === 'day')
+          ? playerIds
+          : bySeat(runtime, playerIds)
+      })
       rules.registerPredicate(
         'has-death-trigger',
         (runtime) => rules.selectActors('pending-death-trigger-owners', runtime).length > 0,
@@ -101,6 +107,13 @@ function createClassicDeathPlugin(
         'has-last-words',
         (runtime) => rules.selectActors('last-words-eligible', runtime).length > 0,
       )
+      if (preserveTerminalLastWords) {
+        rules.registerPredicate(
+          'has-terminal-last-words',
+          (runtime) =>
+            rules.evaluate('has-winner', runtime) && rules.evaluate('has-last-words', runtime),
+        )
+      }
       rules.registerPhaseHandler(
         phase('phase-death-triggers'),
         (runtime) => resolveDeathTriggers(runtime, useDeathTiming),
@@ -110,6 +123,20 @@ function createClassicDeathPlugin(
       )
     },
   }
+}
+
+function hasDeliveredLastWords(runtime: RuleRuntime, playerId: PlayerId): boolean {
+  const deathSequence = runtime.events.findLast(
+    (event) => event.payload.type === 'player.died' && event.payload.playerId === playerId,
+  )?.sequence
+  if (!deathSequence) return false
+  return runtime.events.some(
+    (event) =>
+      event.sequence > deathSequence &&
+      event.payload.type === 'speech.committed' &&
+      event.payload.playerId === playerId &&
+      event.payload.kind === 'last-words',
+  )
 }
 
 function resolveDeathTriggers(runtime: RuleRuntime, persistDeathTiming: boolean): void {
