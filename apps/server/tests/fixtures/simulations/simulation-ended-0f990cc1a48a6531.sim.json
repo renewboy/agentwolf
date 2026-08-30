@@ -1,12 +1,160 @@
 {
   "schemaVersion": 1,
-  "simulationId": "simulation-ended-bc894fce0eb4bdfa",
+  "simulationId": "simulation-ended-0f990cc1a48a6531",
   "title": "board-simulation-12-sheriff ended",
   "setup": {
     "matchId": "match-simulation-replay",
     "board": {
-      "schemaVersion": 1,
-      "rulesetId": "classic-v1",
+      "schemaVersion": 3,
+      "rulesetId": "classic",
+      "ruleset": {
+        "id": "ruleset-classic",
+        "plugins": [
+          {
+            "id": "plugin-classic-phases",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-legacy-events",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-identity-queries",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-villager",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-werewolf",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-seer",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-witch",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-hunter",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-idiot",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-guard",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-magic-mirror-girl",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-white-wolf-king",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-resolution",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-wolf-team",
+            "version": 2,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-night",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-death",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-awakened-hidden-wolf",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-victory",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-day",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-terminal",
+            "version": 2,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-cupid",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-sheriff",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          }
+        ],
+        "fingerprint": "806490f20fe1ca19e9dbbf14a5f2158819963796e9eb5130c58394eb805e98d5",
+        "revision": 6
+      },
+      "policies": {
+        "witchSelfSave": "never",
+        "witchPotionsPerNight": 1,
+        "guardAntidoteCollision": "death",
+        "guardCanSelfProtect": true,
+        "sheriffExplosion": "single-explosion-loses-badge",
+        "nightLastWords": "first-night-only",
+        "victory": "slaughter-edge"
+      },
       "id": "board-simulation-12-sheriff",
       "name": "Simulation board 12",
       "description": "",
@@ -32,8 +180,108 @@
           "count": 1
         },
         {
-          "roleId": "role-idiot",
+          "roleId": "role-cupid",
           "count": 1
+        }
+      ],
+      "characters": [
+        {
+          "seat": 1,
+          "characterId": null
+        },
+        {
+          "seat": 2,
+          "characterId": null
+        },
+        {
+          "seat": 3,
+          "characterId": null
+        },
+        {
+          "seat": 4,
+          "characterId": null
+        },
+        {
+          "seat": 5,
+          "characterId": null
+        },
+        {
+          "seat": 6,
+          "characterId": null
+        },
+        {
+          "seat": 7,
+          "characterId": null
+        },
+        {
+          "seat": 8,
+          "characterId": null
+        },
+        {
+          "seat": 9,
+          "characterId": null
+        },
+        {
+          "seat": 10,
+          "characterId": null
+        },
+        {
+          "seat": 11,
+          "characterId": null
+        },
+        {
+          "seat": 12,
+          "characterId": null
+        }
+      ],
+      "agentProfiles": [
+        {
+          "seat": 1,
+          "profileId": null
+        },
+        {
+          "seat": 2,
+          "profileId": null
+        },
+        {
+          "seat": 3,
+          "profileId": null
+        },
+        {
+          "seat": 4,
+          "profileId": null
+        },
+        {
+          "seat": 5,
+          "profileId": null
+        },
+        {
+          "seat": 6,
+          "profileId": null
+        },
+        {
+          "seat": 7,
+          "profileId": null
+        },
+        {
+          "seat": 8,
+          "profileId": null
+        },
+        {
+          "seat": 9,
+          "profileId": null
+        },
+        {
+          "seat": 10,
+          "profileId": null
+        },
+        {
+          "seat": 11,
+          "profileId": null
+        },
+        {
+          "seat": 12,
+          "profileId": null
         }
       ],
       "playerCount": 12,
@@ -48,86 +296,99 @@
         "seat": 1,
         "name": "Simulation seat 1",
         "profileId": "profile-simulation-1",
-        "roleId": "role-werewolf"
+        "roleId": "role-werewolf",
+        "character": null
       },
       {
         "playerId": "player-2",
         "seat": 2,
         "name": "Simulation seat 2",
         "profileId": "profile-simulation-2",
-        "roleId": "role-werewolf"
+        "roleId": "role-werewolf",
+        "character": null
       },
       {
         "playerId": "player-3",
         "seat": 3,
         "name": "Simulation seat 3",
         "profileId": "profile-simulation-3",
-        "roleId": "role-werewolf"
+        "roleId": "role-werewolf",
+        "character": null
       },
       {
         "playerId": "player-4",
         "seat": 4,
         "name": "Simulation seat 4",
         "profileId": "profile-simulation-4",
-        "roleId": "role-werewolf"
+        "roleId": "role-werewolf",
+        "character": null
       },
       {
         "playerId": "player-5",
         "seat": 5,
         "name": "Simulation seat 5",
         "profileId": "profile-simulation-5",
-        "roleId": "role-villager"
+        "roleId": "role-villager",
+        "character": null
       },
       {
         "playerId": "player-6",
         "seat": 6,
         "name": "Simulation seat 6",
         "profileId": "profile-simulation-6",
-        "roleId": "role-villager"
+        "roleId": "role-villager",
+        "character": null
       },
       {
         "playerId": "player-7",
         "seat": 7,
         "name": "Simulation seat 7",
         "profileId": "profile-simulation-7",
-        "roleId": "role-villager"
+        "roleId": "role-villager",
+        "character": null
       },
       {
         "playerId": "player-8",
         "seat": 8,
         "name": "Simulation seat 8",
         "profileId": "profile-simulation-8",
-        "roleId": "role-villager"
+        "roleId": "role-villager",
+        "character": null
       },
       {
         "playerId": "player-9",
         "seat": 9,
         "name": "Simulation seat 9",
         "profileId": "profile-simulation-9",
-        "roleId": "role-seer"
+        "roleId": "role-seer",
+        "character": null
       },
       {
         "playerId": "player-10",
         "seat": 10,
         "name": "Simulation seat 10",
         "profileId": "profile-simulation-10",
-        "roleId": "role-witch"
+        "roleId": "role-witch",
+        "character": null
       },
       {
         "playerId": "player-11",
         "seat": 11,
         "name": "Simulation seat 11",
         "profileId": "profile-simulation-11",
-        "roleId": "role-hunter"
+        "roleId": "role-hunter",
+        "character": null
       },
       {
         "playerId": "player-12",
         "seat": 12,
         "name": "Simulation seat 12",
         "profileId": "profile-simulation-12",
-        "roleId": "role-idiot"
+        "roleId": "role-cupid",
+        "character": null
       }
-    ]
+    ],
+    "speechCharacterLimit": 300
   },
   "turns": [
     {
@@ -157,11 +418,11 @@
       "mode": "sequential",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
       "fromSequence": 16,
-      "toSequence": 44,
-      "visibleEventSequences": [40, 41, 42, 44],
+      "toSequence": 51,
+      "visibleEventSequences": [40, 41, 48, 49, 51],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 13,
+      "completionOrder": 14,
       "status": "completed",
       "fault": null,
       "action": {
@@ -180,19 +441,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 45,
-      "toSequence": 69,
-      "visibleEventSequences": [47, 48, 50, 53, 54, 56, 59, 60, 62, 65, 66, 68],
+      "fromSequence": 52,
+      "toSequence": 76,
+      "visibleEventSequences": [54, 55, 57, 60, 61, 63, 66, 67, 69, 72, 73, 75],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 17,
+      "completionOrder": 18,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-1",
         "type": "vote",
-        "targetId": "player-5",
+        "targetId": "player-12",
         "kind": "wolf-kill"
       }
     },
@@ -217,12 +478,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 70,
-      "toSequence": 105,
-      "visibleEventSequences": [78, 80, 82, 84, 86, 87, 93, 99, 103, 104],
+      "fromSequence": 77,
+      "toSequence": 118,
+      "visibleEventSequences": [85, 87, 89, 91, 93, 94, 95, 96, 97, 98, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 23,
+      "completionOrder": 24,
       "status": "completed",
       "fault": null,
       "action": {
@@ -244,23 +505,23 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 106,
-      "toSequence": 185,
+      "fromSequence": 119,
+      "toSequence": 198,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 36,
+      "completionOrder": 37,
       "status": "completed",
       "fault": null,
       "action": {
@@ -283,23 +544,23 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 186,
-      "toSequence": 252,
+      "fromSequence": 199,
+      "toSequence": 265,
       "visibleEventSequences": [
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221,
-        224, 225, 227, 230, 231, 233, 236, 237, 239, 242, 243, 245, 248, 249, 251
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234,
+        237, 238, 240, 243, 244, 246, 249, 250, 252, 255, 256, 258, 261, 262, 264
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 47,
+      "completionOrder": 48,
       "status": "completed",
       "fault": null,
       "action": {
@@ -318,14 +579,14 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 253,
-      "toSequence": 315,
+      "fromSequence": 266,
+      "toSequence": 328,
       "visibleEventSequences": [
-        275, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 315
+        288, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 328
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 58,
+      "completionOrder": 59,
       "status": "completed",
       "fault": null,
       "action": {
@@ -344,267 +605,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 316,
-      "toSequence": 340,
-      "visibleEventSequences": [318, 319, 321, 324, 325, 327, 330, 331, 333, 336, 337, 339],
+      "fromSequence": 329,
+      "toSequence": 353,
+      "visibleEventSequences": [331, 332, 334, 337, 338, 340, 343, 344, 346, 349, 350, 352],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 62,
+      "completionOrder": 63,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-1",
         "type": "vote",
-        "targetId": "player-6",
-        "kind": "wolf-kill"
-      }
-    },
-    {
-      "ordinal": 9,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-day-speech",
-      "actionType": "speech",
-      "mode": "sequential",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-7",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 341,
-      "toSequence": 384,
-      "visibleEventSequences": [
-        349, 351, 353, 355, 357, 358, 364, 370, 374, 375, 377, 378, 380, 382, 384
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 68,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "speech",
-        "text": "我是 1 号玩家，这一轮选择弃票。",
-        "kind": "day"
-      }
-    },
-    {
-      "ordinal": 10,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-day-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-7",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 385,
-      "toSequence": 445,
-      "visibleEventSequences": [
-        387, 388, 390, 393, 394, 396, 399, 400, 402, 405, 406, 408, 411, 412, 414, 417, 418, 420,
-        423, 424, 426, 429, 430, 432, 435, 436, 438, 441, 442, 444
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 78,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "vote",
-        "targetId": null,
-        "kind": "exile"
-      }
-    },
-    {
-      "ordinal": 11,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-night-wolf-council",
-      "actionType": "speech",
-      "mode": "sequential",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 446,
-      "toSequence": 503,
-      "visibleEventSequences": [
-        466, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 503
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 88,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "speech",
-        "text": "我是 1 号玩家，这一轮选择弃票。",
-        "kind": "wolf-council"
-      }
-    },
-    {
-      "ordinal": 12,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-night-wolf-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 504,
-      "toSequence": 528,
-      "visibleEventSequences": [506, 507, 509, 512, 513, 515, 518, 519, 521, 524, 525, 527],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 92,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "vote",
-        "targetId": "player-7",
-        "kind": "wolf-kill"
-      }
-    },
-    {
-      "ordinal": 13,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-day-speech",
-      "actionType": "speech",
-      "mode": "sequential",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 529,
-      "toSequence": 572,
-      "visibleEventSequences": [
-        537, 539, 541, 543, 545, 546, 552, 558, 562, 563, 565, 566, 568, 570, 572
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 98,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "speech",
-        "text": "我是 1 号玩家，这一轮选择弃票。",
-        "kind": "day"
-      }
-    },
-    {
-      "ordinal": 14,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-day-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 573,
-      "toSequence": 627,
-      "visibleEventSequences": [
-        575, 576, 578, 581, 582, 584, 587, 588, 590, 593, 594, 596, 599, 600, 602, 605, 606, 608,
-        611, 612, 614, 617, 618, 620, 623, 624, 626
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 107,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "vote",
-        "targetId": null,
-        "kind": "exile"
-      }
-    },
-    {
-      "ordinal": 15,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-night-wolf-council",
-      "actionType": "speech",
-      "mode": "sequential",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 628,
-      "toSequence": 680,
-      "visibleEventSequences": [
-        646, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 676, 677, 678, 680
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 116,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "speech",
-        "text": "我是 1 号玩家，这一轮选择弃票。",
-        "kind": "wolf-council"
-      }
-    },
-    {
-      "ordinal": 16,
-      "kind": "action",
-      "playerId": "player-1",
-      "phaseId": "phase-night-wolf-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 681,
-      "toSequence": 705,
-      "visibleEventSequences": [683, 684, 686, 689, 690, 692, 695, 696, 698, 701, 702, 704],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 120,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-1",
-        "type": "vote",
-        "targetId": "player-8",
+        "targetId": "player-5",
         "kind": "wolf-kill"
       }
     },
@@ -635,11 +648,11 @@
       "mode": "parallel",
       "expectedActors": ["player-10"],
       "fromSequence": 16,
-      "toSequence": 88,
-      "visibleEventSequences": [40, 41, 42, 68, 86, 87],
+      "toSequence": 100,
+      "visibleEventSequences": [40, 41, 49, 75, 98, 99],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 21,
+      "completionOrder": 22,
       "status": "completed",
       "fault": null,
       "action": {
@@ -672,12 +685,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 89,
-      "toSequence": 105,
-      "visibleEventSequences": [91, 93, 99, 103, 104],
+      "fromSequence": 101,
+      "toSequence": 118,
+      "visibleEventSequences": [103, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 32,
+      "completionOrder": 33,
       "status": "completed",
       "fault": null,
       "action": {
@@ -694,18 +707,18 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-10", "player-11", "player-12"],
-      "fromSequence": 106,
-      "toSequence": 233,
+      "expectedActors": ["player-10", "player-11"],
+      "fromSequence": 119,
+      "toSequence": 252,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221,
-        224, 225, 227, 230, 231, 233
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234,
+        237, 238, 240, 243, 244, 246, 249, 250, 252
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 44,
+      "completionOrder": 46,
       "status": "completed",
       "fault": null,
       "action": {
@@ -728,20 +741,20 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 234,
-      "toSequence": 252,
-      "visibleEventSequences": [236, 237, 239, 242, 243, 245, 248, 249, 251],
+      "fromSequence": 253,
+      "toSequence": 265,
+      "visibleEventSequences": [255, 256, 258, 261, 262, 264],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 55,
+      "completionOrder": 57,
       "status": "completed",
       "fault": null,
       "action": {
@@ -760,15 +773,15 @@
       "actionType": "night-action",
       "mode": "parallel",
       "expectedActors": ["player-10"],
-      "fromSequence": 253,
-      "toSequence": 359,
+      "fromSequence": 266,
+      "toSequence": 377,
       "visibleEventSequences": [
-        291, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 339,
-        357, 358
+        306, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 352,
+        375, 376
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 66,
+      "completionOrder": 67,
       "status": "completed",
       "fault": null,
       "action": {
@@ -787,16 +800,16 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-10", "player-11", "player-12"],
-      "fromSequence": 360,
-      "toSequence": 426,
+      "expectedActors": ["player-10", "player-11"],
+      "fromSequence": 378,
+      "toSequence": 447,
       "visibleEventSequences": [
-        362, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390, 393, 394, 396, 399, 400,
-        402, 405, 406, 408, 411, 412, 414, 417, 418, 420, 423, 424, 426
+        380, 382, 388, 392, 393, 396, 399, 401, 403, 405, 408, 409, 411, 414, 415, 417, 420, 421,
+        423, 426, 427, 429, 432, 433, 435, 438, 439, 441, 444, 445, 447
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 75,
+      "completionOrder": 76,
       "status": "completed",
       "fault": null,
       "action": {
@@ -815,20 +828,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 427,
-      "toSequence": 445,
-      "visibleEventSequences": [429, 430, 432, 435, 436, 438, 441, 442, 444],
+      "fromSequence": 448,
+      "toSequence": 460,
+      "visibleEventSequences": [450, 451, 453, 456, 457, 459],
       "sessionGeneration": 1,
       "attempt": 1,
       "completionOrder": 85,
@@ -850,15 +862,14 @@
       "actionType": "night-action",
       "mode": "parallel",
       "expectedActors": ["player-10"],
-      "fromSequence": 446,
-      "toSequence": 547,
+      "fromSequence": 461,
+      "toSequence": 551,
       "visibleEventSequences": [
-        480, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 527, 545,
-        546
+        493, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 531, 549, 550
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 96,
+      "completionOrder": 93,
       "status": "completed",
       "fault": null,
       "action": {
@@ -877,16 +888,16 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-10", "player-11", "player-12"],
-      "fromSequence": 548,
-      "toSequence": 608,
+      "expectedActors": ["player-10", "player-9", "player-8", "player-7"],
+      "fromSequence": 552,
+      "toSequence": 600,
       "visibleEventSequences": [
-        550, 552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578, 581, 582, 584, 587, 588,
-        590, 593, 594, 596, 599, 600, 602, 605, 606, 608
+        554, 556, 562, 566, 567, 569, 570, 572, 574, 576, 579, 580, 582, 585, 586, 588, 591, 592,
+        594, 597, 598, 600
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 104,
+      "completionOrder": 99,
       "status": "completed",
       "fault": null,
       "action": {
@@ -905,22 +916,21 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 609,
-      "toSequence": 627,
-      "visibleEventSequences": [611, 612, 614, 617, 618, 620, 623, 624, 626],
+      "fromSequence": 601,
+      "toSequence": 625,
+      "visibleEventSequences": [603, 604, 606, 609, 610, 612, 615, 616, 618, 621, 622, 624],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 113,
+      "completionOrder": 109,
       "status": "completed",
       "fault": null,
       "action": {
@@ -939,14 +949,101 @@
       "actionType": "night-action",
       "mode": "parallel",
       "expectedActors": ["player-10"],
-      "fromSequence": 628,
-      "toSequence": 724,
+      "fromSequence": 626,
+      "toSequence": 711,
       "visibleEventSequences": [
-        658, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 676, 677, 678, 704, 722, 723
+        654, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 691, 709, 710
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 124,
+      "completionOrder": 117,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-10",
+        "type": "night-action",
+        "abilityId": "ability-witch-antidote",
+        "targetIds": [],
+        "option": "pass"
+      }
+    },
+    {
+      "ordinal": 13,
+      "kind": "action",
+      "playerId": "player-10",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-10", "player-11", "player-2", "player-3", "player-4"],
+      "fromSequence": 712,
+      "toSequence": 748,
+      "visibleEventSequences": [
+        714, 716, 722, 726, 727, 729, 730, 732, 734, 736, 739, 740, 742, 745, 746, 748
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 121,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-10",
+        "type": "speech",
+        "text": "我是 10 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 14,
+      "kind": "action",
+      "playerId": "player-10",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 749,
+      "toSequence": 779,
+      "visibleEventSequences": [
+        751, 752, 754, 757, 758, 760, 763, 764, 766, 769, 770, 772, 775, 776, 778
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 131,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-10",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 15,
+      "kind": "action",
+      "playerId": "player-10",
+      "phaseId": "phase-night-witch",
+      "actionType": "night-action",
+      "mode": "parallel",
+      "expectedActors": ["player-10"],
+      "fromSequence": 780,
+      "toSequence": 860,
+      "visibleEventSequences": [
+        804, 808, 809, 810, 811, 812, 813, 814, 815, 816, 818, 819, 820, 840, 858, 859
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 139,
       "status": "completed",
       "fault": null,
       "action": {
@@ -998,11 +1095,11 @@
         "player-12"
       ],
       "fromSequence": 16,
-      "toSequence": 105,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93, 99, 103, 104],
+      "toSequence": 118,
+      "visibleEventSequences": [40, 41, 49, 75, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 33,
+      "completionOrder": 34,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1019,18 +1116,18 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-11", "player-12"],
-      "fromSequence": 106,
-      "toSequence": 239,
+      "expectedActors": ["player-11"],
+      "fromSequence": 119,
+      "toSequence": 258,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221,
-        224, 225, 227, 230, 231, 233, 236, 237, 239
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234,
+        237, 238, 240, 243, 244, 246, 249, 250, 252, 255, 256, 258
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 45,
+      "completionOrder": 47,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1053,20 +1150,20 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 240,
-      "toSequence": 252,
-      "visibleEventSequences": [242, 243, 245, 248, 249, 251],
+      "fromSequence": 259,
+      "toSequence": 265,
+      "visibleEventSequences": [261, 262, 264],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 56,
+      "completionOrder": 58,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1084,17 +1181,17 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-11", "player-12"],
-      "fromSequence": 253,
-      "toSequence": 432,
+      "expectedActors": ["player-11"],
+      "fromSequence": 266,
+      "toSequence": 453,
       "visibleEventSequences": [
-        293, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 339,
-        358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390, 393, 394, 396, 399, 400,
-        402, 405, 406, 408, 411, 412, 414, 417, 418, 420, 423, 424, 426, 429, 430, 432
+        308, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 352,
+        376, 382, 388, 392, 393, 396, 399, 401, 403, 405, 408, 409, 411, 414, 415, 417, 420, 421,
+        423, 426, 427, 429, 432, 433, 435, 438, 439, 441, 444, 445, 447, 450, 451, 453
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 76,
+      "completionOrder": 77,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1113,20 +1210,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 433,
-      "toSequence": 445,
-      "visibleEventSequences": [435, 436, 438, 441, 442, 444],
+      "fromSequence": 454,
+      "toSequence": 460,
+      "visibleEventSequences": [456, 457, 459],
       "sessionGeneration": 1,
       "attempt": 1,
       "completionOrder": 86,
@@ -1147,17 +1243,16 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-11", "player-12"],
-      "fromSequence": 446,
-      "toSequence": 614,
+      "expectedActors": ["player-11", "player-10", "player-9", "player-8", "player-7"],
+      "fromSequence": 461,
+      "toSequence": 594,
       "visibleEventSequences": [
-        482, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 527, 546,
-        552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578, 581, 582, 584, 587, 588, 590,
-        593, 594, 596, 599, 600, 602, 605, 606, 608, 611, 612, 614
+        495, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 531, 550, 556,
+        562, 566, 567, 569, 570, 572, 574, 576, 579, 580, 582, 585, 586, 588, 591, 592, 594
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 105,
+      "completionOrder": 98,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1176,22 +1271,82 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-7",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 595,
+      "toSequence": 625,
+      "visibleEventSequences": [
+        597, 598, 600, 603, 604, 606, 609, 610, 612, 615, 616, 618, 621, 622, 624
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 110,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-11",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 9,
+      "kind": "action",
+      "playerId": "player-11",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-11", "player-2", "player-3", "player-4"],
+      "fromSequence": 626,
+      "toSequence": 754,
+      "visibleEventSequences": [
+        656, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 691, 710, 716, 722,
+        726, 727, 729, 730, 732, 734, 736, 739, 740, 742, 745, 746, 748, 751, 752, 754
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 122,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-11",
+        "type": "speech",
+        "text": "我是 11 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 10,
+      "kind": "action",
+      "playerId": "player-11",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
         "player-2",
         "player-3",
         "player-4",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 615,
-      "toSequence": 627,
-      "visibleEventSequences": [617, 618, 620, 623, 624, 626],
+      "fromSequence": 755,
+      "toSequence": 779,
+      "visibleEventSequences": [757, 758, 760, 763, 764, 766, 769, 770, 772, 775, 776, 778],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 114,
+      "completionOrder": 132,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1224,6 +1379,30 @@
       "ordinal": 2,
       "kind": "action",
       "playerId": "player-12",
+      "phaseId": "phase-night-cupid",
+      "actionType": "night-action",
+      "mode": "parallel",
+      "expectedActors": ["player-12"],
+      "fromSequence": 16,
+      "toSequence": 43,
+      "visibleEventSequences": [40, 41],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 13,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-12",
+        "type": "night-action",
+        "abilityId": "ability-cupid-link",
+        "targetIds": ["player-1", "player-5"]
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "action",
+      "playerId": "player-12",
       "phaseId": "phase-sheriff-signup",
       "actionType": "sheriff-action",
       "mode": "parallel",
@@ -1241,12 +1420,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 16,
-      "toSequence": 105,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93, 99, 103, 104],
+      "fromSequence": 44,
+      "toSequence": 118,
+      "visibleEventSequences": [46, 48, 49, 75, 99, 105, 111, 112, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 34,
+      "completionOrder": 35,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1257,89 +1436,22 @@
       }
     },
     {
-      "ordinal": 3,
-      "kind": "action",
-      "playerId": "player-12",
-      "phaseId": "phase-day-speech",
-      "actionType": "speech",
-      "mode": "sequential",
-      "expectedActors": ["player-12"],
-      "fromSequence": 106,
-      "toSequence": 245,
-      "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221,
-        224, 225, 227, 230, 231, 233, 236, 237, 239, 242, 243, 245
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 46,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-12",
-        "type": "speech",
-        "text": "我是 12 号玩家，这一轮选择弃票。",
-        "kind": "day"
-      }
-    },
-    {
       "ordinal": 4,
       "kind": "action",
       "playerId": "player-12",
-      "phaseId": "phase-day-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-6",
-        "player-7",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 246,
-      "toSequence": 252,
-      "visibleEventSequences": [248, 249, 251],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 57,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-12",
-        "type": "vote",
-        "targetId": null,
-        "kind": "exile"
-      }
-    },
-    {
-      "ordinal": 5,
-      "kind": "action",
-      "playerId": "player-12",
-      "phaseId": "phase-day-speech",
+      "phaseId": "phase-last-words",
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-12"],
-      "fromSequence": 253,
-      "toSequence": 438,
+      "fromSequence": 119,
+      "toSequence": 186,
       "visibleEventSequences": [
-        295, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 339,
-        358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390, 393, 394, 396, 399, 400,
-        402, 405, 406, 408, 411, 412, 414, 417, 418, 420, 423, 424, 426, 429, 430, 432, 435, 436,
-        438
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 77,
+      "completionOrder": 36,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1347,104 +1459,7 @@
         "actorId": "player-12",
         "type": "speech",
         "text": "我是 12 号玩家，这一轮选择弃票。",
-        "kind": "day"
-      }
-    },
-    {
-      "ordinal": 6,
-      "kind": "action",
-      "playerId": "player-12",
-      "phaseId": "phase-day-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-7",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 439,
-      "toSequence": 445,
-      "visibleEventSequences": [441, 442, 444],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 87,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-12",
-        "type": "vote",
-        "targetId": null,
-        "kind": "exile"
-      }
-    },
-    {
-      "ordinal": 7,
-      "kind": "action",
-      "playerId": "player-12",
-      "phaseId": "phase-day-speech",
-      "actionType": "speech",
-      "mode": "sequential",
-      "expectedActors": ["player-12"],
-      "fromSequence": 446,
-      "toSequence": 620,
-      "visibleEventSequences": [
-        484, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 527, 546,
-        552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578, 581, 582, 584, 587, 588, 590,
-        593, 594, 596, 599, 600, 602, 605, 606, 608, 611, 612, 614, 617, 618, 620
-      ],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 106,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-12",
-        "type": "speech",
-        "text": "我是 12 号玩家，这一轮选择弃票。",
-        "kind": "day"
-      }
-    },
-    {
-      "ordinal": 8,
-      "kind": "action",
-      "playerId": "player-12",
-      "phaseId": "phase-day-vote",
-      "actionType": "vote",
-      "mode": "parallel",
-      "expectedActors": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 621,
-      "toSequence": 627,
-      "visibleEventSequences": [623, 624, 626],
-      "sessionGeneration": 1,
-      "attempt": 1,
-      "completionOrder": 115,
-      "status": "completed",
-      "fault": null,
-      "action": {
-        "matchId": "match-simulation-replay",
-        "actorId": "player-12",
-        "type": "vote",
-        "targetId": null,
-        "kind": "exile"
+        "kind": "last-words"
       }
     },
     {
@@ -1474,11 +1489,11 @@
       "mode": "sequential",
       "expectedActors": ["player-2", "player-3", "player-4"],
       "fromSequence": 16,
-      "toSequence": 50,
-      "visibleEventSequences": [40, 41, 42, 44, 47, 48, 50],
+      "toSequence": 57,
+      "visibleEventSequences": [40, 41, 49, 51, 54, 55, 57],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 14,
+      "completionOrder": 15,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1497,19 +1512,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 51,
-      "toSequence": 69,
-      "visibleEventSequences": [53, 54, 56, 59, 60, 62, 65, 66, 68],
+      "fromSequence": 58,
+      "toSequence": 76,
+      "visibleEventSequences": [60, 61, 63, 66, 67, 69, 72, 73, 75],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 18,
+      "completionOrder": 19,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-2",
         "type": "vote",
-        "targetId": "player-5",
+        "targetId": "player-12",
         "kind": "wolf-kill"
       }
     },
@@ -1534,12 +1549,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 70,
-      "toSequence": 105,
-      "visibleEventSequences": [78, 80, 82, 84, 86, 87, 93, 99, 103, 104],
+      "fromSequence": 77,
+      "toSequence": 118,
+      "visibleEventSequences": [85, 87, 89, 91, 93, 94, 95, 96, 97, 98, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 24,
+      "completionOrder": 25,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1560,24 +1575,24 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 106,
-      "toSequence": 191,
+      "fromSequence": 119,
+      "toSequence": 204,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 37,
+      "completionOrder": 38,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1600,23 +1615,23 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 192,
-      "toSequence": 252,
+      "fromSequence": 205,
+      "toSequence": 265,
       "visibleEventSequences": [
-        194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221, 224, 225, 227,
-        230, 231, 233, 236, 237, 239, 242, 243, 245, 248, 249, 251
+        207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234, 237, 238, 240,
+        243, 244, 246, 249, 250, 252, 255, 256, 258, 261, 262, 264
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 48,
+      "completionOrder": 49,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1635,15 +1650,15 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-2", "player-3", "player-4"],
-      "fromSequence": 253,
-      "toSequence": 321,
+      "fromSequence": 266,
+      "toSequence": 334,
       "visibleEventSequences": [
-        277, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 315,
-        318, 319, 321
+        290, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 328,
+        331, 332, 334
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 59,
+      "completionOrder": 60,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1662,19 +1677,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 322,
-      "toSequence": 340,
-      "visibleEventSequences": [324, 325, 327, 330, 331, 333, 336, 337, 339],
+      "fromSequence": 335,
+      "toSequence": 353,
+      "visibleEventSequences": [337, 338, 340, 343, 344, 346, 349, 350, 352],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 63,
+      "completionOrder": 64,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-2",
         "type": "vote",
-        "targetId": "player-6",
+        "targetId": "player-5",
         "kind": "wolf-kill"
       }
     },
@@ -1689,17 +1704,18 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 341,
-      "toSequence": 390,
+      "fromSequence": 354,
+      "toSequence": 405,
       "visibleEventSequences": [
-        349, 351, 353, 355, 357, 358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390
+        362, 364, 366, 368, 370, 371, 372, 373, 374, 375, 376, 382, 388, 392, 393, 396, 399, 401,
+        403, 405
       ],
       "sessionGeneration": 1,
       "attempt": 1,
@@ -1722,26 +1738,25 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 391,
-      "toSequence": 445,
+      "fromSequence": 406,
+      "toSequence": 460,
       "visibleEventSequences": [
-        393, 394, 396, 399, 400, 402, 405, 406, 408, 411, 412, 414, 417, 418, 420, 423, 424, 426,
-        429, 430, 432, 435, 436, 438, 441, 442, 444
+        408, 409, 411, 414, 415, 417, 420, 421, 423, 426, 427, 429, 432, 433, 435, 438, 439, 441,
+        444, 445, 447, 450, 451, 453, 456, 457, 459
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 79,
+      "completionOrder": 78,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1760,15 +1775,14 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-2", "player-3", "player-4"],
-      "fromSequence": 446,
-      "toSequence": 509,
+      "fromSequence": 461,
+      "toSequence": 513,
       "visibleEventSequences": [
-        468, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 503, 506,
-        507, 509
+        479, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 513
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 89,
+      "completionOrder": 87,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1786,20 +1800,20 @@
       "phaseId": "phase-night-wolf-vote",
       "actionType": "vote",
       "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 510,
-      "toSequence": 528,
-      "visibleEventSequences": [512, 513, 515, 518, 519, 521, 524, 525, 527],
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 514,
+      "toSequence": 532,
+      "visibleEventSequences": [516, 517, 519, 522, 523, 525, 528, 529, 531],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 93,
+      "completionOrder": 90,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-2",
         "type": "vote",
-        "targetId": "player-7",
+        "targetId": "player-6",
         "kind": "wolf-kill"
       }
     },
@@ -1810,24 +1824,16 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": [
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 529,
-      "toSequence": 578,
+      "expectedActors": ["player-2", "player-11", "player-10", "player-9", "player-8", "player-7"],
+      "fromSequence": 533,
+      "toSequence": 588,
       "visibleEventSequences": [
-        537, 539, 541, 543, 545, 546, 552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578
+        539, 541, 543, 545, 546, 547, 548, 549, 550, 556, 562, 566, 567, 569, 570, 572, 574, 576,
+        579, 580, 582, 585, 586, 588
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 99,
+      "completionOrder": 97,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1846,25 +1852,23 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 579,
-      "toSequence": 627,
+      "fromSequence": 589,
+      "toSequence": 625,
       "visibleEventSequences": [
-        581, 582, 584, 587, 588, 590, 593, 594, 596, 599, 600, 602, 605, 606, 608, 611, 612, 614,
-        617, 618, 620, 623, 624, 626
+        591, 592, 594, 597, 598, 600, 603, 604, 606, 609, 610, 612, 615, 616, 618, 621, 622, 624
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 108,
+      "completionOrder": 103,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1883,15 +1887,14 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-2", "player-3", "player-4"],
-      "fromSequence": 628,
-      "toSequence": 686,
+      "fromSequence": 626,
+      "toSequence": 673,
       "visibleEventSequences": [
-        648, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 676, 677, 678, 680, 683, 684,
-        686
+        642, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 673
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 117,
+      "completionOrder": 111,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1909,13 +1912,122 @@
       "phaseId": "phase-night-wolf-vote",
       "actionType": "vote",
       "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 687,
-      "toSequence": 705,
-      "visibleEventSequences": [689, 690, 692, 695, 696, 698, 701, 702, 704],
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 674,
+      "toSequence": 692,
+      "visibleEventSequences": [676, 677, 679, 682, 683, 685, 688, 689, 691],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 121,
+      "completionOrder": 114,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-2",
+        "type": "vote",
+        "targetId": "player-7",
+        "kind": "wolf-kill"
+      }
+    },
+    {
+      "ordinal": 17,
+      "kind": "action",
+      "playerId": "player-2",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 693,
+      "toSequence": 760,
+      "visibleEventSequences": [
+        699, 701, 703, 705, 706, 707, 708, 709, 710, 716, 722, 726, 727, 729, 730, 732, 734, 736,
+        739, 740, 742, 745, 746, 748, 751, 752, 754, 757, 758, 760
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 123,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-2",
+        "type": "speech",
+        "text": "我是 2 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 18,
+      "kind": "action",
+      "playerId": "player-2",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 761,
+      "toSequence": 779,
+      "visibleEventSequences": [763, 764, 766, 769, 770, 772, 775, 776, 778],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 126,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-2",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 19,
+      "kind": "action",
+      "playerId": "player-2",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 780,
+      "toSequence": 822,
+      "visibleEventSequences": [
+        794, 808, 809, 810, 811, 812, 813, 814, 815, 816, 818, 819, 820, 822
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 133,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-2",
+        "type": "speech",
+        "text": "我是 2 号玩家，这一轮选择弃票。",
+        "kind": "wolf-council"
+      }
+    },
+    {
+      "ordinal": 20,
+      "kind": "action",
+      "playerId": "player-2",
+      "phaseId": "phase-night-wolf-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 823,
+      "toSequence": 841,
+      "visibleEventSequences": [825, 826, 828, 831, 832, 834, 837, 838, 840],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 136,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1953,11 +2065,11 @@
       "mode": "sequential",
       "expectedActors": ["player-3", "player-4"],
       "fromSequence": 16,
-      "toSequence": 56,
-      "visibleEventSequences": [40, 41, 42, 44, 47, 48, 50, 53, 54, 56],
+      "toSequence": 63,
+      "visibleEventSequences": [40, 41, 49, 51, 54, 55, 57, 60, 61, 63],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 15,
+      "completionOrder": 16,
       "status": "completed",
       "fault": null,
       "action": {
@@ -1976,19 +2088,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 57,
-      "toSequence": 69,
-      "visibleEventSequences": [59, 60, 62, 65, 66, 68],
+      "fromSequence": 64,
+      "toSequence": 76,
+      "visibleEventSequences": [66, 67, 69, 72, 73, 75],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 19,
+      "completionOrder": 20,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-3",
         "type": "vote",
-        "targetId": "player-5",
+        "targetId": "player-12",
         "kind": "wolf-kill"
       }
     },
@@ -2013,12 +2125,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 70,
-      "toSequence": 105,
-      "visibleEventSequences": [78, 80, 82, 84, 86, 87, 93, 99, 103, 104],
+      "fromSequence": 77,
+      "toSequence": 118,
+      "visibleEventSequences": [85, 87, 89, 91, 93, 94, 95, 96, 97, 98, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 25,
+      "completionOrder": 26,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2038,24 +2150,24 @@
       "expectedActors": [
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 106,
-      "toSequence": 197,
+      "fromSequence": 119,
+      "toSequence": 210,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 38,
+      "completionOrder": 39,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2078,23 +2190,23 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 198,
-      "toSequence": 252,
+      "fromSequence": 211,
+      "toSequence": 265,
       "visibleEventSequences": [
-        200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221, 224, 225, 227, 230, 231, 233,
-        236, 237, 239, 242, 243, 245, 248, 249, 251
+        213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234, 237, 238, 240, 243, 244, 246,
+        249, 250, 252, 255, 256, 258, 261, 262, 264
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 49,
+      "completionOrder": 50,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2113,15 +2225,15 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-3", "player-4"],
-      "fromSequence": 253,
-      "toSequence": 327,
+      "fromSequence": 266,
+      "toSequence": 340,
       "visibleEventSequences": [
-        279, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 315,
-        318, 319, 321, 324, 325, 327
+        292, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 328,
+        331, 332, 334, 337, 338, 340
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 60,
+      "completionOrder": 61,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2140,19 +2252,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 328,
-      "toSequence": 340,
-      "visibleEventSequences": [330, 331, 333, 336, 337, 339],
+      "fromSequence": 341,
+      "toSequence": 353,
+      "visibleEventSequences": [343, 344, 346, 349, 350, 352],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 64,
+      "completionOrder": 65,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-3",
         "type": "vote",
-        "targetId": "player-6",
+        "targetId": "player-5",
         "kind": "wolf-kill"
       }
     },
@@ -2166,18 +2278,18 @@
       "expectedActors": [
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 341,
-      "toSequence": 396,
+      "fromSequence": 354,
+      "toSequence": 411,
       "visibleEventSequences": [
-        349, 351, 353, 355, 357, 358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390,
-        393, 394, 396
+        362, 364, 366, 368, 370, 371, 372, 373, 374, 375, 376, 382, 388, 392, 393, 396, 399, 401,
+        403, 405, 408, 409, 411
       ],
       "sessionGeneration": 1,
       "attempt": 1,
@@ -2200,26 +2312,25 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 397,
-      "toSequence": 445,
+      "fromSequence": 412,
+      "toSequence": 460,
       "visibleEventSequences": [
-        399, 400, 402, 405, 406, 408, 411, 412, 414, 417, 418, 420, 423, 424, 426, 429, 430, 432,
-        435, 436, 438, 441, 442, 444
+        414, 415, 417, 420, 421, 423, 426, 427, 429, 432, 433, 435, 438, 439, 441, 444, 445, 447,
+        450, 451, 453, 456, 457, 459
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 80,
+      "completionOrder": 79,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2238,15 +2349,15 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-3", "player-4"],
-      "fromSequence": 446,
-      "toSequence": 515,
+      "fromSequence": 461,
+      "toSequence": 519,
       "visibleEventSequences": [
-        470, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 503, 506,
-        507, 509, 512, 513, 515
+        481, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 513, 516, 517,
+        519
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 90,
+      "completionOrder": 88,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2264,20 +2375,20 @@
       "phaseId": "phase-night-wolf-vote",
       "actionType": "vote",
       "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 516,
-      "toSequence": 528,
-      "visibleEventSequences": [518, 519, 521, 524, 525, 527],
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 520,
+      "toSequence": 532,
+      "visibleEventSequences": [522, 523, 525, 528, 529, 531],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 94,
+      "completionOrder": 91,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-3",
         "type": "vote",
-        "targetId": "player-7",
+        "targetId": "player-6",
         "kind": "wolf-kill"
       }
     },
@@ -2290,22 +2401,22 @@
       "mode": "sequential",
       "expectedActors": [
         "player-3",
-        "player-4",
-        "player-8",
-        "player-9",
-        "player-10",
+        "player-2",
         "player-11",
-        "player-12"
+        "player-10",
+        "player-9",
+        "player-8",
+        "player-7"
       ],
-      "fromSequence": 529,
-      "toSequence": 584,
+      "fromSequence": 533,
+      "toSequence": 582,
       "visibleEventSequences": [
-        537, 539, 541, 543, 545, 546, 552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578,
-        581, 582, 584
+        539, 541, 543, 545, 546, 547, 548, 549, 550, 556, 562, 566, 567, 569, 570, 572, 574, 576,
+        579, 580, 582
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 100,
+      "completionOrder": 96,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2324,25 +2435,24 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 585,
-      "toSequence": 627,
+      "fromSequence": 583,
+      "toSequence": 625,
       "visibleEventSequences": [
-        587, 588, 590, 593, 594, 596, 599, 600, 602, 605, 606, 608, 611, 612, 614, 617, 618, 620,
-        623, 624, 626
+        585, 586, 588, 591, 592, 594, 597, 598, 600, 603, 604, 606, 609, 610, 612, 615, 616, 618,
+        621, 622, 624
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 109,
+      "completionOrder": 104,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2361,15 +2471,14 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-3", "player-4"],
-      "fromSequence": 628,
-      "toSequence": 692,
+      "fromSequence": 626,
+      "toSequence": 679,
       "visibleEventSequences": [
-        650, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 676, 677, 678, 680, 683, 684,
-        686, 689, 690, 692
+        644, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 673, 676, 677, 679
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 118,
+      "completionOrder": 112,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2387,13 +2496,122 @@
       "phaseId": "phase-night-wolf-vote",
       "actionType": "vote",
       "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 693,
-      "toSequence": 705,
-      "visibleEventSequences": [695, 696, 698, 701, 702, 704],
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 680,
+      "toSequence": 692,
+      "visibleEventSequences": [682, 683, 685, 688, 689, 691],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 122,
+      "completionOrder": 115,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "vote",
+        "targetId": "player-7",
+        "kind": "wolf-kill"
+      }
+    },
+    {
+      "ordinal": 17,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-3", "player-4"],
+      "fromSequence": 693,
+      "toSequence": 766,
+      "visibleEventSequences": [
+        699, 701, 703, 705, 706, 707, 708, 709, 710, 716, 722, 726, 727, 729, 730, 732, 734, 736,
+        739, 740, 742, 745, 746, 748, 751, 752, 754, 757, 758, 760, 763, 764, 766
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 124,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "speech",
+        "text": "我是 3 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 18,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 767,
+      "toSequence": 779,
+      "visibleEventSequences": [769, 770, 772, 775, 776, 778],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 127,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 19,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-3", "player-4"],
+      "fromSequence": 780,
+      "toSequence": 828,
+      "visibleEventSequences": [
+        796, 808, 809, 810, 811, 812, 813, 814, 815, 816, 818, 819, 820, 822, 825, 826, 828
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 134,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "speech",
+        "text": "我是 3 号玩家，这一轮选择弃票。",
+        "kind": "wolf-council"
+      }
+    },
+    {
+      "ordinal": 20,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-night-wolf-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 829,
+      "toSequence": 841,
+      "visibleEventSequences": [831, 832, 834, 837, 838, 840],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 137,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2431,11 +2649,11 @@
       "mode": "sequential",
       "expectedActors": ["player-4"],
       "fromSequence": 16,
-      "toSequence": 62,
-      "visibleEventSequences": [40, 41, 42, 44, 47, 48, 50, 53, 54, 56, 59, 60, 62],
+      "toSequence": 69,
+      "visibleEventSequences": [40, 41, 49, 51, 54, 55, 57, 60, 61, 63, 66, 67, 69],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 16,
+      "completionOrder": 17,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2454,19 +2672,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 63,
-      "toSequence": 69,
-      "visibleEventSequences": [65, 66, 68],
+      "fromSequence": 70,
+      "toSequence": 76,
+      "visibleEventSequences": [72, 73, 75],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 20,
+      "completionOrder": 21,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-4",
         "type": "vote",
-        "targetId": "player-5",
+        "targetId": "player-12",
         "kind": "wolf-kill"
       }
     },
@@ -2491,12 +2709,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 70,
-      "toSequence": 105,
-      "visibleEventSequences": [78, 80, 82, 84, 86, 87, 93, 99, 103, 104],
+      "fromSequence": 77,
+      "toSequence": 118,
+      "visibleEventSequences": [85, 87, 89, 91, 93, 94, 95, 96, 97, 98, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 26,
+      "completionOrder": 27,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2515,24 +2733,24 @@
       "mode": "sequential",
       "expectedActors": [
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 106,
-      "toSequence": 203,
+      "fromSequence": 119,
+      "toSequence": 216,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 39,
+      "completionOrder": 40,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2555,23 +2773,23 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 204,
-      "toSequence": 252,
+      "fromSequence": 217,
+      "toSequence": 265,
       "visibleEventSequences": [
-        206, 207, 209, 212, 213, 215, 218, 219, 221, 224, 225, 227, 230, 231, 233, 236, 237, 239,
-        242, 243, 245, 248, 249, 251
+        219, 220, 222, 225, 226, 228, 231, 232, 234, 237, 238, 240, 243, 244, 246, 249, 250, 252,
+        255, 256, 258, 261, 262, 264
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 50,
+      "completionOrder": 51,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2590,15 +2808,15 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-4"],
-      "fromSequence": 253,
-      "toSequence": 333,
+      "fromSequence": 266,
+      "toSequence": 346,
       "visibleEventSequences": [
-        281, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 315,
-        318, 319, 321, 324, 325, 327, 330, 331, 333
+        294, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 328,
+        331, 332, 334, 337, 338, 340, 343, 344, 346
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 61,
+      "completionOrder": 62,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2617,19 +2835,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 334,
-      "toSequence": 340,
-      "visibleEventSequences": [336, 337, 339],
+      "fromSequence": 347,
+      "toSequence": 353,
+      "visibleEventSequences": [349, 350, 352],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 65,
+      "completionOrder": 66,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-4",
         "type": "vote",
-        "targetId": "player-6",
+        "targetId": "player-5",
         "kind": "wolf-kill"
       }
     },
@@ -2642,18 +2860,18 @@
       "mode": "sequential",
       "expectedActors": [
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 341,
-      "toSequence": 402,
+      "fromSequence": 354,
+      "toSequence": 417,
       "visibleEventSequences": [
-        349, 351, 353, 355, 357, 358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390,
-        393, 394, 396, 399, 400, 402
+        362, 364, 366, 368, 370, 371, 372, 373, 374, 375, 376, 382, 388, 392, 393, 396, 399, 401,
+        403, 405, 408, 409, 411, 414, 415, 417
       ],
       "sessionGeneration": 1,
       "attempt": 1,
@@ -2676,26 +2894,25 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 403,
-      "toSequence": 445,
+      "fromSequence": 418,
+      "toSequence": 460,
       "visibleEventSequences": [
-        405, 406, 408, 411, 412, 414, 417, 418, 420, 423, 424, 426, 429, 430, 432, 435, 436, 438,
-        441, 442, 444
+        420, 421, 423, 426, 427, 429, 432, 433, 435, 438, 439, 441, 444, 445, 447, 450, 451, 453,
+        456, 457, 459
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 81,
+      "completionOrder": 80,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2714,15 +2931,15 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-4"],
-      "fromSequence": 446,
-      "toSequence": 521,
+      "fromSequence": 461,
+      "toSequence": 525,
       "visibleEventSequences": [
-        472, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 503, 506,
-        507, 509, 512, 513, 515, 518, 519, 521
+        483, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 513, 516, 517,
+        519, 522, 523, 525
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 91,
+      "completionOrder": 89,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2740,20 +2957,20 @@
       "phaseId": "phase-night-wolf-vote",
       "actionType": "vote",
       "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 522,
-      "toSequence": 528,
-      "visibleEventSequences": [524, 525, 527],
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 526,
+      "toSequence": 532,
+      "visibleEventSequences": [528, 529, 531],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 95,
+      "completionOrder": 92,
       "status": "completed",
       "fault": null,
       "action": {
         "matchId": "match-simulation-replay",
         "actorId": "player-4",
         "type": "vote",
-        "targetId": "player-7",
+        "targetId": "player-6",
         "kind": "wolf-kill"
       }
     },
@@ -2764,16 +2981,24 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-4", "player-8", "player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 529,
-      "toSequence": 590,
+      "expectedActors": [
+        "player-4",
+        "player-3",
+        "player-2",
+        "player-11",
+        "player-10",
+        "player-9",
+        "player-8",
+        "player-7"
+      ],
+      "fromSequence": 533,
+      "toSequence": 576,
       "visibleEventSequences": [
-        537, 539, 541, 543, 545, 546, 552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578,
-        581, 582, 584, 587, 588, 590
+        539, 541, 543, 545, 546, 547, 548, 549, 550, 556, 562, 566, 567, 569, 570, 572, 574, 576
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 101,
+      "completionOrder": 95,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2792,24 +3017,24 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 591,
-      "toSequence": 627,
+      "fromSequence": 577,
+      "toSequence": 625,
       "visibleEventSequences": [
-        593, 594, 596, 599, 600, 602, 605, 606, 608, 611, 612, 614, 617, 618, 620, 623, 624, 626
+        579, 580, 582, 585, 586, 588, 591, 592, 594, 597, 598, 600, 603, 604, 606, 609, 610, 612,
+        615, 616, 618, 621, 622, 624
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 110,
+      "completionOrder": 105,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2828,15 +3053,15 @@
       "actionType": "speech",
       "mode": "sequential",
       "expectedActors": ["player-4"],
-      "fromSequence": 628,
-      "toSequence": 698,
+      "fromSequence": 626,
+      "toSequence": 685,
       "visibleEventSequences": [
-        652, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 676, 677, 678, 680, 683, 684,
-        686, 689, 690, 692, 695, 696, 698
+        646, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 673, 676, 677, 679,
+        682, 683, 685
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 119,
+      "completionOrder": 113,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2854,13 +3079,123 @@
       "phaseId": "phase-night-wolf-vote",
       "actionType": "vote",
       "mode": "parallel",
-      "expectedActors": ["player-1", "player-2", "player-3", "player-4"],
-      "fromSequence": 699,
-      "toSequence": 705,
-      "visibleEventSequences": [701, 702, 704],
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 686,
+      "toSequence": 692,
+      "visibleEventSequences": [688, 689, 691],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 123,
+      "completionOrder": 116,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-4",
+        "type": "vote",
+        "targetId": "player-7",
+        "kind": "wolf-kill"
+      }
+    },
+    {
+      "ordinal": 17,
+      "kind": "action",
+      "playerId": "player-4",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-4"],
+      "fromSequence": 693,
+      "toSequence": 772,
+      "visibleEventSequences": [
+        699, 701, 703, 705, 706, 707, 708, 709, 710, 716, 722, 726, 727, 729, 730, 732, 734, 736,
+        739, 740, 742, 745, 746, 748, 751, 752, 754, 757, 758, 760, 763, 764, 766, 769, 770, 772
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 125,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-4",
+        "type": "speech",
+        "text": "我是 4 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 18,
+      "kind": "action",
+      "playerId": "player-4",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 773,
+      "toSequence": 779,
+      "visibleEventSequences": [775, 776, 778],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 128,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-4",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 19,
+      "kind": "action",
+      "playerId": "player-4",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-4"],
+      "fromSequence": 780,
+      "toSequence": 834,
+      "visibleEventSequences": [
+        798, 808, 809, 810, 811, 812, 813, 814, 815, 816, 818, 819, 820, 822, 825, 826, 828, 831,
+        832, 834
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 135,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-4",
+        "type": "speech",
+        "text": "我是 4 号玩家，这一轮选择弃票。",
+        "kind": "wolf-council"
+      }
+    },
+    {
+      "ordinal": 20,
+      "kind": "action",
+      "playerId": "player-4",
+      "phaseId": "phase-night-wolf-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-2", "player-3", "player-4"],
+      "fromSequence": 835,
+      "toSequence": 841,
+      "visibleEventSequences": [837, 838, 840],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 138,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2911,11 +3246,11 @@
         "player-12"
       ],
       "fromSequence": 16,
-      "toSequence": 105,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93, 99, 103, 104],
+      "toSequence": 118,
+      "visibleEventSequences": [40, 41, 48, 49, 75, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 27,
+      "completionOrder": 28,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2929,19 +3264,28 @@
       "ordinal": 3,
       "kind": "action",
       "playerId": "player-5",
-      "phaseId": "phase-last-words",
+      "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-5"],
-      "fromSequence": 106,
-      "toSequence": 173,
+      "expectedActors": [
+        "player-5",
+        "player-6",
+        "player-7",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 119,
+      "toSequence": 222,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 35,
+      "completionOrder": 41,
       "status": "completed",
       "fault": null,
       "action": {
@@ -2949,7 +3293,46 @@
         "actorId": "player-5",
         "type": "speech",
         "text": "我是 5 号玩家，这一轮选择弃票。",
-        "kind": "last-words"
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 4,
+      "kind": "action",
+      "playerId": "player-5",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-1",
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-5",
+        "player-6",
+        "player-7",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 223,
+      "toSequence": 265,
+      "visibleEventSequences": [
+        225, 226, 228, 231, 232, 234, 237, 238, 240, 243, 244, 246, 249, 250, 252, 255, 256, 258,
+        261, 262, 264
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 52,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-5",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
       }
     },
     {
@@ -2992,11 +3375,11 @@
         "player-12"
       ],
       "fromSequence": 16,
-      "toSequence": 105,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93, 99, 103, 104],
+      "toSequence": 118,
+      "visibleEventSequences": [40, 41, 49, 75, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 28,
+      "completionOrder": 29,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3013,25 +3396,17 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": [
-        "player-6",
-        "player-7",
-        "player-8",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "fromSequence": 106,
-      "toSequence": 209,
+      "expectedActors": ["player-6", "player-7", "player-8", "player-9", "player-10", "player-11"],
+      "fromSequence": 119,
+      "toSequence": 228,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 40,
+      "completionOrder": 42,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3054,23 +3429,86 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 210,
-      "toSequence": 252,
+      "fromSequence": 229,
+      "toSequence": 265,
       "visibleEventSequences": [
-        212, 213, 215, 218, 219, 221, 224, 225, 227, 230, 231, 233, 236, 237, 239, 242, 243, 245,
-        248, 249, 251
+        231, 232, 234, 237, 238, 240, 243, 244, 246, 249, 250, 252, 255, 256, 258, 261, 262, 264
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 51,
+      "completionOrder": 53,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-6",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 5,
+      "kind": "action",
+      "playerId": "player-6",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-6", "player-7", "player-8", "player-9", "player-10", "player-11"],
+      "fromSequence": 266,
+      "toSequence": 423,
+      "visibleEventSequences": [
+        298, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 352,
+        376, 382, 388, 392, 393, 396, 399, 401, 403, 405, 408, 409, 411, 414, 415, 417, 420, 421,
+        423
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 72,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-6",
+        "type": "speech",
+        "text": "我是 6 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 6,
+      "kind": "action",
+      "playerId": "player-6",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-6",
+        "player-7",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 424,
+      "toSequence": 460,
+      "visibleEventSequences": [
+        426, 427, 429, 432, 433, 435, 438, 439, 441, 444, 445, 447, 450, 451, 453, 456, 457, 459
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 81,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3121,11 +3559,11 @@
         "player-12"
       ],
       "fromSequence": 16,
-      "toSequence": 105,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93, 99, 103, 104],
+      "toSequence": 118,
+      "visibleEventSequences": [40, 41, 49, 75, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 29,
+      "completionOrder": 30,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3142,17 +3580,17 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-7", "player-8", "player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 106,
-      "toSequence": 215,
+      "expectedActors": ["player-7", "player-8", "player-9", "player-10", "player-11"],
+      "fromSequence": 119,
+      "toSequence": 234,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 41,
+      "completionOrder": 43,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3175,22 +3613,22 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 216,
-      "toSequence": 252,
+      "fromSequence": 235,
+      "toSequence": 265,
       "visibleEventSequences": [
-        218, 219, 221, 224, 225, 227, 230, 231, 233, 236, 237, 239, 242, 243, 245, 248, 249, 251
+        237, 238, 240, 243, 244, 246, 249, 250, 252, 255, 256, 258, 261, 262, 264
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 52,
+      "completionOrder": 54,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3208,17 +3646,17 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-7", "player-8", "player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 253,
-      "toSequence": 408,
+      "expectedActors": ["player-7", "player-8", "player-9", "player-10", "player-11"],
+      "fromSequence": 266,
+      "toSequence": 429,
       "visibleEventSequences": [
-        285, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 339,
-        358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390, 393, 394, 396, 399, 400,
-        402, 405, 406, 408
+        300, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 352,
+        376, 382, 388, 392, 393, 396, 399, 401, 403, 405, 408, 409, 411, 414, 415, 417, 420, 421,
+        423, 426, 427, 429
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 72,
+      "completionOrder": 73,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3237,7 +3675,70 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-6",
+        "player-7",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 430,
+      "toSequence": 460,
+      "visibleEventSequences": [
+        432, 433, 435, 438, 439, 441, 444, 445, 447, 450, 451, 453, 456, 457, 459
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 82,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-7",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 7,
+      "kind": "action",
+      "playerId": "player-7",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-7"],
+      "fromSequence": 461,
+      "toSequence": 618,
+      "visibleEventSequences": [
+        487, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 531, 550, 556,
+        562, 566, 567, 569, 570, 572, 574, 576, 579, 580, 582, 585, 586, 588, 591, 592, 594, 597,
+        598, 600, 603, 604, 606, 609, 610, 612, 615, 616, 618
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 102,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-7",
+        "type": "speech",
+        "text": "我是 7 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 8,
+      "kind": "action",
+      "playerId": "player-7",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
         "player-2",
         "player-3",
         "player-4",
@@ -3245,17 +3746,14 @@
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 409,
-      "toSequence": 445,
-      "visibleEventSequences": [
-        411, 412, 414, 417, 418, 420, 423, 424, 426, 429, 430, 432, 435, 436, 438, 441, 442, 444
-      ],
+      "fromSequence": 619,
+      "toSequence": 625,
+      "visibleEventSequences": [621, 622, 624],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 82,
+      "completionOrder": 106,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3306,11 +3804,11 @@
         "player-12"
       ],
       "fromSequence": 16,
-      "toSequence": 105,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93, 99, 103, 104],
+      "toSequence": 118,
+      "visibleEventSequences": [40, 41, 49, 75, 99, 105, 111, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 30,
+      "completionOrder": 31,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3327,17 +3825,18 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-8", "player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 106,
-      "toSequence": 221,
+      "expectedActors": ["player-8", "player-9", "player-10", "player-11"],
+      "fromSequence": 119,
+      "toSequence": 240,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234,
+        237, 238, 240
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 42,
+      "completionOrder": 44,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3360,22 +3859,20 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 222,
-      "toSequence": 252,
-      "visibleEventSequences": [
-        224, 225, 227, 230, 231, 233, 236, 237, 239, 242, 243, 245, 248, 249, 251
-      ],
+      "fromSequence": 241,
+      "toSequence": 265,
+      "visibleEventSequences": [243, 244, 246, 249, 250, 252, 255, 256, 258, 261, 262, 264],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 53,
+      "completionOrder": 55,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3393,17 +3890,17 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-8", "player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 253,
-      "toSequence": 414,
+      "expectedActors": ["player-8", "player-9", "player-10", "player-11"],
+      "fromSequence": 266,
+      "toSequence": 435,
       "visibleEventSequences": [
-        287, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 339,
-        358, 364, 370, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390, 393, 394, 396, 399, 400,
-        402, 405, 406, 408, 411, 412, 414
+        302, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 352,
+        376, 382, 388, 392, 393, 396, 399, 401, 403, 405, 408, 409, 411, 414, 415, 417, 420, 421,
+        423, 426, 427, 429, 432, 433, 435
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 73,
+      "completionOrder": 74,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3422,22 +3919,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 415,
-      "toSequence": 445,
-      "visibleEventSequences": [
-        417, 418, 420, 423, 424, 426, 429, 430, 432, 435, 436, 438, 441, 442, 444
-      ],
+      "fromSequence": 436,
+      "toSequence": 460,
+      "visibleEventSequences": [438, 439, 441, 444, 445, 447, 450, 451, 453, 456, 457, 459],
       "sessionGeneration": 1,
       "attempt": 1,
       "completionOrder": 83,
@@ -3458,17 +3952,17 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-8", "player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 446,
-      "toSequence": 596,
+      "expectedActors": ["player-8", "player-7"],
+      "fromSequence": 461,
+      "toSequence": 612,
       "visibleEventSequences": [
-        476, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 527, 546,
-        552, 558, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578, 581, 582, 584, 587, 588, 590,
-        593, 594, 596
+        489, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 531, 550, 556,
+        562, 566, 567, 569, 570, 572, 574, 576, 579, 580, 582, 585, 586, 588, 591, 592, 594, 597,
+        598, 600, 603, 604, 606, 609, 610, 612
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 102,
+      "completionOrder": 101,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3487,24 +3981,91 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-7",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 613,
+      "toSequence": 625,
+      "visibleEventSequences": [615, 616, 618, 621, 622, 624],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 107,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-8",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 9,
+      "kind": "action",
+      "playerId": "player-8",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": [
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11",
+        "player-2",
+        "player-3",
+        "player-4"
+      ],
+      "fromSequence": 626,
+      "toSequence": 736,
+      "visibleEventSequences": [
+        650, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 691, 710, 716, 722,
+        726, 727, 729, 730, 732, 734, 736
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 119,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-8",
+        "type": "speech",
+        "text": "我是 8 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 10,
+      "kind": "action",
+      "playerId": "player-8",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
         "player-2",
         "player-3",
         "player-4",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 597,
-      "toSequence": 627,
+      "fromSequence": 737,
+      "toSequence": 779,
       "visibleEventSequences": [
-        599, 600, 602, 605, 606, 608, 611, 612, 614, 617, 618, 620, 623, 624, 626
+        739, 740, 742, 745, 746, 748, 751, 752, 754, 757, 758, 760, 763, 764, 766, 769, 770, 772,
+        775, 776, 778
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 111,
+      "completionOrder": 129,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3542,11 +4103,11 @@
       "mode": "parallel",
       "expectedActors": ["player-9"],
       "fromSequence": 16,
-      "toSequence": 94,
-      "visibleEventSequences": [40, 41, 42, 68, 87, 93],
+      "toSequence": 106,
+      "visibleEventSequences": [40, 41, 49, 75, 99, 105],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 22,
+      "completionOrder": 23,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3578,12 +4139,12 @@
         "player-11",
         "player-12"
       ],
-      "fromSequence": 95,
-      "toSequence": 105,
-      "visibleEventSequences": [97, 99, 100, 101, 103, 104],
+      "fromSequence": 107,
+      "toSequence": 118,
+      "visibleEventSequences": [109, 111, 113, 114, 116, 117],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 31,
+      "completionOrder": 32,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3600,18 +4161,18 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 106,
-      "toSequence": 227,
+      "expectedActors": ["player-9", "player-10", "player-11"],
+      "fromSequence": 119,
+      "toSequence": 246,
       "visibleEventSequences": [
-        130, 131, 133, 134, 136, 137, 139, 140, 142, 143, 145, 146, 148, 149, 151, 152, 154, 155,
-        157, 158, 160, 161, 163, 164, 166, 167, 168, 170, 171, 173, 176, 177, 179, 181, 183, 185,
-        188, 189, 191, 194, 195, 197, 200, 201, 203, 206, 207, 209, 212, 213, 215, 218, 219, 221,
-        224, 225, 227
+        143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 161, 162, 164, 165, 167, 168,
+        170, 171, 173, 174, 176, 177, 179, 180, 181, 183, 184, 186, 189, 190, 192, 194, 196, 198,
+        201, 202, 204, 207, 208, 210, 213, 214, 216, 219, 220, 222, 225, 226, 228, 231, 232, 234,
+        237, 238, 240, 243, 244, 246
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 43,
+      "completionOrder": 45,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3634,20 +4195,20 @@
         "player-2",
         "player-3",
         "player-4",
+        "player-5",
         "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 228,
-      "toSequence": 252,
-      "visibleEventSequences": [230, 231, 233, 236, 237, 239, 242, 243, 245, 248, 249, 251],
+      "fromSequence": 247,
+      "toSequence": 265,
+      "visibleEventSequences": [249, 250, 252, 255, 256, 258, 261, 262, 264],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 54,
+      "completionOrder": 56,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3666,15 +4227,15 @@
       "actionType": "night-action",
       "mode": "parallel",
       "expectedActors": ["player-9"],
-      "fromSequence": 253,
-      "toSequence": 365,
+      "fromSequence": 266,
+      "toSequence": 383,
       "visibleEventSequences": [
-        289, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 311, 312, 313, 339,
-        358, 364
+        304, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325, 326, 352,
+        376, 382
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 67,
+      "completionOrder": 68,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3692,16 +4253,16 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 366,
-      "toSequence": 420,
+      "expectedActors": ["player-9", "player-10", "player-11"],
+      "fromSequence": 384,
+      "toSequence": 441,
       "visibleEventSequences": [
-        368, 370, 371, 372, 374, 375, 377, 378, 380, 382, 384, 387, 388, 390, 393, 394, 396, 399,
-        400, 402, 405, 406, 408, 411, 412, 414, 417, 418, 420
+        386, 388, 389, 390, 392, 393, 396, 399, 401, 403, 405, 408, 409, 411, 414, 415, 417, 420,
+        421, 423, 426, 427, 429, 432, 433, 435, 438, 439, 441
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 74,
+      "completionOrder": 75,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3720,20 +4281,19 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-6",
         "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 421,
-      "toSequence": 445,
-      "visibleEventSequences": [423, 424, 426, 429, 430, 432, 435, 436, 438, 441, 442, 444],
+      "fromSequence": 442,
+      "toSequence": 460,
+      "visibleEventSequences": [444, 445, 447, 450, 451, 453, 456, 457, 459],
       "sessionGeneration": 1,
       "attempt": 1,
       "completionOrder": 84,
@@ -3755,15 +4315,14 @@
       "actionType": "night-action",
       "mode": "parallel",
       "expectedActors": ["player-9"],
-      "fromSequence": 446,
-      "toSequence": 553,
+      "fromSequence": 461,
+      "toSequence": 557,
       "visibleEventSequences": [
-        478, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 499, 500, 501, 527, 546,
-        552
+        491, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 509, 510, 511, 531, 550, 556
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 97,
+      "completionOrder": 94,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3771,7 +4330,7 @@
         "actorId": "player-9",
         "type": "night-action",
         "abilityId": "ability-seer-inspect",
-        "targetIds": ["player-1"]
+        "targetIds": ["player-2"]
       }
     },
     {
@@ -3781,16 +4340,16 @@
       "phaseId": "phase-day-speech",
       "actionType": "speech",
       "mode": "sequential",
-      "expectedActors": ["player-9", "player-10", "player-11", "player-12"],
-      "fromSequence": 554,
-      "toSequence": 602,
+      "expectedActors": ["player-9", "player-8", "player-7"],
+      "fromSequence": 558,
+      "toSequence": 606,
       "visibleEventSequences": [
-        556, 558, 559, 560, 562, 563, 565, 566, 568, 570, 572, 575, 576, 578, 581, 582, 584, 587,
-        588, 590, 593, 594, 596, 599, 600, 602
+        560, 562, 563, 564, 566, 567, 569, 570, 572, 574, 576, 579, 580, 582, 585, 586, 588, 591,
+        592, 594, 597, 598, 600, 603, 604, 606
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 103,
+      "completionOrder": 100,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3809,22 +4368,21 @@
       "actionType": "vote",
       "mode": "parallel",
       "expectedActors": [
-        "player-1",
         "player-2",
         "player-3",
         "player-4",
+        "player-7",
         "player-8",
         "player-9",
         "player-10",
-        "player-11",
-        "player-12"
+        "player-11"
       ],
-      "fromSequence": 603,
-      "toSequence": 627,
-      "visibleEventSequences": [605, 606, 608, 611, 612, 614, 617, 618, 620, 623, 624, 626],
+      "fromSequence": 607,
+      "toSequence": 625,
+      "visibleEventSequences": [609, 610, 612, 615, 616, 618, 621, 622, 624],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 112,
+      "completionOrder": 108,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3843,14 +4401,14 @@
       "actionType": "night-action",
       "mode": "parallel",
       "expectedActors": ["player-9"],
-      "fromSequence": 628,
-      "toSequence": 730,
+      "fromSequence": 626,
+      "toSequence": 717,
       "visibleEventSequences": [
-        656, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 676, 677, 678, 704, 723, 729
+        652, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 669, 670, 671, 691, 710, 716
       ],
       "sessionGeneration": 1,
       "attempt": 1,
-      "completionOrder": 125,
+      "completionOrder": 118,
       "status": "completed",
       "fault": null,
       "action": {
@@ -3858,7 +4416,93 @@
         "actorId": "player-9",
         "type": "night-action",
         "abilityId": "ability-seer-inspect",
-        "targetIds": ["player-1"]
+        "targetIds": ["player-2"]
+      }
+    },
+    {
+      "ordinal": 13,
+      "kind": "action",
+      "playerId": "player-9",
+      "phaseId": "phase-day-speech",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-9", "player-10", "player-11", "player-2", "player-3", "player-4"],
+      "fromSequence": 718,
+      "toSequence": 742,
+      "visibleEventSequences": [
+        720, 722, 723, 724, 726, 727, 729, 730, 732, 734, 736, 739, 740, 742
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 120,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-9",
+        "type": "speech",
+        "text": "我是 9 号玩家，这一轮选择弃票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 14,
+      "kind": "action",
+      "playerId": "player-9",
+      "phaseId": "phase-day-vote",
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": [
+        "player-2",
+        "player-3",
+        "player-4",
+        "player-8",
+        "player-9",
+        "player-10",
+        "player-11"
+      ],
+      "fromSequence": 743,
+      "toSequence": 779,
+      "visibleEventSequences": [
+        745, 746, 748, 751, 752, 754, 757, 758, 760, 763, 764, 766, 769, 770, 772, 775, 776, 778
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 130,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-9",
+        "type": "vote",
+        "targetId": null,
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 15,
+      "kind": "action",
+      "playerId": "player-9",
+      "phaseId": "phase-night-seer",
+      "actionType": "night-action",
+      "mode": "parallel",
+      "expectedActors": ["player-9"],
+      "fromSequence": 780,
+      "toSequence": 866,
+      "visibleEventSequences": [
+        802, 808, 809, 810, 811, 812, 813, 814, 815, 816, 818, 819, 820, 840, 859, 865
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 140,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-9",
+        "type": "night-action",
+        "abilityId": "ability-seer-inspect",
+        "targetIds": ["player-2"]
       }
     }
   ],
@@ -3866,12 +4510,12 @@
   "stage": "approved",
   "source": {
     "status": "ended",
-    "cutoffSequence": 756,
-    "fingerprint": "bc894fce0eb4bdfa9611e8488aefc1b723c665a3389085c6dcdebacd3b29b239"
+    "cutoffSequence": 893,
+    "fingerprint": "0f990cc1a48a6531298935ae3c74aa4c4b69063f92f28363605f8b8c7a3070e6"
   },
   "expected": {
-    "eventCount": 526,
-    "eventDigest": "26872ea2e58033f6b67bdd310717f847b4ed82c4e82e0ec89d1ab0fa3687dc93",
+    "eventCount": 613,
+    "eventDigest": "ccd889c46ddaa171f6ca01df10a70d1d9751aeb9f3aba158443f6db4e4916223",
     "eventTypes": [
       "match.created",
       "role.assigned",
@@ -3890,6 +4534,11 @@
       "match.starting",
       "match.started",
       "night.started",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "plugin.event",
       "phase.changed",
       "phase.actors-set",
       "speech.started",
@@ -3933,6 +4582,7 @@
       "action.submitted",
       "phase.actor-completed",
       "phase.changed",
+      "ability.used",
       "ability.used",
       "seer.inspected",
       "death.pending",
@@ -4125,7 +4775,10 @@
       "day.started",
       "phase.changed",
       "player.died",
+      "player.died",
       "public.announcement",
+      "plugin.event",
+      "players.eliminated-publicly",
       "phase.changed",
       "phase.actors-set",
       "speech.order-set",
@@ -4168,10 +4821,6 @@
       "action.submitted",
       "speech.committed",
       "phase.actor-completed",
-      "speech.started",
-      "action.submitted",
-      "speech.committed",
-      "phase.actor-completed",
       "phase.changed",
       "phase.actors-set",
       "action.submitted",
@@ -4192,9 +4841,6 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
-      "action.submitted",
-      "phase.actor-completed",
-      "vote.cast",
       "vote.cast",
       "vote.cast",
       "vote.cast",
@@ -4223,10 +4869,6 @@
       "action.submitted",
       "speech.committed",
       "phase.actor-completed",
-      "speech.started",
-      "action.submitted",
-      "speech.committed",
-      "phase.actor-completed",
       "phase.changed",
       "phase.actors-set",
       "action.submitted",
@@ -4235,9 +4877,6 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
-      "action.submitted",
-      "phase.actor-completed",
-      "vote.cast",
       "vote.cast",
       "vote.cast",
       "vote.cast",
@@ -4297,10 +4936,6 @@
       "action.submitted",
       "speech.committed",
       "phase.actor-completed",
-      "speech.started",
-      "action.submitted",
-      "speech.committed",
-      "phase.actor-completed",
       "phase.changed",
       "phase.actors-set",
       "action.submitted",
@@ -4319,9 +4954,6 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
-      "action.submitted",
-      "phase.actor-completed",
-      "vote.cast",
       "vote.cast",
       "vote.cast",
       "vote.cast",
@@ -4349,6 +4981,65 @@
       "action.submitted",
       "speech.committed",
       "phase.actor-completed",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
+      "night.attack-selected",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "phase.changed",
+      "ability.used",
+      "seer.inspected",
+      "death.pending",
+      "day.started",
+      "phase.changed",
+      "player.died",
+      "public.announcement",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.order-set",
+      "death.window-closed",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
       "speech.started",
       "action.submitted",
       "speech.committed",
@@ -4363,7 +5054,46 @@
       "phase.actor-completed",
       "action.submitted",
       "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
       "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
+      "phase.changed",
+      "day.completed",
+      "public.announcement",
+      "night.started",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
       "vote.cast",
       "vote.cast",
       "vote.cast",
@@ -4398,36 +5128,20 @@
       "role.revealed",
       "role.revealed",
       "role.revealed",
-      "role.revealed"
+      "role.revealed",
+      "public.announcement"
     ],
     "checkpoint": {
       "status": "ended",
-      "day": 4,
-      "night": 4,
+      "day": 5,
+      "night": 5,
       "phaseId": "phase-match-ended",
       "winner": "werewolf",
+      "winningPlayerIds": ["player-2", "player-3", "player-4"],
       "sheriffId": null,
-      "alivePlayerIds": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "votingPlayerIds": [
-        "player-1",
-        "player-2",
-        "player-3",
-        "player-4",
-        "player-9",
-        "player-10",
-        "player-11",
-        "player-12"
-      ],
-      "lastSequence": 526
+      "alivePlayerIds": ["player-2", "player-3", "player-4", "player-9", "player-10", "player-11"],
+      "votingPlayerIds": ["player-2", "player-3", "player-4", "player-9", "player-10", "player-11"],
+      "lastSequence": 613
     }
   },
   "variants": [

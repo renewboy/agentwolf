@@ -7,21 +7,21 @@
 
 选择被该 Role 触及的每一行:
 
-| 表面                            | 所需证据                                                  |
-| ------------------------------- | --------------------------------------------------------- |
-| Role ability                    | 合法与非法动作、目标、pass、使用次数、capability 授权     |
-| Phase                           | 插入顺序、激活、actor、动作描述符、顺序/并行边界          |
-| 结算                            | lane 顺序、交互、链式效果、胜负之前的死亡反应             |
-| Plugin state                    | 严格载荷、reducer 结果、事件可见性、从事件日志恢复        |
-| Query/trigger/interrupt/victory | 资格、否定用例、确定性排序、终局优先级                    |
-| Prompt                          | 语义归属覆盖、公开/owner 文本、回合契约、私有事实缺席     |
-| Projection                      | 叙述、玩家 ID、cue 映射、未授权视图缺席                   |
-| Effects                         | artifact 契约合规,外加 catalog 或被动覆盖                 |
-| Catalog/board                   | 已安装 Role 列表、自定义 board 校验、内置组合、不可变快照 |
-| Ruleset                         | 新指纹、先前快照恢复、不匹配拒绝、共享 catalog 使用       |
-| Strategy                        | Role 映射、索引可达性、逐字源介绍、本地相关文章           |
-| Browser                         | Role 数量与颜色、board 选择/组合、可见效果与保密          |
-| Simulation                      | 经过评审的引擎与编排 replay,含稳定事件与检查点            |
+| 表面                            | 所需证据                                                   |
+| ------------------------------- | ---------------------------------------------------------- |
+| Role ability                    | 合法与非法动作、目标、pass、使用次数、capability 授权      |
+| Phase                           | 插入顺序、激活、actor、动作描述符、顺序/并行边界           |
+| 结算                            | lane 顺序、交互、链式效果、胜负之前的死亡反应              |
+| Plugin state                    | 严格载荷、reducer 结果、事件可见性、从事件日志恢复         |
+| Query/trigger/interrupt/victory | 资格、否定用例、确定性排序、终局优先级                     |
+| Prompt                          | 语义归属覆盖、公开/owner 文本、回合契约、私有事实缺席      |
+| Projection                      | 叙述、玩家 ID、cue 映射、未授权视图缺席                    |
+| Effects                         | artifact 契约合规,外加 catalog 或被动覆盖                  |
+| Catalog/board                   | 已安装 Role 列表、自定义 board 校验、内置组合、不可变快照  |
+| Ruleset                         | 新 revision/指纹、过期执行拒绝、archive 读取、共享 catalog |
+| Strategy                        | Role 映射、索引可达性、逐字源介绍、本地相关文章            |
+| Browser                         | Role 数量与颜色、board 选择/组合、可见效果与保密           |
+| Simulation                      | 经过评审的引擎与编排 replay,含稳定事件与检查点             |
 
 断言使用引擎事件、DTO、持久快照、渲染的 Prompt、投影视图或浏览器状态。不接受 Agent 的自我
 报告作为证据。

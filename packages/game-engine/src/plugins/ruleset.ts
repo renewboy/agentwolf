@@ -19,7 +19,7 @@ import { SemanticOwnershipRecorder, type PluginSemanticContribution } from './se
 export class RulesetRuntime {
   public constructor(
     public readonly id: RulesetId,
-    public readonly version: number,
+    public readonly revision: number,
     public readonly plugins: readonly InstalledPlugin[],
     public readonly roles: RoleRegistry,
     public readonly rules: RuleRegistry,
@@ -47,16 +47,16 @@ export class RulesetBuilder implements PluginInstallScope {
   public readonly triggers = new TriggerRegistry(this.#ownership)
 
   readonly #id: RulesetId
-  readonly #version: number
+  readonly #revision: number
   readonly #plugins: readonly RulePlugin<RulesetBuilder>[]
 
   public constructor(options: {
     readonly id: RulesetId
-    readonly version: number
+    readonly revision: number
     readonly plugins: readonly RulePlugin<RulesetBuilder>[]
   }) {
     this.#id = options.id
-    this.#version = options.version
+    this.#revision = options.revision
     this.#plugins = options.plugins
   }
 
@@ -65,7 +65,7 @@ export class RulesetBuilder implements PluginInstallScope {
     const contributions = this.#ownership.contributions(installed.map((plugin) => plugin.id))
     return new RulesetRuntime(
       this.#id,
-      this.#version,
+      this.#revision,
       installed,
       this.roles,
       this.rules,

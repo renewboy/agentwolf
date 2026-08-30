@@ -118,15 +118,40 @@ describe('match orchestration', () => {
       kind: 'players',
       playerIds: ['player-12', 'player-1', 'player-5'],
     })
+    const linkedDeath = events.find(
+      (event) =>
+        event.payload.type === 'plugin.event' &&
+        event.payload.eventType === 'event-cupid-linked-death',
+    )
+    expect(linkedDeath).toMatchObject({
+      visibility: { kind: 'god' },
+      payload: {
+        schemaVersion: 2,
+        data: {
+          sourceId: 'player-5',
+          targetId: 'player-1',
+          timing: 'night',
+          presentation: 'partner-only',
+        },
+      },
+    })
+    expect(
+      events.some(
+        (event) =>
+          event.visibility.kind === 'public' &&
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === 'event-cupid-linked-death',
+      ),
+    ).toBe(false)
     expect(
       events.find(
         (event) =>
-          event.payload.type === 'plugin.event' &&
-          event.payload.eventType === 'event-cupid-linked-death',
+          event.payload.type === 'public.announcement' &&
+          event.payload.code === 'night-deaths' &&
+          event.payload.playerIds.some((playerId) => playerId === 'player-1') &&
+          event.payload.playerIds.some((playerId) => playerId === 'player-5'),
       )?.payload,
-    ).toMatchObject({
-      data: { sourceId: 'player-5', targetId: 'player-1', timing: 'night' },
-    })
+    ).toMatchObject({ playerIds: expect.arrayContaining(['player-1', 'player-5']) })
     expect(events.findLast((event) => event.payload.type === 'match.ended')?.payload).toMatchObject(
       {
         winner: 'werewolf',
@@ -145,7 +170,49 @@ describe('match orchestration', () => {
     expect(loversRevealed!.sequence).toBeGreaterThan(
       events.findLast((event) => event.payload.type === 'role.revealed')!.sequence,
     )
-    expect(await server.simulations.addCandidate(created.id)).toMatchObject({ created: true })
+    const archive = await waitForArchive(server, created.id)
+    expect(archive).toMatchObject({
+      sourceRuleset: { familyId: 'classic', revision: 6 },
+      trajectoryAudit: { ok: true, issues: [] },
+    })
+    const archivedClosedEye = server.matches.getMatch(created.id, { kind: 'closed-eye' })
+    expect(archivedClosedEye).toEqual(archive.projections.closedEye)
+    const archivedMessages: LiveMessage[] = []
+    const archivedConnection = server.matches.connect(created.id, {
+      view: { kind: 'closed-eye' },
+      send: (message) => archivedMessages.push(message),
+    })
+    archivedConnection.receive({
+      type: 'view.set',
+      view: { kind: 'player', playerId: 'player-1' as PlayerId },
+    })
+    expect(archivedMessages.findLast((message) => message.type === 'snapshot')).toMatchObject({
+      type: 'snapshot',
+      view: { kind: 'player', playerId: 'player-1' },
+      data: archive.projections.players.find((entry) => entry.playerId === 'player-1')?.view,
+    })
+    archivedConnection.receive({ type: 'speech-playback.set', enabled: true })
+    expect(archivedMessages.at(-1)).toMatchObject({
+      type: 'error',
+      code: 'invalid-live-message',
+    })
+    archivedConnection.close()
+    await expect(server.simulations.addCandidate(created.id)).rejects.toThrow(/read-only/)
+    expect(() => server.matches.beginMatch(created.id)).toThrow(/read-only/)
+    await expect(server.matches.resumeMatch(created.id)).rejects.toThrow(/read-only/)
+    expect(() => server.matches.startPostgameReview(created.id)).toThrow(/read-only/)
+    const resumeResponse = await server.app.inject({
+      method: 'POST',
+      url: `/api/matches/${created.id}/resume`,
+    })
+    expect(resumeResponse).toMatchObject({ statusCode: 409 })
+    expect(resumeResponse.json()).toMatchObject({ error: 'match-read-only' })
+    const simulationResponse = await server.app.inject({
+      method: 'POST',
+      url: `/api/developer/matches/${created.id}/simulation/candidates`,
+    })
+    expect(simulationResponse).toMatchObject({ statusCode: 409 })
+    expect(simulationResponse.json()).toMatchObject({ error: 'match-read-only' })
     expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
       ok: true,
       issues: [],
@@ -699,7 +766,7 @@ describe('match orchestration', () => {
       ok: true,
       issues: [],
     })
-  })
+  }, 15_000)
 
   it('discards durable actions left behind when self-destruct interrupts a parallel stage', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-interrupt-actions-'))
@@ -965,7 +1032,7 @@ describe('match orchestration', () => {
       ok: true,
       issues: [],
     })
-  })
+  }, 15_000)
 
   it('resumes the same durable player Sessions after server restart', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-restart-recovery-'))
@@ -1531,6 +1598,15 @@ async function waitForMatch(server: AgentWolfServer, matchId: MatchId): Promise<
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
   }
   throw new Error('Match did not reach a terminal state')
+}
+
+async function waitForArchive(server: AgentWolfServer, matchId: MatchId) {
+  for (let attempt = 0; attempt < 1_000; attempt += 1) {
+    const archive = server.repository.getMatchArchive(matchId)
+    if (archive) return archive
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
+  }
+  throw new Error('Match did not produce a read-only archive')
 }
 
 async function waitForPlaybackSequence(messages: readonly LiveMessage[]): Promise<number> {

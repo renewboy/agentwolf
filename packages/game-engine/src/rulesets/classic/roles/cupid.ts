@@ -32,6 +32,7 @@ export const cupidLinkedDeathDataSchema = z.object({
   sourceId: PlayerIdSchema,
   targetId: PlayerIdSchema,
   timing: DeathTimingSchema,
+  presentation: z.literal('partner-only'),
 })
 
 export const cupidStateSchema = z.object({

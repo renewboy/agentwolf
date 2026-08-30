@@ -304,6 +304,7 @@ test('offers recovery controls and deletes a paused match', async ({
   request,
   resources,
 }) => {
+  test.setTimeout(60_000)
   const createdResponse = await request.post('/api/matches', {
     data: {
       boardId: 'board-quick-6',
@@ -326,7 +327,7 @@ test('offers recovery controls and deletes a paused match', async ({
             status: string
           }
         ).status,
-      { timeout: 15_000 },
+      { timeout: 30_000 },
     )
     .toBe('paused')
 

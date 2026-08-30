@@ -44,6 +44,22 @@ for (const path of productionFiles) {
   ) {
     errors.push(`${relativePath} bypasses the centralized speech playback controller`)
   }
+  if (/\b(?:classic-v\d+|ruleset-classic-v\d+|createClassicV\d+Ruleset)\b/.test(content)) {
+    errors.push(`${relativePath} reintroduces an executable historical Ruleset`)
+  }
+  if (/cupidLinkedDeathLegacy|cupidV[12]Plugin/.test(content)) {
+    errors.push(`${relativePath} reintroduces legacy Cupid presentation or plugins`)
+  }
+}
+
+const activeSimulationFiles = await sourceFiles(
+  ['apps/server/tests/fixtures/simulations'],
+  new Set(['.json']),
+)
+for (const path of activeSimulationFiles) {
+  if (/\b(?:classic-v\d+|ruleset-classic-v\d+)\b/.test(await text(path))) {
+    errors.push(`${localPath(path)} targets a historical executable Ruleset`)
+  }
 }
 
 const cssFiles = await sourceFiles(['apps', 'packages'], new Set(['.css']))

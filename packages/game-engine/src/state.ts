@@ -174,7 +174,7 @@ export function reduceGameEvent(
     case 'death.pending': {
       const pendingDeaths = new Map(next.pendingDeaths)
       const previous = pendingDeaths.get(payload.playerId)
-      const timing = payload.timing ?? inferDeathTiming(payload.causes)
+      const timing = payload.timing
       if (previous?.timing && previous.timing !== timing) {
         throw new Error(`Pending death ${payload.playerId} has conflicting timing`)
       }
@@ -211,7 +211,7 @@ export function reduceGameEvent(
       recentDeaths.set(payload.playerId, {
         playerId: payload.playerId,
         causes: payload.causes,
-        timing: payload.timing ?? inferDeathTiming(payload.causes),
+        timing: payload.timing,
       })
       next = {
         ...next,
@@ -273,7 +273,7 @@ export function reduceGameEvent(
         ...next,
         status: 'ended',
         winner: payload.winner,
-        winningPlayerIds: payload.winningPlayerIds ?? [],
+        winningPlayerIds: payload.winningPlayerIds,
       }
       break
     case 'vote.resolved':
@@ -305,10 +305,6 @@ export function reduceGameEvent(
       break
   }
   return next
-}
-
-function inferDeathTiming(causes: readonly string[]): 'day' | 'night' {
-  return causes.some((cause) => cause === 'werewolf' || cause === 'poison') ? 'night' : 'day'
 }
 
 export function replayGame(

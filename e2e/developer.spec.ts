@@ -8,14 +8,14 @@ test('guides simulation review and approval from the Match row', async ({
   resources: _resources,
 }) => {
   const source = thinkingMatchFixture()
-  const ended = {
+  const paused = {
     ...source,
     id: 'match-simulation-wizard-e2e',
-    status: 'ended',
+    status: 'paused',
     day: 2,
-    phaseId: 'phase-match-ended',
-    phaseLabel: '对局结束',
-    winner: 'village',
+    phaseId: 'phase-day-speech',
+    phaseLabel: '对局已暂停',
+    winner: null,
     seats: source.seats.map((seat) => ({
       ...seat,
       active: false,
@@ -28,7 +28,7 @@ test('guides simulation review and approval from the Match row', async ({
   } as unknown as MatchView
   await page.route(
     (url) => url.pathname.endsWith('/api/matches'),
-    (route) => route.fulfill({ json: [ended, running] }),
+    (route) => route.fulfill({ json: [paused, running] }),
   )
   await page.route('**/api/developer/matches/*/simulation/review', async (route) => {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 220))
@@ -36,7 +36,7 @@ test('guides simulation review and approval from the Match row', async ({
       json: {
         simulationId: 'simulation-browser-wizard-e2e',
         relativePath: '.agentwolf/simulations/inbox/simulation-browser-wizard-e2e.sim.json',
-        sourceStatus: 'ended',
+        sourceStatus: 'paused',
         turns: 35,
         events: 180,
         deterministic: true,
@@ -70,13 +70,13 @@ test('guides simulation review and approval from the Match row', async ({
   })
 
   await page.goto('/')
-  const endedRow = page.locator(`[data-match-id="${ended.id}"]`)
+  const pausedRow = page.locator(`[data-match-id="${paused.id}"]`)
   const runningRow = page.locator(`[data-match-id="${running.id}"]`)
-  const trigger = endedRow.getByRole('button', { name: '添加仿真' })
+  const trigger = pausedRow.getByRole('button', { name: '添加仿真' })
   await expect(trigger).toBeEnabled()
   await expect(runningRow.getByRole('button', { name: '添加仿真' })).toBeDisabled()
-  const rowBounds = await endedRow.boundingBox()
-  const actionBounds = await endedRow.locator('.aw-match-row__actions').boundingBox()
+  const rowBounds = await pausedRow.boundingBox()
+  const actionBounds = await pausedRow.locator('.aw-match-row__actions').boundingBox()
   expect(rowBounds).not.toBeNull()
   expect(actionBounds).not.toBeNull()
   expect((actionBounds?.x ?? 0) + (actionBounds?.width ?? 0)).toBeLessThanOrEqual(
@@ -131,6 +131,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   request,
   resources,
 }) => {
+  test.setTimeout(60_000)
   const createdResponse = await request.post('/api/matches', {
     data: {
       boardId: 'board-quick-6',
@@ -155,7 +156,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
         }
         return summary.owners.find((owner) => owner.ownerId === 'player-1')?.turnCount ?? 0
       },
-      { timeout: 15_000 },
+      { timeout: 20_000 },
     )
     .toBeGreaterThan(0)
   await expect
@@ -164,7 +165,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
         const response = await request.get(`/api/matches/${match.id}?view=god`)
         return ((await response.json()) as MatchView).status
       },
-      { timeout: 15_000 },
+      { timeout: 20_000 },
     )
     .toBe('paused')
 

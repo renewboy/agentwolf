@@ -161,7 +161,7 @@ describe('database migration', () => {
     expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
     reopened.close()
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(8)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(9)
     expect(
       migrated
         .prepare(
@@ -255,7 +255,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(8)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(9)
     const indexes = migrated
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
       .all('trajectory_records') as Array<{ name: string }>
@@ -310,7 +310,7 @@ describe('database migration', () => {
       repository.close()
 
       const migrated = new Database(databasePath)
-      expect(migrated.pragma('user_version', { simple: true })).toBe(8)
+      expect(migrated.pragma('user_version', { simple: true })).toBe(9)
       const tables = migrated
         .prepare(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
@@ -340,7 +340,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(8)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(9)
     expect(
       migrated
         .prepare(
@@ -400,13 +400,13 @@ describe('database migration', () => {
     const prompt = database
       .prepare('SELECT json FROM trajectory_records WHERE record_id = ?')
       .get('prompt-record') as { json: string }
-    expect(database.pragma('user_version', { simple: true })).toBe(8)
+    expect(database.pragma('user_version', { simple: true })).toBe(9)
     expect(JSON.parse(turn.json)).toEqual({ status: 'completed' })
     expect(prompt.json).toBe(promptRecordJson)
     database.close()
   })
 
-  it('creates postgame review tables in a fresh schema-eight database', async () => {
+  it('creates postgame review and Match archive tables in a fresh schema-nine database', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-current-schema-'))
     roots.push(root)
     const databasePath = resolve(root, 'agentwolf.sqlite')
@@ -414,7 +414,7 @@ describe('database migration', () => {
     repository.close()
 
     const database = new Database(databasePath)
-    expect(database.pragma('user_version', { simple: true })).toBe(8)
+    expect(database.pragma('user_version', { simple: true })).toBe(9)
     const tables = database
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'postgame_%'")
       .all() as Array<{ name: string }>
@@ -424,6 +424,11 @@ describe('database migration', () => {
       'postgame_review_turns',
       'postgame_reviews',
     ])
+    expect(
+      database
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'match_archives'")
+        .get(),
+    ).toEqual({ name: 'match_archives' })
     database.close()
   })
 })

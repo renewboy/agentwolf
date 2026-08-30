@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PhaseIdSchema } from '@agentwolf/contracts'
-import {
-  createClassicRuleset,
-  createClassicV3Ruleset,
-  expectedVoteKind,
-  phaseSpeechKind,
-} from '../src/index.js'
+import { createClassicRuleset, expectedVoteKind, phaseSpeechKind } from '../src/index.js'
 
 const classicRuleset = createClassicRuleset()
 const classicPhaseGraph = classicRuleset.phases
@@ -24,7 +19,6 @@ describe('phase plugin ownership', () => {
     expect(contribution('plugin-classic-terminal')).toEqual(['phase-match-ended'])
     expect(contribution('plugin-role-cupid')).toEqual(['phase-night-cupid'])
     expect(classicPhaseGraph.entry).toBe('phase-night-cupid')
-    expect(createClassicV3Ruleset().phases.entry).toBe('phase-night-guard')
     expect(
       phaseNode('phase-day-resolve').edges.some((edge) => edge.to === 'phase-night-cupid'),
     ).toBe(true)
@@ -40,14 +34,19 @@ describe('terminal phase priority', () => {
   })
 
   it.each(['phase-day-announcement', 'phase-death-triggers', 'phase-day-resolve'])(
-    'settles death triggers, then ends before post-game actions in %s',
+    'settles death triggers and terminal last words before victory in %s',
     (phaseId) => {
       const conditions = edgeConditions(phaseId)
       expect(conditions.indexOf('has-death-trigger')).toBeLessThan(conditions.indexOf('has-winner'))
+      expect(conditions.indexOf('has-terminal-last-words')).toBeLessThan(
+        conditions.indexOf('has-winner'),
+      )
       expect(conditions.indexOf('has-winner')).toBeLessThan(
         conditions.indexOf('dead-sheriff-holds-badge'),
       )
-      expect(conditions.indexOf('has-winner')).toBeLessThan(conditions.indexOf('has-last-words'))
+      expect(conditions.indexOf('dead-sheriff-holds-badge')).toBeLessThan(
+        conditions.indexOf('has-last-words'),
+      )
     },
   )
 })

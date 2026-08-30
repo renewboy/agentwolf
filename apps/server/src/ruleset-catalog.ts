@@ -1,59 +1,81 @@
 import type { MatchBoardSnapshot } from '@agentwolf/contracts'
 import { RulesetLockSchema, type JsonValue, type RulesetLock } from '@agentwolf/contracts'
 import { createHash } from 'node:crypto'
-import {
-  createClassicRuleset,
-  createClassicV1Ruleset,
-  createClassicV2Ruleset,
-  createClassicV3Ruleset,
-  createClassicV4Ruleset,
-  type RulesetRuntime,
-} from '@agentwolf/game-engine'
+import { createClassicRuleset, type RulesetRuntime } from '@agentwolf/game-engine'
 import { promptRegistryFor } from './prompt-registry.js'
 
-export class RulesetCatalog {
-  readonly #classicV1 = createClassicV1Ruleset()
-  readonly #classicV2 = createClassicV2Ruleset()
-  readonly #classicV3 = createClassicV3Ruleset()
-  readonly #classicV4 = createClassicV4Ruleset()
-  readonly #classicV5 = createClassicRuleset()
+export interface RulesetReleaseDefinition {
+  readonly familyId: MatchBoardSnapshot['rulesetId']
+  readonly revision: number
+  readonly default: boolean
+  create(): RulesetRuntime
+}
 
-  public constructor() {
-    promptRegistryFor(this.#classicV1)
-    promptRegistryFor(this.#classicV2)
-    promptRegistryFor(this.#classicV3)
-    promptRegistryFor(this.#classicV4)
-    promptRegistryFor(this.#classicV5)
+export const rulesetReleaseDefinitions: readonly RulesetReleaseDefinition[] = [
+  {
+    familyId: 'classic',
+    revision: 6,
+    default: true,
+    create: createClassicRuleset,
+  },
+]
+
+export class RulesetCatalog {
+  readonly #definitions: ReadonlyMap<MatchBoardSnapshot['rulesetId'], RulesetReleaseDefinition>
+  readonly #runtimes: ReadonlyMap<MatchBoardSnapshot['rulesetId'], RulesetRuntime>
+  readonly #defaultFamilyId: MatchBoardSnapshot['rulesetId']
+
+  public constructor(definitions: readonly RulesetReleaseDefinition[] = rulesetReleaseDefinitions) {
+    if (definitions.length === 0) throw new Error('Ruleset release table is empty')
+    const byFamily = new Map<MatchBoardSnapshot['rulesetId'], RulesetReleaseDefinition>()
+    for (const definition of definitions) {
+      if (byFamily.has(definition.familyId)) {
+        throw new Error(`Duplicate Ruleset family ${definition.familyId}`)
+      }
+      byFamily.set(definition.familyId, definition)
+    }
+    const defaults = definitions.filter((definition) => definition.default)
+    if (defaults.length !== 1) throw new Error('Ruleset release table requires exactly one default')
+    this.#definitions = byFamily
+    this.#defaultFamilyId = defaults[0]!.familyId
+    this.#runtimes = new Map(
+      definitions.map((definition) => {
+        const runtime = definition.create()
+        if (runtime.revision !== definition.revision) {
+          throw new Error(
+            `Ruleset ${definition.familyId} declares revision ${definition.revision}, runtime is ${runtime.revision}`,
+          )
+        }
+        promptRegistryFor(runtime)
+        return [definition.familyId, runtime]
+      }),
+    )
   }
 
   public current(): RulesetRuntime {
-    return this.#classicV5
+    return this.#runtimes.get(this.#defaultFamilyId)!
   }
 
-  public forSnapshot(snapshot: MatchBoardSnapshot): RulesetRuntime {
-    const ruleset =
-      snapshot.rulesetId === 'classic-v1'
-        ? this.#classicV1
-        : snapshot.rulesetId === 'classic-v2'
-          ? this.#classicV2
-          : snapshot.rulesetId === 'classic-v3'
-            ? this.#classicV3
-            : snapshot.rulesetId === 'classic-v4'
-              ? this.#classicV4
-              : this.#classicV5
-    if (snapshot.schemaVersion === 2) {
-      const expected = this.lock(ruleset)
-      if (snapshot.ruleset.fingerprint !== expected.fingerprint) {
-        throw new Error(
-          `Ruleset fingerprint mismatch for ${snapshot.ruleset.id}: expected ${snapshot.ruleset.fingerprint}, installed ${expected.fingerprint}`,
-        )
-      }
+  public forExecution(snapshot: MatchBoardSnapshot): RulesetRuntime {
+    const definition = this.#definitions.get(snapshot.rulesetId)
+    const ruleset = this.#runtimes.get(snapshot.rulesetId)
+    if (!definition || !ruleset) throw new Error(`Unknown Ruleset family ${snapshot.rulesetId}`)
+    if (snapshot.ruleset.revision !== definition.revision) {
+      throw new Error(
+        `Ruleset ${snapshot.rulesetId} revision ${snapshot.ruleset.revision} is read-only; current revision is ${definition.revision}`,
+      )
+    }
+    const expected = this.lock(ruleset)
+    if (snapshot.ruleset.fingerprint !== expected.fingerprint) {
+      throw new Error(
+        `Ruleset fingerprint mismatch for ${snapshot.ruleset.id}: expected ${snapshot.ruleset.fingerprint}, installed ${expected.fingerprint}`,
+      )
     }
     return ruleset
   }
 
-  public currentSnapshotId(): 'classic-v5' {
-    return 'classic-v5'
+  public currentSnapshotId(): MatchBoardSnapshot['rulesetId'] {
+    return this.#defaultFamilyId
   }
 
   public lock(ruleset: RulesetRuntime = this.current()): RulesetLock {
@@ -65,9 +87,9 @@ export class RulesetCatalog {
     }))
     return RulesetLockSchema.parse({
       id: ruleset.id,
-      version: ruleset.version,
+      revision: ruleset.revision,
       plugins,
-      fingerprint: digest({ id: ruleset.id, version: ruleset.version, plugins }),
+      fingerprint: digest({ id: ruleset.id, revision: ruleset.revision, plugins }),
     })
   }
 }

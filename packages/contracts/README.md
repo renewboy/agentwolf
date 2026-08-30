@@ -8,7 +8,7 @@
 - 结构化玩家动作与动作预期。
 - 领域事件信封与可见性描述符。
 - REST 与 WebSocket 请求/响应 DTOs。
-- Settings、postgame、trajectory、simulation 与 Match 快照 schemas。
+- Settings、postgame、trajectory、simulation、Match 快照与只读 archive schemas。
 
 每一个跨越 JSON、配置、数据库 JSON、进程或浏览器边界的值,都由其所属 schema 解析。同进程代码在该解析之后消费推导出的类型。
 

@@ -117,6 +117,7 @@ describe('AgentsPage', () => {
     render(<AgentsPage />)
     await waitFor(() => expect(apiMocks.discoverTool).toHaveBeenCalledWith(tool.id, {}))
     const editor = document.querySelector<HTMLElement>('.aw-agent-editor')!
+    expect(within(editor).getByRole('spinbutton')).toHaveValue(600_000)
     const textboxes = within(editor).getAllByRole('textbox')
     fireEvent.change(textboxes[0]!, { target: { value: 'New Profile' } })
     const model = within(editor).getByRole('combobox', { name: getCopy('agents.model') })

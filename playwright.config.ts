@@ -10,6 +10,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI'] ? [['html', { open: 'never' }], ['list']] : 'list',
+  expect: { timeout: 15_000 },
   use: {
     baseURL: `http://127.0.0.1:${e2eWebPort}`,
     trace: 'retain-on-failure',

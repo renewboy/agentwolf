@@ -370,10 +370,15 @@ function cupidLinkData(data: unknown) {
 
 function cupidLinkedDeathData(data: unknown) {
   const record = pluginData(data, 'Cupid linked death')
+  const presentation = record['presentation']
+  if (presentation !== 'partner-only') {
+    throw new Error('Invalid Cupid linked death presentation')
+  }
   return {
     sourceId: PlayerIdSchema.parse(record['sourceId']),
     targetId: PlayerIdSchema.parse(record['targetId']),
     timing: DeathTimingSchema.parse(record['timing']),
+    presentation,
   }
 }
 

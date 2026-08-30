@@ -545,12 +545,6 @@ describe('plugin event and rule registries', () => {
   it('selects/evaluates dynamic and registered rules and orders phase handlers', () => {
     const registry = new RuleRegistry()
     const runtime = engineRuntime()
-    expect(registry.persistDeathTiming).toBe(false)
-    registry.configureDeathEvents({ persistTiming: true })
-    expect(registry.persistDeathTiming).toBe(true)
-    expect(() => registry.configureDeathEvents({ persistTiming: false })).toThrow(
-      /already configured/,
-    )
     expect(registry.selectActors(undefined, runtime)).toEqual([])
     expect(registry.evaluate(undefined, runtime)).toBe(true)
     expect(registry.selectActors('faction-alive:village', runtime).length).toBeGreaterThan(0)

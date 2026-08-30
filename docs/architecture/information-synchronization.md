@@ -84,8 +84,11 @@ sequence cursor，保持事件原顺序。
 - player 始终可见自己的 Role；
 - player 只在已收到 `faction.members` 且双方属于该事件成员集时看见共享阵营成员 Role。
 
-公开淘汰状态从 public announcements/events 派生。closed-eye 和普通 player 在 Match 运行中不会因为
-GameState 已将玩家置死而提前看到私密死亡；projector 只在公开淘汰后改变外部 alive 状态。
+公开淘汰状态从公开的夜间死亡名单、逐人淘汰公告和无旁白淘汰事实派生。Role plugin 可以让专属
+事件负责旁白,同时用通用淘汰事实更新玩家卡片,无需让 projector 识别具体 Role。夜间自动死亡反应
+的公开细节在死亡名单形成时保持 god 可见,closed-eye 和普通 player 只看见完整名单,不会知道其中
+谁是原死亡者或连锁死亡者。GameState 已将玩家置死时,projector 仍会等到公开淘汰事实出现后才改变
+外部 alive 状态。
 
 玩家卡片标识同样只从已过滤事件派生。事件呈现可以贡献带语义 ID 的持久标识，projector 将其归入
 对应 Seat 后再写入 `MatchView`。Match 运行期间，情侣标识来自私有连线事件，只有 god、Cupid 与

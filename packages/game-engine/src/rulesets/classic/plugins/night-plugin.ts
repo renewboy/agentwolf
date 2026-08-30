@@ -7,65 +7,44 @@ import { visibility, type RuleRuntime } from '../../../rule-registry.js'
 import { classicCapabilities } from '../capabilities.js'
 import { v1AbilityIds } from '../ability-ids.js'
 import { classicPluginIds } from './ids.js'
-import { bySeat, currentNightActions, phase } from './shared.js'
+import { afterDeathBatchEdges, bySeat, currentNightActions, phase } from './shared.js'
 
-export const classicNightPlugin = createClassicNightPlugin(2, true)
-export const classicV1NightPlugin = createClassicNightPlugin(1, false)
-
-function createClassicNightPlugin(
-  version: number,
-  persistDeathTiming: boolean,
-): RulePlugin<RulesetBuilder> {
-  return {
-    id: classicPluginIds.night,
-    version,
-    requires: [{ id: classicPluginIds.resolution, version: 1 }],
-    register: ({ phases, rules }) => {
-      if (persistDeathTiming) rules.configureDeathEvents({ persistTiming: true })
-      phases.registerAll([
-        {
-          id: phase('phase-night-resolve'),
-          labelKey: 'phases.nightResolve',
-          mode: 'automatic',
-          edges: [
-            { to: phase('phase-day-announcement'), when: 'has-winner' },
-            { to: phase('phase-sheriff-signup'), when: 'first-day-with-sheriff' },
-            { to: phase('phase-day-announcement') },
-          ],
-        },
-        {
-          id: phase('phase-day-announcement'),
-          labelKey: 'phases.dayAnnouncement',
-          mode: 'automatic',
-          edges: [
-            { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
-            { to: phase('phase-match-ended'), when: 'has-winner' },
-            { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
-            { to: phase('phase-last-words'), when: 'has-last-words' },
-            { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
-            { to: phase('phase-day-speech-order') },
-          ],
-        },
-      ])
-      rules.registerPhaseHandler(
-        phase('phase-night-resolve'),
-        (runtime) => resolveNight(runtime, persistDeathTiming),
-        {
-          id: 'classic-night-resolve',
-        },
-      )
-      rules.registerPhaseHandler(
-        phase('phase-day-announcement'),
-        (runtime) => finalizeNightDeaths(runtime, persistDeathTiming),
-        {
-          id: 'classic-night-death-announcement',
-        },
-      )
-    },
-  }
+export const classicNightPlugin: RulePlugin<RulesetBuilder> = {
+  id: classicPluginIds.night,
+  version: 3,
+  requires: [{ id: classicPluginIds.resolution, version: 1 }],
+  register: ({ phases, rules }) => {
+    phases.registerAll([
+      {
+        id: phase('phase-night-resolve'),
+        labelKey: 'phases.nightResolve',
+        mode: 'automatic',
+        edges: [
+          { to: phase('phase-day-announcement'), when: 'has-winner' },
+          { to: phase('phase-sheriff-signup'), when: 'first-day-with-sheriff' },
+          { to: phase('phase-day-announcement') },
+        ],
+      },
+      {
+        id: phase('phase-day-announcement'),
+        labelKey: 'phases.dayAnnouncement',
+        mode: 'automatic',
+        edges: afterDeathBatchEdges([
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ]),
+      },
+    ])
+    rules.registerPhaseHandler(phase('phase-night-resolve'), resolveNight, {
+      id: 'classic-night-resolve',
+    })
+    rules.registerPhaseHandler(phase('phase-day-announcement'), finalizeNightDeaths, {
+      id: 'classic-night-death-announcement',
+    })
+  },
 }
 
-function resolveNight(runtime: RuleRuntime, persistDeathTiming: boolean): void {
+function resolveNight(runtime: RuleRuntime): void {
   const submittedNightActions = currentNightActions(runtime)
   const actions = submittedNightActions.filter(
     (action) =>
@@ -126,7 +105,7 @@ function resolveNight(runtime: RuleRuntime, persistDeathTiming: boolean): void {
         type: 'death.pending',
         playerId: death.playerId,
         causes: [...death.causes],
-        ...(persistDeathTiming ? { timing: 'night' as const } : {}),
+        timing: 'night',
       },
       visibility.god,
     )
@@ -134,7 +113,7 @@ function resolveNight(runtime: RuleRuntime, persistDeathTiming: boolean): void {
   runtime.append({ type: 'day.started', day: runtime.state.day + 1 }, visibility.public)
 }
 
-function finalizeNightDeaths(runtime: RuleRuntime, persistDeathTiming: boolean): void {
+function finalizeNightDeaths(runtime: RuleRuntime): void {
   const pendingPlayerIds = bySeat(runtime, runtime.state.pendingDeaths.keys())
   if (pendingPlayerIds.length === 0) {
     runtime.append(
@@ -158,7 +137,7 @@ function finalizeNightDeaths(runtime: RuleRuntime, persistDeathTiming: boolean):
         playerId: death.playerId,
         causes: [...death.causes],
         announced: true,
-        ...(persistDeathTiming ? { timing: death.timing } : {}),
+        timing: death.timing,
       },
       visibility.god,
     )
@@ -168,5 +147,7 @@ function finalizeNightDeaths(runtime: RuleRuntime, persistDeathTiming: boolean):
     { type: 'public.announcement', code: 'night-deaths', playerIds: deaths, params: {} },
     visibility.public,
   )
-  appendAutomaticDeathEvents(runtime, resolved)
+  appendAutomaticDeathEvents(runtime, resolved, {
+    suppressPublicEvents: true,
+  })
 }

@@ -66,6 +66,7 @@ describe('Prompt runtime behavior matrix', () => {
         playerId: player2,
         causes: ['exile'],
         announced: true,
+        timing: 'day',
       }),
     ]
     const foundation = registry.renderFoundation(foundationFacts(events, true))

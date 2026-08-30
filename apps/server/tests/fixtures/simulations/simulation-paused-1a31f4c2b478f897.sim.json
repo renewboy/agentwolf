@@ -1,0 +1,585 @@
+{
+  "schemaVersion": 1,
+  "simulationId": "simulation-paused-1a31f4c2b478f897",
+  "title": "board-simulation-6-plain paused",
+  "setup": {
+    "matchId": "match-simulation-replay",
+    "board": {
+      "schemaVersion": 3,
+      "rulesetId": "classic",
+      "ruleset": {
+        "id": "ruleset-classic",
+        "revision": 6,
+        "plugins": [
+          {
+            "id": "plugin-classic-phases",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-legacy-events",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-identity-queries",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-villager",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-werewolf",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-seer",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-witch",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-hunter",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-idiot",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-guard",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-magic-mirror-girl",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-white-wolf-king",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-resolution",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-wolf-team",
+            "version": 2,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-night",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-death",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-awakened-hidden-wolf",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-victory",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-day",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-terminal",
+            "version": 2,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-cupid",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-sheriff",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          }
+        ],
+        "fingerprint": "806490f20fe1ca19e9dbbf14a5f2158819963796e9eb5130c58394eb805e98d5"
+      },
+      "policies": {
+        "witchSelfSave": "never",
+        "witchPotionsPerNight": 1,
+        "guardAntidoteCollision": "death",
+        "guardCanSelfProtect": true,
+        "sheriffExplosion": "single-explosion-loses-badge",
+        "nightLastWords": "first-night-only",
+        "victory": "slaughter-all"
+      },
+      "id": "board-simulation-6-plain",
+      "name": "Simulation board 6",
+      "description": "",
+      "roles": [
+        {
+          "roleId": "role-werewolf",
+          "count": 2
+        },
+        {
+          "roleId": "role-villager",
+          "count": 2
+        },
+        {
+          "roleId": "role-seer",
+          "count": 1
+        },
+        {
+          "roleId": "role-hunter",
+          "count": 1
+        }
+      ],
+      "characters": [
+        {
+          "seat": 1,
+          "characterId": null
+        },
+        {
+          "seat": 2,
+          "characterId": null
+        },
+        {
+          "seat": 3,
+          "characterId": null
+        },
+        {
+          "seat": 4,
+          "characterId": null
+        },
+        {
+          "seat": 5,
+          "characterId": null
+        },
+        {
+          "seat": 6,
+          "characterId": null
+        }
+      ],
+      "agentProfiles": [
+        {
+          "seat": 1,
+          "profileId": null
+        },
+        {
+          "seat": 2,
+          "profileId": null
+        },
+        {
+          "seat": 3,
+          "profileId": null
+        },
+        {
+          "seat": 4,
+          "profileId": null
+        },
+        {
+          "seat": 5,
+          "profileId": null
+        },
+        {
+          "seat": 6,
+          "profileId": null
+        }
+      ],
+      "playerCount": 6,
+      "sheriff": false,
+      "victory": "slaughter-all",
+      "source": "custom",
+      "revision": 1
+    },
+    "players": [
+      {
+        "playerId": "player-1",
+        "seat": 1,
+        "name": "Simulation seat 1",
+        "profileId": "profile-simulation-1",
+        "roleId": "role-werewolf",
+        "character": null
+      },
+      {
+        "playerId": "player-2",
+        "seat": 2,
+        "name": "Simulation seat 2",
+        "profileId": "profile-simulation-2",
+        "roleId": "role-werewolf",
+        "character": null
+      },
+      {
+        "playerId": "player-3",
+        "seat": 3,
+        "name": "Simulation seat 3",
+        "profileId": "profile-simulation-3",
+        "roleId": "role-villager",
+        "character": null
+      },
+      {
+        "playerId": "player-4",
+        "seat": 4,
+        "name": "Simulation seat 4",
+        "profileId": "profile-simulation-4",
+        "roleId": "role-villager",
+        "character": null
+      },
+      {
+        "playerId": "player-5",
+        "seat": 5,
+        "name": "Simulation seat 5",
+        "profileId": "profile-simulation-5",
+        "roleId": "role-seer",
+        "character": null
+      },
+      {
+        "playerId": "player-6",
+        "seat": 6,
+        "name": "Simulation seat 6",
+        "profileId": "profile-simulation-6",
+        "roleId": "role-hunter",
+        "character": null
+      }
+    ],
+    "speechCharacterLimit": 300
+  },
+  "turns": [
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-1",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 1,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "bootstrap",
+      "playerId": "player-1",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 8,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-2",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 2,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "bootstrap",
+      "playerId": "player-2",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 9,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-3",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 3,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "bootstrap",
+      "playerId": "player-3",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 10,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-4",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 4,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "bootstrap",
+      "playerId": "player-4",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 11,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-5",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 5,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "bootstrap",
+      "playerId": "player-5",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 12,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-6",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 6,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "bootstrap",
+      "playerId": "player-6",
+      "phaseId": null,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 13,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 1,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-1", "player-2"],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 7,
+      "status": "uncertain",
+      "fault": "uncertain-delivery",
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-night-wolf-council",
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-1", "player-2"],
+      "fromSequence": 0,
+      "toSequence": 14,
+      "visibleEventSequences": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "sessionGeneration": 2,
+      "attempt": 2,
+      "completionOrder": 14,
+      "status": "uncertain",
+      "fault": "uncertain-delivery",
+      "action": null
+    }
+  ],
+  "controls": [],
+  "stage": "approved",
+  "source": {
+    "status": "paused",
+    "cutoffSequence": 15,
+    "fingerprint": "1a31f4c2b478f8972f541a3263b01ae56b9d1c27ddc24e49e0644b5099e9abfa"
+  },
+  "expected": {
+    "eventCount": 15,
+    "eventDigest": "f31011886a04b27872d0e9c8e22fc7d5bbe750610e50ac649d9f514f9d233220",
+    "eventTypes": [
+      "match.created",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "faction.members",
+      "match.starting",
+      "match.started",
+      "night.started",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "match.paused"
+    ],
+    "checkpoint": {
+      "status": "paused",
+      "day": 0,
+      "night": 1,
+      "phaseId": "phase-night-wolf-council",
+      "winner": null,
+      "winningPlayerIds": [],
+      "sheriffId": null,
+      "alivePlayerIds": ["player-1", "player-2", "player-3", "player-4", "player-5", "player-6"],
+      "votingPlayerIds": ["player-1", "player-2", "player-3", "player-4", "player-5", "player-6"],
+      "lastSequence": 15
+    }
+  },
+  "variants": ["recorded"],
+  "browser": false
+}

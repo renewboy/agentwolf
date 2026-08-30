@@ -32,6 +32,7 @@ import {
 } from './simulation-canonical.js'
 import { auditTrajectory } from './trajectory-audit.js'
 import { approveSimulationCandidate, reviewSimulationCandidate } from './simulation-workflow.js'
+import { MatchReadOnlyError } from './match-manager.js'
 
 export class SimulationSourceError extends Error {
   public constructor(message: string) {
@@ -56,6 +57,9 @@ export class SimulationService {
   }
 
   public async capture(matchId: MatchId): Promise<SimulationCapture> {
+    if (this.#repository.getMatchArchive(matchId)) {
+      throw new MatchReadOnlyError(matchId)
+    }
     const match = this.#repository.getMatch(matchId)
     if (!match) throw new SimulationSourceError(`Unknown match ${matchId}`)
     if (match.status !== 'ended' && match.status !== 'paused') {
@@ -102,6 +106,7 @@ export class SimulationService {
     )
     const warnings: string[] = []
     const manifest = this.#boards.resolveSnapshot(match.boardSnapshot).manifest
+    const ruleset = this.#boards.rulesetForSnapshot(match.boardSnapshot)
     const acceptedActions = new Set(
       events
         .filter((event) => event.payload.type === 'action.submitted')
@@ -126,6 +131,7 @@ export class SimulationService {
             events: history,
             status: turn.gameStatus ?? 'running',
             pausedReason: turn.pausedReasonAtRender,
+            ruleset,
           })
           descriptor = boundaryEngine.currentTurn()
           turnDay = boundaryEngine.state.day
@@ -181,12 +187,7 @@ export class SimulationService {
       })
     })
     const canonicalEvents = canonicalizeSimulationEvents(events, normalization)
-    const replayed = replayGame(
-      matchId,
-      manifest,
-      events,
-      this.#boards.rulesetForSnapshot(match.boardSnapshot),
-    )
+    const replayed = replayGame(matchId, manifest, events, ruleset)
     const observed = {
       events: canonicalEvents,
       checkpoint: simulationCheckpoint(replayed, match.status, canonicalEvents.length),

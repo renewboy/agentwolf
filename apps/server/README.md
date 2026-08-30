@@ -7,7 +7,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 
 - REST 与 WebSocket 路由组装及 schema 校验。
 - Agent Tool/Profile、Character、board、settings 与 Match 目录。
-- 不可变的 Match 设置、活跃运行时编排、恢复、暂停、继续与删除。
+- 不可变的 Match 设置、活跃运行时编排、恢复、暂停、继续、只读归档与删除。
 - 用于 events、Session 绑定、delivery、复盘与开发者数据的 SQLite schema 与 repository。
 - 可见性安全的视图 projection 与实时连接协调。
 - 玩家绑定的 MCP 动作传输、Prompt 上下文适配与 Session 恢复。
@@ -22,6 +22,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 - `repository.ts` 与各聚焦 repository:持久化 SQLite 访问。
 - `match-manager.ts`:Match 创建、查找、恢复与删除。
 - `match-runtime.ts`:活跃回合编排与 engine/action 边界。
+- `match-archive.ts`:终局 spectator projections 与 audit 的规则无关冻结边界。
 - `projector.ts`:server 持有的可见性安全 DTO。
 - `mcp.ts`:玩家绑定的结构化动作传输。
 - `player-runtime.ts`:单个逻辑 Session 的 delivery 与恢复。
@@ -37,8 +38,8 @@ contracts,模型/UI 呈现留在 assets。
 每条路由都从 contracts 解析请求与响应 schema。SQLite JSON 在 repository 边界解析。浏览器 DTO
 不含隐藏字段。开发者 HTTP/WebSocket 路由仅在 loopback 开发者模式下注册。
 
-数据库变更包含前向迁移与迁移覆盖。运行时恢复从 events 重建引擎并恢复已持久化的 Session ID;它
-从不发明替代的 Match 状态。
+数据库变更包含前向迁移与迁移覆盖。当前 revision 的运行时恢复从 events 重建引擎并恢复已持久化的
+Session ID；终局 archive 直接返回冻结 DTO，不解释事件或启动 Session。
 
 ## 启动配置
 

@@ -28,7 +28,7 @@ Match 生命周期需要保证：
 | --------------- | ------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
 | Agent Tool      | Agent catalog       | ACP command、args、environment binding、默认 mode 与能力提示       | Player Session binding 保存所选 Tool 全量快照                 |
 | Agent Profile   | Agent catalog       | Tool、model、reasoning、mode、timeout 与非机密 connection 配置     | Match setup 保存 Profile ID，Session binding 保存全量 Profile |
-| board           | Board catalog       | Role 构成、人数、Sheriff、胜负政策和逐 Seat 默认 Profile/Character | 解析为 schema-two board snapshot 与 GameEngine manifest       |
+| board           | Board catalog       | Role 构成、人数、Sheriff、胜负政策和逐 Seat 默认 Profile/Character | 解析为当前 board snapshot 与 GameEngine manifest              |
 | Character       | Character catalog   | 公开名称、头像、traits、style、boundaries 与 opening               | 逐 Seat 保存不可变 Character snapshot                         |
 | global settings | settings repository | 发言字符上限                                                       | 复制到 Match setup snapshot                                   |
 | server rollout  | server config       | 公开发言 interrupt 的新 Match 默认模式                             | 复制到 Match setup snapshot                                   |
@@ -72,7 +72,7 @@ flowchart TD
 2. Profile 按“请求显式值 → board Seat 默认值 → 首个有序 Profile”解析，最终每 Seat 必须有 Profile；
 3. Character 按“请求显式值（可为 null）→ board Seat 默认值 → null”解析，并立即转成 snapshot；
 4. manual Role assignment 必须与 board Role multiset 相符；random assignment 使用 Match 稳定 seed；
-5. board summary 转为 snapshot，写入 Ruleset ID/版本、plugin lock/config hash、fingerprint、政策与修订；
+5. board summary 转为 snapshot，写入 Ruleset family/revision、plugin lock/config hash、fingerprint、政策与修订；
 6. Match setup 写入逐 Seat 名称、Profile ID、可选 manual Role、Character snapshot、发言上限和公开
    发言 interrupt 模式；
 7. GameEngine 产生初始事件，repository 在创建 Match record 的同一事务中保存它们；
@@ -85,15 +85,14 @@ Match ID 同时提供可读 board 前缀与稳定随机 seed。确切 ID 生成�
 
 Match 使用两份互补快照：
 
-- **board snapshot** 固定 Ruleset lock、Role 构成、人数、Sheriff、政策、目录来源、修订和 board 默认
-  配置；恢复时先解析 fingerprint，再重建 `BoardManifest`。
-- **setup snapshot** 固定实际逐 Seat 选择、Match 级发言上限和公开发言 interrupt 模式；它保存
-  Character card 内容，但只保存 Profile ID。首次建立 Player Session binding 时，选中的
-  Profile/Tool 全量配置被进一步冻结。
+- **board snapshot** 使用唯一 schema，固定 Ruleset family/revision、Role 构成、人数、Sheriff、政策、
+  目录来源、修订和 board 默认配置；只有当前 revision 可以恢复为运行时。
+- **setup snapshot** 固定实际逐 Seat 选择、Match 级发言上限和公开发言 interrupt 模式；它保存 Character card 内容，但只
+  保存 Profile ID。首次建立 Player Session binding 时，选中的 Profile/Tool 全量配置被进一步冻结。
 
-目录编辑只影响后续创建。恢复既有 Match 时，MatchManager 不重新解析当前 board/Profile/Character
+目录编辑只影响后续创建。恢复可执行 Match 时，MatchManager 不重新解析当前 board/Profile/Character
 默认值；它使用 record snapshot、Session binding 和事件日志。Character 数据位于事件日志之外，
-因此改变公开表达配置不会污染游戏 replay。
+因此改变公开表达配置不会污染游戏 replay。归档 Match 直接读取冻结视图，不恢复 runtime。
 
 ## 持久化架构
 
@@ -107,22 +106,25 @@ flowchart LR
     Delivery["delivery_ledgers"]
     Postgame["postgame reviews<br/>submissions、reflections、turns"]
     Trajectory["trajectory revisions<br/>turns、records"]
+    Archive["match_archives<br/>冻结 spectator views、audit"]
 
     Match --> Events
     Match --> Sessions
     Match --> Delivery
     Match --> Postgame
     Match --> Trajectory
+    Match --> Archive
 ```
 
 | 持久状态                 | 写入者                    | 恢复用途                                                   |
 | ------------------------ | ------------------------- | ---------------------------------------------------------- |
 | Match record             | MatchManager/MatchRuntime | board/setup、status、paused reason 与目录列表              |
-| `match_events`           | MatchRuntime              | GameEngine replay 与 projection                            |
+| `match_events`           | MatchRuntime              | 当前 revision 的 GameEngine replay                         |
 | Session bindings         | PlayerRuntime             | 精确 Profile/Tool、Session ID、bootstrap 与 pending action |
 | delivery ledgers         | PlayerRuntime             | 每玩家 Prompt cursor 与不确定 attempt                      |
 | postgame records         | PostgameReviewCoordinator | 赛后状态、评分、聚合、感想和逐玩家尝试                     |
 | trajectory turns/records | trajectory recorder       | 运行时诊断与语义 audit                                     |
+| `match_archives`         | MatchManager              | 规则无关的只读 MatchView 与冻结 audit                      |
 
 repository 在 JSON 边界使用 contracts/本地 Zod schema 解析。`match_events` 以 `(match_id, sequence)`
 唯一；Session、delivery、submission 和 reflection 以 Match/Player 唯一。Match 删除由外键 cascade
@@ -146,11 +148,12 @@ stateDiagram-v2
     Paused --> Running: resume 原状态与 Sessions
     Running --> Ended: GameEngine victory
     Ended --> Postgame: 创建 countdown
-    Postgame --> Closed: completed 或 skipped
-    Ended --> Closed: postgame disabled
+    Postgame --> Archived: completed 或 skipped
+    Ended --> Archived: postgame disabled
     Draft --> Deleted: 删除
     Paused --> Deleted: 删除
     Ended --> Deleted: 删除
+    Archived --> Deleted: 删除
 ```
 
 ### 创建与启动
@@ -167,6 +170,9 @@ MatchRuntime：先持久 status=starting 和 `match.starting`，并发建立玩�
 创建 MatchRuntime 并恢复精确 Sessions。repository 初始化会把被进程中断的未终局 Match 标为
 paused，使恢复始终需要显式操作者动作。
 
+只有当前 Ruleset revision 可以继续。发现非当前 revision 且没有 archive 时恢复失败关闭，由操作者
+结束或删除该 Match；server 不自动迁移 action boundary、pending action 或 Session。
+
 继续前，PlayerRuntime 对账 pending action 和 delivery；MatchRuntime 补齐未确认 bootstrap，再调用
 GameEngine resume。恢复从当前 phase/action boundary 开始，不依据 Web snapshot 或 trajectory 推断
 游戏状态。
@@ -175,7 +181,13 @@ GameEngine resume。恢复从当前 phase/action boundary 开始，不依据 Web
 
 GameEngine 发出 `match.ended` 和最终 reveal，MatchRuntime 将 record 标为 ended。启用赛后流程时，
 server 在首个 ended snapshot 前持久创建 countdown；关闭赛后流程的受控运行（如仿真）直接关闭
-Sessions。
+Sessions。赛后 completed/skipped 或禁用赛后流程时，MatchRuntime 关闭 Sessions，并为 god、
+closed-eye 与每个 Player view 生成一份 `MatchArchive`。archive 保存终局 MatchView 和 trajectory
+audit，之后列表、查看与 WebSocket 视角切换均不再读取 GameEngine、Ruleset 或 Role registry。
+
+archive 是 Match 的只读边界：start、resume、postgame controls 与 simulation capture 返回
+`match-read-only` conflict；删除仍然可用。完整投影集合只存在于 server/SQLite，响应只选择请求
+视角对应的一份 MatchView。
 
 ## 赛后复盘状态机
 
@@ -221,6 +233,9 @@ activeSpeech、LiveHub、SpeechBubble 和自动播报；最终文本经过 Playe
 reflection 独立保存。最后一份感想的播放边界释放后状态变为 completed，随后关闭全部原玩家
 Sessions。skip 同样关闭 Sessions；已经进入 collecting/speaking 的 review 不能跳过。
 
+completed/skipped 是 archive 的生成边界。复盘结果、评分与感想已经进入冻结 MatchView，历史读取
+无需重建 postgame coordinator 或恢复玩家 Sessions。
+
 逐玩家 postgame turn record 保存 submission/reflection 的 attempts、uncertain failure 和错误。
 第一次不确定失败可以在同 Session 上续篇；重复失败把 review 置为 paused 并保留精确 resumeState。
 
@@ -230,7 +245,7 @@ Sessions。skip 同样关闭 Sessions；已经进入 collecting/speaking 的 rev
 
 1. 关闭活跃 MatchRuntime、playback、postgame coordinator 与 Player Sessions；
 2. 撤销该 Match 所有 MCP token，关闭 inactive WebSocket connections；
-3. 删除 Match row，让外键 cascade 清理事件、Session、delivery、trajectory 与 postgame 数据；
+3. 删除 Match row，让外键 cascade 清理事件、Session、delivery、trajectory、postgame 与 archive；
 4. 校验数据目录下的精确 Match 路径，只递归移除该 Match 的玩家 workspaces；
 5. 从 MatchManager active/inactive maps 移除引用。
 
@@ -239,11 +254,12 @@ Agent Tools/Profiles、自定义 boards、Characters、共享玩家 Skill 输出
 
 ## 故障与可观测性
 
-- Create request、目录输入、snapshot 和数据库 JSON 在边界解析；Seat、引用、Role multiset 或 Ruleset
-  fingerprint 不合法时不会创建可运行 Match。
+- Create request、目录输入、snapshot 和数据库 JSON 在边界解析；Seat、引用、Role multiset、Ruleset
+  revision 或 fingerprint 不合法时不会创建可运行 Match。
 - MatchRuntime 的规则、Prompt、Session 或持久化错误统一转为 paused 状态与可见 reason，保留恢复
   所需记录。
 - postgame 不完整输入、重复/冲突提交和非法状态转换返回稳定 conflict；传输失败保留 turn record。
+- archive 读取不执行领域规则；归档后的运行控制和仿真导出返回稳定只读 conflict。
 - MatchView、领域事件、Session/delivery debug、postgame view 和 trajectory 提供从产品状态到协议
   细节的分层观测；浏览器本地状态不作为恢复证据。
 
@@ -254,8 +270,9 @@ Agent Tools/Profiles、自定义 boards、Characters、共享玩家 Skill 输出
 - 新持久状态归属最窄 repository，并提供前向迁移、删除 cascade 和解析边界。
 - 新 lifecycle action 由 MatchManager/MatchRuntime 组合，不在 Web 或 GameEngine 建立平行状态机。
 - Character 永远只影响公开呈现和表达；Profile/Tool 只影响 Agent 运行配置。
-- board snapshot、setup snapshot、Session binding 和 append-only events 共同构成恢复依据。
+- board snapshot、setup snapshot、Session binding 和 append-only events 共同构成当前 Match 的恢复依据。
 - server 启动配置只决定新 Match 默认值；恢复始终使用 setup snapshot 中冻结的 interrupt 模式。
+- 完成赛后流程的 Match 只由 archive 投影读取，历史 Ruleset 不具有 runtime factory。
 - postgame 数据与 game events 分离，不能改变 GameEngine replay 或 simulation 终局 oracle。
 - 删除必须先关闭运行对象，再清理精确 Match 持有的数据库与 workspace。
 

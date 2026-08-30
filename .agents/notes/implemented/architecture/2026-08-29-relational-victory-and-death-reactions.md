@@ -17,16 +17,18 @@ Rule registry 接受有序、纯函数的 action validators。Phase action 明�
 或 phase 图写入具体 Role ID。
 
 Trigger registry 在一个有界批次中展开并去重自动死亡反应。每个死亡事实携带昼夜时点，后续死亡
-继承该时点；完整批次写入事件后才开放交互式死亡能力和胜负判断。
+继承该时点；反应可以选择通用淘汰公告或由自身事件承担旁白。夜间批次统一公开死亡名单，逐人
+结算使用公开淘汰事实与专属旁白分离外部生存状态和可见死亡原因。完整批次写入事件后才开放
+交互式死亡能力和胜负判断。
 
 Victory registry 先校验基础 evaluators 的一致候选，再依次应用有序 modifiers。modifier 可以补充、
 阻断或替换候选，最终候选必须包含非空且唯一的获胜 Player IDs。终局事件、GameState、MatchView 与
 赛后资格消费同一获胜集合。
 
-当前 `ruleset-classic-v5` 安装关系型规则所需的 flow plugin 版本与丘比特 plugin。已发布的 V1–V4
-Ruleset 保持其原有 plugin 版本、锁和恢复入口；历史死亡与终局事件允许缺少当前字段，当前 Ruleset
-产生完整字段。V5 丘比特 plugin 在通用终局事实与身份公开完成后追加公开情侣揭晓，Prompt、时间线
-和玩家卡片从同一事件获得最终关系事实。
+当前 `classic` Ruleset 安装关系型规则所需的 flow plugin 与丘比特 plugin。同一死亡时点内先完成
+死亡技能，再让满足资格的玩家完成遗言，最后进入已经成立的终局。丘比特 plugin 在夜间只公开完整
+死亡名单，在逐人结算中按因果顺序公开原死亡与殉情，并在终局身份公开完成后追加情侣揭晓。Prompt、
+时间线和玩家卡片从对应可见事件获得同一关系与死亡事实。
 
 ## Alternatives considered
 
@@ -41,14 +43,15 @@ Ruleset 保持其原有 plugin 版本、锁和恢复入口；历史死亡与终�
 ## Consequences
 
 - 关系型 Role 的动作、死亡和胜负语义可以由一份 plugin state 与通用 registries 确定性组合。
-- 死亡技能、遗言、Sheriff 和终局读取同一个已展开死亡批次，不依赖 phase ID 推断昼夜时点。
+- 死亡技能、遗言、Sheriff 和终局读取同一个已展开死亡批次，不依赖 phase ID 推断昼夜时点；终局
+  候选不会跳过同批次中仍有资格的遗言。
 - 浏览器和赛后流程可以显示、评分和提名确切赢家，不需要从 Faction 或 Role ID 推断。
 - 对局中的私有关系由事件 visibility 和 server projection 保护；终局公开关系由 Role plugin 的公开
   事件进入同一 Prompt 与 Web 投影链路。
-- Ruleset catalog 必须继续为每个已发布版本保留精确 factory 和 fingerprint 校验。
+- Ruleset release table 只为当前 revision 提供 factory；终局关系事实随 Match archive 冻结。
 
 ## Verification
 
 架构门禁禁止通用运行时出现具体 Role ID 分发。Role、phase、事件、恢复、投影、Prompt、浏览器与
-仿真测试共同验证关系私密性、死亡批次顺序、明确赢家和历史 Ruleset 恢复。批准的确定性仿真语料
-覆盖真实 action gateway 中的首夜连线与第三方终局。
+仿真测试共同验证关系私密性、死亡批次顺序与明确赢家。批准的确定性仿真语料覆盖真实 action
+gateway 中的首夜连线与第三方终局，archive 测试验证终局关系在每个视角中的冻结结果。

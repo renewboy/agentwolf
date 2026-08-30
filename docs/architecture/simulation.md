@@ -1,7 +1,7 @@
 # 确定性仿真架构
 
 本文描述 AgentWolf 如何从已结束或暂停的 Match 采集可审查 candidate，通过 game-engine 与生产编排
-两条 runner 验证当前行为，并批准紧凑、版本化的测试 fixture。目标读者是修改 simulation schema、
+两条 runner 验证当前行为，并批准紧凑、当前 revision 的测试 fixture。目标读者是修改 simulation schema、
 capture、规范化、runner、评审或批准工作流的研发人员。仿真是测试语料生产模块，不参与生产 Match
 推进、恢复或投影。
 
@@ -59,7 +59,7 @@ flowchart LR
 
 ## Candidate 采集
 
-capture 只接受 ended 或 paused Match，并要求：
+capture 只接受尚未归档的 ended 或 paused Match，并要求：
 
 - 存在不可变 board snapshot；
 - 至少一个结构化、非 system、非 postgame trajectory Turn；
@@ -67,6 +67,9 @@ capture 只接受 ended 或 paused Match，并要求：
 - 领域事件包含每个 Seat 的 Role assignment；
 - action Record 能解析为结构化 PlayerAction；
 - Match setup、speech limit、事件和 Turn range 可以通过 contracts schema 校验。
+
+归档 Match 已经越过可执行规则边界，不能再生成 candidate。需要仿真证据的终局 Match 在 archive
+生成前采集；测试和受控编排也可以关闭 archive callback 后采集。
 
 `SimulationService` 读取逐 Seat setup、board snapshot、游戏事件、非 postgame Turns、accepted actions、
 Turn 完成 revision 顺序和 playback controls。每个 action Turn 在其 `toSequence` 处 restore GameEngine，
@@ -181,6 +184,7 @@ restart boundary 与 playback completed/skipped/disconnected。paused fixture �
 
 - source Match 不存在、状态不适用、缺 snapshot/Role/trajectory/action 或存在 running Turn 时，capture
   返回 source conflict 且不写 candidate；
+- source Match 已归档时返回只读 source conflict；
 - candidate schema、路径、secret、warning acknowledgement 与 overwrite 冲突由 workflow 分别拒绝；
 - runner 报告结构性 invariant、trajectory audit、初始化错误、oracle divergence 和 first difference；
 - 新 variant 必须明确只改变 completion、recovery、restart、playback 或其他一个控制轴；
@@ -196,6 +200,7 @@ restart boundary 与 playback completed/skipped/disconnected。paused fixture �
 - engine 与 orchestration runner 必须各自确定且彼此一致，才能接受当前行为作为 oracle。
 - parallel replay 使用完整 actor barrier，sequential replay 每次向当前运行时查询 actor。
 - approved oracle 由稳定 digest、event types 和 checkpoint 表示，可独立检测语义漂移。
+- approved corpus 只包含 Catalog 当前 Ruleset family/revision，不承担历史 runtime 兼容。
 
 ## 深入阅读
 

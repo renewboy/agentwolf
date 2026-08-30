@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 import { projectMatch } from '../src/projector.js'
 
 describe('plugin event projection', () => {
-  it('keeps Cupid phase and lovers private while publishing linked death', () => {
+  it('keeps Cupid phase and lovers private while presenting linked deaths by visibility', () => {
     const ruleset = createClassicRuleset()
     const matchId = MatchIdSchema.parse('match-cupid-private-projection')
     const roleIds = cupidBoard.roles.flatMap(({ roleId, count }) =>
@@ -128,22 +128,71 @@ describe('plugin event projection', () => {
         type: 'plugin.event',
         pluginId: 'plugin-role-cupid',
         eventType: cupidEventTypes.linkedDeath,
-        schemaVersion: 1,
-        data: { sourceId: wolf.id, targetId: villager.id, timing: 'night' },
+        schemaVersion: 2,
+        data: {
+          sourceId: wolf.id,
+          targetId: villager.id,
+          timing: 'day',
+          presentation: 'partner-only',
+        },
       },
+    })
+    const linkedDeathPublished = GameEventSchema.parse({
+      matchId,
+      sequence: linkedDeath.sequence + 1,
+      occurredAt: '2026-08-29T00:00:00.500Z',
+      visibility: { kind: 'public' },
+      payload: { type: 'players.eliminated-publicly', playerIds: [villager.id] },
     })
     const publicView = projectMatch({
       ...linkedOptions,
-      events: [...engine.events, linkedDeath],
+      events: [...engine.events, linkedDeath, linkedDeathPublished],
       view: { kind: 'closed-eye' },
     })
     expect(publicView.timeline.at(-1)?.title).toContain('因情侣关系殉情')
+    expect(publicView.timeline.at(-1)?.title).not.toContain('出局，')
     expect(publicView.effectCues.at(-1)?.effectId).toBe('cupid-linked-death')
+    expect(publicView.seats.find((seat) => seat.playerId === villager.id)?.alive).toBe(false)
+
+    const privateNightLinkedDeath = GameEventSchema.parse({
+      matchId,
+      sequence: linkedDeath.sequence,
+      occurredAt: linkedDeath.occurredAt,
+      visibility: { kind: 'god' },
+      payload: {
+        type: 'plugin.event',
+        pluginId: 'plugin-role-cupid',
+        eventType: cupidEventTypes.linkedDeath,
+        schemaVersion: 2,
+        data: {
+          sourceId: wolf.id,
+          targetId: villager.id,
+          timing: 'night',
+          presentation: 'partner-only',
+        },
+      },
+    })
+    const closedNightView = projectMatch({
+      ...linkedOptions,
+      events: [...engine.events, privateNightLinkedDeath],
+      view: { kind: 'closed-eye' },
+    })
+    expect(closedNightView.timeline.some((item) => item.title.includes('殉情'))).toBe(false)
+    expect(closedNightView.effectCues.some((cue) => cue.effectId === 'cupid-linked-death')).toBe(
+      false,
+    )
+    const godNightView = projectMatch({
+      ...linkedOptions,
+      events: [...engine.events, privateNightLinkedDeath],
+      view: { kind: 'god' },
+    })
+    expect(godNightView.timeline.at(-1)?.title).toContain('因情侣关系殉情')
+    expect(godNightView.effectCues.at(-1)?.effectId).toBe('cupid-linked-death')
 
     const winningPlayerIds = [cupid.id, wolf.id, villager.id]
     const ended = GameEventSchema.parse({
       matchId,
-      sequence: linkedDeath.sequence + 1,
+      sequence: linkedDeathPublished.sequence + 1,
       occurredAt: '2026-08-29T00:00:01.000Z',
       visibility: { kind: 'public' },
       payload: {
@@ -163,7 +212,7 @@ describe('plugin event projection', () => {
           winningPlayerIds,
           lastSequence: ended.sequence,
         },
-        events: [...engine.events, linkedDeath, ended],
+        events: [...engine.events, linkedDeath, linkedDeathPublished, ended],
         view: { kind: 'closed-eye' },
       }),
     ).toMatchObject({
@@ -193,7 +242,13 @@ describe('plugin event projection', () => {
       winningPlayerIds,
       lastSequence: loversRevealed.sequence,
     }
-    const terminalEvents = [...engine.events, linkedDeath, ended, loversRevealed]
+    const terminalEvents = [
+      ...engine.events,
+      linkedDeath,
+      linkedDeathPublished,
+      ended,
+      loversRevealed,
+    ]
     for (const view of [
       { kind: 'god' as const },
       { kind: 'closed-eye' as const },

@@ -39,6 +39,7 @@ export interface AutomaticDeathReactionContext {
 export interface AutomaticDeathReaction {
   readonly death: TimedDeath
   readonly events?: readonly TriggeredEvent[]
+  readonly announcement?: 'generic' | 'events-only'
 }
 
 export interface AutomaticDeathTriggerDefinition {
@@ -51,6 +52,7 @@ export interface ResolvedDeathReaction {
   readonly death: TimedDeath
   readonly original: boolean
   readonly events: readonly TriggeredEvent[]
+  readonly announcement?: 'generic' | 'events-only'
 }
 
 export class TriggerRegistry {
@@ -106,7 +108,12 @@ export class TriggerRegistry {
   ): readonly ResolvedDeathReaction[] {
     const byPlayerId = new Map<
       PlayerId,
-      { death: TimedDeath; original: boolean; events: TriggeredEvent[] }
+      {
+        death: TimedDeath
+        original: boolean
+        events: TriggeredEvent[]
+        announcement?: 'generic' | 'events-only'
+      }
     >()
     const pending: PlayerId[] = []
     for (const death of initialDeaths) {
@@ -146,6 +153,7 @@ export class TriggerRegistry {
             death: reaction.death,
             original: false,
             events: [...(reaction.events ?? [])],
+            ...(reaction.announcement ? { announcement: reaction.announcement } : {}),
           })
           pending.push(reaction.death.playerId)
           scheduledPlayerIds.add(reaction.death.playerId)
@@ -156,6 +164,7 @@ export class TriggerRegistry {
       death: entry.death,
       original: entry.original,
       events: entry.events,
+      ...(entry.announcement ? { announcement: entry.announcement } : {}),
     }))
   }
 }

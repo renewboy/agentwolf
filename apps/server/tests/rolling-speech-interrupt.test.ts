@@ -148,6 +148,7 @@ describe('rolling public speech interrupts', () => {
   it('reopens the day-start race after night so a pack can chain self-destructs', async () => {
     const setup = await createRollingMatch({ explosionsRemaining: 2, speechDelayMs: 100 })
     await waitForEventCount(setup.server, setup.matchId, 'day.interrupted', 2)
+    await waitForCapturableMatch(setup.server, setup.matchId)
     const capture = await setup.server.simulations.capture(setup.matchId)
 
     expect(
@@ -170,6 +171,7 @@ describe('rolling public speech interrupts', () => {
       'rolling',
     )
     await waitForEventCount(setup.server, setup.matchId, 'day.interrupted', 1)
+    await waitForCapturableMatch(setup.server, setup.matchId)
     const capture = await setup.server.simulations.capture(setup.matchId)
     const engine = runEngineSimulation(capture)
     const orchestration = await runOrchestrationSimulation(capture, {
@@ -513,6 +515,15 @@ async function waitForEventCount(
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
   }
   throw new Error(`Match did not emit ${count} ${eventType} events`)
+}
+
+async function waitForCapturableMatch(server: AgentWolfServer, matchId: MatchId): Promise<void> {
+  for (let attempt = 0; attempt < 1_000; attempt += 1) {
+    const status = server.repository.getMatch(matchId)?.status
+    if (status === 'ended' || status === 'paused') return
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
+  }
+  throw new Error('Match did not reach a capturable status')
 }
 
 async function waitForIncrementalListenerPrompt(

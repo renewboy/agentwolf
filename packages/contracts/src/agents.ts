@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { AgentProfileIdSchema, AgentToolIdSchema } from './ids.js'
 
+export const AGENT_PROMPT_TIMEOUT_DEFAULT_MS = 600_000
+
 export const AgentToolKindSchema = z.enum(['trae-cli', 'codex', 'claude', 'codebuddy', 'custom'])
 export type AgentToolKind = z.infer<typeof AgentToolKindSchema>
 
@@ -40,7 +42,12 @@ export const AgentProfileSchema = z.object({
   model: z.string().trim().min(1).max(160),
   reasoningEffort: z.string().trim().min(1).max(80).optional(),
   mode: z.string().trim().min(1).optional(),
-  promptTimeoutMs: z.number().int().min(5_000).max(600_000).default(180_000),
+  promptTimeoutMs: z
+    .number()
+    .int()
+    .min(5_000)
+    .max(600_000)
+    .default(AGENT_PROMPT_TIMEOUT_DEFAULT_MS),
   connection: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

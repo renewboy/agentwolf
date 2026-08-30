@@ -168,9 +168,22 @@ describe('plugin event presentations', () => {
           sourceId: player1,
           targetId: player2,
           timing: 'night',
+          presentation: 'partner-only',
         }),
       ),
     ).toEqual([])
+  })
+
+  it('renders the current partner-only linked-death announcement', () => {
+    const current = plugin('plugin-role-cupid', 'event-cupid-linked-death', {
+      sourceId: player1,
+      targetId: player2,
+      timing: 'day',
+      presentation: 'partner-only',
+    })
+
+    expect(renderPluginEventNarration(current, catalog)).toContain('二号因情侣关系殉情')
+    expect(renderPluginEventNarration(current, catalog)).not.toContain('一号出局')
   })
 
   it('ignores unrelated and unknown events', () => {
@@ -204,6 +217,17 @@ describe('plugin event presentations', () => {
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-attacked', null, 'attack'],
       ['plugin-role-cupid', 'event-cupid-linked', null, 'Cupid link'],
       [
+        'plugin-role-cupid',
+        'event-cupid-linked-death',
+        {
+          sourceId: player1,
+          targetId: player2,
+          timing: 'day',
+          presentation: 'combined',
+        },
+        'presentation',
+      ],
+      [
         'plugin-role-awakened-hidden-wolf',
         'event-awakened-hidden-wolf-attacked',
         { actorId: player1, targetIds: 'player-2' },
@@ -225,7 +249,13 @@ describe('classic event presentations', () => {
   const values = [
     event({ type: 'night.attack-selected', targetId: player2 }),
     event({ type: 'night.attack-selected', targetId: null }),
-    event({ type: 'player.died', playerId: player1, causes: ['self-destruct'], announced: true }),
+    event({
+      type: 'player.died',
+      playerId: player1,
+      causes: ['self-destruct'],
+      announced: true,
+      timing: 'day',
+    }),
     event({ type: 'guard.protected', actorId: player1, targetId: player2 }),
     event({ type: 'guard.protected', actorId: player1, targetId: null }),
     event({ type: 'witch.potion-used', actorId: player1, targetId: player2, potion: 'antidote' }),
@@ -252,7 +282,13 @@ describe('classic event presentations', () => {
   it('ignores unregistered events and non-self-destruct deaths', () => {
     for (const value of [
       event({ type: 'day.completed', day: 1 }),
-      event({ type: 'player.died', playerId: player1, causes: ['poison'], announced: true }),
+      event({
+        type: 'player.died',
+        playerId: player1,
+        causes: ['poison'],
+        announced: true,
+        timing: 'night',
+      }),
     ]) {
       expect(registeredEventNarration(value, catalog)).toBeNull()
       expect(registeredTimelineNarration(value, catalog)).toBeNull()
@@ -361,9 +397,9 @@ describe('event narration', () => {
       event({ type: 'role.assigned', playerId: player1, roleId: 'role-guard', faction: 'village' }),
       event({ type: 'role.assigned', playerId: player2, roleId: 'role-witch', faction: 'village' }),
       event({ type: 'role.revealed', playerId: player1, roleId: 'role-guard' }),
-      event({ type: 'match.ended', winner: 'village' }),
-      event({ type: 'match.ended', winner: 'werewolf' }),
-      event({ type: 'match.ended', winner: 'independent' }),
+      event({ type: 'match.ended', winner: 'village', winningPlayerIds: [player1] }),
+      event({ type: 'match.ended', winner: 'werewolf', winningPlayerIds: [player1] }),
+      event({ type: 'match.ended', winner: 'independent', winningPlayerIds: [player1] }),
       event({ type: 'match.paused', reason: 'reason' }),
       event({ type: 'match.resumed' }),
       event({ type: 'day.interrupted' }),

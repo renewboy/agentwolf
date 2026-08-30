@@ -2,6 +2,7 @@ import { FloppyDisk, Plus, Pulse, Robot, Trash, Wrench } from '@phosphor-icons/r
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
+  AGENT_PROMPT_TIMEOUT_DEFAULT_MS,
   AgentProfileInputSchema,
   AgentToolInputSchema,
   type AgentProfile,
@@ -522,7 +523,7 @@ function createEmptyProfile(toolId: AgentToolId | ''): ProfileDraft {
     model: '',
     reasoningEffort: '',
     mode: '',
-    promptTimeoutMs: 180_000,
+    promptTimeoutMs: AGENT_PROMPT_TIMEOUT_DEFAULT_MS,
     connection: '{}',
   }
 }

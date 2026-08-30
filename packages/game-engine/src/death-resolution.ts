@@ -26,7 +26,6 @@ export function appendIndividualDeaths(
   runtime: RuleRuntime,
   deaths: readonly PendingDeath[],
   timing: DeathTiming,
-  persistTiming = true,
 ): readonly ResolvedDeathReaction[] {
   const resolved = resolveDeathBatch(runtime, deaths, timing)
   for (const entry of resolved) {
@@ -39,19 +38,21 @@ export function appendIndividualDeaths(
         playerId: entry.death.playerId,
         causes: [...entry.death.causes],
         announced: false,
-        ...(persistTiming ? { timing: entry.death.timing } : {}),
+        timing: entry.death.timing,
       },
       visibility.god,
     )
-    runtime.append(
-      {
-        type: 'public.announcement',
-        code: 'player-eliminated',
-        playerIds: [entry.death.playerId],
-        params: {},
-      },
-      visibility.public,
-    )
+    if (entry.announcement !== 'events-only') {
+      runtime.append(
+        {
+          type: 'public.announcement',
+          code: 'player-eliminated',
+          playerIds: [entry.death.playerId],
+          params: {},
+        },
+        visibility.public,
+      )
+    }
     for (const event of entry.events) runtime.append(event.payload, event.visibility)
   }
   return resolved
@@ -63,15 +64,17 @@ export function appendAutomaticDeathAnnouncements(
 ): void {
   for (const entry of resolved) {
     if (entry.original) continue
-    runtime.append(
-      {
-        type: 'public.announcement',
-        code: 'player-eliminated',
-        playerIds: [entry.death.playerId],
-        params: {},
-      },
-      visibility.public,
-    )
+    if (entry.announcement !== 'events-only') {
+      runtime.append(
+        {
+          type: 'public.announcement',
+          code: 'player-eliminated',
+          playerIds: [entry.death.playerId],
+          params: {},
+        },
+        visibility.public,
+      )
+    }
     for (const event of entry.events) runtime.append(event.payload, event.visibility)
   }
 }
@@ -79,8 +82,16 @@ export function appendAutomaticDeathAnnouncements(
 export function appendAutomaticDeathEvents(
   runtime: RuleRuntime,
   resolved: readonly ResolvedDeathReaction[],
+  options: { readonly suppressPublicEvents?: boolean } = {},
 ): void {
   for (const entry of resolved) {
-    for (const event of entry.events) runtime.append(event.payload, event.visibility)
+    for (const event of entry.events) {
+      runtime.append(
+        event.payload,
+        options.suppressPublicEvents && event.visibility.kind === 'public'
+          ? visibility.god
+          : event.visibility,
+      )
+    }
   }
 }

@@ -73,7 +73,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-bc894fce0eb4bdfa.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
           ),
           'utf8',
         ),
@@ -106,7 +106,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-bc894fce0eb4bdfa.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
           ),
           'utf8',
         ),
@@ -500,7 +500,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-bc894fce0eb4bdfa.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
           ),
           'utf8',
         ),

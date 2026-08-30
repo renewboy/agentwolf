@@ -173,9 +173,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
     activeSpeech,
     winner: winnerEvent?.payload.type === 'match.ended' ? winnerEvent.payload.winner : null,
     winningPlayerIds:
-      winnerEvent?.payload.type === 'match.ended'
-        ? (winnerEvent.payload.winningPlayerIds ?? options.state.winningPlayerIds)
-        : [],
+      winnerEvent?.payload.type === 'match.ended' ? winnerEvent.payload.winningPlayerIds : [],
     pausedReason: localizePausedReason(options.state.pausedReason),
     postgameReview: options.postgameReview ?? null,
   })
@@ -537,7 +535,7 @@ function playerIdsForEvent(event: GameEvent): PlayerId[] {
     case 'match.resumed':
       return []
     case 'match.ended':
-      return payload.winningPlayerIds ?? []
+      return payload.winningPlayerIds
     case 'plugin.event':
       return pluginEventPlayerIds(event)
     default:
