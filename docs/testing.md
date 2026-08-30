@@ -74,6 +74,8 @@ Profile 顺序场景在依赖型的 `chromium-configuration` 项目中运行,使
   测试输出目录下。
 - 已批准的仿真 fixture 包含脱敏的结构化决策与已审查的语义 oracle,绝不包含凭据、原始
   Prompt、推理、工具输出、运行时路径或源 Match 身份。
+- 活动仿真 fixture 只使用 Catalog 当前 Ruleset revision；历史 Match 通过 archive 保留，不进入可执行
+  corpus。
 
 ## 断言政策
 

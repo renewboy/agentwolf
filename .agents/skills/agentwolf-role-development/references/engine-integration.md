@@ -116,20 +116,19 @@ facts 与 finalizer。lane 内排序使用声明的依赖与稳定注册顺序;�
 
 ### Ruleset 兼容性
 
-有序的已安装 plugin、其版本与校验过的配置构成 Ruleset 指纹。一旦可能存在快照,就把该身份视
-为不可变。
+有序的已安装 plugin、其版本与校验过的配置构成 Ruleset 指纹。Ruleset family 保持稳定,语义变化
+通过整数 revision 建立新的执行边界。
 
 当安装新 Role plugin 或变更 plugin 版本/配置时:
 
-1. 为既有 Ruleset ID 保留 factory 与精确 plugin 列表;
-2. 用新 manifest 创建下一个当前 Ruleset ID/版本;
-3. 扩展快照 schema 允许的 Ruleset ID;
-4. 更新 `apps/server/src/ruleset-catalog.ts`,使每份快照解析到其精确运行时,且新 ID 只用于新
-   创建的 Match;
-5. 证明旧快照仍可恢复、不匹配指纹仍然失败关闭。
+1. 确认先前 revision 的终局 Match 已生成 archive,非终局 Match 已由操作者结束或删除;
+2. 递增当前 revision,更新 manifest 与 release table 中唯一可执行的 factory;
+3. 保持唯一 Match snapshot schema,由 lock revision 与 fingerprint 拒绝过期执行;
+4. 为新 revision 生成当前仿真语料,活动 corpus 不保留历史 Ruleset;
+5. 证明 archived Match 的查看与 audit 不调用 GameEngine 或 RulesetCatalog。
 
-兼容 Ruleset 不会追溯获得新 Role。仿真、轨迹审计、Match 恢复、Prompt 组合与运行时都必须从
-同一条 `RulesetCatalog` 路径获取运行时。
+仿真、轨迹审计、Match 恢复与 Prompt 组合对未归档 Match 使用同一条当前 `RulesetCatalog` 路径。
+历史 Match 只消费冻结 archive,不安装兼容 runtime。
 
 ## 4. 引擎验证目标
 

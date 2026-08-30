@@ -54,8 +54,8 @@ board。
   版本化 Ruleset manifest 为声明式。
 - 校验是纯函数。游戏改动以 append-only 事件进入;持久 Role 状态必须能从事件与确定性
   Ruleset 配置重建。
-- 将已发布的 Ruleset ID、版本、有序 plugin lock、配置与指纹视为不可变。已安装 manifest 的
-  变更会成为新的当前 Ruleset 版本,同时先前的快照 resolver 仍然可用。
+- Ruleset 使用稳定 family 与整数 revision。已安装 manifest 的语义变更必须递增当前 revision；
+  先前 revision 的终局 Match 由 archive 读取,不保留历史 runtime resolver。
 - 每个已安装 Role 拥有与源匹配的公开介绍、映射的玩家策略页面,以及完整效果覆盖或显式的
   被动 Role 声明之一。
 

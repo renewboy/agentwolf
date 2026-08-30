@@ -83,10 +83,10 @@ plugin event、query 与 trigger 会记录到该 plugin 的 semantic contributio
 - victory evaluators；
 - 有序 plugin 元数据和 semantic contributions。
 
-server 的 Ruleset catalog 为 Match snapshot 生成 lock：Ruleset ID/版本、有序 plugin ID/版本、
-规范化配置哈希和整体 fingerprint。恢复既有 snapshot 时，catalog 解析其 Ruleset 并比较 fingerprint；
-不匹配会在建立运行时前失败。board 的 phase 图始终来自锁定的 Ruleset runtime，目录中的可变定义
-不能改变已经创建的 Match。
+server 的 Ruleset catalog 是声明表。每个规则族声明稳定 family ID、当前 revision、默认标记与 runtime
+factory；表中恰好有一个默认规则族。Match snapshot 保存 family、revision、有序 plugin lock、规范化
+配置哈希和整体 fingerprint。只有与表中当前 revision 和 fingerprint 完全一致的 snapshot 可以建立
+可执行 runtime，其他 revision 没有 factory。board 的 phase 图始终来自该 runtime。
 
 ## Phase 图与 action boundary
 
@@ -201,9 +201,11 @@ Faction 与明确获胜 Player IDs。引擎决定事件事实和初始可见性�
 身份、公开淘汰、Role reveal 和 phase presentation 构造最终视图。精确投影规则属于
 [信息同步架构](information-synchronization.md)。
 
-恢复和 replay 从空状态开始顺序归约事件，并使用 snapshot 锁定的 Ruleset 解释 plugin events。
-GameEngine restore 只额外应用持久 Match status 与 paused reason；它不读取当前目录、trajectory 或
-浏览器状态。会影响重放的随机选择在 Match 初始化或规则执行时被确定并以事件/稳定算法固定。
+可执行 Match 的恢复和 replay 从空状态开始顺序归约事件，并使用当前 snapshot lock 解释 plugin
+events。GameEngine restore 只额外应用持久 Match status 与 paused reason；它不读取当前目录、
+trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关的冻结投影读取，不再进入 GameEngine，
+详见[Match 生命周期](match-lifecycle.md)。会影响重放的随机选择在 Match 初始化或规则执行时被确定并
+以事件/稳定算法固定。
 
 ## 扩展边界
 
@@ -220,7 +222,7 @@ GameEngine restore 只额外应用持久 Match status 与 paused reason；它不
 ## 故障与验证边界
 
 - plugin 版本、依赖、配置、语义所有权或 phase 图非法时，Ruleset 构建失败。
-- snapshot fingerprint 不匹配时，server 拒绝恢复该 Match。
+- snapshot revision 不是当前值或 fingerprint 不匹配时，server 拒绝执行该 Match。
 - 输入 schema、actor、phase、ability 或目标非法时，动作在任何事件产生前失败。
 - 未知 effect、effect 顺序环、队列超限、phase drive 超限或冲突 victory candidates 作为规则错误上抛，
   MatchRuntime 在应用边界暂停 Match。
@@ -234,7 +236,7 @@ GameEngine restore 只额外应用持久 Match status 与 paused reason；它不
 - PhaseNode 是 actor、action、visibility、interrupt 和控制流的语义来源。
 - 自动死亡反应先形成完整死亡批次，交互式死亡技能与胜负只读取该稳定结果。
 - Ability 产生 effects，ResolutionRegistry 结算共享交互，Role plugin 产生其 outcomes。
-- Ruleset lock 和 fingerprint 决定 replay 解释器，目录当前值不能改写既有 Match。
+- 只有 Catalog 表中的当前 Ruleset revision 具有执行能力；终局历史由只读 archive 承载。
 - 引擎只声明 visibility；server projection 才是外部消费者的保密边界。
 - Ruleset、board、事件和动作顺序相同时，replay 到达相同状态和终局。
 

@@ -176,7 +176,8 @@ mailbox 和 Session binding 中，直到全部有资格回合落定，随后按 
 
 | 状态                              | 唯一所有者                                     | 生命周期与恢复方式                                           |
 | --------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
-| Ruleset runtime 与语义贡献        | game-engine Ruleset catalog/builders           | 由有序 plugin lock 构建并冻结；snapshot 指纹决定可否恢复     |
+| Ruleset runtime 与语义贡献        | game-engine builder + server release table     | 当前 family/revision 由有序 plugin lock 构建并冻结           |
+| 终局 Match archive                | server Match lifecycle                         | 冻结每个 spectator view 与 audit，历史读取不执行 Ruleset     |
 | board/setup snapshot              | Match record                                   | 创建时冻结；目录编辑不影响既有 Match                         |
 | 领域事件日志                      | GameEngine 产生，SQLite repository 持久化      | 只追加；server 重启时按序 replay                             |
 | 当前 GameState                    | 活跃 `GameEngine`                              | 由事件归约得到；进程内可丢弃并重建                           |

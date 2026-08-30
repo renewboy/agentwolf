@@ -120,8 +120,11 @@ player debug 与 Record inspector 是两个读取面：前者提供有界运行�
 
 ## 语义审计
 
-`auditTrajectory` 对每个非 system Turn 在其 `toSequence` 处用 board snapshot、Ruleset 和领域事件
+`auditTrajectory` 对每个非 system Turn 在其 `toSequence` 处用当前 board snapshot、Ruleset 和领域事件
 重建 GameState。审计验证 Agent 送达是否与权威运行时一致，不评价模型策略质量。
+
+完成归档时，最终 audit report 与各 spectator view 一起冻结。归档后的 audit API 直接返回该报告，
+不再恢复 GameEngine 或解释历史 Ruleset。
 
 ```mermaid
 flowchart TD

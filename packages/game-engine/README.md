@@ -22,7 +22,9 @@
 
 RulePlugin 通过 `RulesetBuilder` 在某个安装作用域下注册语义。注册会记录插件归属者,并在重复时失败。新 Roles 使用这些 registries,而不是修改内核的中央 switch。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory modifier 组合;自动死亡反应可以采用通用公告或由自身事件承担旁白,终局候选始终携带明确获胜 Player IDs。
 
-Boards 选择冻结的 phase 图与策略。已发布的 schema-two 快照绑定唯一确切的 Ruleset lock 与 fingerprint;不兼容的已安装语义会导致 restore 失败。
+Boards 选择冻结的 phase 图与策略。唯一 Match snapshot schema 绑定 Ruleset family、当前 revision、
+plugin lock 与 fingerprint；只有 Catalog 当前 revision 具有 restore 能力，终局历史由 server archive
+读取。
 
 ## 验证
 
