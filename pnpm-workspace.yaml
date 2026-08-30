@@ -2,3 +2,4 @@ packages:
   - apps/*
   - packages/*
   - scripts
+  - vendor/agent-arena-core/packages/*

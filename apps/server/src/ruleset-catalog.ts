@@ -1,7 +1,10 @@
 import type { MatchBoardSnapshot } from '@agentwolf/contracts'
-import { RulesetLockSchema, type JsonValue, type RulesetLock } from '@agentwolf/contracts'
-import { createHash } from 'node:crypto'
-import { createClassicRuleset, type RulesetRuntime } from '@agentwolf/game-engine'
+import type { RulesetLock } from '@agentwolf/contracts'
+import {
+  createClassicRuleset,
+  lockRulesetRuntime,
+  type RulesetRuntime,
+} from '@agentwolf/game-engine'
 import { promptRegistryFor } from './prompt-registry.js'
 
 export interface RulesetReleaseDefinition {
@@ -79,30 +82,6 @@ export class RulesetCatalog {
   }
 
   public lock(ruleset: RulesetRuntime = this.current()): RulesetLock {
-    const plugins = ruleset.plugins.map((plugin) => ({
-      id: plugin.id,
-      version: plugin.version,
-      config: plugin.config,
-      configHash: digest(plugin.config),
-    }))
-    return RulesetLockSchema.parse({
-      id: ruleset.id,
-      revision: ruleset.revision,
-      plugins,
-      fingerprint: digest({ id: ruleset.id, revision: ruleset.revision, plugins }),
-    })
+    return lockRulesetRuntime(ruleset)
   }
-}
-
-function digest(value: JsonValue | Readonly<Record<string, unknown>>): string {
-  return createHash('sha256').update(stableJson(value)).digest('hex')
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
-    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(',')}}`
-  }
-  return JSON.stringify(value)
 }

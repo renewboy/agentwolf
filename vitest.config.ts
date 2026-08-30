@@ -4,6 +4,15 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   resolve: {
     alias: {
+      '@agent-arena/contracts': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/contracts/src/index.ts', import.meta.url),
+      ),
+      '@agent-arena/game-runtime': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/game-runtime/src/index.ts', import.meta.url),
+      ),
+      '@agent-arena/ruleset': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/ruleset/src/index.ts', import.meta.url),
+      ),
       '@agentwolf/contracts': fileURLToPath(
         new URL('./packages/contracts/src/index.ts', import.meta.url),
       ),
@@ -51,6 +60,7 @@ export default defineConfig({
       reporter: ['text', 'json-summary', 'html'],
       include: ['packages/*/src/**/*.ts', 'apps/server/src/**/*.ts', 'apps/web/src/**/*.{ts,tsx}'],
       exclude: [
+        'vendor/**',
         '**/index.ts',
         '**/bin.ts',
         '**/errors.ts',

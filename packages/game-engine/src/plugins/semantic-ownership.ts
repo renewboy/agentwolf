@@ -1,12 +1,24 @@
-import type {
-  AbilityId,
-  PhaseId,
-  PluginEventType,
-  PluginId,
-  QueryType,
-  RoleId,
-  TriggerId,
+import { SemanticIdSchema } from '@agent-arena/contracts'
+import { SemanticOwnershipRecorder as CoreSemanticOwnershipRecorder } from '@agent-arena/ruleset'
+import {
+  AbilityIdSchema,
+  PhaseIdSchema,
+  PluginEventTypeSchema,
+  PluginIdSchema,
+  QueryTypeSchema,
+  RoleIdSchema,
+  TriggerIdSchema,
+  type AbilityId,
+  type PhaseId,
+  type PluginEventType,
+  type PluginId,
+  type QueryType,
+  type RoleId,
+  type TriggerId,
 } from '@agentwolf/contracts'
+
+const semanticKinds = ['role', 'ability', 'phase', 'pluginEvent', 'query', 'trigger'] as const
+type SemanticKind = (typeof semanticKinds)[number]
 
 export interface PluginEventContribution {
   readonly pluginId: PluginId
@@ -23,47 +35,30 @@ export interface PluginSemanticContribution {
   readonly triggerIds: readonly TriggerId[]
 }
 
-interface MutableContribution {
-  readonly roleIds: RoleId[]
-  readonly abilityIds: AbilityId[]
-  readonly phaseIds: PhaseId[]
-  readonly pluginEvents: PluginEventContribution[]
-  readonly queryTypes: QueryType[]
-  readonly triggerIds: TriggerId[]
-}
-
 export class SemanticOwnershipRecorder {
-  readonly #byPlugin = new Map<PluginId, MutableContribution>()
+  readonly #core = new CoreSemanticOwnershipRecorder<SemanticKind>(semanticKinds)
   #activePluginId: PluginId | null = null
 
   public begin(pluginId: PluginId): void {
-    if (this.#activePluginId) {
-      throw new Error(`Plugin ${pluginId} cannot install while ${this.#activePluginId} is active`)
-    }
-    if (this.#byPlugin.has(pluginId)) throw new Error(`Plugin ${pluginId} installed twice`)
+    this.#core.begin(pluginId)
     this.#activePluginId = pluginId
-    this.#byPlugin.set(pluginId, emptyContribution())
   }
 
   public end(pluginId: PluginId): void {
-    if (this.#activePluginId !== pluginId) {
-      throw new Error(
-        `Plugin install scope mismatch: expected ${this.#activePluginId}, got ${pluginId}`,
-      )
-    }
+    this.#core.end(pluginId)
     this.#activePluginId = null
   }
 
   public role(roleId: RoleId): void {
-    pushUnique(this.#active().roleIds, roleId, 'Role')
+    this.#record('role', roleId)
   }
 
   public ability(abilityId: AbilityId): void {
-    pushUnique(this.#active().abilityIds, abilityId, 'Ability')
+    this.#record('ability', abilityId)
   }
 
   public phase(phaseId: PhaseId): void {
-    pushUnique(this.#active().phaseIds, phaseId, 'Phase')
+    this.#record('phase', phaseId)
   }
 
   public pluginEvent(pluginId: PluginId, eventType: PluginEventType): void {
@@ -71,66 +66,51 @@ export class SemanticOwnershipRecorder {
     if (owner !== pluginId) {
       throw new Error(`Plugin ${owner} cannot register event ${pluginId}:${eventType}`)
     }
-    const events = this.#active().pluginEvents
-    if (events.some((entry) => entry.pluginId === pluginId && entry.eventType === eventType)) {
-      throw new Error(`Plugin event ${pluginId}:${eventType} registered twice`)
-    }
-    events.push({ pluginId, eventType })
+    this.#record('pluginEvent', `${pluginId}.${eventType}`)
   }
 
   public query(queryType: QueryType): void {
-    pushUnique(this.#active().queryTypes, queryType, 'Query')
+    this.#record('query', queryType)
   }
 
   public trigger(triggerId: TriggerId): void {
-    pushUnique(this.#active().triggerIds, triggerId, 'Trigger')
+    this.#record('trigger', triggerId)
   }
 
   public contributions(pluginIds: readonly PluginId[]): readonly PluginSemanticContribution[] {
-    if (this.#activePluginId)
-      throw new Error(`Plugin ${this.#activePluginId} install is unfinished`)
-    return pluginIds.map((pluginId) => {
-      const contribution = this.#byPlugin.get(pluginId)
-      if (!contribution) throw new Error(`Plugin ${pluginId} has no semantic install record`)
-      return Object.freeze({
-        pluginId,
-        roleIds: Object.freeze([...contribution.roleIds]),
-        abilityIds: Object.freeze([...contribution.abilityIds]),
-        phaseIds: Object.freeze([...contribution.phaseIds]),
-        pluginEvents: Object.freeze(
-          contribution.pluginEvents.map((entry) => Object.freeze({ ...entry })),
+    return this.#core.contributions(pluginIds).map((contribution) =>
+      Object.freeze({
+        pluginId: contribution.pluginId,
+        roleIds: Object.freeze(contribution.semantics.role.map((id) => RoleIdSchema.parse(id))),
+        abilityIds: Object.freeze(
+          contribution.semantics.ability.map((id) => AbilityIdSchema.parse(id)),
         ),
-        queryTypes: Object.freeze([...contribution.queryTypes]),
-        triggerIds: Object.freeze([...contribution.triggerIds]),
-      })
-    })
+        phaseIds: Object.freeze(contribution.semantics.phase.map((id) => PhaseIdSchema.parse(id))),
+        pluginEvents: Object.freeze(contribution.semantics.pluginEvent.map(decodePluginEvent)),
+        queryTypes: Object.freeze(
+          contribution.semantics.query.map((id) => QueryTypeSchema.parse(id)),
+        ),
+        triggerIds: Object.freeze(
+          contribution.semantics.trigger.map((id) => TriggerIdSchema.parse(id)),
+        ),
+      }),
+    )
+  }
+
+  #record(kind: SemanticKind, value: string): void {
+    this.#core.record(kind, SemanticIdSchema.parse(value))
   }
 
   #owner(): PluginId {
     if (!this.#activePluginId) throw new Error('Semantic registration requires an active plugin')
     return this.#activePluginId
   }
-
-  #active(): MutableContribution {
-    const owner = this.#owner()
-    const contribution = this.#byPlugin.get(owner)
-    if (!contribution) throw new Error(`Missing semantic install record for ${owner}`)
-    return contribution
-  }
 }
 
-function emptyContribution(): MutableContribution {
-  return {
-    roleIds: [],
-    abilityIds: [],
-    phaseIds: [],
-    pluginEvents: [],
-    queryTypes: [],
-    triggerIds: [],
-  }
-}
-
-function pushUnique<Value extends string>(values: Value[], value: Value, label: string): void {
-  if (values.includes(value)) throw new Error(`${label} ${value} registered twice in one plugin`)
-  values.push(value)
+function decodePluginEvent(value: string): PluginEventContribution {
+  const separator = value.indexOf('.')
+  return Object.freeze({
+    pluginId: PluginIdSchema.parse(value.slice(0, separator)),
+    eventType: PluginEventTypeSchema.parse(value.slice(separator + 1)),
+  })
 }

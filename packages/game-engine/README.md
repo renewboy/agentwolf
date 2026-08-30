@@ -14,13 +14,17 @@
 
 ## 边界
 
-本包只依赖 contracts 与 Zod。它不执行文件系统、数据库、网络、子进程、Prompt、本地化或浏览器工作。它不知道 Agent Profiles、Character 卡、ACP Sessions、Match 仓库或视觉特效。
+本包依赖 AgentWolf contracts、Zod,以及固定 Core revision 提供的 Ruleset 组合和确定性运行时入口。
+它执行纯规则计算,输入为已解析的 board、动作与事件。
 
 通用内核不包含任何具体 Role 或 Ability IDs。Ruleset 插件持有具体语义;capability 将共享机制接入有资格的 Roles。
 
 ## 扩展点
 
-RulePlugin 通过 `RulesetBuilder` 在某个安装作用域下注册语义。注册会记录插件归属者,并在重复时失败。新 Roles 使用这些 registries,而不是修改内核的中央 switch。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory modifier 组合;自动死亡反应可以采用通用公告或由自身事件承担旁白,终局候选始终携带明确获胜 Player IDs。
+RulePlugin 通过 `RulesetBuilder` 在安装作用域下注册语义。Core plugin loader 与 semantic ownership
+记录依赖、配置和归属;AgentWolf registrar 持有 Role、Ability、Phase、event、query、trigger、
+interrupt 与 victory registries。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory
+modifier 组合;终局候选携带明确获胜 Player IDs。
 
 Boards 选择冻结的 phase 图与策略。唯一 Match snapshot schema 绑定 Ruleset family、当前 revision、
 plugin lock 与 fingerprint；只有 Catalog 当前 revision 具有 restore 能力，终局历史由 server archive

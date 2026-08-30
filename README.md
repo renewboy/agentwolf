@@ -7,6 +7,7 @@ AgentWolf 在 Codex、Claude、Trae 及其他 Agent Client Protocol 代理之间
 环境要求:Node.js 24+、pnpm 10.20。
 
 ```sh
+git submodule update --init
 pnpm install
 pnpm check
 pnpm dev

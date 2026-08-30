@@ -17,6 +17,14 @@ const allowedInternalDependencies: Readonly<Record<string, ReadonlySet<string>>>
   server: new Set(['contracts', 'assets', 'game-engine', 'acp']),
   web: new Set(['contracts', 'assets']),
 }
+const allowedCoreDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
+  contracts: new Set(),
+  assets: new Set(),
+  'game-engine': new Set(['contracts', 'game-runtime', 'ruleset']),
+  acp: new Set(),
+  server: new Set(),
+  web: new Set(),
+}
 
 const files = await sourceFiles(roots, new Set(['.ts', '.tsx']))
 const e2eFiles = await sourceFiles(['e2e'], new Set(['.ts']))
@@ -52,6 +60,16 @@ for (const path of files) {
     if (!allowedInternalDependencies[owner]?.has(imported)) {
       const line = content.slice(0, match.index).split(/\r?\n/).length
       errors.push(`${relativePath}:${line} cannot import @agentwolf/${imported}`)
+    }
+  }
+  for (const match of content.matchAll(
+    /\b(?:import|export)\s+(?:type\s+)?(?:[^'";]*?\sfrom\s*)?['"](@agent-arena\/[^'"]+)['"]/g,
+  )) {
+    const imported = match[1]?.match(/^@agent-arena\/([^/]+)/)?.[1]
+    if (!imported) continue
+    if (!allowedCoreDependencies[owner]?.has(imported)) {
+      const line = content.slice(0, match.index).split(/\r?\n/).length
+      errors.push(`${relativePath}:${line} cannot import @agent-arena/${imported}`)
     }
   }
 }

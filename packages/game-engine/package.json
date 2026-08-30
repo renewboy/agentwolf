@@ -14,6 +14,9 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@agent-arena/contracts": "workspace:*",
+    "@agent-arena/game-runtime": "workspace:*",
+    "@agent-arena/ruleset": "workspace:*",
     "@agentwolf/contracts": "workspace:*",
     "zod": "4.4.3"
   }

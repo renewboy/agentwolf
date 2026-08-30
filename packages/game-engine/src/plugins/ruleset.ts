@@ -1,4 +1,5 @@
-import type { RulesetId } from '@agentwolf/contracts'
+import { createRulesetLock as createCoreRulesetLock } from '@agent-arena/ruleset'
+import { RulesetLockSchema, type RulesetId, type RulesetLock } from '@agentwolf/contracts'
 import {
   installRulePlugins,
   type InstalledPlugin,
@@ -87,4 +88,10 @@ export class RulesetBuilder implements PluginInstallScope {
   public endPluginInstall(pluginId: import('@agentwolf/contracts').PluginId): void {
     this.#ownership.end(pluginId)
   }
+}
+
+export function lockRulesetRuntime(ruleset: RulesetRuntime): RulesetLock {
+  return RulesetLockSchema.parse(
+    createCoreRulesetLock(ruleset.id, ruleset.revision, ruleset.plugins),
+  )
 }

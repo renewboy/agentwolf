@@ -6,5 +6,10 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../contracts" }]
+  "references": [
+    { "path": "../contracts" },
+    { "path": "../../vendor/agent-arena-core/packages/contracts" },
+    { "path": "../../vendor/agent-arena-core/packages/ruleset" },
+    { "path": "../../vendor/agent-arena-core/packages/game-runtime" }
+  ]
 }

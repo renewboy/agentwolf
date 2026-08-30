@@ -48,7 +48,8 @@ pnpm simulation:check
 
 `pnpm test:coverage` 一起运行 Node 与 Web 的 Vitest 项目。覆盖率包含 `packages/*/src`、
 `apps/server/src` 与 `apps/web/src` 下的产品运行时源码。仓库脚本保持在它们专属的静态与单元
-检查之下。
+检查之下。固定 submodule 的源码由其独立仓库执行逐文件覆盖率门禁;AgentWolf 报告覆盖本仓的 Core
+兼容 adapter,不重复统计 `vendor/` 源码。
 
 每个纳入统计的文件必须达到至少 80% 的 statements、branches、functions 与 lines。报告使用
 50% 与 80% 水位线,并输出终端、JSON 摘要与 HTML。唯一的覆盖率豁免是无行为的 package

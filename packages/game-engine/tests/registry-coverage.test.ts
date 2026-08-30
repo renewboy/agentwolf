@@ -327,6 +327,7 @@ describe('semantic ownership', () => {
   it('rejects scope mismatches, duplicates, missing records, cross-owned events, and unfinished work', () => {
     const recorder = new SemanticOwnershipRecorder()
     expect(() => recorder.role(roleId)).toThrow(/active plugin/)
+    expect(() => recorder.pluginEvent(pluginId, eventType)).toThrow(/active plugin/)
     recorder.begin(pluginId)
     expect(() => recorder.begin(PluginIdSchema.parse('plugin-other'))).toThrow(/cannot install/)
     expect(() => recorder.end(PluginIdSchema.parse('plugin-other'))).toThrow(/scope mismatch/)

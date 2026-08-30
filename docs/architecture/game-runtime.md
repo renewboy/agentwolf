@@ -15,9 +15,9 @@
 - 多个能力通过统一 effect 管线结算，不在中央代码中建立 Role 分支；
 - 事件携带可见性，但 IO 层负责针对实际观看者进行最终过滤。
 
-[`packages/game-engine`](../../packages/game-engine/README.md) 只依赖 contracts 与 Zod。它不读取
-文件、数据库或网络，不启动 Agent，不渲染 Prompt，不认识 Profile、Character、Session 或 Web
-组件。server 选择 Ruleset、提供动作、保存事件并处理外部生命周期。
+[`packages/game-engine`](../../packages/game-engine/README.md) 依赖 AgentWolf contracts、Zod 与固定
+Core revision 的 Ruleset/确定性运行时入口。它执行无 IO 的纯规则计算。server 选择 Ruleset、提供
+动作、保存事件并处理外部生命周期。
 
 ## 运行时组件
 
@@ -28,6 +28,7 @@
 flowchart LR
     Board["BoardManifest<br/>人数、Role、政策"]
     Plugins["有序 RulePlugin 集合"]
+    Core["Agent Arena Core<br/>loader、ownership、graph、resolution、lock"]
     Builder["RulesetBuilder<br/>依赖与所有权校验"]
 
     subgraph Runtime["冻结的 RulesetRuntime"]
@@ -43,6 +44,7 @@ flowchart LR
     State["GameState"]
 
     Plugins --> Builder
+    Core --> Builder
     Builder --> Runtime
     Board --> Engine
     Runtime --> Engine
@@ -54,6 +56,7 @@ flowchart LR
 
 | 组件                  | 拥有的决策或状态                                                                                                                     | 输入与产出                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Agent Arena Core      | plugin 拓扑安装、semantic ownership、组合图、query/resolution 算法、Ruleset lock 与确定性选择                                        | 通用 plugin/registry contracts → 可复用基础机制           |
 | `RulesetBuilder`      | plugin 安装顺序、依赖、配置 schema 与语义所有权                                                                                      | RulePlugin 列表 → 冻结 `RulesetRuntime`                   |
 | registries            | Role/Ability、actor selector、action validator、phase handler、effect、query、trigger、interrupt、plugin event 与 victory 的唯一注册 | plugin 贡献 → 可按契约查询的行为集合                      |
 | `PhaseGraphRegistry`  | phase 节点、循环入口和有序插入，保证返回边、引用与可达性有效                                                                         | plugin nodes/insertions → `PhaseGraph`                    |
@@ -66,10 +69,9 @@ flowchart LR
 
 ## Ruleset 组合与锁定
 
-每个 `RulePlugin` 声明 ID、版本、可选依赖和可选配置。安装器先验证重复 ID、依赖版本、依赖环和
-配置 schema，再按拓扑顺序进入 plugin install scope。注册期间产生的 Role、Ability、Phase、
-plugin event、query 与 trigger 会记录到该 plugin 的 semantic contribution；跨 plugin 冒领或重复
-注册在构建时失败。
+每个 `RulePlugin` 声明 ID、版本、可选依赖和可选配置。Core 安装器验证重复 ID、依赖版本、依赖环和
+配置 schema,再按拓扑顺序进入 plugin install scope。AgentWolf semantic adapter 将 Role、Ability、
+Phase、plugin event、query 与 trigger 记录为该 plugin 的贡献;跨 plugin 冒领或重复注册在构建时失败。
 
 `RulesetRuntime` 冻结以下协作面：
 
@@ -84,9 +86,10 @@ plugin event、query 与 trigger 会记录到该 plugin 的 semantic contributio
 - 有序 plugin 元数据和 semantic contributions。
 
 server 的 Ruleset catalog 是声明表。每个规则族声明稳定 family ID、当前 revision、默认标记与 runtime
-factory；表中恰好有一个默认规则族。Match snapshot 保存 family、revision、有序 plugin lock、规范化
-配置哈希和整体 fingerprint。只有与表中当前 revision 和 fingerprint 完全一致的 snapshot 可以建立
-可执行 runtime，其他 revision 没有 factory。board 的 phase 图始终来自该 runtime。
+factory;表中恰好有一个默认规则族。game-engine 通过 Core lock helper 为 Match snapshot 生成
+revision、有序 plugin lock、规范化配置哈希和整体 fingerprint。只有与表中当前 revision 和 fingerprint
+完全一致的 snapshot 可以建立可执行 runtime,其他 revision 没有 factory。board 的 phase 图始终来自
+该 runtime。
 
 ## Phase 图与 action boundary
 
@@ -253,3 +256,5 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 - [Match 生命周期](match-lifecycle.md)：Ruleset snapshot、事件持久化和恢复。
 - [游戏规则基线](../reference/game-rules.md)：当前 board 政策与规则定义。
 - [游戏目录](../generated/game-catalog.md)：由源码生成的 Roles、boards 与 Prompt 清单。
+- [Agent Arena Core 架构](../../vendor/agent-arena-core/docs/architecture.md)：Ruleset、decision、event 与
+  simulation 基础机制。

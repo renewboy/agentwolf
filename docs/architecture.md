@@ -72,6 +72,7 @@ SQLite 保存恢复所需的权威记录；WebSocket、当前进程中的 GameSt
 
 ```mermaid
 flowchart TB
+    Core["Agent Arena Core<br/>Ruleset、deterministic、simulation primitives"]
     Contracts["contracts<br/>branded IDs、Zod schemas、wire DTO"]
     Engine["game-engine<br/>Ruleset、事件归约、replay"]
     Assets["assets<br/>Prompt bundles、文案、效果"]
@@ -80,6 +81,7 @@ flowchart TB
     Web["web<br/>经校验 DTO 的交互与呈现"]
 
     Engine --> Contracts
+    Engine --> Core
     Assets --> Contracts
     ACP --> Contracts
     Server --> Contracts
@@ -90,14 +92,15 @@ flowchart TB
     Web --> Assets
 ```
 
-| 组件                                               | 主要职责                                                                                     | 稳定边界                                                           |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [`contracts`](../packages/contracts/README.md)     | 定义跨 JSON、数据库、进程和浏览器边界的 IDs、动作、事件、配置、视图与诊断 schemas            | 不求值规则、不执行 IO、不拥有 UI 或编排                            |
-| [`game-engine`](../packages/game-engine/README.md) | 冻结 Ruleset，校验动作，推进 phase 图，结算 effects，发出事件并从事件重建状态                | 只依赖 contracts；不知道 Profile、Character、Session、存储和浏览器 |
-| [`assets`](../packages/assets/README.md)           | 持有 plugin-owned Prompt、玩家 Skills、本地化文案、Character 与 Role 效果定义                | server-only Prompt/Skill 入口与浏览器安全导出分离                  |
-| [`acp`](../packages/acp/README.md)                 | 启动和监管 Agent 进程，协商 ACP，创建或恢复 Session，传输流式更新                            | 不知道 Match phase、Role、仓库或恢复决策                           |
-| [`server`](../apps/server/README.md)               | 组合所有下层模块，拥有 Match 生命周期、SQLite、Agent 回合、MCP gateway、可见性投影和实时连接 | 是唯一应用组合根和隐藏信息序列化边界                               |
-| [`web`](../apps/web/README.md)                     | 校验 REST/WebSocket DTO，组合页面，持有浏览器副作用与本地呈现状态                            | 不执行规则、持久化、Prompt 渲染或授权过滤                          |
+| 组件                                                                | 主要职责                                                                                     | 稳定边界                                                   |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供 plugin 安装、semantic ownership、phase/query/resolution、Ruleset lock 与确定性工具      | 只暴露跨游戏 contracts;具体游戏语义由消费者 registrar 持有 |
+| [`contracts`](../packages/contracts/README.md)                      | 定义跨 JSON、数据库、进程和浏览器边界的 IDs、动作、事件、配置、视图与诊断 schemas            | 不求值规则、不执行 IO、不拥有 UI 或编排                    |
+| [`game-engine`](../packages/game-engine/README.md)                  | 组合狼人杀 registries,校验动作,推进 phase 图,结算 effects,发出事件并重建状态                 | 依赖 AgentWolf contracts 与固定 Core revision;保持无 IO    |
+| [`assets`](../packages/assets/README.md)                            | 持有 plugin-owned Prompt、玩家 Skills、本地化文案、Character 与 Role 效果定义                | server-only Prompt/Skill 入口与浏览器安全导出分离          |
+| [`acp`](../packages/acp/README.md)                                  | 启动和监管 Agent 进程，协商 ACP，创建或恢复 Session，传输流式更新                            | 不知道 Match phase、Role、仓库或恢复决策                   |
+| [`server`](../apps/server/README.md)                                | 组合所有下层模块，拥有 Match 生命周期、SQLite、Agent 回合、MCP gateway、可见性投影和实时连接 | 是唯一应用组合根和隐藏信息序列化边界                       |
+| [`web`](../apps/web/README.md)                                      | 校验 REST/WebSocket DTO，组合页面，持有浏览器副作用与本地呈现状态                            | 不执行规则、持久化、Prompt 渲染或授权过滤                  |
 
 `server` 内部继续按稳定职责拆分：`MatchManager` 管理活跃 runtime 与恢复，`MatchRuntime` 驱动
 回合，`PlayerRuntime` 管理单个 Seat 的 delivery，repositories 管理持久状态，projector 构造
@@ -242,7 +245,8 @@ mailbox 和 Session binding 中，直到全部有资格回合落定，随后按 
 
 ## 架构不变量
 
-- `contracts` 与 `game-engine` 不依赖 server、Web、ACP、文件系统、网络或 assets。
+- `contracts` 与 `game-engine` 不依赖 server、Web、ACP、文件系统、网络或 assets;`game-engine`
+  从固定 Core revision 消费规则组合与确定性工具。
 - GameEngine 的每次状态变化都有事件依据，replay 不依赖进程随机性或当前目录配置。
 - 具体 Role、Ability、Phase 和 Plugin 语义由插件拥有，通用内核与 Prompt runtime 不按具体 ID
   分发。
