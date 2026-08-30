@@ -50,8 +50,8 @@ AgentWolf 是一个 TypeScript workspace,用于在长驻的 ACP Agent Session �
 - `apps/server`:Fastify、SQLite、Match 编排、projection、MCP、恢复与开发者工具。
 - `apps/web`:React 配置、设置、lobby、观战与开发者 UI。
 - `scripts`:仓库检查、生成器、开发入口与 CI 辅助脚本。
-- `vendor/agent-arena-core`:固定 revision 的 Ruleset、ACP、trajectory、确定性运行时与仿真基础
-  packages。
+- `vendor/agent-arena-core`:固定 revision 的 Ruleset、game/ACP/Prompt/Match runtime、store ports、
+  SQLite adapter、trajectory、simulation、harness 与 testkit packages。
 - `.agentwolf/`:仅运行时数据 — 数据库、生成的 Skills、workspaces、Sessions 与日志。
 
 包内契约放在各 package 或 app 的 README;跨包设计放在架构模块文档中,不要在两处重复。
@@ -80,6 +80,7 @@ contracts <- game-engine
 ```sh
 git submodule update --init
 pnpm install --frozen-lockfile
+pnpm --dir vendor/agent-arena-core check
 pnpm typecheck
 pnpm lint
 pnpm test:coverage

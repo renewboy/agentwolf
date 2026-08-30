@@ -13,6 +13,9 @@ pnpm check
 pnpm dev
 ```
 
+修改或推进 Core revision 时,先在 `vendor/agent-arena-core` 内运行 `pnpm check`;AgentWolf 的
+`pnpm check` 验证本仓兼容 adapter、产品行为与生产构建。
+
 使用 `pnpm dev:developer` 启动仅监听回环地址的开发者轨迹检查器。两种模式都会采集运行时轨迹,但开发者路由与每个 Match 记录的轨迹操作仅在显式的开发者启动模式下存在。每个已结束或已暂停的 Match 记录都提供"添加仿真"工作流,可在浏览器内完成 fixture 的采集、审查与批准。等效的
 `pnpm simulation:review -- <simulation-id>` 与
 `pnpm simulation:approve -- <simulation-id>` 命令仍然可用于自动化;

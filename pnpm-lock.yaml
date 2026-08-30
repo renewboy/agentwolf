@@ -231,6 +231,37 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  vendor/agent-arena-core/packages/harness: {}
+
+  vendor/agent-arena-core/packages/match-runtime:
+    dependencies:
+      '@agent-arena/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@agent-arena/game-runtime':
+        specifier: workspace:*
+        version: link:../game-runtime
+    devDependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  vendor/agent-arena-core/packages/prompt-runtime:
+    dependencies:
+      '@agent-arena/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      nunjucks:
+        specifier: 3.2.4
+        version: 3.2.4
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/nunjucks':
+        specifier: 3.2.6
+        version: 3.2.6
+
   vendor/agent-arena-core/packages/ruleset:
     dependencies:
       '@agent-arena/contracts':
@@ -248,6 +279,31 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+
+  vendor/agent-arena-core/packages/storage-sqlite:
+    dependencies:
+      '@agent-arena/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      better-sqlite3:
+        specifier: 13.0.3
+        version: 13.0.3
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: 9.6.0
+        version: 9.6.0
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  vendor/agent-arena-core/packages/testkit:
+    dependencies:
+      '@agent-arena/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@agent-arena/match-runtime':
+        specifier: workspace:*
+        version: link:../match-runtime
 
   vendor/agent-arena-core/packages/trajectory:
     dependencies:
