@@ -44,6 +44,7 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
   // ACP processes may report provider defaults after resume; the Profile remains authoritative.
   return AcpPlayerSession.start({
     cwd: options.cwd,
+    clientInfo: { name: 'agentwolf', version: '0.1.0' },
     launch: resolvePlayerLaunchSpec(options.tool, options.cwd, mcpServers),
     model: options.profile.model,
     modelConfigKey: options.tool.modelConfigKey,

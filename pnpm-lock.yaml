@@ -145,6 +145,9 @@ importers:
 
   packages/acp:
     dependencies:
+      '@agent-arena/acp-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/acp-runtime
       '@agentclientprotocol/claude-agent-acp':
         specifier: 0.70.0
         version: 0.70.0(@anthropic-ai/sdk@0.120.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))
@@ -203,6 +206,12 @@ importers:
       '@agentwolf/acp':
         specifier: workspace:*
         version: link:../packages/acp
+
+  vendor/agent-arena-core/packages/acp-runtime:
+    dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 1.4.0
+        version: 1.4.0(zod@4.4.3)
 
   vendor/agent-arena-core/packages/contracts:
     dependencies:

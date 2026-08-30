@@ -4,13 +4,13 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { AgentProcess } from '../src/process.js'
+import { AgentProcess, processGuardianPath } from '../src/process.js'
 
 const roots: string[] = []
 const ownedPids = new Set<number>()
 const treeAgent = fileURLToPath(new URL('./fixtures/process-tree-agent.mjs', import.meta.url))
 const treeParent = fileURLToPath(new URL('./fixtures/process-tree-parent.mjs', import.meta.url))
-const guardian = fileURLToPath(new URL('../process-guardian.sh', import.meta.url))
+const guardian = processGuardianPath()
 
 afterEach(async () => {
   for (const pid of ownedPids) killOwned(pid)

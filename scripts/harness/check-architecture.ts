@@ -21,7 +21,7 @@ const allowedCoreDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
   contracts: new Set(),
   assets: new Set(),
   'game-engine': new Set(['contracts', 'game-runtime', 'ruleset']),
-  acp: new Set(),
+  acp: new Set(['acp-runtime']),
   server: new Set(),
   web: new Set(),
 }
@@ -272,10 +272,16 @@ for (const path of files) {
     sessionNewLocations.push(localPath(path))
   }
 }
-if (sessionNewLocations.length !== 1 || sessionNewLocations[0] !== 'packages/acp/src/session.ts') {
+if (sessionNewLocations.length > 0) {
   errors.push(
-    `session/new must have one generic ACP owner; found ${sessionNewLocations.join(', ') || 'none'}`,
+    `AgentWolf production code must delegate session/new to Core; found ${sessionNewLocations.join(', ')}`,
   )
+}
+const coreAcpSession = await text(
+  resolve(projectRoot, 'vendor/agent-arena-core/packages/acp-runtime/src/session.ts'),
+)
+if ((coreAcpSession.match(/methods\.agent\.session\.new/g) ?? []).length !== 1) {
+  errors.push('Core ACP runtime must contain the single session/new protocol call')
 }
 
 const webPackage = JSON.parse(await text(resolve(projectRoot, 'apps/web/package.json'))) as {

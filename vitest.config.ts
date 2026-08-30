@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   resolve: {
     alias: {
+      '@agent-arena/acp-runtime': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/acp-runtime/src/index.ts', import.meta.url),
+      ),
       '@agent-arena/contracts': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/contracts/src/index.ts', import.meta.url),
       ),

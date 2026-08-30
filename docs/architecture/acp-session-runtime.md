@@ -17,8 +17,9 @@ ACP Session 运行时遵守以下约束：
 - 只恢复受影响玩家，其他玩家的进程、Session、游标和 barrier 状态保持不动；
 - 进程、Session、Prompt 和 Match 关闭均有有界终止路径。
 
-[`packages/acp`](../../packages/acp/README.md) 拥有通用 ACP 协议、进程、Provider 启动策略和 delivery
-ledger 原语；它不了解 phase、Role、Match repository 或恢复策略。`apps/server` 把这些原语绑定到
+[Agent Arena Core ACP runtime](../../vendor/agent-arena-core/packages/acp-runtime/README.md) 拥有协议、
+进程、Session、permission 与 delivery ledger 原语。[`packages/acp`](../../packages/acp/README.md)
+拥有 AgentWolf Tool catalog、Provider launch policy 与玩家隔离配置。`apps/server` 把这些能力绑定到
 玩家身份、ActionMailbox、持久化和 GameEngine action expectation。
 
 ## 组件与生命周期边界
@@ -37,7 +38,7 @@ flowchart LR
     end
 
     Factory["PlayerSessionFactory"]
-    Session["AcpPlayerSession<br/>initialize / new / resume / prompt"]
+    Session["Core AcpSession<br/>initialize / new / resume / prompt"]
     Process["AgentProcess + guardian"]
     Agent["ACP Agent 进程"]
     MCP["ActionMailbox + MCP gateway"]
@@ -57,10 +58,10 @@ flowchart LR
 | `MatchRuntime`            | 当前 TurnDescriptor、并发 actor 集、自动恢复次数与 Match pause                      | 不创建 ACP Session ID，不篡改 delivery ledger             |
 | `PlayerRuntime`           | 单玩家 Session 连接、delivery、pending action 对账、状态与 trajectory               | 不判断 phase/Role 规则，校验委托给 expectation/GameEngine |
 | player-session repository | durable profile/tool snapshot、binding state、Session ID、bootstrap、pending action | 不启动进程，不解释 ACP response                           |
-| `DeliveryLedger`          | `acknowledgedSequence` 与最多一个 active attempt                                    | 不保存 Prompt 文本或游戏动作                              |
+| `DeliveryLedger`          | Core 中的 `acknowledgedSequence` 与最多一个 active attempt                          | 不保存 Prompt 文本或游戏动作                              |
 | `ActionMailbox`           | token 绑定、当前 expectation、内存 action handoff                                   | 不成为持久动作所有者；接受回调立即写 repository           |
-| `AcpPlayerSession`        | ACP 连接、协议协商、逻辑 Session 操作、单个 active Prompt                           | 不决定 Match 恢复或替换 Session                           |
-| `AgentProcess`            | 子进程组、stderr tail 与 TERM/KILL 关闭                                             | 不理解协议消息或游戏状态                                  |
+| Core `AcpSession`         | ACP 连接、协议协商、逻辑 Session 操作、单个 active Prompt                           | 不决定 Match 恢复或替换 Session                           |
+| Core `AgentProcess`       | 子进程组、stderr tail 与 TERM/KILL 关闭                                             | 不理解协议消息或游戏状态                                  |
 
 ## Session 建立与配置
 
@@ -88,7 +89,7 @@ stateDiagram-v2
 已有 active binding 时，PlayerRuntime 只用持久 Session ID 调用 `session/resume`。返回 ID 必须逐字
 一致。Provider 通过 initialize capabilities 声明 resume；内置 CodeBuddy 适配在首次 `session/new`
 后以同一 ID 立即执行一次 `session/resume` 验证，验证成功后才允许 foundation。`session/new` 的唯一
-通用调用点位于 ACP package，server 只能通过 factory 请求“创建”或“恢复给定 ID”。
+通用调用点位于 Core ACP runtime，server 只能通过 factory 请求“创建”或“恢复给定 ID”。
 
 `AcpPlayerSession.start` 的装配顺序为：
 
@@ -233,7 +234,7 @@ Session，并继续当前 action boundary。其他玩家不会收到 foundation 
 
 ## 进程监管与关闭
 
-在 macOS/Linux 上，`AgentProcess` 通过 `process-guardian.sh` 启动独立进程组。guardian 中继 stdio、
+在 macOS/Linux 上，Core `AgentProcess` 通过 package-owned guardian 启动独立进程组。guardian 中继 stdio、
 观察 AgentWolf 父进程，并在父进程消失时终止整棵后代树。Windows 直接持有子进程。
 
 关闭顺序为：
@@ -282,5 +283,7 @@ Prompt timeout 或 cancel 未确认都会以显式 lifecycle/delivery error 上�
 - [Prompt 与玩家上下文](prompt-and-context.md)：foundation、增量 turn、续篇和玩家环境。
 - [信息同步](information-synchronization.md)：并行 barrier、发言分块与播报门控。
 - [Match 生命周期](match-lifecycle.md)：运行时恢复、删除和赛后 Session 生命周期。
-- [ACP package](../../packages/acp/README.md)：通用协议与进程失败边界。
+- [ACP package](../../packages/acp/README.md)：Agent Tool catalog、Provider launch 与玩家隔离策略。
+- [Core ACP runtime](../../vendor/agent-arena-core/packages/acp-runtime/README.md)：协议、Session、
+  permission、delivery 与进程原语。
 - [Server package](../../apps/server/README.md)：PlayerRuntime、repositories 与 ActionMailbox 所有权。
