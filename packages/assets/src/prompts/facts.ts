@@ -99,6 +99,7 @@ export const PromptTurnFactSchema = z
     allowedAbilityIds: z.array(AbilityIdSchema).default([]),
     passAllowed: z.boolean().default(true),
     interruptAbilityIds: z.array(AbilityIdSchema).default([]),
+    interruptWindow: z.boolean().default(false),
     sheriffActions: z.array(SheriffActionKindSchema).default([]),
   })
   .strict()

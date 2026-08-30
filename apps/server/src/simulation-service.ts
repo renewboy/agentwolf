@@ -10,6 +10,7 @@ import {
   SimulationIdSchema,
   SimulationTurnSchema,
   type MatchId,
+  type PlayerId,
   type SimulationApprovalRequest,
   type PlayerAction,
   type RoleId,
@@ -91,6 +92,7 @@ export class SimulationService {
       match.boardSnapshot,
       players,
       match.setup.speechCharacterLimit,
+      match.setup.publicSpeechInterruptMode,
     )
     const records = this.#repository.listTrajectoryRecords(matchId)
     const completionOrder = new Map(
@@ -114,15 +116,29 @@ export class SimulationService {
       const action = actionForTurn(turn, records)
       const history = events.filter((event) => event.sequence <= turn.toSequence)
       let descriptor: ReturnType<GameEngine['currentTurn']> = null
+      let interruptActors: PlayerId[] = []
+      let turnDay = 0
       if (turn.kind === 'action') {
         try {
-          descriptor = GameEngine.restore({
+          const boundaryEngine = GameEngine.restore({
             matchId,
             board: manifest,
             events: history,
             status: turn.gameStatus ?? 'running',
             pausedReason: turn.pausedReasonAtRender,
-          }).currentTurn()
+          })
+          descriptor = boundaryEngine.currentTurn()
+          turnDay = boundaryEngine.state.day
+          if (turn.actionType === 'skill-trigger' && descriptor?.actionType !== 'skill-trigger') {
+            interruptActors = [...boundaryEngine.state.players.values()]
+              .filter(
+                (player) =>
+                  player.id !== descriptor?.actors[0] &&
+                  boundaryEngine.interruptAbilityIdsFor(player.id).length > 0,
+              )
+              .sort((left, right) => left.seat - right.seat)
+              .map((player) => player.id)
+          }
         } catch (error) {
           warnings.push(`turn-reconstruction:${turn.turnId}:${describe(error)}`)
         }
@@ -134,6 +150,12 @@ export class SimulationService {
         turn.kind === 'action' &&
         turn.status === 'completed' &&
         action &&
+        !(
+          match.setup.publicSpeechInterruptMode === 'rolling' &&
+          turn.actionType === 'skill-trigger' &&
+          action.type === 'skill-trigger' &&
+          action.option === 'pass'
+        ) &&
         !acceptedActions.has(JSON.stringify(action))
       ) {
         fault = 'invalid-action' as const
@@ -143,9 +165,10 @@ export class SimulationService {
         kind: turn.kind,
         playerId: turn.ownerId,
         phaseId: turn.phaseId,
+        day: turnDay,
         actionType: turn.actionType,
-        mode: descriptor?.mode ?? null,
-        expectedActors: descriptor?.actors ?? [],
+        mode: interruptActors.length > 0 ? 'parallel' : (descriptor?.mode ?? null),
+        expectedActors: interruptActors.length > 0 ? interruptActors : (descriptor?.actors ?? []),
         fromSequence: turn.fromSequence,
         toSequence: turn.toSequence,
         visibleEventSequences: turn.visibleEventSequences,

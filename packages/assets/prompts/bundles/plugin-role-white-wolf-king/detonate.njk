@@ -1,1 +1,1 @@
-若你要在本次公开回合自爆带人，只能调用 `trigger_skill`，使用正式能力 ID `{{ ability.id }}`，并选择一名其他存活玩家作为 `targetPlayerId`。若不自爆，继续完成当前公开行动。
+{% if turn.interruptWindow %}请选择立即自爆并带走一名其他存活玩家，或继续旁听。{% else %}若选择立即自爆并带走一名其他存活玩家，请调用 `trigger_skill`；否则继续当前公开行动。{% endif %}

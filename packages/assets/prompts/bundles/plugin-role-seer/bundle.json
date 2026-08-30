@@ -10,6 +10,8 @@
         {
           "id": "ability-seer-inspect",
           "label": "查验阵营",
+          "description": "每夜查验一名其他存活玩家的阵营，结果为狼人阵营或好人阵营。",
+          "decision": "请选择今晚要查验的其他存活玩家。",
           "foundation": true
         }
       ]

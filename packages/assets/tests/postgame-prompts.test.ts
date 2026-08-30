@@ -34,14 +34,18 @@ describe('postgame Prompt assets', () => {
       svpCandidateIds: [player1],
       ratingTargetIds: [player2],
     })
-    expect(review).toContain('submit_postgame_review')
+    expect(review).toContain('请调用 `submit_postgame_review` 提交本轮唯一一次行动')
     expect(review).toContain('你上次行动后发生的公开对局记录')
     expect(review).toContain('投票结果：2 号乙 2 票')
     expect(review).toContain('最终胜负：第三方阵营获胜')
     expect(review).toContain('获胜玩家：2 号 乙（player-2）')
     expect(review).toContain('第三方阵营')
-    expect(review).toContain('每位玩家恰好评分一次')
-    expect(prompts.reviewContinuation()).not.toContain('公开对局记录')
+    expect(review).not.toMatch(/mvpPlayerId|svpPlayerId|ratings|information|communication/u)
+    expect(review).toContain('不要输出发言')
+    const reviewContinuation = prompts.reviewContinuation()
+    expect(reviewContinuation).not.toContain('公开对局记录')
+    expect(reviewContinuation).toContain('请调用 `submit_postgame_review` 提交本轮唯一一次行动')
+    expect(reviewContinuation).toContain('不要输出发言')
 
     const reflection = prompts.reflection({
       playerId: player1,
@@ -79,7 +83,7 @@ describe('postgame Prompt assets', () => {
       speechCharacterLimit: 300,
     })
     expect(reflection).toContain('此前感言')
-    expect(reflection).toContain('不要调用工具')
+    expect(reflection).not.toMatch(/submit_|trigger_skill|pass_skill|调用工具/u)
     expect(reflection).toContain('300')
     expect(prompts.reflectionContinuation()).toContain('继续')
   })

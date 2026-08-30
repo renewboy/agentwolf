@@ -27,6 +27,7 @@ import {
   type PromptToolName,
   type PromptToolPresentation,
 } from './schema.js'
+import { actionToolNamesFor } from './action-tools.js'
 import {
   assertPromptRootHasNoLocale,
   bundleEventPresentations,
@@ -39,6 +40,7 @@ import {
   validatePromptBundleGraph,
   type LoadedPromptBundle,
 } from './loader.js'
+import { initialPlayerLabel, playerFact, seatLabel, speakerLabel } from './labels.js'
 
 export interface PromptPluginContribution {
   readonly pluginId: PluginId
@@ -183,6 +185,15 @@ export class PromptBundleRegistry {
     return this.#ability(abilityId).presentation.label
   }
 
+  public abilityContract(abilityId: AbilityId) {
+    const presentation = this.#ability(abilityId).presentation
+    return {
+      abilityId: presentation.id,
+      label: presentation.label,
+      description: presentation.description,
+    }
+  }
+
   public phasePresentation(phaseId: PhaseId): PromptPhasePresentation {
     return this.#phase(phaseId).presentation
   }
@@ -243,14 +254,25 @@ export class PromptBundleRegistry {
       return this.#render(ability.bundleId, ability.presentation.interruptTemplate, {
         ...context,
         ability: abilityContext(ability.presentation),
+        turn: facts.turn,
       })
     })
-    const currentTurn = this.#render(phase.bundleId, phase.presentation.template, {
-      ...context,
-      phase: { ...phase.presentation, ...facts.turn },
-      narration: this.#renderEvents(facts.events, context),
-      interruptInstructions: interrupts,
+    const abilityInstructions = facts.turn.allowedAbilityIds.flatMap((abilityId) => {
+      const decision = this.#ability(abilityId).presentation.decision
+      return decision ? [decision] : []
     })
+    const currentTurn = this.#render(
+      facts.turn.interruptWindow ? '_core' : phase.bundleId,
+      facts.turn.interruptWindow ? 'turns/interrupt.njk' : phase.presentation.template,
+      {
+        ...context,
+        phase: { ...phase.presentation, ...facts.turn },
+        narration: this.#renderEvents(facts.events, context),
+        actionToolNames: actionToolNamesFor(facts.turn),
+        abilityInstructions,
+        interruptInstructions: interrupts,
+      },
+    )
     return facts.continuation
       ? this.#render('_core', this.#core.manifest.core!.layouts.continuation, {
           ...context,
@@ -546,36 +568,12 @@ function roleContext(role: PromptRolePresentation, faction: Faction) {
 }
 
 function abilityContext(ability: PromptAbilityPresentation) {
-  return { id: ability.id, label: ability.label, foundation: ability.foundation }
-}
-
-function playerFact(
-  playerId: PlayerId,
-  players: ReadonlyMap<PlayerId, PromptPlayerFact>,
-): PromptPlayerFact {
-  const player = players.get(playerId)
-  if (!player) throw new Error(`Unknown Prompt Player ${playerId}`)
-  return player
-}
-
-function seatLabel(playerId: PlayerId, players: ReadonlyMap<PlayerId, PromptPlayerFact>): string {
-  return `${playerFact(playerId, players).seat} 号玩家`
-}
-
-function speakerLabel(
-  playerId: PlayerId,
-  players: ReadonlyMap<PlayerId, PromptPlayerFact>,
-): string {
-  const player = playerFact(playerId, players)
-  return `${player.name}（${player.seat} 号玩家）`
-}
-
-function initialPlayerLabel(
-  playerId: PlayerId,
-  players: ReadonlyMap<PlayerId, PromptPlayerFact>,
-): string {
-  const player = playerFact(playerId, players)
-  return `${player.name}（${player.seat} 号玩家，Player ID：${player.playerId}）`
+  return {
+    id: ability.id,
+    label: ability.label,
+    description: ability.description,
+    foundation: ability.foundation,
+  }
 }
 
 function renderAtomic(environment: nunjucks.Environment, text: string, context: object): string {

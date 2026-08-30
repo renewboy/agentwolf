@@ -7,4 +7,4 @@ MVP：{{ helpers.player(mvpPlayerId) }}；SVP：{{ helpers.player(svpPlayerId) }
 {% for reflection in priorReflections %}- {{ helpers.player(reflection.playerId) }}：{{ reflection.text }}
 {% endfor %}
 {% endif %}
-请结合自己的真实身份、关键判断与决策，直接输出一段不超过约 {{ speechCharacterLimit }} 个中文字符的自然感言。可以评价自己的得失并回应此前感言。不要调用工具，不要输出分析过程，不要使用 Player ID。
+请结合自己的真实身份、关键判断与决策,直接输出一段不超过约 {{ speechCharacterLimit }} 个中文字符的自然感言。可以评价自己的得失并回应此前感言,不输出分析过程或内部玩家标识。

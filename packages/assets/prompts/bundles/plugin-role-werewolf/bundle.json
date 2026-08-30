@@ -10,11 +10,13 @@
         {
           "id": "ability-werewolf-kill",
           "label": "狼队常规袭击",
+          "description": "狼队成员每夜独立投票选择一名存活玩家作为常规袭击目标，也可以选择空刀。",
           "foundation": false
         },
         {
           "id": "ability-werewolf-self-destruct",
           "label": "狼人自爆",
+          "description": "在允许的公开回合立即自爆出局，中断当前白天流程；该技能没有目标。",
           "foundation": true,
           "interruptTemplate": "self-destruct.njk"
         }

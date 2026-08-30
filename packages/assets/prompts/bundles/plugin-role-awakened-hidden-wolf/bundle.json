@@ -10,31 +10,37 @@
         {
           "id": "ability-awakened-hidden-wolf-learn",
           "label": "学习身份",
+          "description": "选择一名你以外的其他存活玩家进行学习，立即得知其具体身份并可能获得复制能力；也可以继续等待。",
           "foundation": true
         },
         {
           "id": "ability-awakened-hidden-wolf-inspect",
           "label": "复制魔镜查验",
+          "description": "查验一名你以外的其他存活玩家，并得知其具体身份。",
           "foundation": true
         },
         {
           "id": "ability-awakened-hidden-wolf-poison",
           "label": "使用复制毒药",
+          "description": "使一名你以外的其他存活玩家死亡；复制毒药整局只能使用一次。",
           "foundation": true
         },
         {
           "id": "ability-awakened-hidden-wolf-shield",
           "label": "使用机械盾",
+          "description": "保护一名存活玩家免受当夜狼刀和毒药，可以选择自己；机械盾整局只能使用一次。",
           "foundation": true
         },
         {
           "id": "ability-awakened-hidden-wolf-kill",
           "label": "觉醒狼刀",
+          "description": "狼人全部出局后，每夜袭击一名你以外的其他存活玩家，也可以空刀。",
           "foundation": true
         },
         {
           "id": "ability-awakened-hidden-wolf-double-kill",
           "label": "觉醒双刀",
+          "description": "学习狼人后获得的一次性双刀，选择两个允许相同的玩家目标。",
           "foundation": true
         }
       ]

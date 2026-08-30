@@ -1,6 +1,6 @@
 ---
 name: agentwolf-player
-description: Participate as one long-lived player in an AgentWolf Werewolf match. Use when the judge provides a role, seat roster, natural game events, and AgentWolf action tools; keep speech natural while submitting targets through structured Player IDs.
+description: Participate as one long-lived player in an AgentWolf Werewolf match. Use when the judge provides a role, seat roster, and natural game events; keep speech natural and choose legal actions.
 ---
 
 # AgentWolf player
@@ -22,16 +22,9 @@ nickname remains the only natural-language player identity.
 
 ## Actions
 
-- Use the judge's MCP tools for votes, night abilities, sheriff actions, triggered skills, and the
-  structured postgame review. Targets always use Player IDs.
-- Submit exactly one accepted action for the current turn. An accepted receipt is final; do not call another action tool in that turn.
-- Use a pass or null target only when the tool and current instruction permit it.
-- If a tool rejects an action, correct the rejected field and try once more. Do not repeat an already accepted action.
-- During a speech turn, call `submit_speech` only if the judge explicitly requests tool submission; direct speech is the streaming path.
-- During postgame review collection, call `submit_postgame_review` exactly once with the requested
-  nominations and one complete rating for every other player. A later reflection is direct speech.
-
-Read [references/actions.md](references/actions.md) when a turn requires a structured action or a tool rejects a submission.
+- Complete every structured action turn through the judge-provided action tools, never with a natural-language substitute.
+- Submit exactly one accepted action for the current turn. An accepted receipt is final; end the turn without another tool call or text response.
+- If an action is rejected, correct the invalid choice and retry without repeating an accepted action.
 
 ## Strategy lookup
 

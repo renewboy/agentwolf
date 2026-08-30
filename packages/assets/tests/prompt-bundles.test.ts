@@ -213,6 +213,7 @@ describe('Prompt bundle runtime', () => {
         allowedAbilityIds: [fixture.abilityId],
         passAllowed: true,
         interruptAbilityIds: [],
+        interruptWindow: false,
         sheriffActions: [],
       },
       speechCharacterLimit: 300,
@@ -355,7 +356,9 @@ async function promptFixture() {
           id: roleId,
           label: '合成身份',
           template: 'role.njk',
-          abilities: [{ id: abilityId, label: '合成能力', foundation: true }],
+          abilities: [
+            { id: abilityId, label: '合成能力', description: '合成能力说明', foundation: true },
+          ],
         },
       ],
       phases: [
@@ -413,6 +416,7 @@ function toolDeclarations() {
     'submit_night_action',
     'submit_sheriff_action',
     'trigger_skill',
+    'pass_skill',
     'submit_postgame_review',
   ].map((name) => ({ name, title: name, description: name, fields: [] }))
 }

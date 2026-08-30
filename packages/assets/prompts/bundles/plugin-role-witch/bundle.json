@@ -10,11 +10,13 @@
         {
           "id": "ability-witch-antidote",
           "label": "解药",
+          "description": "救治当夜狼队常规袭击的目标；解药整局只能使用一次，且受本局自救政策约束。",
           "foundation": true
         },
         {
           "id": "ability-witch-poison",
           "label": "毒药",
+          "description": "使一名你以外的其他存活玩家死亡；毒药整局只能使用一次。",
           "foundation": true
         }
       ]

@@ -10,6 +10,8 @@
         {
           "id": "ability-hunter-shot",
           "label": "开枪",
+          "description": "因狼人袭击、白天放逐或白狼王自爆出局时，可以开枪带走一名其他存活玩家，也可以放弃开枪。",
+          "decision": "请选择要开枪带走的目标，或放弃开枪。",
           "foundation": true
         }
       ]

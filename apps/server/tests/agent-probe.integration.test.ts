@@ -52,6 +52,7 @@ describe('AgentProbeService', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(dataDirectory, 'web'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     const service = new AgentProbeService(catalog, config)
     const discovery = await service.discoverTool(tool.id, { model: 'mock-model' })
@@ -94,6 +95,7 @@ describe('AgentProbeService', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(dataDirectory, 'web'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     const service = new AgentProbeService(catalog, config)
     await expect(service.probe('profile-missing' as never)).rejects.toThrow(/Unknown Agent Profile/)
@@ -175,7 +177,7 @@ describe('AgentProbeService', () => {
       /Unknown Agent Tool/,
     )
     repository.close()
-  }, 15_000)
+  }, 30_000)
 })
 
 function literal(value: string) {

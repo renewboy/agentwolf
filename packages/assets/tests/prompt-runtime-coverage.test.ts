@@ -28,6 +28,14 @@ const player2 = PlayerIdSchema.parse('player-2')
 const matchId = MatchIdSchema.parse('match-runtime-test')
 
 describe('Prompt runtime behavior matrix', () => {
+  it('publishes separate trigger and deterministic pass contracts', () => {
+    const core = loadPromptCore()
+
+    expect(core.tool('trigger_skill').description).toContain('发动')
+    expect(core.toolField('trigger_skill', 'targetPlayerId')).toContain('只有技能规则要求')
+    expect(core.tool('pass_skill').description).toContain('没有参数')
+  })
+
   it('renders core assets, helper-rich foundations, events, turns, and continuations', () => {
     const registry = runtimeRegistry()
     const core = registry.coreAssets()
@@ -359,6 +367,7 @@ function runtimeFixture(): {
           {
             id: abilityId,
             label: '运行能力',
+            description: '运行能力说明',
             foundation: false,
             interruptTemplate: 'interrupt.njk',
           },
@@ -478,6 +487,7 @@ function turnFacts(events: GameEvent[], continuation: boolean) {
       allowedAbilityIds: [abilityId],
       passAllowed: true,
       interruptAbilityIds: [abilityId],
+      interruptWindow: false,
       sheriffActions: [],
     },
     speechCharacterLimit: 300,
@@ -503,6 +513,7 @@ function toolDeclarations() {
     'submit_night_action',
     'submit_sheriff_action',
     'trigger_skill',
+    'pass_skill',
     'submit_postgame_review',
   ].map((name) => ({
     name,

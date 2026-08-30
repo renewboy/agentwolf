@@ -1,2 +1,3 @@
 {% include "_core/turns/context.njk" %}
-狼队商议结束。请通过 `submit_vote` 提交本夜选择：可以袭击任意一名存活玩家，包括自己或狼队友，`targetPlayerId` 使用该玩家的 Player ID；选择空刀时，将 `targetPlayerId` 设为 `null`。空刀票数严格高于所有玩家目标时本夜空刀；玩家目标并列最高时，裁判从并列目标中作出可重放选择。工具返回接受回执后结束本回合，不要调用 `submit_night_action`，也不要用文字代替投票工具。
+狼队商议结束。本夜可以袭击任意一名存活玩家,包括自己或狼队友,也可以选择空刀。空刀票数严格高于所有玩家目标时本夜空刀;玩家目标并列最高时,裁判从并列目标中作出可重放选择。
+{% include "_core/turns/action-submit.njk" %}

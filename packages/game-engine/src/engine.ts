@@ -2,6 +2,7 @@ import {
   GameEventSchema,
   PhaseIdSchema,
   PlayerActionSchema,
+  type AbilityId,
   type EventVisibility,
   type Faction,
   type GameEvent,
@@ -13,6 +14,7 @@ import {
   expectedVoteKind,
   normalizeTurnAction,
   phaseActionVisibility,
+  phaseInterruptAbilityIdsForActor,
   phaseInterruptForAction,
   phaseAbilityIdsForActor,
   phaseSpeechKind,
@@ -221,6 +223,17 @@ export class GameEngine {
       ...(interruptAbilityIds.length > 0 ? { interruptAbilityIds } : {}),
       ...(definition.type === 'sheriff-action' ? { sheriffActions: [...definition.actions] } : {}),
     }
+  }
+
+  public interruptAbilityIdsFor(playerId: PlayerId): readonly AbilityId[] {
+    if (this.#state.status !== 'running' || !this.#state.phaseId) return []
+    const actor = this.#state.players.get(playerId)
+    if (!actor) return []
+    return phaseInterruptAbilityIdsForActor(
+      this.#phaseNode(this.#state.phaseId),
+      actor,
+      this.#roles,
+    )
   }
 
   public recordDeliveryStarted(
@@ -504,12 +517,16 @@ export class GameEngine {
     assertRule(this.#state.status === 'running', 'Match is not accepting actions')
     assertRule(this.#state.phaseId, 'Match has no active phase')
     const node = this.#phaseNode(this.#state.phaseId)
-    this.#validateActor(node, action.actorId)
     const interrupt = phaseInterruptForAction(node, action, this.#state, this.#roles)
     if (interrupt) {
       assertRule(action.type === 'skill-trigger', 'An ability interrupt requires a skill trigger')
       const actor = this.#state.players.get(action.actorId)
       assertRule(actor?.roleId, `Interrupt actor ${action.actorId} has no role`)
+      assertRule(actor.alive, `${actor.name} cannot interrupt while dead`)
+      assertRule(
+        this.interruptAbilityIdsFor(actor.id).includes(action.abilityId),
+        `${actor.name} cannot interrupt`,
+      )
       const entry = this.#roles.ability(action.abilityId)
       assertRule(
         this.#roles.canUseAbility(actor, action.abilityId),
@@ -527,6 +544,7 @@ export class GameEngine {
         actor,
       })
     } else {
+      this.#validateActor(node, action.actorId)
       validateTurnAction(
         node,
         action,

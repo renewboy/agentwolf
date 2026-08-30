@@ -1,3 +1,4 @@
 {% include "_core/turns/context.njk" %}
 当前由已出局警长处理警徽。允许接收警徽的玩家：{% for playerId in helpers.livingPlayerIds(actor.playerId) %}{{ helpers.player(playerId) }}{% if not loop.last %} / {% endif %}{% endfor %}。
-移交警徽时调用 `submit_sheriff_action`，提交 `action: transfer` 和目标 `targetPlayerId`；撕毁警徽时提交 `action: destroy-badge` 且 `targetPlayerId: null`。工具返回接受回执后结束本回合。
+请决定将警徽移交给一名允许的玩家,或撕毁警徽。
+{% include "_core/turns/action-submit.njk" %}

@@ -1,4 +1,4 @@
-import type { EventVisibility, PlayerAction, PlayerId } from '@agentwolf/contracts'
+import type { AbilityId, EventVisibility, PlayerAction, PlayerId } from '@agentwolf/contracts'
 import { assertRule } from './errors.js'
 import type { RoleRegistry } from './roles/registry.js'
 import type { TriggerRegistry } from './plugins/trigger-registry.js'
@@ -269,4 +269,27 @@ export function phaseInterruptForAction(
         interrupt.capabilityIds.includes(ability.requiredCapability),
     ) ?? null
   )
+}
+
+export function phaseInterruptAbilityIdsForActor(
+  node: PhaseNode,
+  actor: PlayerState,
+  roles: RoleRegistry,
+): readonly AbilityId[] {
+  if (!actor.alive) return []
+  return [
+    ...new Set(
+      (node.interrupts ?? []).flatMap((interrupt) =>
+        interrupt.capabilityIds.flatMap((capabilityId) =>
+          roles
+            .abilityIdsForCapability(capabilityId)
+            .filter(
+              (abilityId) =>
+                roles.canUseAbility(actor, abilityId) &&
+                roles.ability(abilityId).ability.actionTypes.includes('skill-trigger'),
+            ),
+        ),
+      ),
+    ),
+  ]
 }

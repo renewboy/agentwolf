@@ -12,6 +12,7 @@ phase 投影、实时消息、并发动作、speech stream 或重连逻辑的研
 - 不可见 payload 和能够推断它的阶段/完成顺序都不能进入外部 DTO；
 - 并行 actor 从同一事件边界决策，任何动作或响应时序在 barrier 完成前都不影响其他玩家 Prompt；
 - 顺序发言立即成为后续玩家的公开上下文，并可以在浏览器流式呈现；
+- rolling interrupt listener 与公开 speech 并行,较慢的模型判断不能阻塞下一位发言；
 - 自动播报只在一个可见控制连接上门控 phase，断开、失败或跳过都能释放边界；
 - server、Agent 或浏览器断线后从各自权威游标追平，不重放或重复应用已提交事实；
 - 终局、赛后评分和感想以明确顺序进入首个可见快照。
@@ -190,6 +191,46 @@ sequenceDiagram
     Match->>Engine: continueAfterDeferredAction
 ```
 
+### rolling interrupt listener
+
+冻结为 `rolling` 的 Match 在声明了 interrupts 的 sequential speech 阶段维护后台 listener。阶段入口
+即为当前 speaker 之外的合格玩家发送增量 Prompt,因此夜间已经形成的计划可以在首段公开文本出现前
+触发。一段发言提交后,下一位 speaker 和刚完成发言的玩家都不进入该次 listener 集合;后者只在另一名玩家的新发言到达后重新进入。
+speaker 与 listener 使用不同 Seat 的持久 Session 并行执行,公开流程不等待 pass 或判断完成。
+
+```mermaid
+sequenceDiagram
+    participant Engine as GameEngine
+    participant Match as MatchRuntime
+    participant Speaker as Speaker Session
+    participant Listener as Listener Session
+    participant Mailbox as ActionMailbox
+
+    Match->>Listener: 增量 interrupt Prompt(sequence=S)
+    Match->>Speaker: speech Prompt
+    par 公开发言
+        Speaker-->>Match: speech chunks
+    and 后台判断
+        Listener->>Mailbox: trigger_skill 或 pass_skill
+    end
+    alt speech 先完成
+        Match->>Engine: speech.committed
+        Match->>Listener: clear expectation + session/cancel
+        Match->>Speaker: 下一位 speech 不等待取消
+        Match->>Listener: Prompt 只含 S 之后的新公开事件
+    else interrupt 先接受
+        Mailbox-->>Match: durable pending action
+        Match->>Speaker: 停止 stream + session/cancel
+        Match->>Engine: 已公开部分 speech + interrupt action
+        Engine-->>Match: death / day.interrupted / next phase
+    end
+```
+
+supersede 先关闭旧 expectation,再取消 Prompt；后继 expectation 只在原 Prompt 退出后建立。已经由
+gateway 持久接受的动作优先于 supersede。取消期间完成多段发言时,listener 只建立一个最新 Prompt,
+并通过 delivery cursor 接收所有尚未确认的可见事件。listener 失败只使该 Seat 暂时失去后台判断；
+轮到该 Seat 执行权威 phase action 时再恢复同一 Session。
+
 只有一个 WebSocket subscriber 可以拥有自动播放控制。若没有 owner、speech 对 owner 不可见或浏览器
 未启用播放，`waitFor` 立即返回 `not-required`。控制者断开、切换到不可见 view、关闭播放、合成失败
 或显式 skip 都以 skipped 释放当前边界，Match 不会因浏览器能力永久阻塞。
@@ -262,6 +303,8 @@ reflection 作为带独立稳定 sequence 的 postgame timeline item 合并到 M
 - 事件 payload、Role、phase、Session status、timeline 和 effect cues 都必须按 view 投影。
 - 并行 actor 共享同一冻结 sequence，动作在全部回合落定前不进入 GameEngine。
 - sequential speech 提交后，下一 action boundary只由 GameEngine 推进；浏览器最多门控推进时机。
+- rolling listener 不构成公开 barrier；只有被 gateway 接受的 interrupt 才能停止当前 speech 并改变
+  GameEngine phase。
 - 自动播放 owner 最多一个，断线和失败必须释放 pending sequence。
 - view 切换期间旧投影不可交互，动效和 speech 以新投影 sequence 重新建基线。
 - server、Agent 与浏览器分别使用 event、delivery 和 projection cursor 追平，不能互相代替。

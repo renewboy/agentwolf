@@ -10,6 +10,8 @@
         {
           "id": "ability-magic-mirror-inspect",
           "label": "查验具体身份",
+          "description": "每夜查验一名尚未查验的其他存活玩家，并得知其具体身份。",
+          "decision": "请选择今晚要查验的其他存活玩家。",
           "foundation": true
         }
       ]

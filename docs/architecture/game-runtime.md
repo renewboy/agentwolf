@@ -107,6 +107,10 @@ Ruleset 构建时验证入口、边目标、插入关系和可达性。运行时
 decision-trigger abilities、pass 许可和 interrupts。包裹循环入口的 phase insertion 同时重写返回旧入口
 的边，使首夜阶段与后续夜晚共享一条循环边界。server 不需要根据 phase ID 猜测动作语义。
 
+Phase interrupt 的资格独立于主 action actor 集。引擎按当前节点声明的 interrupt capabilities 查询
+任意存活玩家的合法 ability；普通 action 仍受冻结 actors 与 sequential 首 actor 约束。server 可以
+据此并行开放后台 listener,但只有通过同一 action gateway 的 interrupt 才能改变规则状态。
+
 ## 动作提交与阶段推进
 
 下图说明一个动作如何从未可信输入变成事件，并在 phase 完成后继续控制流。
@@ -137,7 +141,8 @@ sequenceDiagram
 
 校验按以下层次进行：
 
-1. Match 必须处于 running，actor 必须属于当前冻结 actor 集且尚未完成；
+1. Match 必须处于 running；普通 action actor 必须属于当前冻结 actor 集且尚未完成，interrupt actor
+   必须存活并拥有节点声明的 capability；
 2. sequential 节点只接受当前首个 actor；
 3. action type 与 `PhaseNode.action` 对齐；
 4. ability/capability、目标 IDs、目标数量、pass 语义和次数限制通过 Role registry 校验；

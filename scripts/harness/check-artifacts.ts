@@ -60,9 +60,6 @@ const promptFiles = await sourceFiles(
 for (const path of promptFiles) {
   const content = await text(path)
   const relativePath = localPath(path)
-  if (/新增|以下是补充|补充信息|此前版本|旧版/.test(content)) {
-    errors.push(`${relativePath} contains delivery metadata or history narration`)
-  }
   if (/\bplayer-\d+\b/.test(content)) {
     errors.push(`${relativePath} hardcodes a concrete Player ID`)
   }

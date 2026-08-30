@@ -66,7 +66,7 @@ describe('game-only player process policy', () => {
     ])
     expect(launch.args).toContain('skills.include_instructions=false')
     expect(launch.args).toContain(
-      'tools.enabled_tools=["Read","Grep","Glob","Bash","Skill","mcp__agentwolf_player_actions__submit_speech","mcp__agentwolf_player_actions__submit_vote","mcp__agentwolf_player_actions__submit_night_action","mcp__agentwolf_player_actions__submit_sheriff_action","mcp__agentwolf_player_actions__trigger_skill","mcp__agentwolf_player_actions__submit_postgame_review"]',
+      'tools.enabled_tools=["Read","Grep","Glob","Bash","Skill","mcp__agentwolf_player_actions__submit_speech","mcp__agentwolf_player_actions__submit_vote","mcp__agentwolf_player_actions__submit_night_action","mcp__agentwolf_player_actions__submit_sheriff_action","mcp__agentwolf_player_actions__trigger_skill","mcp__agentwolf_player_actions__pass_skill","mcp__agentwolf_player_actions__submit_postgame_review"]',
     )
     expect(optionValues(launch.args, '--ask-for-approval')).toEqual(['never'])
     expect(launch.args).toContain('project_doc_max_bytes=0')

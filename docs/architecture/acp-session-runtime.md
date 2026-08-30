@@ -166,6 +166,19 @@ speech turn 可以使用结构化 `submit_speech`，也可以把最终自然语�
 Player ID 引用和 speech sanitization；未知 `player-N` 引用导致回合失败并允许修正。结构化 action
 流量与自然发言不会共享同一公开文本通道。
 
+### 主动 supersede
+
+rolling interrupt 为同一 Seat 使用普通 delivery 与同一逻辑 Session,但允许 MatchRuntime 主动淘汰
+尚未完成的 listener Prompt。PlayerRuntime 先清除 ActionMailbox expectation,将当前 delivery 标记为
+superseded,再由 ACP Session 发送 `session/cancel`。取消只通知 Agent 停止当前 Prompt,不会并发发送
+下一 Prompt；原 `session/prompt` 返回后,PlayerRuntime 才确认 delivery、记录 cancelled trajectory 并
+释放该 Session。
+
+若 action gateway 已在 expectation 关闭前保存 pending action,取消不能覆盖它。该 Prompt 按已接受
+动作完成,MatchRuntime 消费并结算后才清除 pending action。没有已接受动作的确认取消仍推进事件
+cursor,因此后继 listener Prompt 只携带 supersede 之后的新可见事实。取消超时或连接断开保持普通
+不确定 delivery 语义,并在同一 Session 上恢复。
+
 ## Delivery 台账与提交语义
 
 每个玩家只有一份 `DeliveryLedger`。`begin` 使用当前确认游标生成
@@ -257,6 +270,7 @@ Prompt timeout 或 cancel 未确认都会以显式 lifecycle/delivery error 上�
 - Match 级重试、pending action、cursor 与 pause 策略留在 server，不能下沉到 Provider adapter。
 - `session/new` 只服务没有 binding 的首次创建；任何恢复都使用持久 Session ID。
 - 一个 PlayerRuntime 同时最多有一个 active Prompt 和一个 active delivery。
+- supersede 先关闭旧 action expectation,后继 Prompt 必须等待原 active Prompt 完整退出。
 - 成功 MCP 回执之前必须保存 pending action；GameEngine settle 之后才清除。
 - 语义非法工具调用不改变 Match、delivery 或 barrier，并允许同回合自我修正。
 - 进程重建不等于 Session 重建，恢复不能更换 Session ID 或重放完整历史。

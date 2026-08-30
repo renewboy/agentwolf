@@ -58,6 +58,12 @@ export function runEngineSimulation(
       if (!descriptor || descriptor.actors.length === 0) {
         throw new Error(`Engine stopped without a turn at ${engine.state.phaseId}`)
       }
+      if (
+        simulation.setup.publicSpeechInterruptMode === 'rolling' &&
+        submitRollingInterruptTurn(simulation.turns, consumed, descriptor, engine)
+      ) {
+        continue
+      }
       const activeActors =
         descriptor.mode === 'sequential' ? descriptor.actors.slice(0, 1) : descriptor.actors
       const actions = activeActors.map((actorId) =>
@@ -118,6 +124,7 @@ export function runEngineSimulation(
     simulation.setup.board,
     simulation.setup.players,
     simulation.setup.speechCharacterLimit,
+    simulation.setup.publicSpeechInterruptMode,
   )
   const events = canonicalizeSimulationEvents(engine.events, normalization)
   const actual: SimulationExpected = {
@@ -139,6 +146,57 @@ export function runEngineSimulation(
     failures,
     actual,
   })
+}
+
+function submitRollingInterruptTurn(
+  turns: readonly SimulationTurn[],
+  consumed: Set<number>,
+  descriptor: NonNullable<ReturnType<GameEngine['currentTurn']>>,
+  engine: GameEngine,
+): boolean {
+  if (descriptor.mode !== 'sequential' || descriptor.actionType !== 'speech') return false
+  const speakerId = descriptor.actors[0]
+  if (!speakerId) return false
+  const listeners = turns
+    .filter(
+      (turn) =>
+        !consumed.has(turn.completionOrder) &&
+        turn.kind === 'action' &&
+        turn.phaseId === descriptor.phaseId &&
+        turn.actionType === 'skill-trigger',
+    )
+    .sort((left, right) => left.completionOrder - right.completionOrder)
+  for (const pass of listeners.filter(
+    (turn) => turn.action?.type === 'skill-trigger' && turn.action.option === 'pass',
+  )) {
+    consumed.add(pass.completionOrder)
+  }
+  const interrupt = listeners.find(
+    (turn) => turn.action?.type === 'skill-trigger' && turn.action.option !== 'pass',
+  )
+  if (!interrupt?.action || interrupt.action.type !== 'skill-trigger') return false
+  const speaker = turns
+    .filter(
+      (turn) =>
+        !consumed.has(turn.completionOrder) &&
+        turn.kind === 'action' &&
+        turn.phaseId === descriptor.phaseId &&
+        turn.actionType === 'speech' &&
+        turn.playerId === speakerId,
+    )
+    .sort((left, right) => left.completionOrder - right.completionOrder)[0]
+  if (speaker?.status === 'completed' && speaker.completionOrder < interrupt.completionOrder) {
+    return false
+  }
+  if (speaker?.action) {
+    consumed.add(speaker.completionOrder)
+    engine.submit(speaker.action, { deferContinuation: true })
+  } else if (speaker) {
+    consumed.add(speaker.completionOrder)
+  }
+  consumed.add(interrupt.completionOrder)
+  engine.submit(interrupt.action)
+  return true
 }
 
 export function checkSimulationInvariants(

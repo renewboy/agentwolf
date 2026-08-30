@@ -568,6 +568,30 @@ describe('GameEngine', () => {
     expect(engine.state.night).toBe(2)
   })
 
+  it('accepts a declared interrupt from a living player outside the sequential actor turn', () => {
+    const engine = createManualEngine(noSheriffBoard)
+    engine.start()
+    playNight(engine, { wolfTargetId: null })
+    const speakerId = engine.activeActor()
+    if (!speakerId) throw new Error('Expected a day speaker')
+    const wolfId = actorsWithRole(engine, 'role-werewolf').find(
+      (playerId) => playerId !== speakerId,
+    )
+    if (!wolfId) throw new Error('Expected an off-turn Werewolf')
+
+    expect(engine.interruptAbilityIdsFor(wolfId)).toContain(v1AbilityIds.werewolfSelfDestruct)
+    engine.submit({
+      type: 'skill-trigger',
+      matchId: engine.state.matchId,
+      actorId: wolfId,
+      abilityId: v1AbilityIds.werewolfSelfDestruct,
+      targetId: null,
+    })
+
+    expect(engine.state.players.get(wolfId)?.alive).toBe(false)
+    expect(engine.events.some((event) => event.payload.type === 'day.interrupted')).toBe(true)
+  })
+
   it('continues to the next night after daytime exile last words', () => {
     const engine = createManualEngine(noSheriffBoard)
     const targetId = actorsWithRole(engine, 'role-villager')[0]!

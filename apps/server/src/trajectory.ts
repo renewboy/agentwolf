@@ -344,6 +344,10 @@ export class TrajectoryTurnRecorder {
     this.#finish('completed', stopReason, null)
   }
 
+  public cancel(stopReason = 'cancelled'): void {
+    this.#finish('cancelled', stopReason, null)
+  }
+
   public fail(error: unknown, status: Extract<TrajectoryTurnStatus, 'failed' | 'uncertain'>): void {
     const message = truncate(
       error instanceof Error ? error.message : String(error),

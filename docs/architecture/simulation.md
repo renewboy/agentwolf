@@ -88,8 +88,9 @@ capture 同时运行 trajectory audit，并把 audit issues、source reconstruct
 candidate 包含：
 
 - 规范化 setup 与逐 Seat Role/Character；
-- 每个 bootstrap/action Turn 的 phase、action type、mode、expected actors、event range、attempt、
+- 每个 bootstrap/action Turn 的 day、phase、action type、mode、expected actors、event range、attempt、
   completion order、fault 与 action；
+- Match 冻结的公开发言 interrupt 模式；
 - playback enable/resolve/disconnect controls；
 - 完整 canonical events 与 terminal checkpoint；
 - source status、cutoff、fingerprint 和 warnings。
@@ -167,6 +168,10 @@ engine runner 对 sequential phase 只取首 actor，对 parallel phase 要求�
 调整 completion/submit 顺序。orchestration runner 在临时数据目录建立 Agent/Profile 与 Match record，
 用 replay Session 通过真实 MCP mailbox 执行动作；结束后运行 trajectory audit 和 parallel Prompt
 barrier 检查。
+
+rolling capture 中,engine runner 按 Turn completion order 归并被中断的部分 speech 与 interrupt
+action；orchestration runner 让 cancelled replay Prompt 保持 active,直到生产 coordinator 发送
+supersede。两条路径必须产生相同的部分发言、死亡、阶段跳转与终局。
 
 ended fixture 的 variants 可以覆盖 recorded、parallel seat/reverse order、transient delivery、
 restart boundary 与 playback completed/skipped/disconnected。paused fixture 只声明适用的 variants。

@@ -540,7 +540,26 @@ describe('Fastify API', () => {
     const address = await server.app.listen({ host: '127.0.0.1', port: 0 })
     const matchId = MatchIdSchema.parse('match-mcp-001')
     const playerId = PlayerIdSchema.parse('player-1')
-    const token = server.matches.mailbox.issueToken(matchId, playerId)
+    const token = server.matches.mailbox.issueToken(matchId, playerId, [
+      {
+        abilityId: AbilityIdSchema.parse('ability-guard-protect'),
+        label: '守护',
+        description: '每夜守护一名存活玩家，也可以空守。',
+        actionTypes: ['night-action'],
+      },
+      {
+        abilityId: AbilityIdSchema.parse('ability-seer-inspect'),
+        label: '查验阵营',
+        description: '每夜查验一名其他存活玩家的阵营。',
+        actionTypes: ['night-action'],
+      },
+      {
+        abilityId: AbilityIdSchema.parse('ability-hunter-shot'),
+        label: '开枪',
+        description: '出局时带走一名其他存活玩家，也可以放弃。',
+        actionTypes: ['skill-trigger'],
+      },
+    ])
     expect((await server.app.inject({ method: 'GET', url: '/mcp' })).statusCode).toBe(401)
     expect(
       (
@@ -551,22 +570,42 @@ describe('Fastify API', () => {
         })
       ).statusCode,
     ).toBe(405)
+    const client = new Client({ name: 'agentwolf-test-client', version: '1.0.0' })
+    const transport = new StreamableHTTPClientTransport(new URL('/mcp', address), {
+      requestInit: { headers: { Authorization: `Bearer ${token}` } },
+    })
+    await client.connect(transport as never)
+    const initialTools = await client.listTools()
+    const initialNightSchema = JSON.stringify(
+      initialTools.tools.find((tool) => tool.name === 'submit_night_action')?.inputSchema,
+    )
+    const initialTriggerSchema = JSON.stringify(
+      initialTools.tools.find((tool) => tool.name === 'trigger_skill')?.inputSchema,
+    )
+    expect(initialNightSchema).toContain('"const":"ability-guard-protect"')
+    expect(initialNightSchema).toContain('守护：每夜守护一名存活玩家，也可以空守。')
+    expect(initialNightSchema).toContain('"const":"ability-seer-inspect"')
+    expect(initialNightSchema).toContain('查验阵营：每夜查验一名其他存活玩家的阵营。')
+    expect(initialTriggerSchema).toContain('"const":"ability-hunter-shot"')
+    expect(initialTriggerSchema).toContain('开枪：出局时带走一名其他存活玩家，也可以放弃。')
     server.matches.mailbox.expect({
       matchId,
       playerId,
       actionType: 'night-action',
+      allowedAbilityIds: [AbilityIdSchema.parse('ability-witch-poison')],
+      abilityContracts: [
+        {
+          abilityId: AbilityIdSchema.parse('ability-witch-poison'),
+          label: '毒药',
+          description: '使一名你以外的其他存活玩家死亡；毒药整局只能使用一次。',
+        },
+      ],
       validate: (action) => {
         if (action.type === 'night-action' && action.option !== 'pass') {
           throw new Error('Poison has already been used')
         }
       },
     })
-
-    const client = new Client({ name: 'agentwolf-test-client', version: '1.0.0' })
-    const transport = new StreamableHTTPClientTransport(new URL('/mcp', address), {
-      requestInit: { headers: { Authorization: `Bearer ${token}` } },
-    })
-    await client.connect(transport as never)
     const tools = await client.listTools()
     expect(tools.tools.map((tool) => tool.name)).toEqual([
       'submit_speech',
@@ -574,11 +613,35 @@ describe('Fastify API', () => {
       'submit_night_action',
       'submit_sheriff_action',
       'trigger_skill',
+      'pass_skill',
       'submit_postgame_review',
     ])
     const voteTool = tools.tools.find((tool) => tool.name === 'submit_vote')
+    const nightTool = tools.tools.find((tool) => tool.name === 'submit_night_action')
+    const sheriffTool = tools.tools.find((tool) => tool.name === 'submit_sheriff_action')
+    const triggerSkillTool = tools.tools.find((tool) => tool.name === 'trigger_skill')
+    const passSkillTool = tools.tools.find((tool) => tool.name === 'pass_skill')
+    const postgameTool = tools.tools.find((tool) => tool.name === 'submit_postgame_review')
+    if (!nightTool || !sheriffTool || !triggerSkillTool || !passSkillTool || !postgameTool) {
+      throw new Error('Missing AgentWolf MCP tools')
+    }
     expect(voteTool?.description).toContain('狼人袭击阶段表示空刀')
     expect(JSON.stringify(voteTool?.inputSchema)).toContain('狼人袭击阶段的 null 表示空刀')
+    expect(JSON.stringify(nightTool.inputSchema)).toContain('"const":"ability-witch-poison"')
+    expect(JSON.stringify(nightTool.inputSchema)).toContain(
+      '毒药：使一名你以外的其他存活玩家死亡；毒药整局只能使用一次。',
+    )
+    expect(JSON.stringify(nightTool.inputSchema)).toContain('确切数量')
+    expect(JSON.stringify(sheriffTool.inputSchema)).toContain('仅 transfer 需要')
+    expect(triggerSkillTool.inputSchema).toMatchObject({
+      required: expect.arrayContaining(['abilityId']),
+    })
+    expect((triggerSkillTool.inputSchema as { required?: string[] }).required).not.toContain(
+      'targetPlayerId',
+    )
+    expect(JSON.stringify(triggerSkillTool.inputSchema)).not.toContain('"use"')
+    expect(passSkillTool.inputSchema).toMatchObject({ properties: {} })
+    expect(JSON.stringify(postgameTool.inputSchema)).toContain('每名玩家恰好一条评分')
     const rejectedPoison = await client.callTool({
       name: 'submit_night_action',
       arguments: {
@@ -631,7 +694,18 @@ describe('Fastify API', () => {
       targetId: null,
     })
 
-    server.matches.mailbox.expect({ matchId, playerId, actionType: 'sheriff-action' })
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'sheriff-action',
+      allowedSheriffActions: ['transfer'],
+    })
+    const sheriffTools = await client.listTools()
+    expect(
+      JSON.stringify(
+        sheriffTools.tools.find((tool) => tool.name === 'submit_sheriff_action')?.inputSchema,
+      ),
+    ).toContain('"const":"transfer"')
     const badgeTransfer = await client.callTool({
       name: 'submit_sheriff_action',
       arguments: { action: 'transfer', targetPlayerId: 'player-2' },
@@ -649,14 +723,66 @@ describe('Fastify API', () => {
       actionType: 'skill-trigger',
       allowedAbilityIds: [AbilityIdSchema.parse('ability-hunter-shot')],
     })
+    const triggerTools = await client.listTools()
+    expect(
+      JSON.stringify(triggerTools.tools.find((tool) => tool.name === 'trigger_skill')?.inputSchema),
+    ).toContain('"const":"ability-hunter-shot"')
     const triggered = await client.callTool({
       name: 'trigger_skill',
-      arguments: { abilityId: 'ability-hunter-shot', targetPlayerId: null },
+      arguments: {
+        abilityId: 'ability-hunter-shot',
+        targetPlayerId: 'player-2',
+      },
     })
     expect(triggered.isError).not.toBe(true)
     expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
       type: 'skill-trigger',
       abilityId: 'ability-hunter-shot',
+      targetId: 'player-2',
+    })
+
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'skill-trigger',
+      allowedAbilityIds: [AbilityIdSchema.parse('ability-werewolf-self-destruct')],
+    })
+    const noTargetTrigger = await client.callTool({
+      name: 'trigger_skill',
+      arguments: { abilityId: 'ability-werewolf-self-destruct' },
+    })
+    expect(noTargetTrigger.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'skill-trigger',
+      abilityId: 'ability-werewolf-self-destruct',
+      targetId: null,
+    })
+
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'skill-trigger',
+      allowedAbilityIds: [AbilityIdSchema.parse('ability-hunter-shot')],
+    })
+    const rejectedDecline = await client.callTool({ name: 'pass_skill', arguments: {} })
+    expect(rejectedDecline.isError).toBe(true)
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'skill-trigger',
+      allowedAbilityIds: [AbilityIdSchema.parse('ability-hunter-shot')],
+      passAllowed: true,
+    })
+    const declinedTrigger = await client.callTool({
+      name: 'pass_skill',
+      arguments: {},
+    })
+    expect(declinedTrigger.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'skill-trigger',
+      abilityId: 'ability-hunter-shot',
+      targetId: null,
+      option: 'pass',
     })
 
     server.matches.mailbox.expect({
@@ -675,6 +801,19 @@ describe('Fastify API', () => {
     )
     expect(server.matches.mailbox.take(matchId, playerId)).toBeNull()
     await client.close()
+
+    const emptyToken = server.matches.mailbox.issueToken(matchId, PlayerIdSchema.parse('player-2'))
+    const emptyClient = new Client({ name: 'agentwolf-empty-schema-client', version: '1.0.0' })
+    await emptyClient.connect(
+      new StreamableHTTPClientTransport(new URL('/mcp', address), {
+        requestInit: { headers: { Authorization: `Bearer ${emptyToken}` } },
+      }) as never,
+    )
+    const emptyTools = await emptyClient.listTools()
+    expect(
+      emptyTools.tools.find((tool) => tool.name === 'submit_night_action')?.inputSchema,
+    ).toMatchObject({ properties: { abilityId: { type: 'string' } } })
+    await emptyClient.close()
   })
 
   it('creates editable custom boards while keeping presets and match snapshots immutable', async () => {
@@ -902,6 +1041,7 @@ describe('Fastify API', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     const normal = await buildServer({ config: baseConfig })
     servers.push(normal)
@@ -977,5 +1117,6 @@ function testConfig(
     projectRoot: process.cwd(),
     webDistPath,
     developerMode,
+    publicSpeechInterruptMode: 'legacy',
   }
 }

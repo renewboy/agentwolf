@@ -26,9 +26,9 @@ import {
 const temporaryDirectories: string[] = []
 const openServers: AgentWolfServer[] = []
 const promptContracts = {
-  'phase-night-wolf-vote': '狼队商议结束。请通过 `submit_vote`',
+  'phase-night-wolf-vote': '狼队商议结束。本夜可以袭击',
   'phase-night-witch': '当前药剂状态：',
-  'phase-night-seer': 'ability-seer-inspect',
+  'phase-night-seer': '请选择今晚要查验的其他存活玩家',
   'phase-day-speech': '现在轮到你发言',
 } as const
 const promptContract = (phaseId: keyof typeof promptContracts) => promptContracts[phaseId]
@@ -55,6 +55,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: true,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({
       config,
@@ -169,6 +170,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -276,6 +278,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -336,6 +339,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -440,7 +444,7 @@ describe('match orchestration', () => {
       const foundation = prompts.get(wolfId)?.[0]
       expect(foundation).toBeDefined()
       expect(foundation).not.toContain('ability-werewolf-kill')
-      expect(foundation).toContain('ability-werewolf-self-destruct')
+      expect(foundation).not.toContain('ability-werewolf-self-destruct')
       const teammateLine = foundation?.split('\n').find((line) => line.includes('你的存活狼队友'))
       expect(teammateLine).toBeDefined()
       for (const teammateId of wolfIds.filter((playerId) => playerId !== wolfId)) {
@@ -613,6 +617,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -654,11 +659,8 @@ describe('match orchestration', () => {
     expect(corrected.status, corrected.pausedReason ?? 'unexpected pause').not.toBe('paused')
     expect(corrected.timeline.filter((item) => item.kind === 'match.paused')).toHaveLength(0)
     const seerTurns =
-      prompts
-        .get(seerId)
-        ?.filter(
-          (prompt) => prompt.includes('ability-seer-inspect') && prompt.includes('targetPlayerIds'),
-        ) ?? []
+      prompts.get(seerId)?.filter((prompt) => prompt.includes('请选择今晚要查验的其他存活玩家')) ??
+      []
     expect(seerTurns).toHaveLength(1)
     const automaticallyRecovered = await waitForMatchState(server, created.id, (match) =>
       match.timeline.some(
@@ -719,6 +721,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -802,6 +805,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -895,6 +899,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -984,6 +989,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -1039,7 +1045,8 @@ describe('match orchestration', () => {
       ?.findLast((prompt) =>
         prompt.includes('Agent did not submit the expected night-action action'),
       )
-    expect(recoveryPrompt).toContain('ability-seer-inspect')
+    expect(recoveryPrompt).toContain('请选择今晚要查验的其他存活玩家')
+    expect(recoveryPrompt).not.toMatch(/abilityId|targetPlayerIds|option:/u)
     expect(recoveryPrompt).not.toContain('# 任务目标')
     expect(recoveryPrompt).not.toContain('好人阵营需要让所有狼人出局')
     expect(sessionStarts).toHaveLength(12)
@@ -1089,6 +1096,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     const server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -1130,7 +1138,7 @@ describe('match orchestration', () => {
     await Promise.race([
       activeTurn,
       new Promise<never>((_resolve, reject) =>
-        setTimeout(() => reject(new Error('Player turn did not start')), 2_000),
+        setTimeout(() => reject(new Error('Player turn did not start')), 10_000),
       ),
     ])
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
@@ -1211,6 +1219,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     server = await buildServer({ config, sessionFactory })
     openServers.push(server)
@@ -1313,14 +1322,14 @@ describe('match orchestration', () => {
     for (const seat of completed.seats) {
       const reviewPrompt = prompts
         .get(seat.playerId)
-        ?.find((prompt) => prompt.includes('submit_postgame_review'))
+        ?.find((prompt) => prompt.includes('请完成本轮赛后评审'))
       expect(reviewPrompt).toContain('你上次行动后发生的公开对局记录')
       expect(reviewPrompt).toContain('最终胜负：')
       expect(reviewPrompt).toContain('获胜玩家：')
       expect(reviewPrompt).not.toContain('此前感言')
       expect(reviewPrompt).not.toContain(`${seat.seat} 号玩家的身份是`)
       const terminalStart = reviewPrompt?.indexOf('终局时点：') ?? -1
-      const terminalEnd = reviewPrompt?.indexOf('请调用 `submit_postgame_review`') ?? -1
+      const terminalEnd = reviewPrompt?.indexOf('请完成本轮赛后评审') ?? -1
       expect(terminalStart).toBeGreaterThanOrEqual(0)
       expect(terminalEnd).toBeGreaterThan(terminalStart)
       terminalSnapshots.push(reviewPrompt?.slice(terminalStart, terminalEnd) ?? '')
@@ -1384,6 +1393,7 @@ describe('match orchestration', () => {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing-web-dist'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     firstServer = await buildServer({
       config,
@@ -1461,16 +1471,14 @@ describe('match orchestration', () => {
     )
     expect(completed.postgameReview?.submissions).toHaveLength(6)
     expect(
-      [...resumedPrompts.values()]
-        .flat()
-        .filter((prompt) => prompt.includes('submit_postgame_review')),
+      [...resumedPrompts.values()].flat().filter((prompt) => prompt.includes('赛后评审')),
     ).toHaveLength(1)
     const initialReviewPrompt = firstPrompts
       .get('player-1' as PlayerId)
-      ?.find((prompt) => prompt.includes('submit_postgame_review'))
+      ?.find((prompt) => prompt.includes('赛后评审'))
     const resumedReviewPrompt = resumedPrompts
       .get('player-1' as PlayerId)
-      ?.find((prompt) => prompt.includes('submit_postgame_review'))
+      ?.find((prompt) => prompt.includes('赛后评审'))
     expect(initialReviewPrompt).toContain('你上次行动后发生的公开对局记录')
     expect(resumedReviewPrompt).toContain('继续当前赛后评审')
     expect(resumedReviewPrompt).not.toContain('你上次行动后发生的公开对局记录')

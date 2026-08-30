@@ -134,6 +134,7 @@ export class MatchManager {
         roleAssignment: request.roleAssignment,
         seats: snapshotSeats,
         speechCharacterLimit: settings.speechCharacterLimit,
+        publicSpeechInterruptMode: this.#options.config.publicSpeechInterruptMode,
       },
       createdAt: timestamp,
       updatedAt: timestamp,

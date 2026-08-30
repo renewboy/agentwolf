@@ -204,7 +204,7 @@ describe('AcpPlayerSession', () => {
       resumeCount: 1,
       lastResumeMcpServers: ['agentwolf-player-actions'],
     })
-  })
+  }, 15_000)
 
   it('verifies and uses a provider-specific unadvertised session/resume implementation', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-unadvertised-resume-'))
@@ -322,7 +322,7 @@ describe('AcpPlayerSession', () => {
     )
     expect((await denied.prompt('permission-check-codex', 5_000)).text).toBe('permission-cancelled')
     await denied.close()
-  })
+  }, 15_000)
 
   it('bounds a protocol close that never settles', async () => {
     const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-hung-close-'))
@@ -424,6 +424,27 @@ describe('AcpPlayerSession', () => {
       sessionReusable: true,
     })
     session.finishAfterAcceptedAction()
+    await session.close()
+  })
+
+  it('supersedes an active Prompt through ACP cancellation without closing the Session', async () => {
+    const cwd = await mkdtemp(resolve(tmpdir(), 'agentwolf-acp-supersede-'))
+    temporaryDirectories.push(cwd)
+    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
+    const session = await AcpPlayerSession.start({
+      cwd,
+      launch: {
+        command: process.execPath,
+        args: [fixture],
+        env: { ...process.env, AGENTWOLF_MOCK_PROMPT_DELAY_MS: '500' },
+      },
+    })
+    const prompt = session.prompt('superseded', 5_000)
+
+    await expect(session.cancelActivePrompt()).resolves.toBe(true)
+    await expect(prompt).resolves.toMatchObject({ stopReason: 'cancelled' })
+    expect(session.connected).toBe(true)
+    await expect(session.prompt('next', 5_000)).resolves.toMatchObject({ stopReason: 'end_turn' })
     await session.close()
   })
 

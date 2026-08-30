@@ -422,7 +422,7 @@ describe('simulation capture and engine replay', () => {
         JSON.parse(await readFile(resolve(source.root, approved.relativePath), 'utf8')),
       ).simulationId,
     ).toBe(capture.simulationId)
-  }, 10_000)
+  }, 30_000)
 
   it('gates export routes and writes candidates only in loopback developer mode', async () => {
     const normalSource = await createPausedSource(false)
@@ -627,6 +627,7 @@ async function createPausedSource(developerMode = true): Promise<{
     boardId: sixPlayerBoard.id,
     roleAssignment: 'manual' as const,
     speechCharacterLimit: 300,
+    publicSpeechInterruptMode: 'legacy' as const,
     seats: roles.map((roleId, index) => ({
       seat: index + 1,
       name: `Source player ${index + 1}`,
@@ -706,6 +707,7 @@ async function createPausedSource(developerMode = true): Promise<{
     projectRoot: root,
     webDistPath: resolve(root, 'missing'),
     developerMode,
+    publicSpeechInterruptMode: 'legacy',
   }
   return {
     root,

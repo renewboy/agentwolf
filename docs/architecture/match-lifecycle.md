@@ -31,6 +31,7 @@ Match 生命周期需要保证：
 | board           | Board catalog       | Role 构成、人数、Sheriff、胜负政策和逐 Seat 默认 Profile/Character | 解析为 schema-two board snapshot 与 GameEngine manifest       |
 | Character       | Character catalog   | 公开名称、头像、traits、style、boundaries 与 opening               | 逐 Seat 保存不可变 Character snapshot                         |
 | global settings | settings repository | 发言字符上限                                                       | 复制到 Match setup snapshot                                   |
+| server rollout  | server config       | 公开发言 interrupt 的新 Match 默认模式                             | 复制到 Match setup snapshot                                   |
 
 内置 Tool/board/Character 来自代码或 assets，自定义项来自 SQLite。Profile 保持显式排序，作为 Seat
 没有任何 Profile 选择时的稳定 fallback。被 board 或其他目录记录引用的 Profile/Character 受到
@@ -72,7 +73,8 @@ flowchart TD
 3. Character 按“请求显式值（可为 null）→ board Seat 默认值 → null”解析，并立即转成 snapshot；
 4. manual Role assignment 必须与 board Role multiset 相符；random assignment 使用 Match 稳定 seed；
 5. board summary 转为 snapshot，写入 Ruleset ID/版本、plugin lock/config hash、fingerprint、政策与修订；
-6. Match setup 写入逐 Seat 名称、Profile ID、可选 manual Role、Character snapshot 和发言上限；
+6. Match setup 写入逐 Seat 名称、Profile ID、可选 manual Role、Character snapshot、发言上限和公开
+   发言 interrupt 模式；
 7. GameEngine 产生初始事件，repository 在创建 Match record 的同一事务中保存它们；
 8. MatchManager 创建 trajectory recorder 与 MatchRuntime，并把 runtime 置入活跃表。
 
@@ -85,8 +87,9 @@ Match 使用两份互补快照：
 
 - **board snapshot** 固定 Ruleset lock、Role 构成、人数、Sheriff、政策、目录来源、修订和 board 默认
   配置；恢复时先解析 fingerprint，再重建 `BoardManifest`。
-- **setup snapshot** 固定实际逐 Seat 选择和 Match 级发言上限；它保存 Character card 内容，但只
-  保存 Profile ID。首次建立 Player Session binding 时，选中的 Profile/Tool 全量配置被进一步冻结。
+- **setup snapshot** 固定实际逐 Seat 选择、Match 级发言上限和公开发言 interrupt 模式；它保存
+  Character card 内容，但只保存 Profile ID。首次建立 Player Session binding 时，选中的
+  Profile/Tool 全量配置被进一步冻结。
 
 目录编辑只影响后续创建。恢复既有 Match 时，MatchManager 不重新解析当前 board/Profile/Character
 默认值；它使用 record snapshot、Session binding 和事件日志。Character 数据位于事件日志之外，
@@ -252,6 +255,7 @@ Agent Tools/Profiles、自定义 boards、Characters、共享玩家 Skill 输出
 - 新 lifecycle action 由 MatchManager/MatchRuntime 组合，不在 Web 或 GameEngine 建立平行状态机。
 - Character 永远只影响公开呈现和表达；Profile/Tool 只影响 Agent 运行配置。
 - board snapshot、setup snapshot、Session binding 和 append-only events 共同构成恢复依据。
+- server 启动配置只决定新 Match 默认值；恢复始终使用 setup snapshot 中冻结的 interrupt 模式。
 - postgame 数据与 game events 分离，不能改变 GameEngine replay 或 simulation 终局 oracle。
 - 删除必须先关闭运行对象，再清理精确 Match 持有的数据库与 workspace。
 

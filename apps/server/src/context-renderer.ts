@@ -1,4 +1,5 @@
 import type {
+  AbilityId,
   CharacterCardSnapshot,
   GameEvent,
   PhaseId,
@@ -42,6 +43,10 @@ export class ContextRenderer {
   public constructor(ruleset: RulesetRuntime) {
     this.#ruleset = ruleset
     this.#prompts = promptRegistryFor(ruleset)
+  }
+
+  public abilityContracts(abilityIds: readonly AbilityId[]) {
+    return [...new Set(abilityIds)].map((abilityId) => this.#prompts.abilityContract(abilityId))
   }
 
   public async foundation(
@@ -108,7 +113,52 @@ export class ContextRenderer {
           allowedAbilityIds: (turn.allowedAbilityIds ?? []).filter(canUse),
           passAllowed: turn.passAllowed ?? true,
           interruptAbilityIds: (turn.interruptAbilityIds ?? []).filter(canUse),
+          interruptWindow: false,
           sheriffActions: [...(turn.sheriffActions ?? [])],
+        },
+        speechCharacterLimit,
+        continuation,
+      }),
+      toSequence: state.lastSequence,
+      visibleEvents: projected,
+      gameStatus: state.status,
+      pausedReason: state.pausedReason,
+      continuation,
+    }
+  }
+
+  public async interruptTurn(
+    state: GameState,
+    board: BoardManifest,
+    events: readonly GameEvent[],
+    playerId: PlayerId,
+    afterSequence: number,
+    turn: TurnDescriptor,
+    interruptAbilityIds: readonly NonNullable<TurnDescriptor['interruptAbilityIds']>[number][],
+    speechCharacterLimit: number,
+    continuation = false,
+  ): Promise<ContextEnvelope> {
+    const player = state.players.get(playerId)
+    if (!player?.roleId || !player.faction) throw new Error(`Player ${playerId} has no role`)
+    const projected = visibleEvents(events, { kind: 'player', playerId }, state, afterSequence)
+    const allowed = interruptAbilityIds.filter((abilityId) =>
+      this.#ruleset.roles.canUseAbility(player, abilityId),
+    )
+    return {
+      prompt: this.#prompts.renderTurn({
+        actor: actorFact(player),
+        roster: rosterFacts(state, events, { kind: 'player', playerId }),
+        board: boardFacts(board, this.#ruleset, this.#prompts, state, events),
+        game: gameFacts(state),
+        events: [...projected],
+        turn: {
+          phaseId: turn.phaseId,
+          actionType: 'skill-trigger',
+          allowedAbilityIds: allowed,
+          passAllowed: true,
+          interruptAbilityIds: allowed,
+          interruptWindow: true,
+          sheriffActions: [],
         },
         speechCharacterLimit,
         continuation,

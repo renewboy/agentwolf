@@ -26,4 +26,16 @@ describe('direct speech response', () => {
     expect(streamed.join('')).toBe('我先给出今天的归票意见。')
     expect(response.diagnostic).not.toBeNull()
   })
+
+  it('discards the retained boundary tail when an active speech is superseded', () => {
+    const streamed: string[] = []
+    const response = new DirectSpeechResponse((chunk) => streamed.push(chunk))
+
+    response.push('A'.repeat(80))
+
+    expect(streamed.join('')).toBe('A'.repeat(32))
+    expect(response.cancel()).toBe('A'.repeat(32))
+    expect(response.finish('ignored aggregate response')).toBe('A'.repeat(32))
+    expect(streamed.join('')).toBe('A'.repeat(32))
+  })
 })

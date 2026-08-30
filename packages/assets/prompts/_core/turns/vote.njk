@@ -1,4 +1,5 @@
 {% include "_core/turns/context.njk" %}
-请通过 `submit_vote` 工具登记本轮投票。投票给玩家时使用该玩家的 Player ID；弃票时将 `targetPlayerId` 设为 `null`。工具返回接受回执后结束本回合，不要用文字代替工具提交。
+请做出本轮投票决定。
 {% for instruction in interruptInstructions %}{{ instruction }}
 {% endfor %}
+{% include "_core/turns/action-submit.njk" %}

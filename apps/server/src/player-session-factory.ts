@@ -17,6 +17,7 @@ export interface PlayerSession {
   readonly sessionId: string
   readonly connected: boolean
   finishAfterAcceptedAction(): void
+  cancelActivePrompt?(): Promise<boolean>
   prompt(
     prompt: string,
     timeoutMs: number,

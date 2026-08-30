@@ -64,6 +64,7 @@ const server = await buildServer({
     projectRoot: process.cwd(),
     webDistPath: resolve(root, 'missing-web'),
     developerMode: false,
+    publicSpeechInterruptMode: 'legacy',
   },
 })
 let session: AcpPlayerSession | null = null

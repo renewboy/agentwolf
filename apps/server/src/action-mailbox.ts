@@ -9,10 +9,12 @@ import {
   type ActionReceipt,
   type AbilityId,
   type MatchId,
+  type PhaseId,
   type PlayerAction,
   type PlayerId,
   type PostgameReviewSubmission,
   type PostgameReviewSubmissionInput,
+  type SheriffActionKind,
 } from '@agentwolf/contracts'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
 
@@ -22,13 +24,30 @@ export interface ActionExpectation {
   readonly matchId: MatchId
   readonly playerId: PlayerId
   readonly actionType: PlayerAction['type']
+  readonly phaseId?: PhaseId
+  readonly day?: number
+  readonly toSequence?: number
   readonly speechKind?: Extract<PlayerAction, { type: 'speech' }>['kind']
   readonly voteKind?: Extract<PlayerAction, { type: 'vote' }>['kind']
   readonly validate?: (action: PlayerAction) => void
   readonly onAccepted?: (action: PlayerAction) => void
   readonly allowedAbilityIds?: readonly AbilityId[]
   readonly interruptAbilityIds?: readonly AbilityId[]
+  readonly abilityContracts?: readonly {
+    readonly abilityId: AbilityId
+    readonly label: string
+    readonly description: string
+  }[]
+  readonly allowedSheriffActions?: readonly SheriffActionKind[]
+  readonly passAllowed?: boolean
   readonly allowSpeechTool?: boolean
+}
+
+export interface PlayerAbilityToolContract {
+  readonly abilityId: AbilityId
+  readonly label: string
+  readonly description: string
+  readonly actionTypes: readonly PlayerAction['type'][]
 }
 
 export interface PostgameReviewExpectation {
@@ -41,6 +60,7 @@ export interface PostgameReviewExpectation {
 interface PlayerBinding {
   readonly matchId: MatchId
   readonly playerId: PlayerId
+  readonly abilityContracts: readonly PlayerAbilityToolContract[]
 }
 
 export class ActionMailbox {
@@ -50,9 +70,20 @@ export class ActionMailbox {
   readonly #reviewExpectations = new Map<string, PostgameReviewExpectation>()
   readonly #reviews = new Map<string, PostgameReviewSubmission>()
 
-  public issueToken(matchId: MatchId, playerId: PlayerId): string {
+  public issueToken(
+    matchId: MatchId,
+    playerId: PlayerId,
+    abilityContracts: readonly PlayerAbilityToolContract[] = [],
+  ): string {
     const token = randomBytes(32).toString('base64url')
-    this.#bindings.set(token, { matchId, playerId })
+    this.#bindings.set(token, {
+      matchId,
+      playerId,
+      abilityContracts: abilityContracts.map((contract) => ({
+        ...contract,
+        actionTypes: [...contract.actionTypes],
+      })),
+    })
     return token
   }
 
@@ -73,6 +104,10 @@ export class ActionMailbox {
     const key = this.#key(expectation.matchId, expectation.playerId)
     this.#expectations.set(key, expectation)
     this.#actions.delete(key)
+  }
+
+  public peekExpectation(matchId: MatchId, playerId: PlayerId): ActionExpectation | null {
+    return this.#expectations.get(this.#key(matchId, playerId)) ?? null
   }
 
   public expectPostgameReview(expectation: PostgameReviewExpectation): void {
@@ -159,8 +194,7 @@ export class ActionMailbox {
   public submitSkillTrigger(
     token: string,
     abilityId: string,
-    targetPlayerId: string | null,
-    option?: string,
+    targetPlayerId?: string,
   ): ActionReceipt {
     const expectation = this.#expectation(token, 'skill-trigger')
     const parsedAbilityId = AbilityIdSchema.parse(abilityId)
@@ -180,8 +214,29 @@ export class ActionMailbox {
         matchId: expectation.matchId,
         actorId: expectation.playerId,
         abilityId: parsedAbilityId,
-        targetId: targetPlayerId === null ? null : PlayerIdSchema.parse(targetPlayerId),
-        ...(option ? { option } : {}),
+        targetId: targetPlayerId === undefined ? null : PlayerIdSchema.parse(targetPlayerId),
+      }),
+    )
+  }
+
+  public submitSkillPass(token: string): ActionReceipt {
+    const expectation = this.#expectation(token, 'skill-trigger')
+    if (expectation.passAllowed !== true) throw new Error('The current skill cannot be declined')
+    const allowed =
+      expectation.actionType === 'skill-trigger'
+        ? expectation.allowedAbilityIds
+        : expectation.interruptAbilityIds
+    const abilityId = [...(allowed ?? [])].sort()[0]
+    if (!abilityId) throw new Error('No skill is available to decline')
+    return this.#accept(
+      expectation,
+      PlayerActionSchema.parse({
+        type: 'skill-trigger',
+        matchId: expectation.matchId,
+        actorId: expectation.playerId,
+        abilityId,
+        targetId: null,
+        option: 'pass',
       }),
     )
   }

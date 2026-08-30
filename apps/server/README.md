@@ -40,6 +40,12 @@ contracts,模型/UI 呈现留在 assets。
 数据库变更包含前向迁移与迁移覆盖。运行时恢复从 events 重建引擎并恢复已持久化的 Session ID;它
 从不发明替代的 Match 状态。
 
+## 启动配置
+
+`AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE` 接受 `legacy` 或 `rolling`,默认 `legacy`。该值只作为
+新 Match 默认值并写入 setup snapshot;恢复使用冻结值。A/B 实例使用相同代码时分别配置该变量,
+并继续通过独立的端口、公开 URL、数据目录与数据库隔离运行状态。
+
 ## 验证
 
 单元/集成测试使用内存 repository 与假 ACP 进程,除非测试明确位于 `tests/live` 下。路由字段获得

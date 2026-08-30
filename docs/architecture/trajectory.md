@@ -146,6 +146,7 @@ flowchart TD
 - completed Turn 缺少对应 acknowledgement；
 - 保存的 visible sequences 与 player/closed-eye projection 不一致；
 - action Turn 的 owner 或 action type 不属于该 action boundary；
+- 后台 `skill-trigger` Turn 的 owner 不具备当前 Phase 声明的 interrupt capability；
 - event replay 失败；
 - foundation Provider usage 超过 12,000 token 预算。
 
@@ -169,6 +170,8 @@ postgame Turn 使用 closed-eye 公共历史检查可见性，game-only bootstra
 - message delta 按协议顺序追加，tool 状态按 tool-call ID 合并。
 - summary/page/delta/player debug 共享同一持久数据，但各自保持有界读取。
 - 历史 Prompt 审计使用发送时记录，不由当前模板重渲染。
+- superseded listener 以 cancelled Turn 保留其实际 Prompt 与 event range,不会伪装成失败或权威
+  phase actor。
 
 ## 深入阅读
 

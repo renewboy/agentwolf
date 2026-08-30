@@ -63,7 +63,8 @@ describe('plugin-owned Prompt rendering', () => {
       300,
     )
     expect(turn.passAllowed).toBe(false)
-    expect(turnPrompt.prompt).toContain(cupidAbilityIds.link)
+    expect(turnPrompt.prompt).not.toContain(cupidAbilityIds.link)
+    expect(turnPrompt.prompt).toContain('现在必须使用爱之箭')
     expect(turnPrompt.prompt).toContain('本阶段不能放弃')
 
     setup.engine.submit({
@@ -179,7 +180,17 @@ describe('plugin-owned Prompt rendering', () => {
 
     expect(rendered.prompt).not.toContain('阶段切换为')
     expect(rendered.prompt).not.toContain('守卫行动')
-    expect(rendered.prompt).toContain('submit_night_action')
+    expect(rendered.prompt).toContain('请选择需要守护的目标，或空守')
+    expect(rendered.prompt).toContain('请调用 `submit_night_action` 提交本轮唯一一次行动')
+    expect(rendered.prompt).toContain('不要输出发言')
+    expect(rendered.prompt).not.toMatch(/abilityId|targetPlayerIds|option:/u)
+    expect(setup.renderer.abilityContracts([v1AbilityIds.guardProtect])).toEqual([
+      {
+        abilityId: v1AbilityIds.guardProtect,
+        label: '守护',
+        description: '每夜守护一名存活玩家，可以选择自己；不能连续两晚守护同一名玩家，也可以空守。',
+      },
+    ])
     expect(setup.engine.state.phaseLabelKey).toBe('phases.nightGuard')
   })
 
@@ -353,10 +364,29 @@ describe('plugin-owned Prompt rendering', () => {
     expect(wolfFoundation.prompt).toContain(`你的存活狼队友：${secondWolf!.seat} 号玩家`)
     expect(wolfFoundation.prompt).not.toContain(`存活狼队友：${firstWolf!.seat} 号玩家`)
     expect(wolfFoundation.prompt).not.toContain(v1AbilityIds.werewolfKill)
-    expect(wolfFoundation.prompt).toContain(v1AbilityIds.werewolfSelfDestruct)
+    expect(wolfFoundation.prompt).not.toContain(v1AbilityIds.werewolfSelfDestruct)
     expect(wolfFoundation.visibleEvents.map((event) => event.payload.type)).toContain(
       'faction.members',
     )
+
+    const speechTurn = await setup.renderer.turn(
+      {
+        ...setup.engine.state,
+        status: 'running',
+        phaseId: PhaseIdSchema.parse('phase-day-speech'),
+      },
+      sixPlayerBoard,
+      setup.engine.events,
+      firstWolf!.id,
+      setup.engine.state.lastSequence,
+      {
+        ...daySpeechTurn(firstWolf!.id),
+        interruptAbilityIds: [v1AbilityIds.werewolfSelfDestruct],
+      },
+      300,
+    )
+    expect(speechTurn.prompt).toContain('若选择立即自爆，请调用 `trigger_skill`')
+    expect(speechTurn.prompt).not.toMatch(/targetPlayerId|abilityId|option:/u)
 
     const villagerFoundation = await setup.renderer.foundation(
       setup.engine.state,
@@ -365,6 +395,55 @@ describe('plugin-owned Prompt rendering', () => {
       setup.engine.events,
     )
     expect(villagerFoundation.prompt).not.toContain('你的存活狼队友：')
+  })
+
+  it('renders a listener interrupt as an incremental decision over newly committed speech', async () => {
+    const setup = createBoardEngine(sixPlayerBoard)
+    const wolf = setup.players.find((player) => player.roleId === 'role-werewolf')!
+    const speaker = setup.players.find((player) => player.roleId === 'role-villager')!
+    const speech = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: setup.engine.state.lastSequence + 1,
+      occurredAt: '2026-08-30T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'speech.committed',
+        playerId: speaker.id,
+        kind: 'day',
+        text: '这是本次新增的公开发言。',
+        sanitized: false,
+      },
+    })
+    const state: GameState = {
+      ...withEvent(setup.engine.state, speech),
+      status: 'running',
+      phaseId: PhaseIdSchema.parse('phase-day-speech'),
+    }
+    const rendered = await setup.renderer.interruptTurn(
+      state,
+      sixPlayerBoard,
+      [speech],
+      wolf.id,
+      speech.sequence - 1,
+      daySpeechTurn(speaker.id),
+      [v1AbilityIds.werewolfSelfDestruct],
+      300,
+    )
+
+    expect(rendered.prompt).toContain('这是本次新增的公开发言。')
+    expect(rendered.prompt).toContain('你正在旁听公开发言')
+    expect(rendered.prompt).toContain('请选择立即自爆，或继续旁听')
+    expect(rendered.prompt).toContain('调用 `trigger_skill` 发动技能')
+    expect(rendered.prompt).toContain('调用 `pass_skill` 明确放弃')
+    expect(rendered.prompt).toContain('不要输出发言')
+    expect(rendered.prompt).not.toContain(v1AbilityIds.werewolfSelfDestruct)
+    expect(rendered.prompt).not.toMatch(/targetPlayerId|abilityId|option: pass/u)
+    expect(rendered.prompt).not.toContain('当前公开存活玩家')
+    expect(rendered.prompt.indexOf('请决定是否发动')).toBeLessThan(
+      rendered.prompt.indexOf('这是本次新增的公开发言。'),
+    )
+    expect(rendered.prompt).not.toContain('现在轮到你发言')
+    expect(rendered.prompt).not.toContain('# 任务目标')
   })
 
   it('requires a foundation source history that covers the delivery cursor', async () => {
@@ -400,8 +479,8 @@ describe('plugin-owned Prompt rendering', () => {
     expect(available.prompt).not.toContain(target.id)
     expect(available.prompt).not.toContain(target.name)
     expect(available.prompt).toContain('毒药：可用')
-    expect(available.prompt).toContain('使用解药')
-    expect(available.prompt).toContain('使用毒药')
+    expect(available.prompt).toContain('请选择使用一项当前可用药剂')
+    expect(available.prompt).not.toMatch(/abilityId|targetPlayerIds|option:/u)
 
     const witchState = setup.engine.state.players.get(witch.id)!
     const spentPoisonState = {
@@ -424,8 +503,7 @@ describe('plugin-owned Prompt rendering', () => {
       300,
     )
     expect(spentPoison.prompt).toContain('毒药：已使用，本回合不可用')
-    expect(spentPoison.prompt).not.toContain('- 使用毒药')
-    expect(spentPoison.prompt).toContain('- 使用解药')
+    expect(spentPoison.prompt).toContain('解药：可用')
 
     const bothSpentState = {
       ...setup.engine.state,
@@ -451,7 +529,7 @@ describe('plugin-owned Prompt rendering', () => {
     )
     expect(bothSpent.prompt).toContain('解药：已使用，本回合不可用')
     expect(bothSpent.prompt).toContain('毒药：已使用，本回合不可用')
-    expect(bothSpent.prompt).toContain('两瓶药都不能使用，只能选择放弃')
+    expect(bothSpent.prompt).toContain('本回合没有可用药剂,只能放弃用药')
     expect(bothSpent.prompt).not.toContain(target.name)
   })
 
@@ -551,7 +629,7 @@ describe('plugin-owned Prompt rendering', () => {
     expect(prompt.prompt).not.toMatch(/player-\d+/u)
     expect(prompt.prompt).not.toContain('自己的已知发言。')
     expect(prompt.prompt).toContain(
-      `${other.name}（${other.seat} 号玩家）发言：其他玩家的发言。\n\n请通过`,
+      `${other.name}（${other.seat} 号玩家）发言：其他玩家的发言。\n\n请做出本轮投票决定`,
     )
     expect(prompt.prompt.match(new RegExp(other.name, 'gu'))).toHaveLength(1)
     for (const player of setup.players.filter((candidate) => candidate.id !== other.id)) {

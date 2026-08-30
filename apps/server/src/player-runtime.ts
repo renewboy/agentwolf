@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import type { SessionUpdate } from '@agentclientprotocol/sdk'
 import {
   AcpDeliveryUncertainError,
   DeliveryLedger,
@@ -28,7 +27,9 @@ import {
   type PlayerSessionFactory,
 } from './player-session-factory.js'
 import type { PlayerRuntimeOptions, PlayerRuntimeStatus } from './player-runtime-types.js'
+import { adoptLegacyPlayerSession, terminalToolUpdate } from './player-runtime-recovery.js'
 import type { TrajectoryTurnRecorder } from './trajectory.js'
+import { PlayerTurnSupersededError } from './player-turn-superseded.js'
 
 export {
   defaultPlayerSessionFactory,
@@ -45,6 +46,7 @@ export class PlayerRuntime {
   #activeTrajectory: TrajectoryTurnRecorder | null = null
   #activeDeliveryId: string | null = null
   #acceptedActionAwaitingToolReceipt = false
+  readonly #supersededDeliveries = new Set<string>()
   #sessionGeneration = 1
   #continuationPending = false
 
@@ -98,7 +100,7 @@ export class PlayerRuntime {
         this.#options.playerId,
       )
       if (!binding && this.#options.allowSessionCreation === false) {
-        binding = this.#adoptLegacySessionBinding()
+        binding = adoptLegacyPlayerSession(this.#options)
       }
       let created = false
       if (!binding) {
@@ -192,6 +194,7 @@ export class PlayerRuntime {
     }
     this.#options.mailbox.expect({
       ...expectation,
+      toSequence: envelope.toSequence,
       onAccepted: (action) => {
         this.#activeTrajectory?.action(action)
         if (!this.#activeDeliveryId) {
@@ -205,6 +208,7 @@ export class PlayerRuntime {
         )
         this.#acceptedActionAwaitingToolReceipt = true
         this.#setStatus('submitted')
+        expectation.onAccepted?.(action)
       },
     })
     try {
@@ -213,11 +217,13 @@ export class PlayerRuntime {
       const promptCallbacks = this.#finishAcceptedActionAfterToolReceipt(
         speechCapture?.callbacks ?? callbacks,
       )
-      const { result, trajectory } = await this.#deliver(envelope, promptCallbacks, {
+      const { result, trajectory, superseded } = await this.#deliver(envelope, promptCallbacks, {
         kind: 'action',
         phaseId,
         actionType: expectation.actionType,
       })
+      if (superseded)
+        throw new PlayerTurnSupersededError(speechCapture?.response.cancel() ?? result.text)
       const directSpeechText = speechCapture?.response.finish(result.text) ?? result.text
       const speechDiagnostic = speechCapture?.response.diagnostic
       if (speechDiagnostic) trajectory.diagnostic(speechDiagnostic)
@@ -337,6 +343,22 @@ export class PlayerRuntime {
       this.#options.playerId,
     )
   }
+  public pendingAction = (): PlayerAction | null => this.#pendingAction()
+  public recordAction = (action: PlayerAction): void => this.#activeTrajectory?.action(action)
+
+  public async supersedeActiveTurn(): Promise<'idle' | 'accepted' | 'cancelled'> {
+    const deliveryId = this.#activeDeliveryId
+    if (!deliveryId || !this.#session) return 'idle'
+    if (this.#pendingAction()) return 'accepted'
+    this.#options.mailbox.clear(this.#options.matchId, this.#options.playerId)
+    this.#supersededDeliveries.add(deliveryId)
+    try {
+      return (await this.#session.cancelActivePrompt?.()) ? 'cancelled' : 'idle'
+    } catch (error) {
+      this.#supersededDeliveries.delete(deliveryId)
+      throw error
+    }
+  }
 
   async #deliver(
     envelope: ContextEnvelope,
@@ -347,7 +369,11 @@ export class PlayerRuntime {
       readonly actionType: string
     },
     workingStatus: 'syncing' | 'thinking' = 'thinking',
-  ): Promise<{ result: AcpPromptResult; trajectory: TrajectoryTurnRecorder }> {
+  ): Promise<{
+    result: AcpPromptResult
+    trajectory: TrajectoryTurnRecorder
+    superseded: boolean
+  }> {
     if (!this.#session) throw new Error('Player ACP session is not started')
     if (this.#ledger.activeAttempt) {
       throw new AcpDeliveryUncertainError(
@@ -403,11 +429,16 @@ export class PlayerRuntime {
       this.#persistLedger()
       this.#setStatus('ready')
       this.#continuationPending = false
+      const superseded = this.#supersededDeliveries.delete(deliveryId)
+      if (superseded) {
+        trajectory.cancel(result.stopReason)
+        return { result, trajectory, superseded: true }
+      }
       if (result.stopReason !== 'end_turn') {
         throw new Error(`ACP turn stopped with ${result.stopReason}`)
       }
       trajectory.complete(result.stopReason)
-      return { result, trajectory }
+      return { result, trajectory, superseded: false }
     } catch (error) {
       const accepted = this.#options.repository.playerSessions.get(
         this.#options.matchId,
@@ -433,6 +464,7 @@ export class PlayerRuntime {
         return {
           result: { text: '', stopReason: 'end_turn', updates: [] },
           trajectory,
+          superseded: false,
         }
       }
       const activeAttempt = this.#ledger.snapshot().activeAttempt
@@ -455,6 +487,7 @@ export class PlayerRuntime {
     } finally {
       if (this.#activeTrajectory === trajectory) this.#activeTrajectory = null
       if (this.#activeDeliveryId === deliveryId) this.#activeDeliveryId = null
+      this.#supersededDeliveries.delete(deliveryId)
     }
   }
 
@@ -543,33 +576,6 @@ export class PlayerRuntime {
     })
   }
 
-  #adoptLegacySessionBinding() {
-    const turns = this.#options.repository.listTrajectoryTurns(
-      this.#options.matchId,
-      this.#options.playerId,
-    )
-    const latest = turns.at(-1)
-    if (!latest) {
-      throw new Error(
-        `Player ${this.#options.playerId} has no durable ACP Session binding to resume`,
-      )
-    }
-    const binding = this.#options.repository.playerSessions.adopt({
-      matchId: this.#options.matchId,
-      playerId: this.#options.playerId,
-      profile: this.#options.profile,
-      tool: this.#options.tool,
-      sessionGeneration: latest.sessionGeneration,
-      sessionId: latest.sessionId,
-    })
-    this.#options.repository.playerSessions.markBootstrap(
-      this.#options.matchId,
-      this.#options.playerId,
-      'acknowledged',
-    )
-    return binding
-  }
-
   #pendingAction(): PlayerAction | null {
     return (
       this.#options.repository.playerSessions.get(this.#options.matchId, this.#options.playerId)
@@ -590,10 +596,4 @@ export class PlayerRuntime {
     this.#status = status
     this.#options.onStatusChange?.(this.#options.playerId, status)
   }
-}
-
-function terminalToolUpdate(update: SessionUpdate): boolean {
-  if (update.sessionUpdate !== 'tool_call' && update.sessionUpdate !== 'tool_call_update')
-    return false
-  return update.status === 'completed' || update.status === 'failed'
 }

@@ -127,14 +127,16 @@ export async function auditTrajectory(
           ruleset,
         })
         const descriptor = engine.currentTurn()
-        if (!descriptor || !descriptor.actors.includes(ownerId)) {
+        const interruptValid =
+          turn.actionType === 'skill-trigger' && engine.interruptAbilityIdsFor(ownerId).length > 0
+        if ((!descriptor || !descriptor.actors.includes(ownerId)) && !interruptValid) {
           issue(
             issues,
             turn.turnId,
             'actor-mismatch',
             'Player is not an expected actor at the stored action boundary',
           )
-        } else if (descriptor.actionType !== turn.actionType) {
+        } else if (descriptor && descriptor.actionType !== turn.actionType && !interruptValid) {
           issue(
             issues,
             turn.turnId,

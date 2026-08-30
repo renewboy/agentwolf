@@ -86,6 +86,7 @@ describe('database migration', () => {
         projectRoot: process.cwd(),
         webDistPath: resolve(root, 'missing'),
         developerMode: false,
+        publicSpeechInterruptMode: 'legacy',
       },
     })
     servers.push(server)

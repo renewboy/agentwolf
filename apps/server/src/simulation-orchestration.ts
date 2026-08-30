@@ -76,6 +76,7 @@ export async function runOrchestrationSimulation(
         boardId: simulation.setup.board.id,
         roleAssignment: 'manual',
         speechCharacterLimit: simulation.setup.speechCharacterLimit,
+        publicSpeechInterruptMode: simulation.setup.publicSpeechInterruptMode,
         seats: simulation.setup.players.map((player) => ({
           seat: player.seat,
           name: player.name,
@@ -99,6 +100,7 @@ export async function runOrchestrationSimulation(
       projectRoot: options.projectRoot,
       webDistPath: resolve(root, 'missing'),
       developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
     }
     runtime = new MatchRuntime({
       record,
@@ -126,7 +128,7 @@ export async function runOrchestrationSimulation(
     } catch (error) {
       failures.push(`runtime initialization: ${describeError(error)}`)
     }
-    await waitForSettlement(engine)
+    await waitForSettlement(engine, repository, simulation.setup.matchId)
     const audit = await auditTrajectory(repository, boards, simulation.setup.matchId)
     if (!audit.ok) {
       failures.push(
@@ -140,6 +142,7 @@ export async function runOrchestrationSimulation(
       simulation.setup.board,
       simulation.setup.players,
       simulation.setup.speechCharacterLimit,
+      simulation.setup.publicSpeechInterruptMode,
     )
     const events = canonicalizeSimulationEvents(engine.events, normalization)
     actual = {
@@ -219,12 +222,22 @@ function connectPlayback(
   return connection
 }
 
-async function waitForSettlement(engine: GameEngine): Promise<void> {
+async function waitForSettlement(
+  engine: GameEngine,
+  repository: SqliteRepository,
+  matchId: SimulationInput['setup']['matchId'],
+): Promise<void> {
   for (let attempt = 0; attempt < 1_000; attempt += 1) {
     if (engine.state.status === 'ended' || engine.state.status === 'paused') return
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 5))
   }
-  throw new Error('Orchestration simulation did not settle')
+  const running = repository
+    .listTrajectoryTurns(matchId)
+    .filter((turn) => turn.status === 'running')
+    .map((turn) => `${turn.ownerId}:${turn.phaseId}:${turn.actionType}`)
+  throw new Error(
+    `Orchestration simulation did not settle at ${engine.state.status}/${engine.state.phaseId}/day-${engine.state.day}/actor-${engine.activeActor()}; running=${running.join(',')}`,
+  )
 }
 
 function parseInput(input: SimulationInput): SimulationInput {

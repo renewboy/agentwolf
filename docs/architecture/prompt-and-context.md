@@ -73,7 +73,7 @@ flowchart LR
 Prompt 根由 `_core` 和与已安装 RulePlugin 一一对应的 bundle 构成：
 
 - `_core` 拥有 foundation、continuation、bootstrap continuation、Character、player contract 布局，
-  通用 faction 标签、工具说明和 MCP 回执；
+  通用 faction 标签、MCP tool schema 文案和 MCP 回执；
 - plugin bundle 拥有该 plugin 注册的 Roles、Abilities、Phases、plugin events 与公告呈现；
 - manifest 只允许声明自身语义、显式 imports 和带 audience 的 shared templates；
 - 模板引用必须位于 bundle 根内，loader 拒绝绝对路径、`..`、反斜线、symlink、动态 import 和
@@ -127,7 +127,8 @@ flowchart TB
   夜间行动顺序；
 - game：day、night、status 与 paused reason；
 - events：送达游标之后对该玩家可见且保持原 sequence 顺序的事件；
-- turn：phase、action type、speech/vote kind、可用 abilities、pass 许可、interrupts、Sheriff actions 和发言上限；
+- turn：phase、action type、speech/vote kind、可用 abilities、pass 许可、interrupts、后台 interrupt
+  窗口、Sheriff actions 和发言上限；
 - Character：仅 foundation 中该 Seat 的不可变公开表达卡。
 
 允许的 ability/interrupt 在进入 facts 前再次按 actor 当前 capability 过滤。Prompt registry 提供
@@ -190,6 +191,11 @@ continuation，不重发 foundation。
 真。下一 Prompt 使用同一 phase/actor 边界和 continuation layout，只说明当前需要完成的动作，不
 复制 foundation 或完整对局历史。
 
+rolling listener 使用同一增量事实管线。它只接收自身确认游标之后可见的公开事件与当前合法
+interrupt abilities。较新的发言 supersede 旧 listener 后,确认取消的 delivery 推进同一游标；下一
+Prompt 因而只呈现尚未送达的发言。listener 模板呈现 Role 化的当前决策目标、当前应调用的正式工具名、禁止输出发言边界，以及新增事件。它不渲染普通回合的当前天数与存活名册摘要，也不复制工具字段、枚举、空值或目标结构。
+MCP tool description 与 input schema 独立承载具体调用契约。每个 Ability 的语义说明属于 Prompt bundle，并注入当前 ability schema；当前 expectation 将可用 Ability 与 Sheriff action 收窄为 schema enum。
+
 ### 赛后 Prompt
 
 赛后评分和感想使用独立的 `PostgamePromptAssets`，但沿用原玩家 Session。首份评分 Prompt 从该
@@ -205,7 +211,7 @@ terminal snapshot、候选集合和评分目标；重试使用专用 continuatio
 Provider 启动策略统一执行以下环境契约：
 
 - 载入 `agentwolf-player` 与 `werewolf-strategy` 游戏 Skills；
-- 暴露本地只读知识工具和六个声明的 MCP 动作工具；
+- 暴露本地只读知识工具和七个声明的 MCP 动作工具；
 - MCP endpoint 使用只绑定当前 Match/Player 的 bearer token；
 - 移除环境记忆、仓库项目指令、Web、插件、hooks、子代理、写入与无关开发能力；
 - Claude 额外使用严格无网络和禁止文件写入的 sandbox；Codex/Trae 通过各自配置面落实上下文、
@@ -213,7 +219,7 @@ Provider 启动策略统一执行以下环境契约：
   工具白名单，并关闭环境记忆与子代理入口；玩家 bearer token 只进入进程环境绑定，不进入启动
   参数中的 MCP 配置文本。
 
-foundation Prompt 是当前对局事实，player contract/Skills 是稳定玩法与工具契约，两者不互相复制。
+foundation Prompt 是当前对局事实，turn Prompt 提供 Role 化的行动目标、正式工具名与提交边界，player contract/Skills 是稳定玩法与行为边界，MCP schema 是包含 Ability 语义、字段与参数结构的具体调用契约。
 每个 bootstrap trajectory 对 Provider 报告的 context usage 执行 12,000 token 预算审计。
 
 ## 状态、故障与可观测性

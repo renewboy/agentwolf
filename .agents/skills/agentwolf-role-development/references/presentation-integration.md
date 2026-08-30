@@ -11,7 +11,7 @@ bundle 声明的 Role、Ability、Phase 与 plugin event 完全匹配。
 
 bundle 包含:
 
-- 一份 Role 声明,含原子 label、完整 `role.njk` 与每个自有 ability;
+- 一份 Role 声明,含原子 label、完整 `role.njk` 与每个自有 ability；每个 ability 必须提供注入 MCP schema 的语义 `description`，并可提供面向 Role 的回合 `decision`；
 - 每个 Role 专属阶段,含受众、白天标记,以及每个交互式阶段的一份完整回合模板;
 - 每个 Role 专属 plugin event,以 `pluginId` 与 `eventType` 声明式匹配,当事件本身不应追加模型
   叙述时包含显式 `omit`;
@@ -19,8 +19,7 @@ bundle 包含:
 - 在其他阶段中提供的每个 ability 的 interrupt 模板。
 
 `role.njk` 拥有可读的 `public` 与 `owner` 分支。public 分支定义当前规则,并逐字包含映射策略
-Role 页面的 `角色介绍` 源文。owner 分支陈述身份、阵营、ability 与结构化动作所需的正式
-ability ID。
+Role 页面的 `角色介绍` 源文。owner 分支陈述身份、阵营与 ability 语义；正式 ability ID、参数和目标结构由 MCP schema 提供。交互回合 Prompt 保留 Role 化的决策文案，明确指定当前要调用的正式工具名，并要求不输出发言；不在 Prompt 中复制工具字段、参数组织或 ability ID 列表。
 
 为公开奠基文本、owner 文本、当前回合指令、合法选项、事件渲染与隐藏事实的缺席,新增或扩展
 Prompt bundle 与 `ContextRenderer` 测试。

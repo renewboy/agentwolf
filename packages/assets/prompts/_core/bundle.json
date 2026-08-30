@@ -3,10 +3,12 @@
   "imports": [],
   "shared": [
     { "template": "turns/context.njk", "audience": "public" },
+    { "template": "turns/action-submit.njk", "audience": "public" },
     { "template": "turns/speech.njk", "audience": "public" },
     { "template": "turns/vote.njk", "audience": "public" },
     { "template": "turns/night-action.njk", "audience": "player" },
-    { "template": "turns/skill.njk", "audience": "player" }
+    { "template": "turns/skill.njk", "audience": "player" },
+    { "template": "turns/interrupt.njk", "audience": "player" }
   ],
   "events": [
     { "eventType": "match.created", "audience": "public", "omit": true },
@@ -71,7 +73,12 @@
         "title": "提交发言",
         "description": "兼容模式下提交发言正文。正常对局必须直接回复发言，不调用此工具。",
         "unavailable": "当前回合不接受 submit_speech；请停止调用工具，直接将完整发言正文作为本轮回复。",
-        "fields": []
+        "fields": [
+          {
+            "name": "text",
+            "text": "完整发言正文，长度为 1 至 8000 个字符。"
+          }
+        ]
       },
       {
         "name": "submit_vote",
@@ -88,25 +95,99 @@
         "name": "submit_night_action",
         "title": "提交夜间行动",
         "description": "提交当前身份允许的夜间行动。所有目标使用 Player ID。",
-        "fields": []
+        "fields": [
+          {
+            "name": "abilityId",
+            "text": "当前回合允许的正式 ability ID。"
+          },
+          {
+            "name": "targetPlayerIds",
+            "text": "玩家目标的 Player ID 数组；确切数量与是否允许自己由 ability 规则校验。"
+          },
+          {
+            "name": "option",
+            "text": "仅在放弃当前可选夜间行动时使用 pass；发动 ability 时不传。"
+          }
+        ]
       },
       {
         "name": "submit_sheriff_action",
         "title": "提交警长动作",
         "description": "提交上警、退水、警徽移交或警长发言方向动作。",
-        "fields": []
+        "fields": [
+          {
+            "name": "action",
+            "text": "当前阶段允许的警长动作枚举值。"
+          },
+          {
+            "name": "targetPlayerId",
+            "text": "仅 transfer 需要接收警徽的 Player ID；其他 action 不传。"
+          }
+        ]
       },
       {
         "name": "trigger_skill",
         "title": "触发身份技能",
-        "description": "提交当前触发的身份技能或放弃选项。",
+        "description": "发动当前允许的触发技能。只有技能规则要求玩家目标时才提交目标。",
+        "fields": [
+          {
+            "name": "abilityId",
+            "text": "当前回合允许发动的正式 ability ID。"
+          },
+          {
+            "name": "targetPlayerId",
+            "text": "只有技能规则要求玩家目标时才提交 Player ID；无目标技能不传该字段。"
+          }
+        ]
+      },
+      {
+        "name": "pass_skill",
+        "title": "放弃触发技能",
+        "description": "明确不发动当前可放弃的触发技能。该工具没有参数。",
         "fields": []
       },
       {
         "name": "submit_postgame_review",
         "title": "提交赛后评审",
         "description": "提交当前对局的 MVP、SVP 提名以及对其他所有玩家的五维评分。所有玩家目标使用 Player ID。",
-        "fields": []
+        "fields": [
+          {
+            "name": "mvpPlayerId",
+            "text": "MVP 候选人中的一名 Player ID。"
+          },
+          {
+            "name": "svpPlayerId",
+            "text": "SVP 候选人中的一名 Player ID。"
+          },
+          {
+            "name": "ratings",
+            "text": "对除自己外每名玩家恰好一条评分；五项分数都是 1 至 10 的整数。"
+          },
+          {
+            "name": "ratings.playerId",
+            "text": "被评分玩家的 Player ID。"
+          },
+          {
+            "name": "ratings.scores.information",
+            "text": "信息研判评分，1 至 10 的整数。"
+          },
+          {
+            "name": "ratings.scores.communication",
+            "text": "表达影响评分，1 至 10 的整数。"
+          },
+          {
+            "name": "ratings.scores.decision",
+            "text": "决策执行评分，1 至 10 的整数。"
+          },
+          {
+            "name": "ratings.scores.objective",
+            "text": "目标贡献评分，1 至 10 的整数。"
+          },
+          {
+            "name": "ratings.scores.adaptability",
+            "text": "应变博弈评分，1 至 10 的整数。"
+          }
+        ]
       }
     ]
   }

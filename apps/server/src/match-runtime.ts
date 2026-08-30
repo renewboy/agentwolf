@@ -21,20 +21,21 @@ import { ContextRenderer } from './context-renderer.js'
 import { LiveHub, type LiveConnection, type LiveSubscriber } from './live-hub.js'
 import {
   describeError,
-  findCommittedSpeech,
   hasUncertainDelivery,
   interruptAbilityExpectation,
   mapWithConcurrency,
   reconcileCommittedPendingAction,
-  settleActions,
 } from './match-runtime-helpers.js'
+import { runMatchTurn } from './match-turn-loop.js'
 import type { MatchRuntimeOptions, PreparedActorTurn } from './match-runtime-types.js'
 import { createMatchPostgameCoordinator, ensurePostgameCountdown } from './match-postgame.js'
 import { PlayerRuntime } from './player-runtime.js'
 import { PostgameReviewCoordinator } from './postgame-review-coordinator.js'
+import { playerAbilityToolContracts } from './player-ability-tool-contracts.js'
 import { preparePlayerWorkspace } from './player-workspace.js'
 import { projectMatch } from './projector.js'
 import { SpeechPlaybackCoordinator } from './speech-playback-coordinator.js'
+import { RollingSpeechInterruptCoordinator } from './rolling-speech-interrupt.js'
 export type { MatchRuntimeOptions } from './match-runtime-types.js'
 
 export class MatchRuntime {
@@ -43,6 +44,7 @@ export class MatchRuntime {
   readonly #renderer: ContextRenderer
   readonly #hub = new LiveHub()
   readonly #playback: SpeechPlaybackCoordinator
+  readonly #speechInterrupts: RollingSpeechInterruptCoordinator | null
   readonly #players = new Map<PlayerId, PlayerRuntime>()
   readonly #tokens = new Map<PlayerId, string>()
   readonly #automaticRecoveryKeys = new Set<string>()
@@ -62,6 +64,16 @@ export class MatchRuntime {
       onControl: (title, input) => this.#options.trajectory.recordRuntimeControl(title, input),
       onStateChange: () => this.#broadcastPlaybackState(),
     })
+    this.#speechInterrupts =
+      options.record.setup.publicSpeechInterruptMode === 'rolling'
+        ? new RollingSpeechInterruptCoordinator({
+            engine: options.engine,
+            board: options.board,
+            renderer: this.#renderer,
+            players: this.#players,
+            speechCharacterLimit: options.record.setup.speechCharacterLimit,
+          })
+        : null
     if (options.repository.postgameReviews.get(options.record.id)) {
       this.#postgame = this.#createPostgameCoordinator()
     }
@@ -136,7 +148,9 @@ export class MatchRuntime {
 
   public async close(): Promise<void> {
     this.#disposed = true
+    this.#speechInterrupts?.stopAll()
     this.#playback.close()
+    await this.#speechInterrupts?.settleAll()
     const closingPlayers = this.#closePlayerSessions()
     await this.#postgame?.close()
     await closingPlayers
@@ -213,7 +227,11 @@ export class MatchRuntime {
         this.engine.state.matchId,
         player.id,
       )
-      const token = this.#options.mailbox.issueToken(this.engine.state.matchId, player.id)
+      const token = this.#options.mailbox.issueToken(
+        this.engine.state.matchId,
+        player.id,
+        playerAbilityToolContracts(player, this.#roles, this.#renderer),
+      )
       this.#tokens.set(player.id, token)
       const runtime = new PlayerRuntime({
         matchId: this.engine.state.matchId,
@@ -289,52 +307,19 @@ export class MatchRuntime {
   async #run(): Promise<void> {
     try {
       while (!this.#disposed && this.engine.state.status === 'running') {
-        const turn = this.engine.currentTurn()
-        if (!turn || turn.actors.length === 0) {
-          throw new Error(
-            `Rule engine stopped without an actionable turn at ${this.engine.state.phaseId}`,
-          )
-        }
-        const actorIds = turn.mode === 'sequential' ? turn.actors.slice(0, 1) : [...turn.actors]
-        const prepared = await Promise.all(
-          actorIds.map((playerId) => this.#prepareActorTurn(playerId, turn)),
-        )
-        const actions = await settleActions(
-          prepared.map((actor) => this.#takeActorTurn(actor, turn)),
-        )
-        if (this.#disposed) return
-        const orderedActions = actions.sort((left, right) => {
-          const leftSeat = this.engine.state.players.get(left.actorId)?.seat ?? 0
-          const rightSeat = this.engine.state.players.get(right.actorId)?.seat ?? 0
-          return leftSeat - rightSeat
+        const result = await runMatchTurn({
+          engine: this.engine,
+          speechInterrupts: this.#speechInterrupts,
+          playback: this.#playback,
+          isDisposed: () => this.#disposed,
+          playerRuntime: (playerId) => this.#players.get(playerId) ?? null,
+          prepareActorTurn: (playerId, turn) => this.#prepareActorTurn(playerId, turn),
+          takeActorTurn: (actor, turn, onSpeechChunk) =>
+            this.#takeActorTurn(actor, turn, onSpeechChunk),
+          record: (events) => this.#record(events),
+          broadcastSnapshot: () => this.#broadcastSnapshotWhenReady(),
         })
-        let committedActionCount = 0
-        for (const action of orderedActions) {
-          if (this.engine.state.phaseId !== turn.phaseId) break
-          const deferSpeechBoundary =
-            action.type === 'speech' && turn.mode === 'sequential' && turn.actors.length === 1
-          const events = this.engine.submit(action, {
-            deferContinuation: deferSpeechBoundary,
-          })
-          this.#record(events)
-          this.#players.get(action.actorId)?.actionSettled()
-          committedActionCount += 1
-          if (deferSpeechBoundary) {
-            const committed = findCommittedSpeech(events)
-            if (!committed) throw new Error('Speech action did not produce a committed event')
-            await this.#playback.waitFor({
-              sequence: committed.sequence,
-              playerId: committed.payload.playerId,
-              event: committed,
-            })
-            if (this.#disposed) return
-            this.#record(this.engine.continueAfterDeferredAction())
-          }
-        }
-        for (const action of orderedActions.slice(committedActionCount)) {
-          this.#players.get(action.actorId)?.actionSettled()
-        }
-        this.#broadcastSnapshotWhenReady()
+        if (result === 'disposed') return
       }
       if (this.engine.state.status === 'ended') {
         this.#options.repository.updateMatchStatus(this.engine.state.matchId, 'ended')
@@ -385,14 +370,24 @@ export class MatchRuntime {
     const runtime = this.#players.get(playerId)
     if (!runtime) throw new Error(`Player runtime ${playerId} is unavailable`)
     await runtime.ensureReady()
+    const interrupts = interruptAbilityExpectation(this.engine.state, playerId, turn, this.#roles)
+    const abilityContracts = this.#renderer.abilityContracts([
+      ...(turn.allowedAbilityIds ?? []),
+      ...(interrupts.interruptAbilityIds ?? []),
+    ])
     const expectation: ActionExpectation = {
       matchId: this.engine.state.matchId,
       playerId,
       actionType: turn.actionType,
+      phaseId: turn.phaseId,
+      day: this.engine.state.day,
       ...(turn.speechKind ? { speechKind: turn.speechKind } : {}),
       ...(turn.voteKind ? { voteKind: turn.voteKind } : {}),
       ...(turn.allowedAbilityIds ? { allowedAbilityIds: turn.allowedAbilityIds } : {}),
-      ...interruptAbilityExpectation(this.engine.state, playerId, turn, this.#roles),
+      ...(turn.sheriffActions?.length ? { allowedSheriffActions: turn.sheriffActions } : {}),
+      ...(turn.passAllowed !== undefined ? { passAllowed: turn.passAllowed } : {}),
+      ...(abilityContracts.length > 0 ? { abilityContracts } : {}),
+      ...interrupts,
       validate: (action) => this.engine.validateAction(action),
     }
     const envelope = await this.#renderer.turn(
@@ -408,17 +403,23 @@ export class MatchRuntime {
     return { playerId, runtime, envelope, expectation }
   }
 
-  async #takeActorTurn(actor: PreparedActorTurn, turn: TurnDescriptor): Promise<PlayerAction> {
+  async #takeActorTurn(
+    actor: PreparedActorTurn,
+    turn: TurnDescriptor,
+    onSpeechChunk?: (text: string) => void,
+  ): Promise<PlayerAction> {
     const callbacks: AcpPromptCallbacks =
       turn.actionType === 'speech' && turn.speechKind
         ? {
-            onTextChunk: (text) =>
+            onTextChunk: (text) => {
+              onSpeechChunk?.(text)
               this.#hub.broadcastSpeechChunk(
                 this.engine.state,
                 actor.playerId,
                 turn.speechKind!,
                 text,
-              ),
+              )
+            },
           }
         : {}
     try {

@@ -218,6 +218,12 @@ export class AcpPlayerSession {
     activePrompt.controller.abort(new Error('ACP Prompt completed after accepted action'))
   }
 
+  public async cancelActivePrompt(): Promise<boolean> {
+    if (!this.#activePrompt) return false
+    await this.#context.notify(methods.agent.session.cancel, { sessionId: this.#sessionId })
+    return true
+  }
+
   public async prompt(
     prompt: string,
     timeoutMs: number,

@@ -10,6 +10,8 @@
         {
           "id": "ability-guard-protect",
           "label": "守护",
+          "description": "每夜守护一名存活玩家，可以选择自己；不能连续两晚守护同一名玩家，也可以空守。",
+          "decision": "请选择需要守护的目标，或空守。",
           "foundation": true
         }
       ]

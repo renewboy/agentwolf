@@ -1,7 +1,7 @@
 import { access, lstat, mkdtemp, readFile, readdir, readlink, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
-import { MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import { MatchIdSchema, MatchSetupSnapshotSchema, PlayerIdSchema } from '@agentwolf/contracts'
 import { copyPlayerSkills } from '@agentwolf/assets/player-skills'
 import { loadPromptCore } from '@agentwolf/assets/prompts'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -77,5 +77,30 @@ describe('server project root', () => {
       loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: 'true', AGENTWOLF_HOST: '0.0.0.0' }),
     ).toThrow(/loopback/)
     expect(() => loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: '1' })).toThrow(/true or false/)
+  })
+
+  it('selects the public speech interrupt rollout mode from startup configuration', () => {
+    expect(loadServerConfig({}).publicSpeechInterruptMode).toBe('legacy')
+    expect(
+      loadServerConfig({ AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE: 'rolling' })
+        .publicSpeechInterruptMode,
+    ).toBe('rolling')
+    expect(() => loadServerConfig({ AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE: 'invalid' })).toThrow()
+  })
+
+  it('keeps historical Match setup snapshots on legacy interrupt orchestration', () => {
+    const setup = MatchSetupSnapshotSchema.parse({
+      boardId: 'board-config-legacy',
+      roleAssignment: 'random',
+      speechCharacterLimit: 300,
+      seats: Array.from({ length: 6 }, (_, index) => ({
+        seat: index + 1,
+        name: `Legacy player ${index + 1}`,
+        profileId: `profile-config-${index + 1}`,
+        character: null,
+      })),
+    })
+
+    expect(setup.publicSpeechInterruptMode).toBe('legacy')
   })
 })

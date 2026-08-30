@@ -10,6 +10,7 @@ export const PromptToolNameSchema = z.enum([
   'submit_night_action',
   'submit_sheriff_action',
   'trigger_skill',
+  'pass_skill',
   'submit_postgame_review',
 ])
 export type PromptToolName = z.infer<typeof PromptToolNameSchema>
@@ -48,6 +49,8 @@ const AbilityPresentationSchema = z
   .object({
     id: AbilityIdSchema,
     label: AtomicTextSchema,
+    description: AtomicTextSchema,
+    decision: AtomicTextSchema.optional(),
     foundation: z.boolean().default(true),
     interruptTemplate: TemplateRefSchema.optional(),
   })
@@ -142,7 +145,7 @@ const CorePromptSchema = z
           })
           .strict(),
       )
-      .length(6),
+      .length(7),
   })
   .strict()
 

@@ -12,6 +12,7 @@ import {
   SimulationIdSchema,
 } from './ids.js'
 import { SpeechCharacterLimitSchema } from './settings.js'
+import { PublicSpeechInterruptModeSchema } from './game.js'
 
 export const SimulationFaultSchema = z.enum([
   'uncertain-delivery',
@@ -50,6 +51,7 @@ export const SimulationSetupSchema = z.object({
   board: MatchBoardSnapshotSchema,
   players: z.array(SimulationPlayerSchema).min(6).max(24),
   speechCharacterLimit: SpeechCharacterLimitSchema.default(300),
+  publicSpeechInterruptMode: PublicSpeechInterruptModeSchema.default('legacy'),
 })
 export type SimulationSetup = z.infer<typeof SimulationSetupSchema>
 
@@ -58,6 +60,7 @@ export const SimulationTurnSchema = z.object({
   kind: z.enum(['bootstrap', 'action']),
   playerId: PlayerIdSchema,
   phaseId: PhaseIdSchema.nullable(),
+  day: z.number().int().nonnegative().default(0),
   actionType: z.string().min(1).max(80),
   mode: z.enum(['parallel', 'sequential']).nullable(),
   expectedActors: z.array(PlayerIdSchema),

@@ -96,6 +96,7 @@ function sessionResponse(config = { model: 'mock-default', reasoningEffort: 'med
 }
 
 let promptIndex = 0
+const pendingPromptDelays = new Map()
 const promptDelayMs = Math.max(
   0,
   Number.parseInt(process.env['AGENTWOLF_MOCK_PROMPT_DELAY_MS'] ?? '0', 10) || 0,
@@ -167,7 +168,21 @@ const app = agent({ name: 'AgentWolf mock agent' })
   .onRequest(methods.agent.session.prompt, async ({ params, client }) => {
     if (!readStore().sessions.includes(params.sessionId)) throw new Error('Unknown session')
     if (promptDelayMs > 0) {
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, promptDelayMs))
+      const controller = new AbortController()
+      pendingPromptDelays.set(params.sessionId, controller)
+      await new Promise((resolvePromise) => {
+        const timer = setTimeout(resolvePromise, promptDelayMs)
+        controller.signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer)
+            resolvePromise()
+          },
+          { once: true },
+        )
+      })
+      pendingPromptDelays.delete(params.sessionId)
+      if (controller.signal.aborted) return { stopReason: 'cancelled' }
     }
     const promptText = params.prompt
       .filter((content) => content.type === 'text')
@@ -273,6 +288,9 @@ const app = agent({ name: 'AgentWolf mock agent' })
       },
     })
     return { stopReason: 'end_turn' }
+  })
+  .onNotification(methods.agent.session.cancel, ({ params }) => {
+    pendingPromptDelays.get(params.sessionId)?.abort()
   })
   .onRequest(methods.agent.session.close, async () => {
     if (process.env['AGENTWOLF_MOCK_CLOSE_HANG'] === 'true') {

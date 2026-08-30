@@ -17,6 +17,9 @@ import { SpeechCharacterLimitSchema } from './settings.js'
 export const MatchStatusSchema = z.enum(['draft', 'starting', 'running', 'paused', 'ended'])
 export type MatchStatus = z.infer<typeof MatchStatusSchema>
 
+export const PublicSpeechInterruptModeSchema = z.enum(['legacy', 'rolling'])
+export type PublicSpeechInterruptMode = z.infer<typeof PublicSpeechInterruptModeSchema>
+
 export const SpectatorViewSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('god') }),
   z.object({ kind: z.literal('closed-eye') }),
@@ -51,6 +54,7 @@ export type MatchSeatSnapshot = z.infer<typeof MatchSeatSnapshotSchema>
 export const MatchSetupSnapshotSchema = CreateMatchRequestSchema.omit({ seats: true }).extend({
   seats: z.array(MatchSeatSnapshotSchema).min(6).max(24),
   speechCharacterLimit: SpeechCharacterLimitSchema.default(300),
+  publicSpeechInterruptMode: PublicSpeechInterruptModeSchema.default('legacy'),
 })
 export type MatchSetupSnapshot = z.infer<typeof MatchSetupSnapshotSchema>
 

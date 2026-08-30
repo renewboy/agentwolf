@@ -134,7 +134,7 @@ export class ScriptedSession implements PlayerSession {
     history.push(prompt)
     this.#prompts.set(this.#playerId, history)
     this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
-    if (prompt.includes('丘比特是第三方阵营角色') || prompt.includes('ability-cupid-link')) {
+    if (prompt.includes('丘比特是第三方阵营角色')) {
       this.#cupidGame = true
     }
     this.#playerCount = Math.max(
@@ -174,7 +174,7 @@ export class ScriptedSession implements PlayerSession {
       callbacks.onTextChunk?.(text.slice(12))
       return { text, stopReason: 'end_turn', updates: [] }
     }
-    if (prompt.includes('submit_postgame_review')) {
+    if (prompt.includes('赛后评审')) {
       const mvpCandidates = idsOnLine(prompt, 'MVP 候选：', false)
       const svpCandidates = idsOnLine(prompt, 'SVP 候选：', false)
       if (mvpCandidates.length > 0 && svpCandidates.length > 0) {
@@ -225,7 +225,7 @@ export class ScriptedSession implements PlayerSession {
     if (prompt.includes('准备就绪')) {
       return { text: '准备就绪', stopReason: 'end_turn', updates: [] }
     }
-    const phase = latestPhase(prompt)
+    const phase = latestPhase(this.#mailbox(), this.#token)
     if (phase === 'sheriffSignup') {
       this.#mailbox().submitSheriffAction(
         this.#token,
@@ -237,7 +237,7 @@ export class ScriptedSession implements PlayerSession {
         this.#sheriffSelfDestructOnce.playerId === this.#playerId
       ) {
         this.#sheriffSelfDestructOnce.value = false
-        this.#mailbox().submitSkillTrigger(this.#token, 'ability-werewolf-self-destruct', null)
+        this.#mailbox().submitSkillTrigger(this.#token, 'ability-werewolf-self-destruct')
       } else {
         this.#mailbox().submitSheriffAction(this.#token, 'keep-running')
       }
@@ -283,7 +283,7 @@ export class ScriptedSession implements PlayerSession {
         this.#mailbox().submitNightAction(this.#token, 'ability-seer-inspect', [targetId])
       }
     } else if (phase === 'hunterShot') {
-      this.#mailbox().submitSkillTrigger(this.#token, 'ability-hunter-shot', null, 'pass')
+      this.#mailbox().submitSkillPass(this.#token)
     }
     if (phase) return { text: '', stopReason: 'end_turn', updates: [] }
     throw new Error(`Unhandled scripted prompt for ${this.#playerId}: ${prompt}`)
@@ -309,18 +309,21 @@ function lastNumber(text: string, pattern: RegExp): number | null {
   return value ? Number(value) : null
 }
 
-function latestPhase(prompt: string): string | null {
-  if (prompt.includes('ability-cupid-link')) return 'nightCupid'
-  if (prompt.includes('ability-hunter-shot')) return 'hunterShot'
-  if (prompt.includes('ability-seer-inspect')) return 'nightSeer'
-  if (prompt.includes('ability-witch-antidote')) return 'nightWitch'
-  if (prompt.includes('action: join') && prompt.includes('action: decline')) return 'sheriffSignup'
-  if (prompt.includes('action: withdraw') && prompt.includes('action: keep-running')) {
-    return 'sheriffWithdraw'
-  }
-  if (prompt.includes('action: destroy-badge')) return 'sheriffTransfer'
-  if (prompt.includes('狼队商议结束') && prompt.includes('submit_vote')) return 'nightWolfVote'
-  if (prompt.includes('submit_vote')) return 'dayVote'
+function latestPhase(mailbox: ActionMailbox, token: string): string | null {
+  const binding = mailbox.binding(token)
+  if (!binding) return null
+  const expectation = mailbox.peekExpectation(binding.matchId, binding.playerId)
+  if (!expectation) return null
+  const abilities = new Set((expectation.allowedAbilityIds ?? []).map(String))
+  if (abilities.has('ability-cupid-link')) return 'nightCupid'
+  if (abilities.has('ability-hunter-shot')) return 'hunterShot'
+  if (abilities.has('ability-seer-inspect')) return 'nightSeer'
+  if (abilities.has('ability-witch-antidote')) return 'nightWitch'
+  if (expectation.allowedSheriffActions?.includes('join')) return 'sheriffSignup'
+  if (expectation.allowedSheriffActions?.includes('withdraw')) return 'sheriffWithdraw'
+  if (expectation.allowedSheriffActions?.includes('destroy-badge')) return 'sheriffTransfer'
+  if (expectation.voteKind === 'wolf-kill') return 'nightWolfVote'
+  if (expectation.actionType === 'vote') return 'dayVote'
   return null
 }
 

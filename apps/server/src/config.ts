@@ -1,5 +1,9 @@
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import {
+  PublicSpeechInterruptModeSchema,
+  type PublicSpeechInterruptMode,
+} from '@agentwolf/contracts'
 
 export interface ServerConfig {
   readonly host: string
@@ -10,6 +14,7 @@ export interface ServerConfig {
   readonly projectRoot: string
   readonly webDistPath: string
   readonly developerMode: boolean
+  readonly publicSpeechInterruptMode: PublicSpeechInterruptMode
 }
 
 export function loadServerConfig(
@@ -41,6 +46,9 @@ export function loadServerConfig(
     projectRoot,
     webDistPath: resolve(projectRoot, 'apps/web/dist'),
     developerMode,
+    publicSpeechInterruptMode: PublicSpeechInterruptModeSchema.parse(
+      environment['AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE'] ?? 'legacy',
+    ),
   }
 }
 

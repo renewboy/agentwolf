@@ -5,6 +5,6 @@
 {% elif section == 'owner' %}
 你的身份是{{ role.label }}，属于{{ helpers.faction(role.faction) }}。
 你的药剂状态：
-- {{ role.abilities[0].label }}（正式能力 ID：`{{ role.abilities[0].id }}`）：{% if helpers.abilityUses(role.abilities[0].id) == 0 %}尚未使用{% else %}已使用{% endif %}。
-- {{ role.abilities[1].label }}（正式能力 ID：`{{ role.abilities[1].id }}`）：{% if helpers.abilityUses(role.abilities[1].id) == 0 %}尚未使用{% else %}已使用{% endif %}。
+- {{ role.abilities[0].label }}：{% if helpers.abilityUses(role.abilities[0].id) == 0 %}尚未使用{% else %}已使用{% endif %}。
+- {{ role.abilities[1].label }}：{% if helpers.abilityUses(role.abilities[1].id) == 0 %}尚未使用{% else %}已使用{% endif %}。
 {% endif %}

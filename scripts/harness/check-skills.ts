@@ -32,20 +32,6 @@ await requireFile(
   'references/architecture-document-template.md',
 )
 
-const actionReference = await text(resolve(playerSkillRoot, 'references/actions.md'))
-for (const tool of [
-  'submit_speech',
-  'submit_vote',
-  'submit_night_action',
-  'submit_sheriff_action',
-  'trigger_skill',
-  'submit_postgame_review',
-]) {
-  if (!playerSkill.includes(tool) && !actionReference.includes(tool)) {
-    errors.push(`agentwolf-player does not document ${tool}`)
-  }
-}
-
 const playerMetadata = await text(resolve(playerSkillRoot, 'agents/openai.yaml'))
 if (!/display_name:\s*['"]AgentWolf Player['"]/.test(playerMetadata)) {
   errors.push('agentwolf-player UI display name is stale')

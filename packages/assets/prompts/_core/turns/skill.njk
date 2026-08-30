@@ -1,2 +1,4 @@
 {% include "_core/turns/context.njk" %}
-请通过 `trigger_skill` 工具处理当前技能。`abilityId` 只能是 {% for abilityId in phase.allowedAbilityIds %}`{{ abilityId }}`{% if not loop.last %} / {% endif %}{% endfor %}；发动技能时提交合法目标，放弃时提交空目标和 `option: pass`。工具返回接受回执后结束本回合。
+{% if abilityInstructions.length %}{% for instruction in abilityInstructions %}{{ instruction }}
+{% endfor %}{% else %}请决定是否发动当前触发技能。
+{% endif %}{% include "_core/turns/action-submit.njk" %}

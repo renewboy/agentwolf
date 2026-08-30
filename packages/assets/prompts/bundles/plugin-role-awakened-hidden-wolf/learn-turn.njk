@@ -1,7 +1,4 @@
 {% include "_core/turns/context.njk" %}
 你可以在本夜使用{{ activeRole.abilities[0].label }}，也可以继续等待。成功学习后本局不能更换目标。
-
-请通过 `submit_night_action` 提交本回合唯一一次动作：
-- 学习：`abilityId: {{ activeRole.abilities[0].id }}`，`targetPlayerIds` 只包含一名你以外的其他存活玩家 Player ID。
-- 等待：`abilityId: {{ activeRole.abilities[0].id }}`，提交空的 `targetPlayerIds` 和 `option: pass`。
-工具返回接受回执后不要再次提交。
+请选择学习一名你以外的其他存活玩家,或继续等待。
+{% include "_core/turns/action-submit.njk" %}

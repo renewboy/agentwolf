@@ -9,6 +9,7 @@ export const playerActionToolNames = [
   'submit_night_action',
   'submit_sheriff_action',
   'trigger_skill',
+  'pass_skill',
   'submit_postgame_review',
 ] as const
 

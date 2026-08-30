@@ -18,6 +18,7 @@ import {
   type GameEvent,
   type MatchBoardSnapshot,
   type PlayerAction,
+  type PublicSpeechInterruptMode,
   type SimulationCheckpoint,
   type SimulationCapture,
   type SimulationExpected,
@@ -45,6 +46,7 @@ export function createSimulationNormalization(
     readonly character: SimulationPlayer['character']
   }[],
   speechCharacterLimit: SimulationSetup['speechCharacterLimit'],
+  publicSpeechInterruptMode: PublicSpeechInterruptMode = 'legacy',
 ): SimulationNormalization {
   const canonicalBoard = MatchBoardSnapshotSchema.parse({
     ...board,
@@ -82,6 +84,7 @@ export function createSimulationNormalization(
       board: canonicalBoard,
       players: canonicalPlayers,
       speechCharacterLimit,
+      publicSpeechInterruptMode,
     }),
     replacements,
   }

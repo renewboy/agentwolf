@@ -221,13 +221,29 @@ describe('Agent catalog and repository', () => {
       speechKind: 'day',
       interruptAbilityIds: [AbilityIdSchema.parse('ability-werewolf-self-destruct')],
     })
-    expect(() => mailbox.submitSkillTrigger(token, 'ability-detonate', null)).toThrow(/unavailable/)
-    expect(mailbox.submitSkillTrigger(token, 'ability-werewolf-self-destruct', null).accepted).toBe(
-      true,
-    )
+    expect(() => mailbox.submitSkillTrigger(token, 'ability-detonate')).toThrow(/unavailable/)
+    expect(mailbox.submitSkillTrigger(token, 'ability-werewolf-self-destruct').accepted).toBe(true)
     expect(mailbox.take(matchId, playerId)).toMatchObject({
       type: 'skill-trigger',
       abilityId: 'ability-werewolf-self-destruct',
+    })
+
+    mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'skill-trigger',
+      allowedAbilityIds: [
+        AbilityIdSchema.parse('ability-z-trigger'),
+        AbilityIdSchema.parse('ability-a-trigger'),
+      ],
+      passAllowed: true,
+    })
+    expect(mailbox.submitSkillPass(token).accepted).toBe(true)
+    expect(mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'skill-trigger',
+      abilityId: 'ability-a-trigger',
+      targetId: null,
+      option: 'pass',
     })
 
     mailbox.expect({ matchId, playerId, actionType: 'speech', speechKind: 'day' })

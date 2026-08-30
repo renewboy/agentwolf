@@ -10,6 +10,7 @@
         {
           "id": "ability-white-wolf-detonate",
           "label": "白狼王自爆带人",
+          "description": "在允许的公开回合自爆出局，并带走一名其他存活玩家。",
           "foundation": true,
           "interruptTemplate": "detonate.njk"
         }

@@ -1,2 +1,4 @@
 {% include "_core/turns/context.njk" %}
-请通过 `submit_night_action` 工具完成本轮夜间行动。当前 `abilityId` 只能是 {% for abilityId in phase.allowedAbilityIds %}`{{ abilityId }}`{% if not loop.last %} / {% endif %}{% endfor %}；目标使用 Player ID。选择放弃时使用其中一个允许的能力 ID、空的 `targetPlayerIds` 和 `option: pass`。工具返回接受回执后结束本回合。
+{% if abilityInstructions.length %}{% for instruction in abilityInstructions %}{{ instruction }}
+{% endfor %}{% else %}请做出本轮夜间行动决定。
+{% endif %}{% include "_core/turns/action-submit.njk" %}

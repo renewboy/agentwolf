@@ -38,7 +38,7 @@ board 策略。其 `effects` 函数发出语义结算效果。其 `outcomes` 函
 `capability-alive:<id>`,阶段激活使用 `capability-active:<id>`。
 
 玩家动作面是 `packages/contracts/src/actions.ts` 中的封闭集合:发言、投票、夜晚动作、
-Sheriff 动作与 Skill 触发,通过五个 MCP 工具暴露。使用语义匹配的既有形状。如果没有一个形状
+Sheriff 动作与 Skill 触发,通过七个 MCP 工具暴露。使用语义匹配的既有形状。如果没有一个形状
 能在不把结构隐藏进 `option` 字符串的情况下表达该 Role,则把这项工作视为协议变更,并一起
 更新 contracts、阶段动作类型、校验、MCP transport、`_core` 工具呈现、provider 策略与集成
 测试。

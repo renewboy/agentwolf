@@ -1,6 +1,6 @@
 import type { AcpPromptCallbacks } from '@agentwolf/acp'
 
-const retainedBoundaryTail = 48
+export const directSpeechRetainedBoundaryTail = 48
 const filteredDiagnostic =
   'Filtered embedded ACP role content or post-tool text from the direct speech response.'
 
@@ -54,6 +54,12 @@ export class DirectSpeechResponse {
     return this.#text
   }
 
+  public cancel(): string {
+    this.#pending = ''
+    this.#closed = true
+    return this.#text
+  }
+
   #flush(final: boolean): void {
     const boundary = this.#pending.search(embeddedRoleBoundary)
     if (boundary >= 0) {
@@ -65,7 +71,7 @@ export class DirectSpeechResponse {
     }
     const length = final
       ? this.#pending.length
-      : Math.max(0, this.#pending.length - retainedBoundaryTail)
+      : Math.max(0, this.#pending.length - directSpeechRetainedBoundaryTail)
     if (length === 0) return
     this.#append(this.#pending.slice(0, length))
     this.#pending = this.#pending.slice(length)

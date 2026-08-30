@@ -1,0 +1,7 @@
+你正在旁听公开发言。请决定是否发动当前公开技能。
+{% for instruction in interruptInstructions %}{{ instruction }}
+{% endfor %}{% include "_core/turns/action-submit.njk" %}
+
+{% if narration.length %}本轮新增公开信息：
+{% for line in narration %}{{ line }}{% endfor %}{% else %}本轮没有新增公开发言。
+{% endif %}依据本 Session 已有的身份、阵营知识、夜间计划和本轮新增信息，立即做出结构化决定。

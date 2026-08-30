@@ -18,6 +18,7 @@ import {
 import type { ActionMailbox } from './action-mailbox.js'
 import type { PlayerSession, PlayerSessionFactory } from './player-runtime.js'
 import type { SqliteRepository } from './repository.js'
+import { directSpeechRetainedBoundaryTail } from './direct-speech-response.js'
 
 type SimulationInput = SimulationCapture | SimulationFixture
 
@@ -118,8 +119,18 @@ class ReplayScript {
       }
       return { text: 'ready', stopReason: 'end_turn', updates: [] }
     }
-    const turn = this.#nextTurn(playerId, 'action', sessionGeneration)
+    const expectation = this.#mailbox.peekExpectation(this.#simulation.setup.matchId, playerId)
+    const turn = this.#nextTurn(playerId, 'action', sessionGeneration, expectation)
     if (!turn) throw new Error(`No orchestration turn remains for ${playerId}`)
+    if (turn.fault === 'cancelled') {
+      this.#consumed.add(turn.completionOrder)
+      if (turn.action?.type === 'speech') {
+        callbacks.onTextChunk?.(
+          `${turn.action.text}${'。'.repeat(directSpeechRetainedBoundaryTail)}`,
+        )
+      }
+      return new Promise(() => undefined)
+    }
     return this.#scheduler.run(turn, () => {
       if (
         this.#variant === 'transient-delivery' &&
@@ -141,26 +152,40 @@ class ReplayScript {
     playerId: PlayerId,
     kind: SimulationTurn['kind'],
     sessionGeneration: number,
+    expectation?: {
+      readonly phaseId?: string
+      readonly day?: number
+      readonly toSequence?: number
+      readonly actionType: string
+    } | null,
   ): SimulationTurn | null {
-    const matchingGeneration = this.#simulation.turns
-      .filter(
-        (turn) =>
-          !this.#consumed.has(turn.completionOrder) &&
-          turn.playerId === playerId &&
-          turn.kind === kind &&
-          turn.sessionGeneration === sessionGeneration,
-      )
+    const candidates = this.#simulation.turns.filter(
+      (turn) =>
+        !this.#consumed.has(turn.completionOrder) &&
+        turn.playerId === playerId &&
+        turn.kind === kind,
+    )
+    const phaseMatches = expectation
+      ? candidates.filter(
+          (turn) =>
+            turn.phaseId === expectation.phaseId && turn.actionType === expectation.actionType,
+        )
+      : candidates
+    const dayMatches = expectation?.day
+      ? phaseMatches.filter((turn) => turn.day === 0 || turn.day === expectation.day)
+      : phaseMatches
+    const sequenceMatches = expectation?.toSequence
+      ? dayMatches.filter((turn) => turn.toSequence === expectation.toSequence)
+      : dayMatches
+    const matchingBoundary =
+      sequenceMatches.length > 0 ? sequenceMatches : expectation?.day ? dayMatches : phaseMatches
+    const matchingGeneration = matchingBoundary
+      .filter((turn) => turn.sessionGeneration === sessionGeneration)
       .sort((left, right) => left.completionOrder - right.completionOrder)[0]
     if (matchingGeneration) return matchingGeneration
     return (
-      this.#simulation.turns
-        .filter(
-          (turn) =>
-            !this.#consumed.has(turn.completionOrder) &&
-            turn.playerId === playerId &&
-            turn.kind === kind,
-        )
-        .sort((left, right) => left.completionOrder - right.completionOrder)[0] ?? null
+      matchingBoundary.sort((left, right) => left.completionOrder - right.completionOrder)[0] ??
+      null
     )
   }
 }
@@ -173,12 +198,19 @@ class ReplaySession implements PlayerSession {
   ) => Promise<AcpPromptResult>
   #closed = false
   #firstPrompt = true
+  #cancelPrompt: (() => void) | null = null
 
   public get connected(): boolean {
     return !this.#closed
   }
 
   public finishAfterAcceptedAction(): void {}
+
+  public cancelActivePrompt(): Promise<boolean> {
+    if (!this.#cancelPrompt) return Promise.resolve(false)
+    this.#cancelPrompt()
+    return Promise.resolve(true)
+  }
 
   public constructor(
     playerId: PlayerId,
@@ -206,7 +238,13 @@ class ReplaySession implements PlayerSession {
     if (this.#closed) return Promise.reject(new Error('Simulation Session is closed'))
     const bootstrap = this.#firstPrompt
     this.#firstPrompt = false
-    return this.#promptHandler(bootstrap, callbacks)
+    const cancelled = new Promise<AcpPromptResult>((resolve) => {
+      this.#cancelPrompt = () =>
+        resolve({ text: '', stopReason: 'cancelled' as never, updates: [] })
+    })
+    return Promise.race([this.#promptHandler(bootstrap, callbacks), cancelled]).finally(() => {
+      this.#cancelPrompt = null
+    })
   }
 
   public close(): Promise<void> {
@@ -273,9 +311,7 @@ function performAction(
 ): AcpPromptResult {
   switch (action.type) {
     case 'speech': {
-      const midpoint = Math.ceil(action.text.length / 2)
-      callbacks.onTextChunk?.(action.text.slice(0, midpoint))
-      callbacks.onTextChunk?.(action.text.slice(midpoint))
+      streamSpeech(action, callbacks)
       return { text: action.text, stopReason: 'end_turn', updates: [] }
     }
     case 'vote':
@@ -288,7 +324,8 @@ function performAction(
       mailbox.submitSheriffAction(token, action.action, action.targetId)
       break
     case 'skill-trigger':
-      mailbox.submitSkillTrigger(token, action.abilityId, action.targetId, action.option)
+      if (action.option === 'pass') mailbox.submitSkillPass(token)
+      else mailbox.submitSkillTrigger(token, action.abilityId, action.targetId ?? undefined)
       break
     default: {
       const exhaustive: never = action
@@ -296,6 +333,15 @@ function performAction(
     }
   }
   return { text: '', stopReason: 'end_turn', updates: [] }
+}
+
+function streamSpeech(
+  action: Extract<PlayerAction, { type: 'speech' }>,
+  callbacks: AcpPromptCallbacks,
+): void {
+  const midpoint = Math.ceil(action.text.length / 2)
+  callbacks.onTextChunk?.(action.text.slice(0, midpoint))
+  callbacks.onTextChunk?.(action.text.slice(midpoint))
 }
 
 function extractToken(server: McpServer): string {

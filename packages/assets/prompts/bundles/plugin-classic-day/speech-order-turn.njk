@@ -1,4 +1,5 @@
 {% include "_core/turns/context.njk" %}
-当前由警长决定白天发言顺序。{% set deaths = helpers.announcement('night-deaths') %}{% if deaths and deaths.playerIds.length == 1 %}昨夜为单死，死者是{{ helpers.player(deaths.playerIds[0]) }}。选择死左时提交 `action: speech-counterclockwise`，从死者左边第一名存活玩家开始；选择死右时提交 `action: speech-clockwise`，从死者右边第一名存活玩家开始。{% elif deaths and deaths.playerIds.length > 1 %}昨夜有 {{ deaths.playerIds.length }} 名玩家死亡，没有唯一死者锚点。选择警左时提交 `action: speech-counterclockwise`；选择警右时提交 `action: speech-clockwise`，均从警长相邻的第一名存活玩家开始。{% else %}昨夜为平安夜，没有死者锚点。选择警左时提交 `action: speech-counterclockwise`；选择警右时提交 `action: speech-clockwise`，均从警长相邻的第一名存活玩家开始。{% endif %}警长始终最后总结归票。请通过 `submit_sheriff_action` 提交方向，工具返回接受回执后结束本回合。
+当前由警长决定白天发言顺序。{% set deaths = helpers.announcement('night-deaths') %}{% if deaths and deaths.playerIds.length == 1 %}昨夜为单死,死者是{{ helpers.player(deaths.playerIds[0]) }}。死左从死者左边第一名存活玩家开始;死右从死者右边第一名存活玩家开始。{% elif deaths and deaths.playerIds.length > 1 %}昨夜有 {{ deaths.playerIds.length }} 名玩家死亡,没有唯一死者锚点。警左与警右均从警长相邻的第一名存活玩家开始。{% else %}昨夜为平安夜,没有死者锚点。警左与警右均从警长相邻的第一名存活玩家开始。{% endif %}警长始终最后总结归票。
 {% for instruction in interruptInstructions %}{{ instruction }}
 {% endfor %}
+{% include "_core/turns/action-submit.njk" %}

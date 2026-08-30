@@ -1,1 +1,1 @@
-若你要在本次公开回合自爆，只能调用 `trigger_skill`，使用正式能力 ID `{{ ability.id }}`，并将 `targetPlayerId` 设为 `null`。若不自爆，继续完成当前公开行动。
+{% if turn.interruptWindow %}请选择立即自爆，或继续旁听。{% else %}若选择立即自爆，请调用 `trigger_skill`；否则继续当前公开行动。{% endif %}

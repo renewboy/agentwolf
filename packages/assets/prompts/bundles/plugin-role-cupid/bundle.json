@@ -10,6 +10,7 @@
         {
           "id": "ability-cupid-link",
           "label": "爱之箭",
+          "description": "首夜连接两名不同的存活玩家成为情侣，可以包含自己；本阶段不能放弃。",
           "foundation": true
         }
       ]

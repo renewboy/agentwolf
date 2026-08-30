@@ -642,6 +642,7 @@ async function createServer(): Promise<AgentWolfServer> {
       projectRoot: process.cwd(),
       webDistPath: resolve(root, 'missing'),
       developerMode: true,
+      publicSpeechInterruptMode: 'legacy',
     },
   })
   servers.push(server)
