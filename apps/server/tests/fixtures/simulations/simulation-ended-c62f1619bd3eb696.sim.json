@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "simulationId": "simulation-ended-dd79bcddd5beffd1",
+  "simulationId": "simulation-ended-c62f1619bd3eb696",
   "title": "board-simulation-12-sheriff ended",
   "setup": {
     "matchId": "match-simulation-replay",
     "board": {
       "schemaVersion": 2,
-      "rulesetId": "classic-v4",
+      "rulesetId": "classic-v5",
       "ruleset": {
-        "id": "ruleset-classic-v4",
-        "version": 4,
+        "id": "ruleset-classic-v5",
+        "version": 5,
         "plugins": [
           {
             "id": "plugin-classic-phases",
@@ -144,7 +144,7 @@
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           }
         ],
-        "fingerprint": "90fdc824757bd6b1828cc8937699ecedfb3a224edb52583212f33e4e8566e010"
+        "fingerprint": "cc2ba7b8b42c2238c81d00c37a8d50713dbe432911b2fe1c154f2198d20e850e"
       },
       "policies": {
         "witchSelfSave": "never",
@@ -4511,7 +4511,7 @@
   "source": {
     "status": "ended",
     "cutoffSequence": 892,
-    "fingerprint": "dd79bcddd5beffd15614e84575acfd97ce1a67f983745dba73936500d9da1a1d"
+    "fingerprint": "c62f1619bd3eb69656b4de0562cdb31bcaa090c0a1abe2fa2b7315db1057ac6e"
   },
   "expected": {
     "eventCount": 612,

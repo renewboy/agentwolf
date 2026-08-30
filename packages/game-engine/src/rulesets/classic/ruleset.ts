@@ -15,6 +15,7 @@ import {
   classicV1RolePlugins,
   classicV2RolePlugins,
   classicV3RolePlugins,
+  classicV4RolePlugins,
 } from './plugins/role-plugins.js'
 import { classicSheriffPlugin } from './plugins/sheriff-plugin.js'
 import { classicTerminalPlugin, classicV1TerminalPlugin } from './plugins/terminal-plugin.js'
@@ -75,9 +76,17 @@ const legacyFlowPlugins = {
 
 export function createClassicRuleset(): RulesetRuntime {
   return new RulesetBuilder({
+    id: RulesetIdSchema.parse('ruleset-classic-v5'),
+    version: 5,
+    plugins: plugins(classicRolePlugins, classicWolfTeamPlugin, currentFlowPlugins),
+  }).build()
+}
+
+export function createClassicV4Ruleset(): RulesetRuntime {
+  return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic-v4'),
     version: 4,
-    plugins: plugins(classicRolePlugins, classicWolfTeamPlugin, currentFlowPlugins),
+    plugins: plugins(classicV4RolePlugins, classicWolfTeamPlugin, currentFlowPlugins),
   }).build()
 }
 

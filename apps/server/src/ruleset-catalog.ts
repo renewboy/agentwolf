@@ -6,6 +6,7 @@ import {
   createClassicV1Ruleset,
   createClassicV2Ruleset,
   createClassicV3Ruleset,
+  createClassicV4Ruleset,
   type RulesetRuntime,
 } from '@agentwolf/game-engine'
 import { promptRegistryFor } from './prompt-registry.js'
@@ -14,17 +15,19 @@ export class RulesetCatalog {
   readonly #classicV1 = createClassicV1Ruleset()
   readonly #classicV2 = createClassicV2Ruleset()
   readonly #classicV3 = createClassicV3Ruleset()
-  readonly #classicV4 = createClassicRuleset()
+  readonly #classicV4 = createClassicV4Ruleset()
+  readonly #classicV5 = createClassicRuleset()
 
   public constructor() {
     promptRegistryFor(this.#classicV1)
     promptRegistryFor(this.#classicV2)
     promptRegistryFor(this.#classicV3)
     promptRegistryFor(this.#classicV4)
+    promptRegistryFor(this.#classicV5)
   }
 
   public current(): RulesetRuntime {
-    return this.#classicV4
+    return this.#classicV5
   }
 
   public forSnapshot(snapshot: MatchBoardSnapshot): RulesetRuntime {
@@ -35,7 +38,9 @@ export class RulesetCatalog {
           ? this.#classicV2
           : snapshot.rulesetId === 'classic-v3'
             ? this.#classicV3
-            : this.#classicV4
+            : snapshot.rulesetId === 'classic-v4'
+              ? this.#classicV4
+              : this.#classicV5
     if (snapshot.schemaVersion === 2) {
       const expected = this.lock(ruleset)
       if (snapshot.ruleset.fingerprint !== expected.fingerprint) {
@@ -47,8 +52,8 @@ export class RulesetCatalog {
     return ruleset
   }
 
-  public currentSnapshotId(): 'classic-v4' {
-    return 'classic-v4'
+  public currentSnapshotId(): 'classic-v5' {
+    return 'classic-v5'
   }
 
   public lock(ruleset: RulesetRuntime = this.current()): RulesetLock {

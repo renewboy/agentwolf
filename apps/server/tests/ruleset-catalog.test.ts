@@ -3,6 +3,7 @@ import {
   createClassicRuleset,
   createClassicV2Ruleset,
   createClassicV3Ruleset,
+  createClassicV4Ruleset,
   guardBoard,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
@@ -34,7 +35,7 @@ describe('RulesetCatalog', () => {
     expect(resolved.version).toBe(2)
     expect(resolved.roles.list().map((role) => role.id)).not.toContain('role-awakened-hidden-wolf')
     expect(resolved.plugins).toEqual(classicV2.plugins)
-    expect(catalog.current().id).toBe('ruleset-classic-v4')
+    expect(catalog.current().id).toBe('ruleset-classic-v5')
   })
 
   it('resolves classic-v3 without installing Cupid or changing its plugin lock', () => {
@@ -63,24 +64,21 @@ describe('RulesetCatalog', () => {
     expect(resolved.plugins).toEqual(classicV3.plugins)
   })
 
-  it('rejects the superseded classic-v4 Cupid v1 fingerprint', () => {
+  it('resolves the exact classic-v4 Cupid v1 fingerprint', () => {
     const catalog = new RulesetCatalog()
-    const current = createClassicRuleset()
-    const currentLock = catalog.lock(current)
-    expect(current.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(2)
+    const classicV4 = createClassicV4Ruleset()
+    const classicV4Lock = catalog.lock(classicV4)
+    expect(classicV4Lock.fingerprint).toBe(
+      'f527bae1636c82df7d2ef170893f4063a2c26d0f06bed078ca3583e819902557',
+    )
+    expect(classicV4.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(1)
     const snapshot = MatchBoardSnapshotSchema.parse({
       schemaVersion: 2,
       rulesetId: 'classic-v4',
-      ruleset: {
-        ...currentLock,
-        plugins: currentLock.plugins.map((plugin) =>
-          plugin.id === 'plugin-role-cupid' ? { ...plugin, version: 1 } : plugin,
-        ),
-        fingerprint: 'f527bae1636c82df7d2ef170893f4063a2c26d0f06bed078ca3583e819902557',
-      },
+      ruleset: classicV4Lock,
       policies: guardBoard.policies,
       id: guardBoard.id,
-      name: 'Superseded Classic V4 board',
+      name: 'Classic V4 guard board',
       description: '',
       roles: guardBoard.roles,
       characters: [],
@@ -91,6 +89,11 @@ describe('RulesetCatalog', () => {
       revision: 1,
     })
 
-    expect(() => catalog.forSnapshot(snapshot)).toThrow(/Ruleset fingerprint mismatch/)
+    const resolved = catalog.forSnapshot(snapshot)
+    expect(resolved.id).toBe('ruleset-classic-v4')
+    expect(resolved.plugins).toEqual(classicV4.plugins)
+    expect(
+      createClassicRuleset().plugins.find((plugin) => plugin.id === 'plugin-role-cupid'),
+    ).toMatchObject({ version: 2 })
   })
 })

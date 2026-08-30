@@ -12,6 +12,7 @@ import {
   GameEngine,
   classicIdentityQueries,
   createClassicRuleset,
+  createClassicV4Ruleset,
   cupidAbilityIds,
   cupidBoard,
   cupidEventTypes,
@@ -201,6 +202,22 @@ describe('Cupid Role plugin', () => {
       },
     })
     expect(cupidState(terminal.state).loverIds).toEqual(loverIds)
+
+    const classicV4 = createClassicV4Ruleset()
+    expect(classicV4.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(1)
+    const legacyTerminal = completeTerminal(
+      classicV4,
+      terminalState,
+      noSheriffCupidBoard,
+      engine.events,
+    )
+    expect(
+      legacyTerminal.events.some(
+        (event) =>
+          event.payload.type === 'public.announcement' &&
+          event.payload.code === 'cupid-lovers-revealed',
+      ),
+    ).toBe(false)
   })
 
   it('expands every death cause once, inherits timing, and disables linked Hunter fire', () => {

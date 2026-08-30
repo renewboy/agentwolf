@@ -23,10 +23,10 @@ Victory registry 先校验基础 evaluators 的一致候选，再依次应用有
 阻断或替换候选，最终候选必须包含非空且唯一的获胜 Player IDs。终局事件、GameState、MatchView 与
 赛后资格消费同一获胜集合。
 
-当前 `ruleset-classic-v4` 安装关系型规则所需的 flow plugin 版本与丘比特 plugin。已发布的 V1–V3
+当前 `ruleset-classic-v5` 安装关系型规则所需的 flow plugin 版本与丘比特 plugin。已发布的 V1–V4
 Ruleset 保持其原有 plugin 版本、锁和恢复入口；历史死亡与终局事件允许缺少当前字段，当前 Ruleset
-产生完整字段。丘比特 plugin 在通用终局事实与身份公开完成后追加公开情侣揭晓，Prompt、时间线和
-玩家卡片从同一事件获得最终关系事实。
+产生完整字段。V5 丘比特 plugin 在通用终局事实与身份公开完成后追加公开情侣揭晓，Prompt、时间线
+和玩家卡片从同一事件获得最终关系事实。
 
 ## Alternatives considered
 

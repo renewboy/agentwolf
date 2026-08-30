@@ -27,7 +27,7 @@ import {
   awakenedHiddenWolfPlugin,
   awakenedHiddenWolfV2Plugin,
 } from './awakened-hidden-wolf-plugin.js'
-import { cupidPlugin } from './cupid-plugin.js'
+import { cupidPlugin, cupidV1Plugin } from './cupid-plugin.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
@@ -191,9 +191,18 @@ export const classicV3RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   awakenedHiddenWolfPlugin,
 ]
 
-export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
+const classicCurrentBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   ...classicV3RolePlugins.filter((plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf),
   awakenedHiddenWolfV2Plugin,
+]
+
+export const classicV4RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
+  ...classicCurrentBaseRolePlugins,
+  cupidV1Plugin,
+]
+
+export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
+  ...classicCurrentBaseRolePlugins,
   cupidPlugin,
 ]
 

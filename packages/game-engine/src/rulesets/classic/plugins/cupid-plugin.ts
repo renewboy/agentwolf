@@ -25,117 +25,127 @@ const hiddenNightPhaseId = phase('phase-night-hidden')
 const matchEndedPhaseId = phase('phase-match-ended')
 const linkedDeathTriggerId = TriggerIdSchema.parse('trigger-cupid-linked-death')
 
-export const cupidPlugin: RulePlugin<RulesetBuilder> = {
-  id: classicPluginIds.cupid,
-  version: 2,
-  requires: [
-    { id: classicPluginIds.phases, version: 1 },
-    { id: classicPluginIds.guard, version: 1 },
-    { id: classicPluginIds.victory, version: 1 },
-    { id: classicPluginIds.night, version: 2 },
-    { id: classicPluginIds.death, version: 2 },
-    { id: classicPluginIds.day, version: 2 },
-    { id: classicPluginIds.terminal, version: 2 },
-  ],
-  register: ({ events, phases, roles, rules, triggers, victories }) => {
-    roles.register(new CupidRole())
-    events.register({
-      pluginId: classicPluginIds.cupid,
-      eventType: cupidEventTypes.linked,
-      schemaVersion: 1,
-      stateSchema: cupidStateSchema,
-      dataSchema: cupidLinkDataSchema,
-      initialState: initialCupidState,
-      reduce: (state, data) => {
-        if (state.loverIds && !samePlayers(state.loverIds, data.loverIds)) {
-          throw new Error('Cupid lovers cannot be replaced')
-        }
-        return { ...state, loverIds: data.loverIds }
-      },
-    })
-    events.register({
-      pluginId: classicPluginIds.cupid,
-      eventType: cupidEventTypes.linkedDeath,
-      schemaVersion: 1,
-      stateSchema: cupidStateSchema,
-      dataSchema: cupidLinkedDeathDataSchema,
-      initialState: initialCupidState,
-      reduce: (state, data) => ({
-        ...state,
-        linkedDeaths: [...state.linkedDeaths, data],
-      }),
-    })
-    phases.insert({
-      node: {
-        id: cupidPhaseId,
-        labelKey: 'phases.nightCupid',
-        mode: 'parallel',
-        presentation: {
-          visibility: 'actors',
-          hiddenPhaseId: hiddenNightPhaseId,
-          hiddenLabelKey: 'phases.nightHidden',
+export const cupidV1Plugin = createCupidPlugin(1, false)
+export const cupidPlugin = createCupidPlugin(2, true)
+
+function createCupidPlugin(
+  version: number,
+  revealLoversAtEnd: boolean,
+): RulePlugin<RulesetBuilder> {
+  return {
+    id: classicPluginIds.cupid,
+    version,
+    requires: [
+      { id: classicPluginIds.phases, version: 1 },
+      { id: classicPluginIds.guard, version: 1 },
+      { id: classicPluginIds.victory, version: 1 },
+      { id: classicPluginIds.night, version: 2 },
+      { id: classicPluginIds.death, version: 2 },
+      { id: classicPluginIds.day, version: 2 },
+      { id: classicPluginIds.terminal, version: 2 },
+    ],
+    register: ({ events, phases, roles, rules, triggers, victories }) => {
+      roles.register(new CupidRole())
+      events.register({
+        pluginId: classicPluginIds.cupid,
+        eventType: cupidEventTypes.linked,
+        schemaVersion: 1,
+        stateSchema: cupidStateSchema,
+        dataSchema: cupidLinkDataSchema,
+        initialState: initialCupidState,
+        reduce: (state, data) => {
+          if (state.loverIds && !samePlayers(state.loverIds, data.loverIds)) {
+            throw new Error('Cupid lovers cannot be replaced')
+          }
+          return { ...state, loverIds: data.loverIds }
         },
-        action: {
-          type: 'night-action',
-          abilityIds: [cupidAbilityIds.link],
-          passAllowed: false,
-          visibility: 'actor',
-        },
-        actorSelector: `capability-alive:${classicCapabilities.cupidLink}`,
-        activeWhen: 'cupid-link-active',
-        edges: [],
-      },
-      after: null,
-      before: phase('phase-night-guard'),
-      rewireIncoming: true,
-    })
-    rules.registerPredicate('cupid-link-active', (runtime) => {
-      if (runtime.state.night !== 1 || cupidState(runtime.state).loverIds) return false
-      return [...runtime.state.players.values()].some(
-        (player) =>
-          player.alive && runtime.roles.hasCapability(player, classicCapabilities.cupidLink),
-      )
-    })
-    rules.registerPhaseHandler(cupidPhaseId, settleLink, { id: 'cupid-link' })
-    rules.registerPhaseHandler(matchEndedPhaseId, revealLovers, {
-      id: 'cupid-lovers-reveal',
-      order: 100,
-    })
-    rules.registerActionValidator('cupid-lovers-cannot-exile-each-other', validateLoverVote)
-    triggers.registerAutomaticDeath({
-      id: linkedDeathTriggerId,
-      signal: 'player-death',
-      react: ({ state, death, scheduledPlayerIds }) => {
-        const loverIds = cupidState(state).loverIds
-        if (!loverIds?.includes(death.playerId)) return []
-        const targetId = loverIds.find((playerId) => playerId !== death.playerId)
-        if (!targetId || scheduledPlayerIds.has(targetId) || !state.players.get(targetId)?.alive)
-          return []
-        return [
-          {
-            death: { playerId: targetId, causes: ['linked'], timing: death.timing },
-            events: [
-              {
-                payload: {
-                  type: 'plugin.event',
-                  pluginId: classicPluginIds.cupid,
-                  eventType: cupidEventTypes.linkedDeath,
-                  schemaVersion: 1,
-                  data: { sourceId: death.playerId, targetId, timing: death.timing },
-                },
-                visibility: visibility.public,
-              },
-            ],
+      })
+      events.register({
+        pluginId: classicPluginIds.cupid,
+        eventType: cupidEventTypes.linkedDeath,
+        schemaVersion: 1,
+        stateSchema: cupidStateSchema,
+        dataSchema: cupidLinkedDeathDataSchema,
+        initialState: initialCupidState,
+        reduce: (state, data) => ({
+          ...state,
+          linkedDeaths: [...state.linkedDeaths, data],
+        }),
+      })
+      phases.insert({
+        node: {
+          id: cupidPhaseId,
+          labelKey: 'phases.nightCupid',
+          mode: 'parallel',
+          presentation: {
+            visibility: 'actors',
+            hiddenPhaseId: hiddenNightPhaseId,
+            hiddenLabelKey: 'phases.nightHidden',
           },
-        ]
-      },
-    })
-    victories.registerModifier({
-      id: 'cupid-lovers-victory',
-      order: 100,
-      transform: (context, current) => modifyVictory(context.state, current),
-    })
-  },
+          action: {
+            type: 'night-action',
+            abilityIds: [cupidAbilityIds.link],
+            passAllowed: false,
+            visibility: 'actor',
+          },
+          actorSelector: `capability-alive:${classicCapabilities.cupidLink}`,
+          activeWhen: 'cupid-link-active',
+          edges: [],
+        },
+        after: null,
+        before: phase('phase-night-guard'),
+        rewireIncoming: true,
+      })
+      rules.registerPredicate('cupid-link-active', (runtime) => {
+        if (runtime.state.night !== 1 || cupidState(runtime.state).loverIds) return false
+        return [...runtime.state.players.values()].some(
+          (player) =>
+            player.alive && runtime.roles.hasCapability(player, classicCapabilities.cupidLink),
+        )
+      })
+      rules.registerPhaseHandler(cupidPhaseId, settleLink, { id: 'cupid-link' })
+      if (revealLoversAtEnd) {
+        rules.registerPhaseHandler(matchEndedPhaseId, revealLovers, {
+          id: 'cupid-lovers-reveal',
+          order: 100,
+        })
+      }
+      rules.registerActionValidator('cupid-lovers-cannot-exile-each-other', validateLoverVote)
+      triggers.registerAutomaticDeath({
+        id: linkedDeathTriggerId,
+        signal: 'player-death',
+        react: ({ state, death, scheduledPlayerIds }) => {
+          const loverIds = cupidState(state).loverIds
+          if (!loverIds?.includes(death.playerId)) return []
+          const targetId = loverIds.find((playerId) => playerId !== death.playerId)
+          if (!targetId || scheduledPlayerIds.has(targetId) || !state.players.get(targetId)?.alive)
+            return []
+          return [
+            {
+              death: { playerId: targetId, causes: ['linked'], timing: death.timing },
+              events: [
+                {
+                  payload: {
+                    type: 'plugin.event',
+                    pluginId: classicPluginIds.cupid,
+                    eventType: cupidEventTypes.linkedDeath,
+                    schemaVersion: 1,
+                    data: { sourceId: death.playerId, targetId, timing: death.timing },
+                  },
+                  visibility: visibility.public,
+                },
+              ],
+            },
+          ]
+        },
+      })
+      victories.registerModifier({
+        id: 'cupid-lovers-victory',
+        order: 100,
+        transform: (context, current) => modifyVictory(context.state, current),
+      })
+    },
+  }
 }
 
 function revealLovers(runtime: RuleRuntime): void {
