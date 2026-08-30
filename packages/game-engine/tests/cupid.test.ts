@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { PlayerAction, PlayerId } from '@agentwolf/contracts'
+import {
+  GameEventSchema,
+  PhaseIdSchema,
+  type EventVisibility,
+  type GameEvent,
+  type GameEventPayload,
+  type PlayerAction,
+  type PlayerId,
+} from '@agentwolf/contracts'
 import {
   GameEngine,
   classicIdentityQueries,
@@ -8,9 +16,12 @@ import {
   cupidBoard,
   cupidEventTypes,
   cupidState,
+  reduceGameEvent,
   v1AbilityIds,
   type BoardManifest,
   type GameState,
+  type RuleRuntime,
+  type RulesetRuntime,
 } from '../src/index.js'
 import { actorsWithRole, createManualEngine, playNight, submitExpected } from './helpers.js'
 
@@ -152,6 +163,44 @@ describe('Cupid Role plugin', () => {
           event.payload.eventType === cupidEventTypes.linked,
       ),
     ).toHaveLength(1)
+  })
+
+  it('publishes the final lover relationship after every Role reveal', () => {
+    const ruleset = createClassicRuleset()
+    expect(ruleset.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(2)
+    const engine = linkedEngine('mixed')
+    const loverIds = cupidState(engine.state).loverIds!
+    const cupidId = actor(engine, 'role-cupid')
+    const cohort = new Set([cupidId, ...loverIds])
+    const terminalState: GameState = {
+      ...withDeadIds(
+        engine.state,
+        [...engine.state.players.keys()].filter((playerId) => !cohort.has(playerId)),
+      ),
+      phaseId: PhaseIdSchema.parse('phase-match-ended'),
+      phaseLabelKey: 'phases.matchEnded',
+    }
+    const terminal = completeTerminal(ruleset, terminalState, noSheriffCupidBoard, engine.events)
+    const revealIndex = terminal.events.findIndex(
+      (event) =>
+        event.payload.type === 'public.announcement' &&
+        event.payload.code === 'cupid-lovers-revealed',
+    )
+    const lastRoleRevealIndex = terminal.events.findLastIndex(
+      (event) => event.payload.type === 'role.revealed',
+    )
+
+    expect(terminal.state.status).toBe('ended')
+    expect(revealIndex).toBeGreaterThan(lastRoleRevealIndex)
+    expect(terminal.events[revealIndex]).toMatchObject({
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'public.announcement',
+        code: 'cupid-lovers-revealed',
+        playerIds: loverIds,
+      },
+    })
+    expect(cupidState(terminal.state).loverIds).toEqual(loverIds)
   })
 
   it('expands every death cause once, inherits timing, and disables linked Hunter fire', () => {
@@ -547,4 +596,40 @@ function withDeaths(
     ...next,
     recentDeaths: new Map(deaths.map((death) => [death.playerId, death])),
   }
+}
+
+function completeTerminal(
+  ruleset: RulesetRuntime,
+  initialState: GameState,
+  board: BoardManifest,
+  initialEvents: readonly GameEvent[],
+): { readonly state: GameState; readonly events: readonly GameEvent[] } {
+  let state = initialState
+  const events = [...initialEvents]
+  const runtime: RuleRuntime = {
+    get state() {
+      return state
+    },
+    board,
+    events,
+    roles: ruleset.roles,
+    resolution: ruleset.resolution,
+    victories: ruleset.victories,
+    queries: ruleset.queries,
+    triggers: ruleset.triggers,
+    append: (payload: GameEventPayload, eventVisibility: EventVisibility) => {
+      const event = GameEventSchema.parse({
+        matchId: state.matchId,
+        sequence: state.lastSequence + 1,
+        occurredAt: '2026-08-30T00:00:00.000Z',
+        visibility: eventVisibility,
+        payload,
+      })
+      events.push(event)
+      state = reduceGameEvent(state, event, ruleset.events)
+      return event
+    },
+  }
+  ruleset.rules.complete(PhaseIdSchema.parse('phase-match-ended'), runtime)
+  return { state, events }
 }

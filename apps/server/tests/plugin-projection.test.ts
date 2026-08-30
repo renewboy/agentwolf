@@ -173,6 +173,47 @@ describe('plugin event projection', () => {
         expect.objectContaining({ kind: 'match.ended', playerIds: winningPlayerIds }),
       ]),
     })
+
+    const loversRevealed = GameEventSchema.parse({
+      matchId,
+      sequence: ended.sequence + 1,
+      occurredAt: '2026-08-29T00:00:02.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'public.announcement',
+        code: 'cupid-lovers-revealed',
+        playerIds: [wolf.id, villager.id],
+        params: {},
+      },
+    })
+    const terminalState = {
+      ...engine.state,
+      status: 'ended' as const,
+      winner: 'independent' as const,
+      winningPlayerIds,
+      lastSequence: loversRevealed.sequence,
+    }
+    const terminalEvents = [...engine.events, linkedDeath, ended, loversRevealed]
+    for (const view of [
+      { kind: 'god' as const },
+      { kind: 'closed-eye' as const },
+      { kind: 'player' as const, playerId: cupid.id },
+      { kind: 'player' as const, playerId: wolf.id },
+      { kind: 'player' as const, playerId: unrelated.id },
+    ]) {
+      const projected = projectMatch({
+        ...linkedOptions,
+        state: terminalState,
+        events: terminalEvents,
+        view,
+      })
+      expect(
+        projected.seats
+          .filter((seat) => seat.markers.includes('cupid-lover'))
+          .map((seat) => seat.playerId),
+      ).toEqual([wolf.id, villager.id])
+      expect(projected.timeline.at(-1)?.title).toContain('最终情侣关系')
+    }
   })
 
   it('narrates and animates a private Magic Mirror result only for permitted views', () => {

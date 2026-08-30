@@ -193,9 +193,9 @@ continuation，不重发 foundation。
 ### 赛后 Prompt
 
 赛后评分和感想使用独立的 `PostgamePromptAssets`，但沿用原玩家 Session。首份评分 Prompt 从该
-玩家常规 cursor 之后补齐公开终局历史，随后使用冻结的 terminal snapshot、候选集合和评分目标；
-重试使用专用 continuation。感想 Prompt 包含聚合结果与先前公开感想，并通过普通 direct speech
-stream 进入 Web。赛后数据不进入游戏事件日志。
+玩家常规 cursor 之后补齐公开终局历史，包括 Role plugin 追加的公开关系揭晓，随后使用冻结的
+terminal snapshot、候选集合和评分目标；重试使用专用 continuation。感想 Prompt 包含聚合结果与
+先前公开感想，并通过普通 direct speech stream 进入 Web。赛后数据不进入游戏事件日志。
 
 ## 玩家环境与工具边界
 

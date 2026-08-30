@@ -4,6 +4,7 @@ import { formatCopy, getCopy } from '../src/catalog.js'
 import {
   registeredEventEffect,
   registeredEventNarration,
+  registeredEventPlayerMarkers,
   registeredEventPlayerIds,
   registeredTimelineNarration,
 } from '../src/classic-event-presentations.js'
@@ -292,6 +293,21 @@ describe('classic event presentations', () => {
 
     expect(registeredEventNarration(changingEvent(), catalog)).toBeNull()
     expect(registeredTimelineNarration(changingEvent(), catalog)).toBeNull()
+  })
+
+  it('renders the public final lover reveal and contributes card markers', () => {
+    const reveal = event({
+      type: 'public.announcement',
+      code: 'cupid-lovers-revealed',
+      playerIds: [player1, player2],
+      params: {},
+    })
+    expect(registeredEventNarration(reveal, catalog)).toContain('最终情侣关系')
+    expect(registeredTimelineNarration(reveal, catalog)).toContain('一号')
+    expect(registeredEventPlayerIds(reveal)).toEqual([player1, player2])
+    expect(registeredEventPlayerMarkers(reveal)).toEqual([
+      { markerId: 'cupid-lover', playerIds: [player1, player2] },
+    ])
   })
 })
 

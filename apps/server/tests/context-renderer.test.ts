@@ -98,6 +98,31 @@ describe('plugin-owned Prompt rendering', () => {
     expect(cupidPrompt).not.toContain(`${wolf.seat} 号玩家（狼人）`)
     expect(cupidPrompt).not.toContain(`${villager.seat} 号玩家（村民）`)
     expect((await renderFor(unrelated.id)).prompt).not.toContain('成为情侣')
+
+    const reveal = GameEventSchema.parse({
+      matchId: setup.engine.state.matchId,
+      sequence: setup.engine.state.lastSequence + 1,
+      occurredAt: '2026-08-30T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'public.announcement',
+        code: 'cupid-lovers-revealed',
+        playerIds: [wolf.id, villager.id],
+        params: {},
+      },
+    })
+    const revealedPrompt = await setup.renderer.turn(
+      withEvent(setup.engine.state, reveal),
+      cupidBoard,
+      [...setup.engine.events, reveal],
+      unrelated.id,
+      reveal.sequence - 1,
+      daySpeechTurn(unrelated.id),
+      300,
+    )
+    expect(revealedPrompt.prompt).toContain(
+      `最终情侣关系：${wolf.seat} 号玩家、${villager.seat} 号玩家。`,
+    )
   })
 
   it('derives every board night action order from the installed phase graph', async () => {

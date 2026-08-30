@@ -183,7 +183,8 @@ flowchart LR
 Ability outcomes 再把结算结果转换为带 visibility 的领域事件。自动死亡 trigger 在一个有界批次中
 展开并去重连锁死亡，继承原死亡的昼夜时点；随后才开放交互式死亡 trigger/interrupt。基础胜负
 evaluator 产生候选，有序 modifier 可以依据 plugin state 补充、阻断或替换候选，最终返回明确获胜
-Player IDs。
+Player IDs。终局 phase 同样执行有序 handlers，使 Role plugin 可以在通用终局事实与身份公开完成后
+追加自身拥有的公开揭晓事件。
 
 ## 事件、状态与 replay
 

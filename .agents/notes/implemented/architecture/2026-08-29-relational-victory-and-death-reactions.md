@@ -25,7 +25,8 @@ Victory registry 先校验基础 evaluators 的一致候选，再依次应用有
 
 当前 `ruleset-classic-v4` 安装关系型规则所需的 flow plugin 版本与丘比特 plugin。已发布的 V1–V3
 Ruleset 保持其原有 plugin 版本、锁和恢复入口；历史死亡与终局事件允许缺少当前字段，当前 Ruleset
-产生完整字段。
+产生完整字段。丘比特 plugin 在通用终局事实与身份公开完成后追加公开情侣揭晓，Prompt、时间线和
+玩家卡片从同一事件获得最终关系事实。
 
 ## Alternatives considered
 
@@ -42,7 +43,8 @@ Ruleset 保持其原有 plugin 版本、锁和恢复入口；历史死亡与终�
 - 关系型 Role 的动作、死亡和胜负语义可以由一份 plugin state 与通用 registries 确定性组合。
 - 死亡技能、遗言、Sheriff 和终局读取同一个已展开死亡批次，不依赖 phase ID 推断昼夜时点。
 - 浏览器和赛后流程可以显示、评分和提名确切赢家，不需要从 Faction 或 Role ID 推断。
-- 私有关系仍由事件 visibility 和 server projection 保护，Prompt 与 Web 只消费过滤后的事件。
+- 对局中的私有关系由事件 visibility 和 server projection 保护；终局公开关系由 Role plugin 的公开
+  事件进入同一 Prompt 与 Web 投影链路。
 - Ruleset catalog 必须继续为每个已发布版本保留精确 factory 和 fingerprint 校验。
 
 ## Verification

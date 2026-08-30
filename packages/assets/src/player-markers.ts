@@ -1,4 +1,9 @@
-import { PlayerMarkerIdSchema, type PlayerMarkerId } from '@agentwolf/contracts'
+import { PlayerMarkerIdSchema, type PlayerId, type PlayerMarkerId } from '@agentwolf/contracts'
+
+export interface PlayerMarkerContribution {
+  readonly markerId: PlayerMarkerId
+  readonly playerIds: readonly PlayerId[]
+}
 
 export interface PlayerMarkerDefinition {
   readonly id: PlayerMarkerId

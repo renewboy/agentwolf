@@ -22,11 +22,12 @@ import { phase } from './shared.js'
 
 const cupidPhaseId = phase('phase-night-cupid')
 const hiddenNightPhaseId = phase('phase-night-hidden')
+const matchEndedPhaseId = phase('phase-match-ended')
 const linkedDeathTriggerId = TriggerIdSchema.parse('trigger-cupid-linked-death')
 
 export const cupidPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.cupid,
-  version: 1,
+  version: 2,
   requires: [
     { id: classicPluginIds.phases, version: 1 },
     { id: classicPluginIds.guard, version: 1 },
@@ -96,6 +97,10 @@ export const cupidPlugin: RulePlugin<RulesetBuilder> = {
       )
     })
     rules.registerPhaseHandler(cupidPhaseId, settleLink, { id: 'cupid-link' })
+    rules.registerPhaseHandler(matchEndedPhaseId, revealLovers, {
+      id: 'cupid-lovers-reveal',
+      order: 100,
+    })
     rules.registerActionValidator('cupid-lovers-cannot-exile-each-other', validateLoverVote)
     triggers.registerAutomaticDeath({
       id: linkedDeathTriggerId,
@@ -131,6 +136,20 @@ export const cupidPlugin: RulePlugin<RulesetBuilder> = {
       transform: (context, current) => modifyVictory(context.state, current),
     })
   },
+}
+
+function revealLovers(runtime: RuleRuntime): void {
+  const loverIds = cupidState(runtime.state).loverIds
+  if (!loverIds) return
+  runtime.append(
+    {
+      type: 'public.announcement',
+      code: 'cupid-lovers-revealed',
+      playerIds: [...loverIds],
+      params: {},
+    },
+    visibility.public,
+  )
 }
 
 function settleLink(runtime: RuleRuntime): void {

@@ -86,9 +86,10 @@ sequence cursor，保持事件原顺序。
 公开淘汰状态从 public announcements/events 派生。closed-eye 和普通 player 在 Match 运行中不会因为
 GameState 已将玩家置死而提前看到私密死亡；projector 只在公开淘汰后改变外部 alive 状态。
 
-玩家卡片标识同样只从已过滤事件派生。plugin event 可以贡献带语义 ID 的持久标识，projector 将其
-归入对应 Seat 后再写入 `MatchView`。情侣标识来自私有连线事件，因此只有 god、Cupid 与两名情侣的
-投影包含该标识；无关 player 和 closed-eye 的 DTO 中没有这项关系事实。
+玩家卡片标识同样只从已过滤事件派生。事件呈现可以贡献带语义 ID 的持久标识，projector 将其归入
+对应 Seat 后再写入 `MatchView`。Match 运行期间，情侣标识来自私有连线事件，只有 god、Cupid 与
+两名情侣的投影包含该标识；终局身份公开完成后，Cupid plugin 追加公开情侣揭晓公告，所有视角从
+同一公开事件获得情侣标识。
 
 ### Phase 与 Session 状态
 
@@ -227,9 +228,10 @@ sequence 时恢复。
 
 ## 终局与赛后同步
 
-GameEngine 先发出带明确获胜 Player IDs 的 public `match.ended`，再按稳定顺序发出最终 Role reveals。
-MatchRuntime 在启用赛后复盘时暂缓首个 ended snapshot，先持久创建 countdown record，再广播包含
-winner、获胜玩家、全部最终身份和十秒 deadline 的一致快照。
+GameEngine 先发出带明确获胜 Player IDs 的 public `match.ended`，再按稳定顺序发出最终 Role reveals
+和 Role plugin 拥有的公开揭晓公告。MatchRuntime 在启用赛后复盘时暂缓首个 ended snapshot，先持久
+创建 countdown record，再广播包含 winner、获胜玩家、全部最终身份、公开关系和十秒 deadline 的
+一致快照。
 
 赛后同步遵守以下顺序：
 

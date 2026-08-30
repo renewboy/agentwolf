@@ -22,6 +22,7 @@ import {
   pluginEventPlayerMarkers,
   pluginEventPlayerIds,
   registeredEventEffect,
+  registeredEventPlayerMarkers,
   registeredEventPlayerIds,
   registeredTimelineNarration,
   renderEventNarration,
@@ -185,7 +186,10 @@ export function projectPlayerMarkers(
 ): ReadonlyMap<PlayerId, readonly PlayerMarkerId[]> {
   const markers = new Map<PlayerId, Set<PlayerMarkerId>>()
   for (const event of events) {
-    for (const marker of pluginEventPlayerMarkers(event)) {
+    for (const marker of [
+      ...registeredEventPlayerMarkers(event),
+      ...pluginEventPlayerMarkers(event),
+    ]) {
       for (const playerId of marker.playerIds) {
         const playerMarkers = markers.get(playerId) ?? new Set<PlayerMarkerId>()
         playerMarkers.add(marker.markerId)

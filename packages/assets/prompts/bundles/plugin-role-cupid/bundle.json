@@ -43,5 +43,12 @@
       "audience": "public",
       "template": "linked-death.njk"
     }
+  ],
+  "announcements": [
+    {
+      "code": "cupid-lovers-revealed",
+      "audience": "public",
+      "template": "revealed.njk"
+    }
   ]
 }

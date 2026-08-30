@@ -103,6 +103,11 @@ describe('match orchestration', () => {
         winningPlayerIds: ['player-2', 'player-3', 'player-4'],
       },
     })
+    expect(
+      terminal.seats
+        .filter((seat) => seat.markers.includes('cupid-lover'))
+        .map((seat) => seat.playerId),
+    ).toEqual(['player-1', 'player-5'])
     const events = server.repository.listMatchEvents(created.id)
     const linked = events.find(
       (event) =>
@@ -126,6 +131,18 @@ describe('match orchestration', () => {
         winner: 'werewolf',
         winningPlayerIds: ['player-2', 'player-3', 'player-4'],
       },
+    )
+    const loversRevealed = events.find(
+      (event) =>
+        event.payload.type === 'public.announcement' &&
+        event.payload.code === 'cupid-lovers-revealed',
+    )
+    expect(loversRevealed).toMatchObject({
+      visibility: { kind: 'public' },
+      payload: { playerIds: ['player-1', 'player-5'] },
+    })
+    expect(loversRevealed!.sequence).toBeGreaterThan(
+      events.findLast((event) => event.payload.type === 'role.revealed')!.sequence,
     )
     expect(await server.simulations.addCandidate(created.id)).toMatchObject({ created: true })
     expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({

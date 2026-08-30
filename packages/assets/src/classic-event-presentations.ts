@@ -1,6 +1,7 @@
 import type { GameEvent, PlayerId, RoleEffectId } from '@agentwolf/contracts'
 import { formatCopy, getCopy } from './catalog.js'
 import type { NarrationCatalog } from './narration.js'
+import { cupidLoverMarkerId, type PlayerMarkerContribution } from './player-markers.js'
 
 export interface RegisteredEventEffect {
   readonly effectId: RoleEffectId
@@ -15,6 +16,7 @@ interface ClassicEventPresentation {
   narrate?(event: GameEvent, catalog: NarrationCatalog): string | null
   timeline?(event: GameEvent, catalog: NarrationCatalog): string | null
   effect?(event: GameEvent): RegisteredEventEffect | null
+  playerMarkers?(event: GameEvent): PlayerMarkerContribution[]
 }
 
 const presentations: readonly ClassicEventPresentation[] = [
@@ -180,6 +182,21 @@ const presentations: readonly ClassicEventPresentation[] = [
           }
         : null,
   },
+  {
+    matches: (event) =>
+      event.payload.type === 'public.announcement' &&
+      event.payload.code === 'cupid-lovers-revealed',
+    playerIds: (event) => [...cupidLoversReveal(event).playerIds],
+    narrate: (event, catalog) =>
+      formatCopy(getCopy('narration.cupidLoversRevealed'), {
+        players: cupidLoversReveal(event)
+          .playerIds.map((playerId) => playerLabel(playerId, catalog))
+          .join(getCopy('narration.listJoiner')),
+      }),
+    playerMarkers: (event) => [
+      { markerId: cupidLoverMarkerId, playerIds: [...cupidLoversReveal(event).playerIds] },
+    ],
+  },
 ]
 
 export function registeredEventNarration(
@@ -206,6 +223,10 @@ export function registeredEventEffect(event: GameEvent): RegisteredEventEffect |
   return presentation(event)?.effect?.(event) ?? null
 }
 
+export function registeredEventPlayerMarkers(event: GameEvent): PlayerMarkerContribution[] {
+  return presentation(event)?.playerMarkers?.(event) ?? []
+}
+
 function presentation(event: GameEvent): ClassicEventPresentation | undefined {
   return presentations.find((definition) => definition.matches(event))
 }
@@ -219,6 +240,12 @@ function actorAndTarget(event: GameEvent): PlayerId[] {
     return []
   }
   return [event.payload.actorId, ...(event.payload.targetId ? [event.payload.targetId] : [])]
+}
+
+function cupidLoversReveal(
+  event: GameEvent,
+): Extract<GameEvent['payload'], { type: 'public.announcement' }> {
+  return event.payload as Extract<GameEvent['payload'], { type: 'public.announcement' }>
 }
 
 function hunterNarration(event: GameEvent, catalog: NarrationCatalog): string | null {

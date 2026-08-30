@@ -5,13 +5,12 @@ import {
   PluginIdSchema,
   RoleIdSchema,
   type GameEvent,
-  type PlayerMarkerId,
   type PlayerId,
   type RoleEffectId,
 } from '@agentwolf/contracts'
 import { formatCopy, getCopy } from './catalog.js'
 import type { NarrationCatalog } from './narration.js'
-import { cupidLoverMarkerId } from './player-markers.js'
+import { cupidLoverMarkerId, type PlayerMarkerContribution } from './player-markers.js'
 
 interface PluginEventEffect {
   readonly effectId: RoleEffectId
@@ -20,18 +19,13 @@ interface PluginEventEffect {
   readonly variant: string | null
 }
 
-export interface PluginEventPlayerMarker {
-  readonly markerId: PlayerMarkerId
-  readonly playerIds: readonly PlayerId[]
-}
-
 interface PluginEventPresentation {
   readonly pluginId: string
   readonly eventType: string
   playerIds(data: unknown): PlayerId[]
   narrate(data: unknown, catalog: NarrationCatalog): string
   effect(data: unknown): PluginEventEffect | null
-  playerMarkers?(data: unknown): PluginEventPlayerMarker[]
+  playerMarkers?(data: unknown): PlayerMarkerContribution[]
 }
 
 const magicMirrorPluginId = PluginIdSchema.parse('plugin-role-magic-mirror-girl')
@@ -292,7 +286,7 @@ export function pluginEventEffect(event: GameEvent): PluginEventEffect | null {
   return definition(event.payload)?.effect(event.payload.data) ?? null
 }
 
-export function pluginEventPlayerMarkers(event: GameEvent): PluginEventPlayerMarker[] {
+export function pluginEventPlayerMarkers(event: GameEvent): PlayerMarkerContribution[] {
   if (event.payload.type !== 'plugin.event') return []
   return definition(event.payload)?.playerMarkers?.(event.payload.data) ?? []
 }

@@ -89,12 +89,15 @@ test('shows Cupid relationship markers only in authorized spectator views', asyn
   const cupidId = 'player-1'
   const loverIds = ['player-2', 'player-4']
   const base = { ...source, id: 'match-private-cupid-marker-test' } as MatchView
+  let terminal = false
   const projection = (view: { kind: string; playerId?: string }): MatchView => {
     const canSeeLovers =
+      terminal ||
       view.kind === 'god' ||
       (view.kind === 'player' && [cupidId, ...loverIds].includes(view.playerId ?? ''))
     return {
       ...base,
+      status: terminal ? 'ended' : base.status,
       seats: base.seats.map((seat) => ({
         ...seat,
         markers: canSeeLovers && loverIds.includes(seat.playerId) ? ['cupid-lover'] : [],
@@ -157,6 +160,10 @@ test('shows Cupid relationship markers only in authorized spectator views', asyn
   )
   await expect(mobileMarkers).toHaveCount(2)
   await expect(mobileMarkers.first()).toBeVisible()
+
+  terminal = true
+  await page.getByRole('button', { name: '闭眼视角' }).click()
+  await expect(mobileMarkers).toHaveCount(2)
 })
 
 test('shows private wolf ballots in god and Werewolf player views only', async ({
