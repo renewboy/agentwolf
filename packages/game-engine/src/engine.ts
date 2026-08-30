@@ -59,7 +59,7 @@ export class GameEngine {
       options.roles || options.rules
         ? new RulesetRuntime(
             defaultRuleset.id,
-            defaultRuleset.version,
+            defaultRuleset.revision,
             defaultRuleset.plugins,
             options.roles ?? defaultRuleset.roles,
             options.rules ?? defaultRuleset.rules,
@@ -573,7 +573,7 @@ export class GameEngine {
           playerId: death.playerId,
           causes: [...death.causes],
           announced: true,
-          ...(this.#rules.persistDeathTiming ? { timing: death.timing } : {}),
+          timing: death.timing,
         },
         visibility.god,
       )

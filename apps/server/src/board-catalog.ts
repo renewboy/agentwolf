@@ -125,7 +125,7 @@ export class BoardCatalogService {
 
   public resolveSnapshot(snapshot: MatchBoardSnapshot): ResolvedBoard {
     const parsed = MatchBoardSnapshotSchema.parse(snapshot)
-    this.#rulesets.forSnapshot(parsed)
+    this.#rulesets.forExecution(parsed)
     const summary = BoardSummarySchema.parse({
       ...parsed,
       roles: parsed.roles.map((slot) => ({
@@ -138,7 +138,7 @@ export class BoardCatalogService {
   }
 
   public rulesetForSnapshot(snapshot: MatchBoardSnapshot) {
-    return this.#rulesets.forSnapshot(snapshot)
+    return this.#rulesets.forExecution(snapshot)
   }
 
   public create(input: CustomBoardInput): BoardSummary {
@@ -282,7 +282,7 @@ export class BoardCatalogService {
 
   #snapshot(summary: BoardSummary): MatchBoardSnapshot {
     return MatchBoardSnapshotSchema.parse({
-      schemaVersion: 2,
+      schemaVersion: 3,
       rulesetId: this.#rulesets.currentSnapshotId(),
       ruleset: this.#rulesets.lock(),
       id: summary.id,

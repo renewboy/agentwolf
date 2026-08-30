@@ -28,19 +28,16 @@ export const cupidLinkDataSchema = z.object({
   }),
 })
 
-export const cupidLinkedDeathV1DataSchema = z.object({
+export const cupidLinkedDeathDataSchema = z.object({
   sourceId: PlayerIdSchema,
   targetId: PlayerIdSchema,
   timing: DeathTimingSchema,
-})
-
-export const cupidLinkedDeathDataSchema = cupidLinkedDeathV1DataSchema.extend({
   presentation: z.literal('partner-only'),
 })
 
 export const cupidStateSchema = z.object({
   loverIds: z.tuple([PlayerIdSchema, PlayerIdSchema]).nullable(),
-  linkedDeaths: z.array(z.union([cupidLinkedDeathDataSchema, cupidLinkedDeathV1DataSchema])),
+  linkedDeaths: z.array(cupidLinkedDeathDataSchema),
 })
 
 export type CupidState = z.infer<typeof cupidStateSchema>

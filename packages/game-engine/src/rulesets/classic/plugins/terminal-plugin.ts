@@ -6,58 +6,48 @@ import { visibility } from '../../../rule-registry.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
-export const classicTerminalPlugin = createClassicTerminalPlugin(2, true)
-export const classicV1TerminalPlugin = createClassicTerminalPlugin(1, false)
-
-function createClassicTerminalPlugin(
-  version: number,
-  persistWinningPlayerIds: boolean,
-): RulePlugin<RulesetBuilder> {
-  return {
-    id: classicPluginIds.terminal,
-    version,
-    requires: [{ id: classicPluginIds.victory, version: 1 }],
-    register: ({ phases, rules }) => {
-      phases.register({
-        id: phase('phase-match-ended'),
-        labelKey: 'phases.matchEnded',
-        mode: 'automatic',
-        edges: [],
-      })
-      rules.registerPredicate('has-winner', (runtime) =>
-        Boolean(
-          runtime.victories.evaluate({
-            state: runtime.state,
-            board: runtime.board,
-            roles: runtime.roles,
-          }),
-        ),
-      )
-      rules.registerPredicate('interrupted-to-night', (runtime) => runtime.state.interruptToNight)
-      rules.registerPhaseHandler(
-        phase('phase-match-ended'),
-        (runtime) => {
-          const victory = runtime.victories.evaluate({
-            state: runtime.state,
-            board: runtime.board,
-            roles: runtime.roles,
-          })
-          assertRule(victory, 'Match ended phase requires a winner')
-          runtime.append(
-            {
-              type: 'match.ended',
-              winner: victory.winner,
-              reason: victory.reason,
-              ...(persistWinningPlayerIds
-                ? { winningPlayerIds: [...victory.winningPlayerIds] }
-                : {}),
-            },
-            visibility.public,
-          )
-          appendFinalRoleReveals(runtime)
-        },
-        { id: 'classic-match-ended' },
-      )
-    },
-  }
+export const classicTerminalPlugin: RulePlugin<RulesetBuilder> = {
+  id: classicPluginIds.terminal,
+  version: 2,
+  requires: [{ id: classicPluginIds.victory, version: 1 }],
+  register: ({ phases, rules }) => {
+    phases.register({
+      id: phase('phase-match-ended'),
+      labelKey: 'phases.matchEnded',
+      mode: 'automatic',
+      edges: [],
+    })
+    rules.registerPredicate('has-winner', (runtime) =>
+      Boolean(
+        runtime.victories.evaluate({
+          state: runtime.state,
+          board: runtime.board,
+          roles: runtime.roles,
+        }),
+      ),
+    )
+    rules.registerPredicate('interrupted-to-night', (runtime) => runtime.state.interruptToNight)
+    rules.registerPhaseHandler(
+      phase('phase-match-ended'),
+      (runtime) => {
+        const victory = runtime.victories.evaluate({
+          state: runtime.state,
+          board: runtime.board,
+          roles: runtime.roles,
+        })
+        assertRule(victory, 'Match ended phase requires a winner')
+        runtime.append(
+          {
+            type: 'match.ended',
+            winner: victory.winner,
+            reason: victory.reason,
+            winningPlayerIds: [...victory.winningPlayerIds],
+          },
+          visibility.public,
+        )
+        appendFinalRoleReveals(runtime)
+      },
+      { id: 'classic-match-ended' },
+    )
+  },
 }

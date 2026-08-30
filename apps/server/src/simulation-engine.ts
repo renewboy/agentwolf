@@ -6,7 +6,7 @@ type SimulationInput = SimulationCapture | SimulationFixture
 
 export function createSimulationEngine(simulation: SimulationInput) {
   const board = boardManifestFromSnapshot(simulation.setup.board)
-  const ruleset = new RulesetCatalog().forSnapshot(simulation.setup.board)
+  const ruleset = new RulesetCatalog().forExecution(simulation.setup.board)
   let tick = 0
   const clock = (): Date => new Date(Date.UTC(2000, 0, 1, 0, 0, tick++))
   const engine = GameEngine.create({

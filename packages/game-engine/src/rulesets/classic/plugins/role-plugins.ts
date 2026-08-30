@@ -23,16 +23,12 @@ import {
   whiteWolfDetonationDataSchema,
   whiteWolfStateSchema,
 } from '../roles/white-wolf-king.js'
-import {
-  awakenedHiddenWolfPlugin,
-  awakenedHiddenWolfV2Plugin,
-  awakenedHiddenWolfV3Plugin,
-} from './awakened-hidden-wolf-plugin.js'
-import { cupidPlugin, cupidV1Plugin, cupidV2Plugin } from './cupid-plugin.js'
+import { awakenedHiddenWolfPlugin } from './awakened-hidden-wolf-plugin.js'
+import { cupidPlugin } from './cupid-plugin.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
-export const classicV3RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
+const classicBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   rolePlugin(classicPluginIds.villager, () => new VillagerRole()),
   rolePlugin(classicPluginIds.werewolf, () => new WerewolfRole()),
   rolePlugin(classicPluginIds.seer, () => new SeerRole(), {
@@ -192,35 +188,10 @@ export const classicV3RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   awakenedHiddenWolfPlugin,
 ]
 
-const classicV5BaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
-  ...classicV3RolePlugins.filter((plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf),
-  awakenedHiddenWolfV2Plugin,
-]
-
-export const classicV4RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
-  ...classicV5BaseRolePlugins,
-  cupidV1Plugin,
-]
-
-export const classicV5RolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
-  ...classicV5BaseRolePlugins,
-  cupidV2Plugin,
-]
-
 export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
-  ...classicV3RolePlugins.filter((plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf),
-  awakenedHiddenWolfV3Plugin,
+  ...classicBaseRolePlugins,
   cupidPlugin,
 ]
-
-export const classicV2RolePlugins = classicV3RolePlugins.filter(
-  (plugin) => plugin.id !== classicPluginIds.awakenedHiddenWolf,
-)
-
-export const classicV1RolePlugins = classicV2RolePlugins.filter(
-  (plugin) =>
-    plugin.id !== classicPluginIds.magicMirrorGirl && plugin.id !== classicPluginIds.whiteWolfKing,
-)
 
 function rolePlugin(
   id: (typeof classicPluginIds)[keyof typeof classicPluginIds],

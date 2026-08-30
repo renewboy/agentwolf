@@ -40,7 +40,7 @@ const godPrivateNightPresentation = {
 
 export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.awakenedHiddenWolf,
-  version: 1,
+  version: 3,
   requires: [
     { id: classicPluginIds.phases, version: 1 },
     { id: classicPluginIds.identityQueries, version: 1 },
@@ -51,8 +51,8 @@ export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
     { id: classicPluginIds.magicMirrorGirl, version: 1 },
     { id: classicPluginIds.wolfTeam, version: 2 },
     { id: classicPluginIds.resolution, version: 1 },
-    { id: classicPluginIds.night, version: 1 },
-    { id: classicPluginIds.death, version: 1 },
+    { id: classicPluginIds.night, version: 3 },
+    { id: classicPluginIds.death, version: 3 },
   ],
   register: ({ events, phases, queries, roles, rules }) => {
     roles.register(new AwakenedHiddenWolfRole())
@@ -73,26 +73,6 @@ export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
       },
     })
   },
-}
-
-export const awakenedHiddenWolfV2Plugin: RulePlugin<RulesetBuilder> = {
-  ...awakenedHiddenWolfPlugin,
-  version: 2,
-  requires: (awakenedHiddenWolfPlugin.requires ?? []).map((requirement) =>
-    requirement.id === classicPluginIds.night || requirement.id === classicPluginIds.death
-      ? { ...requirement, version: 2 }
-      : requirement,
-  ),
-}
-
-export const awakenedHiddenWolfV3Plugin: RulePlugin<RulesetBuilder> = {
-  ...awakenedHiddenWolfPlugin,
-  version: 3,
-  requires: (awakenedHiddenWolfPlugin.requires ?? []).map((requirement) =>
-    requirement.id === classicPluginIds.night || requirement.id === classicPluginIds.death
-      ? { ...requirement, version: 3 }
-      : requirement,
-  ),
 }
 
 function registerEvents(events: RulesetBuilder['events']): void {

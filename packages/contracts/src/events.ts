@@ -185,7 +185,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     type: z.literal('death.pending'),
     playerId: PlayerIdSchema,
     causes: z.array(z.string()).min(1),
-    timing: DeathTimingSchema.optional(),
+    timing: DeathTimingSchema,
   }),
   z.object({
     type: z.literal('death.cancelled'),
@@ -212,7 +212,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     playerId: PlayerIdSchema,
     causes: z.array(z.string()).min(1),
     announced: z.boolean(),
-    timing: DeathTimingSchema.optional(),
+    timing: DeathTimingSchema,
   }),
   z.object({
     type: z.literal('players.eliminated-publicly'),
@@ -278,7 +278,7 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('match.ended'),
     winner: FactionSchema,
-    winningPlayerIds: z.array(PlayerIdSchema).min(1).optional(),
+    winningPlayerIds: z.array(PlayerIdSchema).min(1),
     reason: z.string(),
   }),
 ])

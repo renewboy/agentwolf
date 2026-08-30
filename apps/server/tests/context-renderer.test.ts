@@ -752,7 +752,12 @@ describe('plugin-owned Prompt rendering', () => {
         sequence: baseSequence + 8,
         occurredAt: '2026-08-26T00:00:07.000Z',
         visibility: { kind: 'god' },
-        payload: { type: 'death.pending', playerId: eliminated.id, causes: ['private-test'] },
+        payload: {
+          type: 'death.pending',
+          playerId: eliminated.id,
+          causes: ['private-test'],
+          timing: 'night',
+        },
       }),
       GameEventSchema.parse({
         matchId: setup.engine.state.matchId,
@@ -784,7 +789,12 @@ describe('plugin-owned Prompt rendering', () => {
         sequence: baseSequence + 11,
         occurredAt: '2026-08-26T00:00:10.000Z',
         visibility: { kind: 'public' },
-        payload: { type: 'match.ended', winner: 'village', reason: 'test' },
+        payload: {
+          type: 'match.ended',
+          winner: 'village',
+          winningPlayerIds: [reviewer.id],
+          reason: 'test',
+        },
       }),
       GameEventSchema.parse({
         matchId: setup.engine.state.matchId,

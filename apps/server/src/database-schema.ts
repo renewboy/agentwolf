@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 8) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 9) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -56,7 +56,8 @@ export function migrateDatabase(database: Database.Database): void {
       ${playerSessionTables()}
       ${trajectoryTables()}
       ${postgameReviewTables()}
-      PRAGMA user_version = 8;
+      ${matchArchiveTables()}
+      PRAGMA user_version = 9;
     `)
   }
   if (version === 1) {
@@ -132,6 +133,21 @@ export function migrateDatabase(database: Database.Database): void {
     }
     database.pragma('user_version = 8')
   }
+  const archiveSchemaVersion = database.pragma('user_version', { simple: true }) as number
+  if (archiveSchemaVersion === 8) {
+    database.exec(matchArchiveTables())
+    database.pragma('user_version = 9')
+  }
+}
+
+function matchArchiveTables(): string {
+  return `
+    CREATE TABLE IF NOT EXISTS match_archives (
+      match_id TEXT PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
+      json TEXT NOT NULL,
+      archived_at TEXT NOT NULL
+    );
+  `
 }
 
 function playerSessionTables(): string {

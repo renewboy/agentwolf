@@ -8,6 +8,7 @@ import {
   CustomBoardSchema,
   GameEventSchema,
   GlobalSettingsSchema,
+  MatchArchiveSchema,
   MatchBoardSnapshotSchema,
   MatchIdSchema,
   MatchSetupSnapshotSchema,
@@ -22,6 +23,7 @@ import {
   type GameEvent,
   type GlobalSettings,
   type MatchId,
+  type MatchArchive,
   type MatchBoardSnapshot,
   type MatchStatus,
   type PlayerId,
@@ -237,6 +239,28 @@ export class SqliteRepository {
       .prepare('SELECT json FROM match_events WHERE match_id = ? ORDER BY sequence ASC')
       .all(matchId) as DatabaseRow[]
     return rows.map((row) => GameEventSchema.parse(JSON.parse(row.json)))
+  }
+
+  public getMatchArchive(matchId: MatchId): MatchArchive | null {
+    const row = this.#database
+      .prepare('SELECT json FROM match_archives WHERE match_id = ?')
+      .get(matchId) as DatabaseRow | undefined
+    return row ? MatchArchiveSchema.parse(JSON.parse(row.json)) : null
+  }
+
+  public saveMatchArchive(archive: MatchArchive): MatchArchive {
+    const parsed = MatchArchiveSchema.parse(archive)
+    const existing = this.getMatchArchive(parsed.matchId)
+    if (existing) {
+      if (JSON.stringify(existing) !== JSON.stringify(parsed)) {
+        throw new Error(`Match archive ${parsed.matchId} is immutable`)
+      }
+      return existing
+    }
+    this.#database
+      .prepare('INSERT INTO match_archives (match_id, json, archived_at) VALUES (?, ?, ?)')
+      .run(parsed.matchId, JSON.stringify(parsed), parsed.archivedAt)
+    return parsed
   }
 
   public getMatch(id: MatchId): MatchRecord | null {

@@ -14,7 +14,7 @@ export type PluginLock = z.infer<typeof PluginLockSchema>
 
 export const RulesetLockSchema = z.object({
   id: RulesetIdSchema,
-  version: z.number().int().positive(),
+  revision: z.number().int().positive(),
   plugins: z.array(PluginLockSchema).min(1),
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
 })

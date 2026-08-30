@@ -170,7 +170,7 @@ describe('ruleset plugin runtime', () => {
     }
     const runtime = new RulesetBuilder({
       id: RulesetIdSchema.parse('ruleset-synthetic-test'),
-      version: 1,
+      revision: 1,
       plugins: [rolePlugin, basePlugin],
     }).build()
     expect(runtime.phases.entry).toBe(insertedPhaseId)

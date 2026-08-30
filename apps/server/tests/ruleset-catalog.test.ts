@@ -1,135 +1,75 @@
 import { MatchBoardSnapshotSchema } from '@agentwolf/contracts'
-import {
-  createClassicRuleset,
-  createClassicV2Ruleset,
-  createClassicV3Ruleset,
-  createClassicV4Ruleset,
-  createClassicV5Ruleset,
-  guardBoard,
-} from '@agentwolf/game-engine'
+import { createClassicRuleset, guardBoard } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
-import { RulesetCatalog } from '../src/ruleset-catalog.js'
+import {
+  RulesetCatalog,
+  rulesetReleaseDefinitions,
+  type RulesetReleaseDefinition,
+} from '../src/ruleset-catalog.js'
 
 describe('RulesetCatalog', () => {
-  it('resolves an exact classic-v2 snapshot without installing classic-v3 Roles', () => {
+  it('builds the current runtime from one table row and verifies its immutable lock', () => {
     const catalog = new RulesetCatalog()
-    const classicV2 = createClassicV2Ruleset()
-    const snapshot = MatchBoardSnapshotSchema.parse({
-      schemaVersion: 2,
-      rulesetId: 'classic-v2',
-      ruleset: catalog.lock(classicV2),
-      policies: guardBoard.policies,
-      id: guardBoard.id,
-      name: 'Classic V2 guard board',
-      description: '',
-      roles: guardBoard.roles,
-      characters: [],
-      playerCount: guardBoard.playerCount,
-      sheriff: guardBoard.sheriff,
-      victory: guardBoard.policies.victory,
-      source: 'built-in',
-      revision: 1,
-    })
-
-    const resolved = catalog.forSnapshot(snapshot)
-    expect(resolved.id).toBe('ruleset-classic-v2')
-    expect(resolved.version).toBe(2)
-    expect(resolved.roles.list().map((role) => role.id)).not.toContain('role-awakened-hidden-wolf')
-    expect(resolved.plugins).toEqual(classicV2.plugins)
-    expect(catalog.current().id).toBe('ruleset-classic-v6')
+    const lock = catalog.lock()
+    expect(rulesetReleaseDefinitions).toEqual([
+      expect.objectContaining({ familyId: 'classic', revision: 6, default: true }),
+    ])
+    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic', revision: 6 })
+    expect(lock).toMatchObject({ id: 'ruleset-classic', revision: 6 })
+    expect(lock.fingerprint).toBe(
+      '806490f20fe1ca19e9dbbf14a5f2158819963796e9eb5130c58394eb805e98d5',
+    )
+    const snapshot = snapshotFor(lock)
+    expect(catalog.forExecution(snapshot)).toBe(catalog.current())
+    expect(() =>
+      catalog.forExecution(
+        MatchBoardSnapshotSchema.parse({
+          ...snapshot,
+          ruleset: { ...snapshot.ruleset, revision: 5 },
+        }),
+      ),
+    ).toThrow(/read-only/)
+    expect(() =>
+      catalog.forExecution(
+        MatchBoardSnapshotSchema.parse({
+          ...snapshot,
+          ruleset: { ...snapshot.ruleset, fingerprint: '0'.repeat(64) },
+        }),
+      ),
+    ).toThrow(/fingerprint mismatch/)
   })
 
-  it('resolves classic-v3 without installing Cupid or changing its plugin lock', () => {
-    const catalog = new RulesetCatalog()
-    const classicV3 = createClassicV3Ruleset()
-    const snapshot = MatchBoardSnapshotSchema.parse({
-      schemaVersion: 2,
-      rulesetId: 'classic-v3',
-      ruleset: catalog.lock(classicV3),
-      policies: guardBoard.policies,
-      id: guardBoard.id,
-      name: 'Classic V3 guard board',
-      description: '',
-      roles: guardBoard.roles,
-      characters: [],
-      playerCount: guardBoard.playerCount,
-      sheriff: guardBoard.sheriff,
-      victory: guardBoard.policies.victory,
-      source: 'built-in',
-      revision: 1,
-    })
-
-    const resolved = catalog.forSnapshot(snapshot)
-    expect(resolved.id).toBe('ruleset-classic-v3')
-    expect(resolved.roles.list().map((role) => role.id)).not.toContain('role-cupid')
-    expect(resolved.plugins).toEqual(classicV3.plugins)
-  })
-
-  it('resolves the exact classic-v4 Cupid v1 fingerprint', () => {
-    const catalog = new RulesetCatalog()
-    const classicV4 = createClassicV4Ruleset()
-    const classicV4Lock = catalog.lock(classicV4)
-    expect(classicV4Lock.fingerprint).toBe(
-      'f527bae1636c82df7d2ef170893f4063a2c26d0f06bed078ca3583e819902557',
-    )
-    expect(classicV4.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(1)
-    const snapshot = MatchBoardSnapshotSchema.parse({
-      schemaVersion: 2,
-      rulesetId: 'classic-v4',
-      ruleset: classicV4Lock,
-      policies: guardBoard.policies,
-      id: guardBoard.id,
-      name: 'Classic V4 guard board',
-      description: '',
-      roles: guardBoard.roles,
-      characters: [],
-      playerCount: guardBoard.playerCount,
-      sheriff: guardBoard.sheriff,
-      victory: guardBoard.policies.victory,
-      source: 'built-in',
-      revision: 1,
-    })
-
-    const resolved = catalog.forSnapshot(snapshot)
-    expect(resolved.id).toBe('ruleset-classic-v4')
-    expect(resolved.plugins).toEqual(classicV4.plugins)
-    expect(
-      createClassicRuleset().plugins.find((plugin) => plugin.id === 'plugin-role-cupid'),
-    ).toMatchObject({ version: 3 })
-  })
-
-  it('resolves the exact classic-v5 Cupid v2 fingerprint', () => {
-    const catalog = new RulesetCatalog()
-    const classicV5 = createClassicV5Ruleset()
-    const classicV5Lock = catalog.lock(classicV5)
-    expect(classicV5Lock.fingerprint).toBe(
-      'cc2ba7b8b42c2238c81d00c37a8d50713dbe432911b2fe1c154f2198d20e850e',
-    )
-    expect(classicV5.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(2)
-    expect(classicV5.plugins.find((plugin) => plugin.id === 'plugin-classic-night')?.version).toBe(
-      2,
-    )
-    const snapshot = MatchBoardSnapshotSchema.parse({
-      schemaVersion: 2,
-      rulesetId: 'classic-v5',
-      ruleset: classicV5Lock,
-      policies: guardBoard.policies,
-      id: guardBoard.id,
-      name: 'Classic V5 guard board',
-      description: '',
-      roles: guardBoard.roles,
-      characters: [],
-      playerCount: guardBoard.playerCount,
-      sheriff: guardBoard.sheriff,
-      victory: guardBoard.policies.victory,
-      source: 'built-in',
-      revision: 1,
-    })
-
-    expect(catalog.forSnapshot(snapshot).plugins).toEqual(classicV5.plugins)
-    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic-v6', version: 6 })
-    expect(
-      catalog.current().plugins.find((plugin) => plugin.id === 'plugin-classic-night'),
-    ).toMatchObject({ version: 3 })
+  it('rejects empty, duplicate, ambiguous, and revision-mismatched release tables', () => {
+    const current = rulesetReleaseDefinitions[0]!
+    expect(() => new RulesetCatalog([])).toThrow(/empty/)
+    expect(() => new RulesetCatalog([{ ...current, default: false }])).toThrow(/exactly one/)
+    expect(() => new RulesetCatalog([current, current])).toThrow(/Duplicate/)
+    const mismatched: RulesetReleaseDefinition = {
+      familyId: 'classic',
+      revision: 5,
+      default: true,
+      create: createClassicRuleset,
+    }
+    expect(() => new RulesetCatalog([mismatched])).toThrow(/runtime is 6/)
   })
 })
+
+function snapshotFor(ruleset: ReturnType<RulesetCatalog['lock']>) {
+  return MatchBoardSnapshotSchema.parse({
+    schemaVersion: 3,
+    rulesetId: 'classic',
+    ruleset,
+    policies: guardBoard.policies,
+    id: guardBoard.id,
+    name: 'Classic guard board',
+    description: '',
+    roles: guardBoard.roles,
+    characters: [],
+    agentProfiles: [],
+    playerCount: guardBoard.playerCount,
+    sheriff: guardBoard.sheriff,
+    victory: guardBoard.policies.victory,
+    source: 'built-in',
+    revision: 1,
+  })
+}

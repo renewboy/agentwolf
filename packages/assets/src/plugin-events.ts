@@ -251,17 +251,10 @@ const presentations: readonly PluginEventPresentation[] = [
     },
     narrate: (data, catalog) => {
       const parsed = cupidLinkedDeathData(data)
-      return formatCopy(
-        getCopy(
-          parsed.presentation === 'partner-only'
-            ? 'narration.cupidLinkedDeath'
-            : 'narration.cupidLinkedDeathLegacy',
-        ),
-        {
-          source: playerLabel(parsed.sourceId, catalog),
-          target: playerLabel(parsed.targetId, catalog),
-        },
-      )
+      return formatCopy(getCopy('narration.cupidLinkedDeath'), {
+        source: playerLabel(parsed.sourceId, catalog),
+        target: playerLabel(parsed.targetId, catalog),
+      })
     },
     effect: (data) => {
       const parsed = cupidLinkedDeathData(data)
@@ -378,7 +371,7 @@ function cupidLinkData(data: unknown) {
 function cupidLinkedDeathData(data: unknown) {
   const record = pluginData(data, 'Cupid linked death')
   const presentation = record['presentation']
-  if (presentation !== undefined && presentation !== 'partner-only') {
+  if (presentation !== 'partner-only') {
     throw new Error('Invalid Cupid linked death presentation')
   }
   return {

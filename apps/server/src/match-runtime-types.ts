@@ -1,4 +1,4 @@
-import type { MatchBoardSnapshot, PlayerId } from '@agentwolf/contracts'
+import type { MatchBoardSnapshot, MatchView, PlayerId, SpectatorView } from '@agentwolf/contracts'
 import type { BoardManifest, GameEngine, RulesetRuntime } from '@agentwolf/game-engine'
 import type { AgentCatalogService } from './agent-catalog.js'
 import type { ActionExpectation } from './action-mailbox.js'
@@ -24,6 +24,7 @@ export interface MatchRuntimeOptions {
   readonly sessionConcurrency?: number
   readonly restored?: boolean
   readonly postgameReviewEnabled?: boolean
+  readonly archiveMatch?: (project: (view: SpectatorView) => MatchView) => Promise<void>
 }
 
 export interface PreparedActorTurn {

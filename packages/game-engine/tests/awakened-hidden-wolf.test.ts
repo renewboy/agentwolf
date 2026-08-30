@@ -397,6 +397,7 @@ function restoreWithDeadPlayers(engine: GameEngine, playerIds: readonly PlayerId
           playerId,
           causes: ['exile'],
           announced: true,
+          timing: 'day',
         },
       }),
     )

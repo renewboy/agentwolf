@@ -151,7 +151,7 @@ async function workflowFixture(
       await readFile(
         resolve(
           process.cwd(),
-          'apps/server/tests/fixtures/simulations/simulation-paused-32ec9c061df7156f.sim.json',
+          'apps/server/tests/fixtures/simulations/simulation-paused-1a31f4c2b478f897.sim.json',
         ),
         'utf8',
       ),

@@ -828,16 +828,16 @@ describe('Fastify API', () => {
     ).toEqual([boardProfile.id, profile.id, profile.id, profile.id, profile.id, profile.id])
     const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
     expect(snapshot).toMatchObject({
-      schemaVersion: 2,
-      rulesetId: 'classic-v6',
-      ruleset: { id: 'ruleset-classic-v6', version: 6 },
+      schemaVersion: 3,
+      rulesetId: 'classic',
+      ruleset: { id: 'ruleset-classic', revision: 6 },
       policies: { victory: 'slaughter-all' },
       agentProfiles: expect.arrayContaining([
         { seat: 1, profileId: boardProfile.id },
         { seat: 3, profileId: null },
       ]),
     })
-    if (!snapshot || snapshot.schemaVersion !== 2) throw new Error('Expected ruleset lock snapshot')
+    if (!snapshot) throw new Error('Expected ruleset lock snapshot')
     expect(() =>
       server.boards.resolveSnapshot({
         ...snapshot,

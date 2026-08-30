@@ -58,18 +58,6 @@ export class RuleRegistry {
   readonly #actionValidators: RegisteredActionValidator[] = []
   #phaseHandlerSequence = 0
   #actionValidatorSequence = 0
-  #deathEventsConfigured = false
-  #persistDeathTiming = false
-
-  public get persistDeathTiming(): boolean {
-    return this.#persistDeathTiming
-  }
-
-  public configureDeathEvents(options: { readonly persistTiming: boolean }): void {
-    if (this.#deathEventsConfigured) throw new Error('Death event policy is already configured')
-    this.#deathEventsConfigured = true
-    this.#persistDeathTiming = options.persistTiming
-  }
 
   public registerActorSelector(name: string, selector: ActorSelector): void {
     if (this.#actors.has(name)) throw new Error(`Duplicate actor selector ${name}`)

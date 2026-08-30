@@ -26,20 +26,14 @@ export function appendFinalDeath(
   playerId: PlayerId,
   causes: readonly string[],
   timing: DeathTiming = 'day',
-  persistTiming = true,
 ): void {
-  appendIndividualDeaths(runtime, [{ playerId, causes }], timing, persistTiming)
+  appendIndividualDeaths(runtime, [{ playerId, causes }], timing)
 }
 
-export function afterDeathBatchEdges(
-  preserveTerminalLastWords: boolean,
-  tail: readonly PhaseEdge[],
-): PhaseEdge[] {
+export function afterDeathBatchEdges(tail: readonly PhaseEdge[]): PhaseEdge[] {
   return [
     { to: phase('phase-death-triggers'), when: 'has-death-trigger' },
-    ...(preserveTerminalLastWords
-      ? [{ to: phase('phase-last-words'), when: 'has-terminal-last-words' }]
-      : []),
+    { to: phase('phase-last-words'), when: 'has-terminal-last-words' },
     { to: phase('phase-match-ended'), when: 'has-winner' },
     { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
     { to: phase('phase-last-words'), when: 'has-last-words' },

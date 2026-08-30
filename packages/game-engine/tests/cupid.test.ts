@@ -14,8 +14,6 @@ import {
   GameEngine,
   classicIdentityQueries,
   createClassicRuleset,
-  createClassicV4Ruleset,
-  createClassicV5Ruleset,
   cupidAbilityIds,
   cupidBoard,
   cupidEventTypes,
@@ -217,22 +215,6 @@ describe('Cupid Role plugin', () => {
       },
     })
     expect(cupidState(terminal.state).loverIds).toEqual(loverIds)
-
-    const classicV4 = createClassicV4Ruleset()
-    expect(classicV4.plugins.find((plugin) => plugin.id === 'plugin-role-cupid')?.version).toBe(1)
-    const legacyTerminal = completeTerminal(
-      classicV4,
-      terminalState,
-      noSheriffCupidBoard,
-      engine.events,
-    )
-    expect(
-      legacyTerminal.events.some(
-        (event) =>
-          event.payload.type === 'public.announcement' &&
-          event.payload.code === 'cupid-lovers-revealed',
-      ),
-    ).toBe(false)
   })
 
   it('expands every death cause once, inherits timing, and disables linked Hunter fire', () => {
@@ -479,28 +461,6 @@ describe('Cupid Role plugin', () => {
       [villagerId, true],
       [wolfId, true],
     ])
-  })
-
-  it('keeps the classic-v5 linked-death presentation contract intact', () => {
-    const legacy = createClassicV5Ruleset()
-    const engine = linkedEngine('mixed')
-    const [wolfId, villagerId] = cupidState(engine.state).loverIds!
-    const resolved = legacy.triggers.resolveDeaths(
-      [{ playerId: villagerId, causes: ['werewolf'], timing: 'night' }],
-      { state: engine.state, board: noSheriffCupidBoard, roles: legacy.roles },
-    )
-
-    expect(resolved[1]).toMatchObject({
-      death: { playerId: wolfId, causes: ['linked'], timing: 'night' },
-      original: false,
-      events: [
-        {
-          visibility: { kind: 'public' },
-          payload: { schemaVersion: 1, data: { sourceId: villagerId, targetId: wolfId } },
-        },
-      ],
-    })
-    expect(resolved[1]?.announcement).toBeUndefined()
   })
 
   it('keeps an originally killed Hunter trigger while suppressing a linked Hunter trigger', () => {

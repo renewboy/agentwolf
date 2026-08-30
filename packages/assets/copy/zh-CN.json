@@ -172,7 +172,6 @@
     "awakenedHiddenWolfAttacked": "你本夜的袭击目标是{{players}}。",
     "cupidLinked": "{{players}}成为情侣。",
     "cupidLinkedForPlayer": "你与{{player}}成为情侣。",
-    "cupidLinkedDeathLegacy": "{{source}}出局，{{target}}因情侣关系殉情。",
     "cupidLinkedDeath": "{{target}}因情侣关系殉情。",
     "cupidLoversRevealed": "最终情侣关系：{{players}}。",
     "factionMembers": "你的狼人队友是：{{players}}。",

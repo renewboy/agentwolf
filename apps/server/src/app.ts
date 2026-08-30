@@ -34,7 +34,7 @@ import { BoardCatalogService } from './board-catalog.js'
 import { CharacterCatalogService } from './character-catalog.js'
 import type { ServerConfig } from './config.js'
 import { handleMcpRequest } from './mcp.js'
-import { MatchManager, MatchNotFoundError } from './match-manager.js'
+import { MatchManager, MatchNotFoundError, MatchReadOnlyError } from './match-manager.js'
 import { PostgameReviewConflictError } from './postgame-review-repository.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
 import { SqliteRepository } from './repository.js'
@@ -97,6 +97,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const conflict =
       normalized.name === 'SimulationSourceError' ||
       normalized.name === 'SimulationWorkflowError' ||
+      normalized instanceof MatchReadOnlyError ||
       normalized instanceof PostgameReviewConflictError
     const postgameConflict = normalized instanceof PostgameReviewConflictError
     const clientError =
@@ -108,11 +109,13 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
         ? 'not-found'
         : postgameConflict
           ? 'postgame-review-conflict'
-          : conflict
-            ? 'simulation-source-unavailable'
-            : clientError
-              ? 'invalid-request'
-              : 'internal-error',
+          : normalized instanceof MatchReadOnlyError
+            ? 'match-read-only'
+            : conflict
+              ? 'simulation-source-unavailable'
+              : clientError
+                ? 'invalid-request'
+                : 'internal-error',
       message: normalized.message,
     })
   })
@@ -272,7 +275,9 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   app.get('/api/developer/matches/:id/trajectory/audit', async (request) => {
     requireDeveloperMode(options.config)
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
-    return auditTrajectory(repository, boards, id)
+    return (
+      repository.getMatchArchive(id)?.trajectoryAudit ?? auditTrajectory(repository, boards, id)
+    )
   })
   app.get('/api/developer/matches/:id/simulation/export', async (request, reply) => {
     requireDeveloperMode(options.config)

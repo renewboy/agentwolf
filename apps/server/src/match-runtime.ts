@@ -341,6 +341,7 @@ export class MatchRuntime {
         if (this.#options.postgameReviewEnabled === false) {
           this.#broadcastSnapshot()
           await this.close()
+          await this.#archiveMatch()
           return
         }
         this.#createPostgameCountdown()
@@ -577,8 +578,15 @@ export class MatchRuntime {
       onSpeechChunk: (playerId, text) =>
         this.#hub.broadcastSpeechChunk(this.engine.state, playerId, 'postgame', text),
       waitForFinalSpeech: async (item) => this.#playback.waitFor(item),
-      onTerminal: async () => this.#closePlayerSessions(),
+      onTerminal: async () => {
+        await this.#closePlayerSessions()
+        await this.#archiveMatch()
+      },
     })
+  }
+
+  async #archiveMatch(): Promise<void> {
+    await this.#options.archiveMatch?.((view) => this.project(view))
   }
 
   #requirePostgame(): PostgameReviewCoordinator {

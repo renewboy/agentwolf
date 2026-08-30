@@ -7,174 +7,158 @@ import { classicPluginIds } from './ids.js'
 import { classicCapabilities } from '../capabilities.js'
 import { afterDeathBatchEdges, appendFinalDeath, bySeat, phase } from './shared.js'
 
-export const classicDayPlugin = createClassicDayPlugin(3, true, true)
-export const classicV2DayPlugin = createClassicDayPlugin(2, true, false)
-export const classicV1DayPlugin = createClassicDayPlugin(1, false, false)
-
-function createClassicDayPlugin(
-  version: number,
-  persistDeathTiming: boolean,
-  preserveTerminalLastWords: boolean,
-): RulePlugin<RulesetBuilder> {
-  return {
-    id: classicPluginIds.day,
-    version,
-    register: ({ interrupts, phases, rules }) => {
-      const daytimeInterrupts = [
-        {
-          handlerId: 'classic-day-detonation',
-          capabilityIds: [
-            classicCapabilities.wolfSelfDestruct,
-            classicCapabilities.whiteWolfDetonate,
-          ],
-          context: 'daytime' as const,
-          visibility: 'public' as const,
+export const classicDayPlugin: RulePlugin<RulesetBuilder> = {
+  id: classicPluginIds.day,
+  version: 3,
+  register: ({ interrupts, phases, rules }) => {
+    const daytimeInterrupts = [
+      {
+        handlerId: 'classic-day-detonation',
+        capabilityIds: [
+          classicCapabilities.wolfSelfDestruct,
+          classicCapabilities.whiteWolfDetonate,
+        ],
+        context: 'daytime' as const,
+        visibility: 'public' as const,
+      },
+    ]
+    phases.registerAll([
+      {
+        id: phase('phase-day-speech-order'),
+        labelKey: 'phases.daySpeechOrder',
+        mode: 'parallel',
+        action: {
+          type: 'sheriff-action',
+          actions: ['speech-clockwise', 'speech-counterclockwise'],
+          visibility: 'public',
         },
-      ]
-      phases.registerAll([
-        {
-          id: phase('phase-day-speech-order'),
-          labelKey: 'phases.daySpeechOrder',
-          mode: 'parallel',
-          action: {
-            type: 'sheriff-action',
-            actions: ['speech-clockwise', 'speech-counterclockwise'],
-            visibility: 'public',
-          },
-          actorSelector: 'sheriff-or-system',
-          edges: [{ to: phase('phase-day-speech') }],
-        },
-        {
-          id: phase('phase-day-speech'),
-          labelKey: 'phases.daySpeech',
-          mode: 'sequential',
-          action: { type: 'speech', kind: 'day', visibility: 'public' },
-          interrupts: daytimeInterrupts,
-          actorSelector: 'day-speech-order',
-          edges: [{ to: phase('phase-day-vote') }],
-        },
-        {
-          id: phase('phase-day-vote'),
-          labelKey: 'phases.dayVote',
-          mode: 'parallel',
-          action: { type: 'vote', kind: 'exile', visibility: 'actor' },
-          interrupts: daytimeInterrupts,
-          actorSelector: 'eligible-voters',
-          edges: [
-            { to: phase('phase-day-runoff-speech'), when: 'exile-vote-tied' },
-            { to: phase('phase-day-resolve') },
-          ],
-        },
-        {
-          id: phase('phase-day-runoff-speech'),
-          labelKey: 'phases.dayRunoffSpeech',
-          mode: 'sequential',
-          action: { type: 'speech', kind: 'runoff', visibility: 'public' },
-          interrupts: daytimeInterrupts,
-          actorSelector: 'exile-tied-players',
-          edges: [{ to: phase('phase-day-runoff-vote') }],
-        },
-        {
-          id: phase('phase-day-runoff-vote'),
-          labelKey: 'phases.dayRunoffVote',
-          mode: 'parallel',
-          action: { type: 'vote', kind: 'exile-runoff', visibility: 'actor' },
-          interrupts: daytimeInterrupts,
-          actorSelector: 'eligible-runoff-voters',
-          edges: [{ to: phase('phase-day-resolve') }],
-        },
-        {
-          id: phase('phase-day-resolve'),
-          labelKey: 'phases.dayResolve',
-          mode: 'automatic',
-          edges: afterDeathBatchEdges(preserveTerminalLastWords, [
-            { to: phase('phase-night-guard') },
-          ]),
-        },
-      ])
-      interrupts.register({
-        id: 'classic-day-detonation',
-        events: (runtime, definition) =>
-          definition.context === 'sheriff-election' &&
-          runtime.board.policies.sheriffExplosion === 'single-explosion-loses-badge'
-            ? [
-                {
-                  payload: {
-                    type: 'sheriff.badge-lost' as const,
-                    reason: 'self-destruct-during-election',
-                  },
-                  visibility: visibility.public,
+        actorSelector: 'sheriff-or-system',
+        edges: [{ to: phase('phase-day-speech') }],
+      },
+      {
+        id: phase('phase-day-speech'),
+        labelKey: 'phases.daySpeech',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'day', visibility: 'public' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'day-speech-order',
+        edges: [{ to: phase('phase-day-vote') }],
+      },
+      {
+        id: phase('phase-day-vote'),
+        labelKey: 'phases.dayVote',
+        mode: 'parallel',
+        action: { type: 'vote', kind: 'exile', visibility: 'actor' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'eligible-voters',
+        edges: [
+          { to: phase('phase-day-runoff-speech'), when: 'exile-vote-tied' },
+          { to: phase('phase-day-resolve') },
+        ],
+      },
+      {
+        id: phase('phase-day-runoff-speech'),
+        labelKey: 'phases.dayRunoffSpeech',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'runoff', visibility: 'public' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'exile-tied-players',
+        edges: [{ to: phase('phase-day-runoff-vote') }],
+      },
+      {
+        id: phase('phase-day-runoff-vote'),
+        labelKey: 'phases.dayRunoffVote',
+        mode: 'parallel',
+        action: { type: 'vote', kind: 'exile-runoff', visibility: 'actor' },
+        interrupts: daytimeInterrupts,
+        actorSelector: 'eligible-runoff-voters',
+        edges: [{ to: phase('phase-day-resolve') }],
+      },
+      {
+        id: phase('phase-day-resolve'),
+        labelKey: 'phases.dayResolve',
+        mode: 'automatic',
+        edges: afterDeathBatchEdges([{ to: phase('phase-night-guard') }]),
+      },
+    ])
+    interrupts.register({
+      id: 'classic-day-detonation',
+      events: (runtime, definition) =>
+        definition.context === 'sheriff-election' &&
+        runtime.board.policies.sheriffExplosion === 'single-explosion-loses-badge'
+          ? [
+              {
+                payload: {
+                  type: 'sheriff.badge-lost' as const,
+                  reason: 'self-destruct-during-election',
                 },
-              ]
-            : [],
-        nextPhase: (runtime, definition) => {
-          if (rules.evaluate('has-death-trigger', runtime)) return phase('phase-death-triggers')
-          if (preserveTerminalLastWords && rules.evaluate('has-terminal-last-words', runtime)) {
-            return phase('phase-last-words')
-          }
-          if (rules.evaluate('has-winner', runtime)) return phase('phase-match-ended')
-          if (definition.context === 'sheriff-election') return phase('phase-day-announcement')
-          if (rules.evaluate('dead-sheriff-holds-badge', runtime)) {
-            return phase('phase-sheriff-transfer')
-          }
+                visibility: visibility.public,
+              },
+            ]
+          : [],
+      nextPhase: (runtime, definition) => {
+        if (rules.evaluate('has-death-trigger', runtime)) return phase('phase-death-triggers')
+        if (rules.evaluate('has-terminal-last-words', runtime)) {
           return phase('phase-last-words')
-        },
-      })
-      rules.registerActorSelector('day-speech-order', (runtime) => runtime.state.speechOrder)
-      rules.registerActorSelector('eligible-voters', (runtime) =>
-        bySeat(
-          runtime,
-          [...runtime.state.players.values()]
-            .filter((player) => player.alive && player.canVote)
-            .map((player) => player.id),
-        ),
+        }
+        if (rules.evaluate('has-winner', runtime)) return phase('phase-match-ended')
+        if (definition.context === 'sheriff-election') return phase('phase-day-announcement')
+        if (rules.evaluate('dead-sheriff-holds-badge', runtime)) {
+          return phase('phase-sheriff-transfer')
+        }
+        return phase('phase-last-words')
+      },
+    })
+    rules.registerActorSelector('day-speech-order', (runtime) => runtime.state.speechOrder)
+    rules.registerActorSelector('eligible-voters', (runtime) =>
+      bySeat(
+        runtime,
+        [...runtime.state.players.values()]
+          .filter((player) => player.alive && player.canVote)
+          .map((player) => player.id),
+      ),
+    )
+    rules.registerActorSelector('exile-tied-players', (runtime) =>
+      bySeat(runtime, runtime.state.lastVote?.tiedPlayerIds ?? []),
+    )
+    rules.registerActorSelector('eligible-runoff-voters', (runtime) => {
+      const tied = new Set(runtime.state.lastVote?.tiedPlayerIds ?? [])
+      return bySeat(
+        runtime,
+        [...runtime.state.players.values()]
+          .filter((player) => player.alive && player.canVote && !tied.has(player.id))
+          .map((player) => player.id),
       )
-      rules.registerActorSelector('exile-tied-players', (runtime) =>
-        bySeat(runtime, runtime.state.lastVote?.tiedPlayerIds ?? []),
-      )
-      rules.registerActorSelector('eligible-runoff-voters', (runtime) => {
-        const tied = new Set(runtime.state.lastVote?.tiedPlayerIds ?? [])
-        return bySeat(
-          runtime,
-          [...runtime.state.players.values()]
-            .filter((player) => player.alive && player.canVote && !tied.has(player.id))
-            .map((player) => player.id),
-        )
-      })
-      rules.registerPredicate(
-        'exile-vote-tied',
-        (runtime) => (runtime.state.lastVote?.tiedPlayerIds.length ?? 0) > 1,
-      )
-      rules.registerPhaseHandler(phase('phase-day-speech-order'), resolveDaySpeechOrder, {
-        id: 'classic-day-speech-order',
-      })
-      rules.registerPhaseHandler(
-        phase('phase-day-vote'),
-        (runtime) => emitVoteResolution(runtime, 'exile', true),
-        { id: 'classic-day-vote' },
-      )
-      rules.registerPhaseHandler(
-        phase('phase-day-runoff-vote'),
-        (runtime) => emitVoteResolution(runtime, 'exile-runoff', true),
-        { id: 'classic-day-runoff-vote' },
-      )
-      rules.registerPhaseHandler(
-        phase('phase-day-resolve'),
-        (runtime) => runtime.append({ type: 'day.completed' }, visibility.god),
-        { id: 'classic-day-complete', order: -200 },
-      )
-      rules.registerPhaseHandler(
-        phase('phase-day-resolve'),
-        (runtime) => resolveExile(runtime, persistDeathTiming),
-        {
-          id: 'classic-exile-resolve',
-        },
-      )
-    },
-  }
+    })
+    rules.registerPredicate(
+      'exile-vote-tied',
+      (runtime) => (runtime.state.lastVote?.tiedPlayerIds.length ?? 0) > 1,
+    )
+    rules.registerPhaseHandler(phase('phase-day-speech-order'), resolveDaySpeechOrder, {
+      id: 'classic-day-speech-order',
+    })
+    rules.registerPhaseHandler(
+      phase('phase-day-vote'),
+      (runtime) => emitVoteResolution(runtime, 'exile', true),
+      { id: 'classic-day-vote' },
+    )
+    rules.registerPhaseHandler(
+      phase('phase-day-runoff-vote'),
+      (runtime) => emitVoteResolution(runtime, 'exile-runoff', true),
+      { id: 'classic-day-runoff-vote' },
+    )
+    rules.registerPhaseHandler(
+      phase('phase-day-resolve'),
+      (runtime) => runtime.append({ type: 'day.completed' }, visibility.god),
+      { id: 'classic-day-complete', order: -200 },
+    )
+    rules.registerPhaseHandler(phase('phase-day-resolve'), resolveExile, {
+      id: 'classic-exile-resolve',
+    })
+  },
 }
 
-function resolveExile(runtime: RuleRuntime, persistDeathTiming: boolean): void {
+function resolveExile(runtime: RuleRuntime): void {
   const targetId = runtime.state.lastVote?.selectedPlayerId
   if (!targetId) {
     runtime.append(
@@ -184,5 +168,5 @@ function resolveExile(runtime: RuleRuntime, persistDeathTiming: boolean): void {
     return
   }
   if (runtime.state.preventedExilePlayerId === targetId) return
-  appendFinalDeath(runtime, targetId, ['exile'], 'day', persistDeathTiming)
+  appendFinalDeath(runtime, targetId, ['exile'], 'day')
 }

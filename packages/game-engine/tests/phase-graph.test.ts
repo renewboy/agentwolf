@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PhaseIdSchema } from '@agentwolf/contracts'
-import {
-  createClassicRuleset,
-  createClassicV3Ruleset,
-  createClassicV5Ruleset,
-  expectedVoteKind,
-  phaseSpeechKind,
-} from '../src/index.js'
+import { createClassicRuleset, expectedVoteKind, phaseSpeechKind } from '../src/index.js'
 
 const classicRuleset = createClassicRuleset()
 const classicPhaseGraph = classicRuleset.phases
@@ -25,7 +19,6 @@ describe('phase plugin ownership', () => {
     expect(contribution('plugin-classic-terminal')).toEqual(['phase-match-ended'])
     expect(contribution('plugin-role-cupid')).toEqual(['phase-night-cupid'])
     expect(classicPhaseGraph.entry).toBe('phase-night-cupid')
-    expect(createClassicV3Ruleset().phases.entry).toBe('phase-night-guard')
     expect(
       phaseNode('phase-day-resolve').edges.some((edge) => edge.to === 'phase-night-cupid'),
     ).toBe(true)
@@ -56,16 +49,6 @@ describe('terminal phase priority', () => {
       )
     },
   )
-
-  it('preserves the classic-v5 terminal priority', () => {
-    const graph = createClassicV5Ruleset().phases
-    for (const phaseId of ['phase-day-announcement', 'phase-death-triggers', 'phase-day-resolve']) {
-      const node = graph.nodes.get(PhaseIdSchema.parse(phaseId))
-      if (!node) throw new Error(`Missing classic-v5 phase ${phaseId}`)
-      const conditions = node.edges.map((edge) => edge.when)
-      expect(conditions.indexOf('has-winner')).toBeLessThan(conditions.indexOf('has-last-words'))
-    }
-  })
 })
 
 describe('phase action semantics', () => {

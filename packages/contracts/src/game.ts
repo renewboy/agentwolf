@@ -141,31 +141,13 @@ export const BoardPolicySnapshotSchema = z.object({
 })
 export type BoardPolicySnapshot = z.infer<typeof BoardPolicySnapshotSchema>
 
-const MatchBoardSnapshotV1Schema = z.object({
-  schemaVersion: z.literal(1),
-  rulesetId: z.literal('classic-v1'),
-  ...MatchBoardSnapshotFields,
-})
-
-const MatchBoardSnapshotV2Schema = z.object({
-  schemaVersion: z.literal(2),
-  rulesetId: z.enum([
-    'classic-v1',
-    'classic-v2',
-    'classic-v3',
-    'classic-v4',
-    'classic-v5',
-    'classic-v6',
-  ]),
+export const MatchBoardSnapshotSchema = z.object({
+  schemaVersion: z.literal(3),
+  rulesetId: z.literal('classic'),
   ruleset: RulesetLockSchema,
   policies: BoardPolicySnapshotSchema,
   ...MatchBoardSnapshotFields,
 })
-
-export const MatchBoardSnapshotSchema = z.discriminatedUnion('schemaVersion', [
-  MatchBoardSnapshotV1Schema,
-  MatchBoardSnapshotV2Schema,
-])
 export type MatchBoardSnapshot = z.infer<typeof MatchBoardSnapshotSchema>
 
 export const RoleSummarySchema = z.object({

@@ -108,19 +108,9 @@ export function LobbyPage() {
                       </Link>
                       <button
                         className="aw-button aw-button--icon"
-                        disabled={
-                          match.status !== 'paused' &&
-                          !(
-                            match.status === 'ended' &&
-                            (!match.postgameReview ||
-                              ['completed', 'skipped'].includes(match.postgameReview.state))
-                          )
-                        }
+                        disabled={match.status !== 'paused'}
                         title={
-                          match.status === 'paused' ||
-                          (match.status === 'ended' &&
-                            (!match.postgameReview ||
-                              ['completed', 'skipped'].includes(match.postgameReview.state)))
+                          match.status === 'paused'
                             ? getCopy('simulationWizard.open')
                             : getCopy('simulationWizard.unavailable')
                         }

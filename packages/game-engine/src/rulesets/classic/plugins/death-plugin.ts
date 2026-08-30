@@ -7,122 +7,98 @@ import { visibility, type RuleRuntime } from '../../../rule-registry.js'
 import { classicPluginIds } from './ids.js'
 import { afterDeathBatchEdges, appendFinalDeath, bySeat, phase } from './shared.js'
 
-export const classicDeathPlugin = createClassicDeathPlugin(3, true, true)
-export const classicV2DeathPlugin = createClassicDeathPlugin(2, true, false)
-export const classicV1DeathPlugin = createClassicDeathPlugin(1, false, false)
-
-function createClassicDeathPlugin(
-  version: number,
-  useDeathTiming: boolean,
-  preserveTerminalLastWords: boolean,
-): RulePlugin<RulesetBuilder> {
-  return {
-    id: classicPluginIds.death,
-    version,
-    requires: [{ id: classicPluginIds.resolution, version: 1 }],
-    register: ({ phases, rules }) => {
-      phases.registerAll([
-        {
-          id: phase('phase-death-triggers'),
-          labelKey: 'phases.deathTriggers',
-          mode: 'sequential',
-          action: {
-            type: 'skill-trigger',
-            abilityIds: [],
-            abilitySource: 'decision-trigger',
-            triggerSignal: 'player-death',
-            validation: 'role-ability',
-            visibility: 'actor',
-          },
-          actorSelector: 'pending-death-trigger-owners',
-          edges: afterDeathBatchEdges(preserveTerminalLastWords, [
-            { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
-            { to: phase('phase-day-speech-order') },
-          ]),
+export const classicDeathPlugin: RulePlugin<RulesetBuilder> = {
+  id: classicPluginIds.death,
+  version: 3,
+  requires: [{ id: classicPluginIds.resolution, version: 1 }],
+  register: ({ phases, rules }) => {
+    phases.registerAll([
+      {
+        id: phase('phase-death-triggers'),
+        labelKey: 'phases.deathTriggers',
+        mode: 'sequential',
+        action: {
+          type: 'skill-trigger',
+          abilityIds: [],
+          abilitySource: 'decision-trigger',
+          triggerSignal: 'player-death',
+          validation: 'role-ability',
+          visibility: 'actor',
         },
-        {
-          id: phase('phase-last-words'),
-          labelKey: 'phases.lastWords',
-          mode: 'sequential',
-          action: { type: 'speech', kind: 'last-words', visibility: 'public' },
-          actorSelector: 'last-words-eligible',
-          edges: preserveTerminalLastWords
-            ? [
-                { to: phase('phase-match-ended'), when: 'has-winner' },
-                { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
-                { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
-                { to: phase('phase-day-speech-order') },
-              ]
-            : [
-                { to: phase('phase-match-ended'), when: 'has-winner' },
-                { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
-                { to: phase('phase-day-speech-order') },
-              ],
-        },
-      ])
-      rules.registerActorSelector('pending-death-trigger-owners', (runtime) =>
-        bySeat(
-          runtime,
-          [...runtime.state.recentDeaths.values()]
-            .filter((death) => {
-              const player = runtime.state.players.get(death.playerId)
-              return Boolean(
-                player &&
-                runtime.triggers.abilityIdsFor(
-                  'player-death',
-                  player,
-                  runtime.state,
-                  runtime.board,
-                  runtime.roles,
-                ).length > 0,
-              )
-            })
-            .map((death) => death.playerId),
-        ),
-      )
-      rules.registerActorSelector('last-words-eligible', (runtime) => {
-        const eligible = [...runtime.state.recentDeaths.values()].filter((death) => {
-          if (preserveTerminalLastWords && hasDeliveredLastWords(runtime, death.playerId)) {
-            return false
-          }
-          const nightDeath = useDeathTiming
-            ? death.timing === 'night'
-            : death.causes.some((cause) => cause === 'werewolf' || cause === 'poison')
-          if (!nightDeath) return true
-          if (runtime.board.policies.nightLastWords === 'every-night') return true
-          return (
-            runtime.board.policies.nightLastWords === 'first-night-only' && runtime.state.day === 1
-          )
-        })
-        const playerIds = eligible.map((death) => death.playerId)
-        return preserveTerminalLastWords && eligible.every((death) => death.timing === 'day')
-          ? playerIds
-          : bySeat(runtime, playerIds)
-      })
-      rules.registerPredicate(
-        'has-death-trigger',
-        (runtime) => rules.selectActors('pending-death-trigger-owners', runtime).length > 0,
-      )
-      rules.registerPredicate(
-        'has-last-words',
-        (runtime) => rules.selectActors('last-words-eligible', runtime).length > 0,
-      )
-      if (preserveTerminalLastWords) {
-        rules.registerPredicate(
-          'has-terminal-last-words',
-          (runtime) =>
-            rules.evaluate('has-winner', runtime) && rules.evaluate('has-last-words', runtime),
+        actorSelector: 'pending-death-trigger-owners',
+        edges: afterDeathBatchEdges([
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ]),
+      },
+      {
+        id: phase('phase-last-words'),
+        labelKey: 'phases.lastWords',
+        mode: 'sequential',
+        action: { type: 'speech', kind: 'last-words', visibility: 'public' },
+        actorSelector: 'last-words-eligible',
+        edges: [
+          { to: phase('phase-match-ended'), when: 'has-winner' },
+          { to: phase('phase-sheriff-transfer'), when: 'dead-sheriff-holds-badge' },
+          { to: phase('phase-night-guard'), when: 'interrupted-to-night' },
+          { to: phase('phase-day-speech-order') },
+        ],
+      },
+    ])
+    rules.registerActorSelector('pending-death-trigger-owners', (runtime) =>
+      bySeat(
+        runtime,
+        [...runtime.state.recentDeaths.values()]
+          .filter((death) => {
+            const player = runtime.state.players.get(death.playerId)
+            return Boolean(
+              player &&
+              runtime.triggers.abilityIdsFor(
+                'player-death',
+                player,
+                runtime.state,
+                runtime.board,
+                runtime.roles,
+              ).length > 0,
+            )
+          })
+          .map((death) => death.playerId),
+      ),
+    )
+    rules.registerActorSelector('last-words-eligible', (runtime) => {
+      const eligible = [...runtime.state.recentDeaths.values()].filter((death) => {
+        if (hasDeliveredLastWords(runtime, death.playerId)) {
+          return false
+        }
+        const nightDeath = death.timing === 'night'
+        if (!nightDeath) return true
+        if (runtime.board.policies.nightLastWords === 'every-night') return true
+        return (
+          runtime.board.policies.nightLastWords === 'first-night-only' && runtime.state.day === 1
         )
-      }
-      rules.registerPhaseHandler(
-        phase('phase-death-triggers'),
-        (runtime) => resolveDeathTriggers(runtime, useDeathTiming),
-        {
-          id: 'classic-death-triggers',
-        },
-      )
-    },
-  }
+      })
+      const playerIds = eligible.map((death) => death.playerId)
+      return eligible.every((death) => death.timing === 'day')
+        ? playerIds
+        : bySeat(runtime, playerIds)
+    })
+    rules.registerPredicate(
+      'has-death-trigger',
+      (runtime) => rules.selectActors('pending-death-trigger-owners', runtime).length > 0,
+    )
+    rules.registerPredicate(
+      'has-last-words',
+      (runtime) => rules.selectActors('last-words-eligible', runtime).length > 0,
+    )
+    rules.registerPredicate(
+      'has-terminal-last-words',
+      (runtime) =>
+        rules.evaluate('has-winner', runtime) && rules.evaluate('has-last-words', runtime),
+    )
+    rules.registerPhaseHandler(phase('phase-death-triggers'), resolveDeathTriggers, {
+      id: 'classic-death-triggers',
+    })
+  },
 }
 
 function hasDeliveredLastWords(runtime: RuleRuntime, playerId: PlayerId): boolean {
@@ -139,7 +115,7 @@ function hasDeliveredLastWords(runtime: RuleRuntime, playerId: PlayerId): boolea
   )
 }
 
-function resolveDeathTriggers(runtime: RuleRuntime, persistDeathTiming: boolean): void {
+function resolveDeathTriggers(runtime: RuleRuntime): void {
   const actions = runtime.state.phaseActions.filter(
     (action): action is Extract<PlayerAction, { type: 'skill-trigger' }> =>
       action.type === 'skill-trigger',
@@ -170,13 +146,7 @@ function resolveDeathTriggers(runtime: RuleRuntime, persistDeathTiming: boolean)
     if (!result) continue
     appendAbilityOutcomes(runtime, action, result)
     for (const death of result.pendingDeaths) {
-      appendFinalDeath(
-        runtime,
-        death.playerId,
-        death.causes,
-        triggerDeath.timing ?? 'day',
-        persistDeathTiming,
-      )
+      appendFinalDeath(runtime, death.playerId, death.causes, triggerDeath.timing ?? 'day')
     }
   }
 }

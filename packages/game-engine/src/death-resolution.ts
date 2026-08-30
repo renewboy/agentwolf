@@ -26,7 +26,6 @@ export function appendIndividualDeaths(
   runtime: RuleRuntime,
   deaths: readonly PendingDeath[],
   timing: DeathTiming,
-  persistTiming = true,
 ): readonly ResolvedDeathReaction[] {
   const resolved = resolveDeathBatch(runtime, deaths, timing)
   for (const entry of resolved) {
@@ -39,7 +38,7 @@ export function appendIndividualDeaths(
         playerId: entry.death.playerId,
         causes: [...entry.death.causes],
         announced: false,
-        ...(persistTiming ? { timing: entry.death.timing } : {}),
+        timing: entry.death.timing,
       },
       visibility.god,
     )

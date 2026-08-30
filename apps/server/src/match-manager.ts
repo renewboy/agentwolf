@@ -30,8 +30,16 @@ export class MatchNotFoundError extends Error {
     this.name = 'MatchNotFoundError'
   }
 }
+export class MatchReadOnlyError extends Error {
+  public constructor(id: MatchId) {
+    super(`Match ${id} is archived and read-only`)
+    this.name = 'MatchReadOnlyError'
+  }
+}
 import { projectMatch } from './projector.js'
 import type { MatchRecord, SqliteRepository } from './repository.js'
+import { createMatchArchive, projectMatchArchive } from './match-archive.js'
+import { auditTrajectory } from './trajectory-audit.js'
 
 export interface MatchManagerOptions {
   readonly repository: SqliteRepository
@@ -153,6 +161,7 @@ export class MatchManager {
       mailbox: this.#mailbox,
       trajectory,
       ruleset,
+      archiveMatch: (project) => this.#archiveMatch(matchId, resolvedBoard.snapshot, project),
       ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
     })
     this.#active.set(matchId, runtime)
@@ -160,6 +169,7 @@ export class MatchManager {
   }
 
   public beginMatch(id: MatchId): MatchView {
+    this.#assertWritable(id)
     const runtime = this.#active.get(id)
     if (!runtime) throw new Error(`Match ${id} cannot start in this server process`)
     void runtime.start().catch(() => undefined)
@@ -167,6 +177,7 @@ export class MatchManager {
   }
 
   public async resumeMatch(id: MatchId): Promise<MatchView> {
+    this.#assertWritable(id)
     let runtime = this.#active.get(id)
     if (!runtime) {
       const record = this.#options.repository.getMatch(id)
@@ -212,13 +223,15 @@ export class MatchManager {
 
   public getMatch(id: MatchId, view: SpectatorView): MatchView {
     const parsedView = SpectatorViewSchema.parse(view)
+    const archive = this.#options.repository.getMatchArchive(id)
+    if (archive) return projectMatchArchive(archive, parsedView)
     const runtime = this.#active.get(id)
     if (runtime) return runtime.project(parsedView)
     const record = this.#options.repository.getMatch(id)
     if (!record) throw new MatchNotFoundError(id)
     const resolvedBoard = this.#resolvedRecordBoard(record)
     const board = resolvedBoard.manifest
-    const ruleset = this.#options.rulesets.forSnapshot(resolvedBoard.snapshot)
+    const ruleset = this.#options.rulesets.forExecution(resolvedBoard.snapshot)
     const events = this.#options.repository.listMatchEvents(id)
     const replayed = replayGame(id, board, events, ruleset)
     const state: GameState = {
@@ -251,6 +264,9 @@ export class MatchManager {
   }
 
   public connect(id: MatchId, subscriber: LiveSubscriber): LiveConnection {
+    if (this.#options.repository.getMatchArchive(id)) {
+      return this.#connectArchive(id, subscriber)
+    }
     const runtime = this.#active.get(id)
     if (!runtime) {
       const sendSnapshot = (): void => {
@@ -330,6 +346,7 @@ export class MatchManager {
   }
 
   #postgameRuntime(id: MatchId): MatchRuntime {
+    this.#assertWritable(id)
     const active = this.#active.get(id)
     if (active) return active
     const record = this.#options.repository.getMatch(id)
@@ -343,7 +360,7 @@ export class MatchManager {
   #restoreRuntime(record: MatchRecord): MatchRuntime {
     const resolvedBoard = this.#resolvedRecordBoard(record)
     const board = resolvedBoard.manifest
-    const ruleset = this.#options.rulesets.forSnapshot(resolvedBoard.snapshot)
+    const ruleset = this.#options.rulesets.forExecution(resolvedBoard.snapshot)
     const engine = GameEngine.restore({
       matchId: record.id,
       board,
@@ -364,6 +381,7 @@ export class MatchManager {
       trajectory: this.#options.trajectories.recorder(record.id),
       restored: true,
       ruleset,
+      archiveMatch: (project) => this.#archiveMatch(record.id, resolvedBoard.snapshot, project),
       ...(this.#options.sessionFactory ? { sessionFactory: this.#options.sessionFactory } : {}),
     })
     this.#active.set(record.id, runtime)
@@ -376,6 +394,68 @@ export class MatchManager {
       throw new Error(`Match ${record.id} has no board snapshot after catalog backfill`)
     }
     return this.#options.boards.resolveSnapshot(record.boardSnapshot)
+  }
+
+  #assertWritable(id: MatchId): void {
+    if (this.#options.repository.getMatchArchive(id)) throw new MatchReadOnlyError(id)
+  }
+
+  #connectArchive(id: MatchId, subscriber: LiveSubscriber): LiveConnection {
+    let closed = false
+    const sendSnapshot = (): void => {
+      subscriber.send({
+        type: 'snapshot',
+        view: subscriber.view,
+        data: this.getMatch(id, subscriber.view),
+      })
+    }
+    sendSnapshot()
+    subscriber.send({
+      type: 'speech-playback.state',
+      state: { enabled: false, controlledByThisClient: false, pendingSequence: null },
+    })
+    return {
+      receive: (message) => {
+        if (closed) return
+        if (message.type === 'view.set') {
+          subscriber.view = message.view
+          sendSnapshot()
+          return
+        }
+        subscriber.send({
+          type: 'error',
+          code: 'invalid-live-message',
+          message: `Live controls are unavailable for archived Match ${id}`,
+        })
+      },
+      close: () => {
+        closed = true
+      },
+    }
+  }
+
+  async #archiveMatch(
+    id: MatchId,
+    snapshot: NonNullable<MatchRecord['boardSnapshot']>,
+    project: (view: SpectatorView) => MatchView,
+  ): Promise<void> {
+    const trajectoryAudit = await auditTrajectory(
+      this.#options.repository,
+      this.#options.boards,
+      id,
+    )
+    this.#options.repository.saveMatchArchive(
+      createMatchArchive({
+        matchId: id,
+        sourceRuleset: {
+          familyId: 'classic',
+          revision: snapshot.ruleset.revision,
+          fingerprint: snapshot.ruleset.fingerprint,
+        },
+        project,
+        trajectoryAudit,
+      }),
+    )
   }
 }
 

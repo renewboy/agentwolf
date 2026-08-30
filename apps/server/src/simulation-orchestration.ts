@@ -64,7 +64,7 @@ export async function runOrchestrationSimulation(
     const catalog = new AgentCatalogService(repository)
     const rulesets = new RulesetCatalog()
     const boards = new BoardCatalogService(repository, null, rulesets)
-    const ruleset = rulesets.forSnapshot(simulation.setup.board)
+    const ruleset = rulesets.forExecution(simulation.setup.board)
     saveSimulationAgents(repository, simulation)
     const { board, engine } = createSimulationEngine(simulation)
     const timestamp = '2000-01-01T00:00:00.000Z'

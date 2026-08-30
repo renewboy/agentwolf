@@ -1,5 +1,6 @@
 export * from './actions.js'
 export * from './agents.js'
+export * from './archives.js'
 export * from './characters.js'
 export * from './events.js'
 export * from './effects.js'

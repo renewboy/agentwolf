@@ -174,5 +174,5 @@ export function boardManifestFromSnapshot(snapshot: MatchBoardSnapshot): BoardMa
     sheriff: parsed.sheriff,
     victory: parsed.victory,
   })
-  return parsed.schemaVersion === 2 ? { ...manifest, policies: { ...parsed.policies } } : manifest
+  return { ...manifest, policies: { ...parsed.policies } }
 }
