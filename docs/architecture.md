@@ -72,7 +72,7 @@ SQLite 保存恢复所需的权威记录；WebSocket、当前进程中的 GameSt
 
 ```mermaid
 flowchart TB
-    Core["Agent Arena Core<br/>Ruleset、ACP、deterministic、simulation primitives"]
+    Core["Agent Arena Core<br/>Ruleset、ACP、trajectory、deterministic、simulation"]
     Contracts["contracts<br/>branded IDs、Zod schemas、wire DTO"]
     Engine["game-engine<br/>Ruleset、事件归约、replay"]
     Assets["assets<br/>Prompt bundles、文案、效果"]
@@ -86,6 +86,7 @@ flowchart TB
     ACP --> Contracts
     ACP --> Core
     Server --> Contracts
+    Server --> Core
     Server --> Engine
     Server --> Assets
     Server --> ACP
@@ -95,7 +96,7 @@ flowchart TB
 
 | 组件                                                                | 主要职责                                                                                     | 稳定边界                                                |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供 plugin/registry、Ruleset lock、ACP Session/process/delivery、确定性与仿真基础机制       | 暴露跨游戏 contracts 与运行时原语                       |
+| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供 plugin/registry、Ruleset lock、ACP、trajectory、确定性与仿真基础机制                    | 暴露跨游戏 contracts 与运行时原语                       |
 | [`contracts`](../packages/contracts/README.md)                      | 定义跨 JSON、数据库、进程和浏览器边界的 IDs、动作、事件、配置、视图与诊断 schemas            | 不求值规则、不执行 IO、不拥有 UI 或编排                 |
 | [`game-engine`](../packages/game-engine/README.md)                  | 组合狼人杀 registries,校验动作,推进 phase 图,结算 effects,发出事件并重建状态                 | 依赖 AgentWolf contracts 与固定 Core revision;保持无 IO |
 | [`assets`](../packages/assets/README.md)                            | 持有 plugin-owned Prompt、玩家 Skills、本地化文案、Character 与 Role 效果定义                | server-only Prompt/Skill 入口与浏览器安全导出分离       |

@@ -27,7 +27,9 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 - `mcp.ts`:玩家绑定的结构化动作传输。
 - `player-runtime.ts`:单个逻辑 Session 的 delivery 与恢复。
 - `postgame-review-coordinator.ts`:复盘倒计时、sheets、聚合与反思。
-- `trajectory*`:采集、service、脱敏、projection 与语义审计。
+- `trajectory.ts`:Match Turn 创建、system events、runtime controls 与 revision publication。
+- `trajectory-turn-recorder.ts`:将 AgentWolf schemas/repository 适配到 Core Turn/Record recorder。
+- `trajectory-service` 与 `trajectory-audit`:读取、projection、实时 delta 与语义审计。
 - `simulation*`:候选采集、runners、工作流与 fixture 批准。
 
 新行为归属现有最窄的 owner。游戏规则留在 game-engine,通用 ACP 进程行为留在 acp,schema 留在

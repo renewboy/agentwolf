@@ -16,6 +16,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@agent-arena/trajectory": "workspace:*",
     "@agentclientprotocol/sdk": "1.4.0",
     "@agentwolf/acp": "workspace:*",
     "@agentwolf/assets": "workspace:*",

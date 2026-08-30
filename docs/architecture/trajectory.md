@@ -17,10 +17,11 @@ audit 的研发人员。轨迹属于诊断状态，不参与 GameEngine 规则�
 - 开发者诊断不解析 secret value，也不把完整大文本装入概览接口；
 - recorder 在普通与 developer 模式中保持相同采集语义，读取接口只在 loopback developer mode 暴露。
 
-`MatchTrajectoryRecorder` 接收 MatchRuntime、PlayerRuntime 与 ACP Session 的运行信号。SQLite
-repository 持有轨迹记录；`TrajectoryService` 持有读取、投影和实时订阅；`auditTrajectory` 持有
-跨事件与 Turn 的一致性检查。确定性仿真只读消费持久轨迹契约，其采集与 runner 设计见
-[仿真架构](simulation.md)。
+`MatchTrajectoryRecorder` 接收 MatchRuntime 的 system events 与 runtime controls，并为玩家 Turn 建立
+AgentWolf schema/repository adapter。Core `TrajectoryTurnRecorder` 处理单次 ACP Turn 的流式合并、
+tool upsert、usage、permission、脱敏与截断。SQLite repository 持有轨迹记录；`TrajectoryService`
+持有读取、投影和实时订阅；`auditTrajectory` 持有跨事件与 Turn 的一致性检查。确定性仿真只读消费
+持久轨迹契约，其采集与 runner 设计见[仿真架构](simulation.md)。
 
 ## 组件与数据流
 
@@ -31,6 +32,7 @@ flowchart LR
     ACP["ACP Session<br/>message、tool、usage、permission"]
 
     Recorder["MatchTrajectoryRecorder<br/>Turn / Record"]
+    TurnRecorder["Core TrajectoryTurnRecorder<br/>stream、tool、redaction"]
     Store["SQLite trajectory<br/>turns、records、revision"]
     Service["TrajectoryService<br/>summary、page、delta、debug"]
     Audit["TrajectoryAudit<br/>按 sequence 重建"]
@@ -38,20 +40,22 @@ flowchart LR
     UI["Developer UI"]
 
     Match --> Recorder
-    Player --> Recorder
-    ACP --> Recorder
+    Recorder --> TurnRecorder
+    Player --> TurnRecorder
+    ACP --> TurnRecorder
     Recorder --> Store
+    TurnRecorder --> Store
     Store --> Service --> API --> UI
     Store --> Audit --> API
 ```
 
-| 组件                      | 拥有的状态或决策                                                        | 主要产出                                      |
-| ------------------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
-| `MatchTrajectoryRecorder` | Match 范围的 Turn/Record 创建、system event 与 runtime control 记录     | 持久 Turn/Record 与 revision delta            |
-| `TrajectoryTurnRecorder`  | 单次 Turn 的流式合并、tool upsert、usage、完成和失败                    | 一个 Turn 及其有序 Records                    |
-| trajectory repository     | per-Match revision、owner/ordinal 索引和 Turn/Record JSON               | 可分页、可增量读取的诊断存储                  |
-| `TrajectoryService`       | owner summary、分页、player debug、实时订阅与 speech canonicalization   | contracts 约束的 summary/page/delta/debug DTO |
-| `auditTrajectory`         | delivery、Prompt、visible events、actor/action 与 bootstrap budget 检查 | `TrajectoryAuditReport`                       |
+| 组件                          | 拥有的状态或决策                                                        | 主要产出                                      |
+| ----------------------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
+| `MatchTrajectoryRecorder`     | Match 范围的 Turn/Record 创建、system event 与 runtime control 记录     | 持久 Turn/Record 与 revision delta            |
+| Core `TrajectoryTurnRecorder` | 单次 Turn 的流式合并、tool upsert、usage、permission、脱敏、完成和失败  | 一个 Turn 及其有序 Records                    |
+| trajectory repository         | per-Match revision、owner/ordinal 索引和 Turn/Record JSON               | 可分页、可增量读取的诊断存储                  |
+| `TrajectoryService`           | owner summary、分页、player debug、实时订阅与 speech canonicalization   | contracts 约束的 summary/page/delta/debug DTO |
+| `auditTrajectory`             | delivery、Prompt、visible events、actor/action 与 bootstrap budget 检查 | `TrajectoryAuditReport`                       |
 
 ## Turn 与 Record 模型
 
@@ -78,6 +82,10 @@ flowchart LR
 `beginTurn` 在 Prompt 发送前创建 running Turn，并立即保存 prompt Record。Turn 结束时进入 completed、
 failed、uncertain 或 cancelled。相同 owner/kind/phase/action/toSequence 的后续尝试增加 attempt；
 Record step 在 tool boundary 后推进，使 reasoning、tool 和 message 的时序关系保持可见。
+
+AgentWolf adapter 向 Core recorder 提供 `TrajectoryTurnSchema`、`TrajectoryRecordSchema`、record ordinal
+store 与保存 callbacks。repository 分配 revision 并由 Match recorder 发布 delta；Core recorder 不读取
+Match events 或 SQLite。
 
 message 与 reasoning 按协议 channel/message ID 合并，文本 delta 只按收到顺序追加。tool call 与
 tool update 按 tool-call ID 合并为一条 Record，只有 terminal tool status 设置完成时间。已接受动作
@@ -184,3 +192,5 @@ postgame Turn 使用 closed-eye 公共历史检查可见性，game-only bootstra
 - [Match 生命周期](match-lifecycle.md)：trajectory 持久化与删除边界。
 - [仿真架构](simulation.md)：仿真如何只读消费 Match、事件和轨迹事实。
 - [Server package](../../apps/server/README.md)：trajectory owner map。
+- [Core trajectory](../../vendor/agent-arena-core/packages/trajectory/README.md)：Turn 内 Record 合并、
+  脱敏、截断与持久化 callbacks。

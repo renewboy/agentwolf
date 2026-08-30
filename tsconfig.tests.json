@@ -13,6 +13,7 @@
       "@agent-arena/contracts": ["./vendor/agent-arena-core/packages/contracts/src/index.ts"],
       "@agent-arena/game-runtime": ["./vendor/agent-arena-core/packages/game-runtime/src/index.ts"],
       "@agent-arena/ruleset": ["./vendor/agent-arena-core/packages/ruleset/src/index.ts"],
+      "@agent-arena/trajectory": ["./vendor/agent-arena-core/packages/trajectory/src/index.ts"],
       "@agentwolf/contracts": ["./packages/contracts/src/index.ts"],
       "@agentwolf/assets": ["./packages/assets/src/index.ts"],
       "@agentwolf/assets/prompts": ["./packages/assets/src/prompts.ts"],

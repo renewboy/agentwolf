@@ -22,7 +22,7 @@ const allowedCoreDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
   assets: new Set(),
   'game-engine': new Set(['contracts', 'game-runtime', 'ruleset']),
   acp: new Set(['acp-runtime']),
-  server: new Set(),
+  server: new Set(['trajectory']),
   web: new Set(),
 }
 

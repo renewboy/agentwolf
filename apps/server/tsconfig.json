@@ -8,6 +8,7 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
+    { "path": "../../vendor/agent-arena-core/packages/trajectory" },
     { "path": "../../packages/contracts" },
     { "path": "../../packages/assets" },
     { "path": "../../packages/game-engine" },

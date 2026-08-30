@@ -59,6 +59,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@agent-arena/trajectory':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/trajectory
       '@agentclientprotocol/sdk':
         specifier: 1.4.0
         version: 1.4.0(zod@4.4.3)
@@ -242,6 +245,18 @@ importers:
       '@agent-arena/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  vendor/agent-arena-core/packages/trajectory:
+    dependencies:
+      '@agent-arena/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@agentclientprotocol/sdk':
+        specifier: 1.4.0
+        version: 1.4.0(zod@4.4.3)
       zod:
         specifier: 4.4.3
         version: 4.4.3

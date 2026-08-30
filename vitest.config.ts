@@ -16,6 +16,9 @@ export default defineConfig({
       '@agent-arena/ruleset': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/ruleset/src/index.ts', import.meta.url),
       ),
+      '@agent-arena/trajectory': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/trajectory/src/index.ts', import.meta.url),
+      ),
       '@agentwolf/contracts': fileURLToPath(
         new URL('./packages/contracts/src/index.ts', import.meta.url),
       ),
