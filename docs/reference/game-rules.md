@@ -13,7 +13,8 @@
 - 夜间遗言在启用时仅限首夜。
 - Witch 每晚最多使用一种药水,不能自救。守卫与解药落在同一目标时结算为死亡。守卫可以自守,
   但不能在连续两晚保护同一名玩家。
-- 首夜先由 Cupid 建立情侣关系,随后进入 Guard、普通 Werewolf 攻击、Witch 与查验类 Roles;
+- 首夜先由 Thief 完成底牌选择,再由 Cupid 建立情侣关系,随后进入 Guard、普通 Werewolf 攻击、
+  Witch 与查验类 Roles;
   后续夜晚从 Guard 开始。Ruleset 阶段图拥有确切顺序。
 - 普通狼人攻击由每名有资格的狼队成员投一张私密票。`null` 表示明确的空刀,且仅在严格压过
   每个玩家目标票数时生效。玩家目标最高票平票时使用一次 Match 与夜晚内稳定的选择。
@@ -53,6 +54,15 @@ Cupid 在首夜强制连接两名不同的存活玩家,可以自连。情侣只�
 第三方获胜集合;Cupid 存活或情侣共同存活时,普通阵营不能提前结束对局,圈外存活玩家清零后第三方
 获胜。12 人预女猎爱场由四狼、四民、预言家、女巫、猎人和 Cupid 组成,采用上警屠边。
 
+Thief board 使用完整身份牌池发牌,并留下两张底牌。Thief 可能成为底牌而不在场;在场时首夜最先
+查看两张底牌并必须选择一张作为最终 Role,另一张不进入对局。底牌包含 Werewolf Faction Role 时
+只能选择该牌。最终 Role 立即决定 Faction、阵营知识、能力、查验与胜负,并参与本夜后续阶段。
+
+12 人盗丘场的十四张身份牌由三名 Werewolf、五名 Villager、Seer、Witch、Hunter、Idiot、Cupid 与
+Thief 组成,采用上警屠边。合法发牌保持三张狼人牌最终在场:Thief 在场时底牌最多包含一张狼人牌,
+Thief 成为底牌时另一张底牌不能是狼人牌。Match 结束并公开最终身份后,同时公开底牌与 Thief 的
+选择结果。
+
 ## 来源
 
 - [官方角色、板子、胜负与遗言规则](https://langrensha.com/wanfa/guize/2017/10/18/26899_719311.html)
@@ -62,4 +72,6 @@ Cupid 在首夜强制连接两名不同的存活玩家,可以自连。情侣只�
 - [Awakened Hidden Wolf 板子与查验行为](https://shouyou.gamersky.com/news/202409/1811620.shtml)
 - [Awakened Hidden Wolf 复制能力](https://langrensha.net/news/20240905-5.html)
 - [官方丘比特板子与胜负规则](https://www.taptap.cn/moment/15208420701372848)
+- [官方盗贼规则与板子配置](https://langrensha.com/wanfa/guize/2017/10/18/26899_719311.html)
+- [官方盗贼攻略与恒定狼数](https://langrensha.com/m/hantiao/juese/2018/07/09/26896_763564.html)
 - [情侣死亡、猎人和遗言细则](https://www.langrensha.net/strategy/2021050801.html)

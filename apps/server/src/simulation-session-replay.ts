@@ -318,7 +318,13 @@ function performAction(
       mailbox.submitVote(token, action.targetId)
       break
     case 'night-action':
-      mailbox.submitNightAction(token, action.abilityId, action.targetIds, action.option)
+      mailbox.submitNightAction(
+        token,
+        action.abilityId,
+        action.targetIds,
+        action.option,
+        action.roleCardId,
+      )
       break
     case 'sheriff-action':
       mailbox.submitSheriffAction(token, action.action, action.targetId)

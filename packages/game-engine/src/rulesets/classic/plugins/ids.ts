@@ -23,4 +23,5 @@ export const classicPluginIds = {
   whiteWolfKing: PluginIdSchema.parse('plugin-role-white-wolf-king'),
   awakenedHiddenWolf: PluginIdSchema.parse('plugin-role-awakened-hidden-wolf'),
   cupid: PluginIdSchema.parse('plugin-role-cupid'),
+  thief: PluginIdSchema.parse('plugin-role-thief'),
 } as const

@@ -13,6 +13,7 @@ export function emptyGameState(matchId: MatchId, board: BoardManifest): GameStat
     phaseId: null,
     phaseLabelKey: '',
     players: new Map(),
+    reservedRoleCards: [],
     pluginState: new Map(),
     sheriff: {
       enabled: board.sheriff,
@@ -89,6 +90,29 @@ export function reduceGameEvent(
           faction: payload.faction,
         })),
       }
+      break
+    case 'role.cards-reserved':
+      next = { ...next, reservedRoleCards: payload.cards.map((card) => ({ ...card })) }
+      break
+    case 'role.transformed':
+      next = {
+        ...next,
+        players: updatePlayer(next.players, payload.playerId, (player) => {
+          if (player.roleId !== payload.fromRoleId) {
+            throw new Error(
+              `Role transformation expected ${payload.fromRoleId}, received ${player.roleId ?? 'none'}`,
+            )
+          }
+          return {
+            ...player,
+            roleId: payload.toRoleId,
+            faction: payload.faction,
+            roleState: { abilityUses: {}, capabilities: new Set(), memory: {} },
+          }
+        }),
+      }
+      break
+    case 'role.cards-revealed':
       break
     case 'match.starting':
       next = { ...next, status: 'starting' }

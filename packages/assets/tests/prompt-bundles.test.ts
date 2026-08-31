@@ -201,6 +201,9 @@ describe('Prompt bundle runtime', () => {
       roster: [{ playerId, seat: 1, name: '合成玩家', alive: true }],
       board: {
         roles: [{ roleId: fixture.roleId, faction: 'independent', count: 1 }],
+        cardCount: 1,
+        playerCount: 6,
+        reserveCount: 0,
         nightActionOrder: [{ phaseId: fixture.phaseId, firstNightOnly: false }],
         sheriff: false,
         policies: policies(),

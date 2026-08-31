@@ -8,7 +8,9 @@ describe('board catalog', () => {
       6, 9, 10, 12,
     ])
     for (const board of boards) {
-      expect(board.roles.reduce((total, slot) => total + slot.count, 0)).toBe(board.playerCount)
+      expect(board.roles.reduce((total, slot) => total + slot.count, 0)).toBe(
+        board.playerCount + board.reserveCount,
+      )
     }
   })
 
@@ -25,6 +27,10 @@ describe('board catalog', () => {
       playerCount: 10,
       sheriff: true,
       policies: { victory: 'slaughter-edge' },
+    })
+    expect(listBoards().find((board) => board.id === 'board-thief-cupid-12')).toMatchObject({
+      playerCount: 12,
+      reserveCount: 2,
     })
   })
 })

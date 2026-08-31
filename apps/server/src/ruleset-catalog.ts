@@ -17,7 +17,7 @@ export interface RulesetReleaseDefinition {
 export const rulesetReleaseDefinitions: readonly RulesetReleaseDefinition[] = [
   {
     familyId: 'classic',
-    revision: 6,
+    revision: 7,
     default: true,
     create: createClassicRuleset,
   },

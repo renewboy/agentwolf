@@ -34,7 +34,7 @@
 
 # 板子规则
 
-身份配置：{% for slot in board.roles %}{{ helpers.role(slot.roleId) }} {{ slot.count }} 名{% if not loop.last %}、{% endif %}{% endfor %}。
+身份牌池共 {{ board.cardCount }} 张，发给 {{ board.playerCount }} 个席位，留下 {{ board.reserveCount }} 张底牌：{% for slot in board.roles %}{{ helpers.role(slot.roleId) }} {{ slot.count }} 张{% if not loop.last %}、{% endif %}{% endfor %}。
 
 本局角色介绍：
 {% for roleContext in publicRoleContexts %}{{ roleContext }}

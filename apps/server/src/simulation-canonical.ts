@@ -47,6 +47,7 @@ export function createSimulationNormalization(
   }[],
   speechCharacterLimit: SimulationSetup['speechCharacterLimit'],
   publicSpeechInterruptMode: PublicSpeechInterruptMode = 'legacy',
+  reserveRoleIds: readonly SimulationPlayer['roleId'][] = [],
 ): SimulationNormalization {
   const canonicalBoard = MatchBoardSnapshotSchema.parse({
     ...board,
@@ -83,6 +84,7 @@ export function createSimulationNormalization(
       matchId: simulationMatchId,
       board: canonicalBoard,
       players: canonicalPlayers,
+      reserveRoleIds,
       speechCharacterLimit,
       publicSpeechInterruptMode,
     }),
@@ -233,7 +235,13 @@ export function classifySimulationFault(
   ) {
     return 'process-exit'
   }
-  if (normalized.includes('invalid') || normalized.includes('unexpected')) return 'invalid-action'
+  if (
+    normalized.includes('invalid') ||
+    normalized.includes('unexpected') ||
+    normalized.includes('did not submit the expected')
+  ) {
+    return 'invalid-action'
+  }
   return 'other'
 }
 
@@ -300,7 +308,13 @@ function stablePauseReason(reason: string): string {
   ) {
     return 'process-exit'
   }
-  if (normalized.includes('invalid') || normalized.includes('unexpected')) return 'invalid-action'
+  if (
+    normalized.includes('invalid') ||
+    normalized.includes('unexpected') ||
+    normalized.includes('did not submit the expected')
+  ) {
+    return 'invalid-action'
+  }
   return reason
 }
 

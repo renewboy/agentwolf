@@ -12,6 +12,7 @@
     "whiteWolfKing": "白狼王",
     "awakenedHiddenWolf": "觉醒隐狼",
     "cupid": "丘比特",
+    "thief": "盗贼",
     "sheriff": "警长"
   },
   "abilities": {
@@ -30,7 +31,8 @@
     "awakenedHiddenWolfShield": "使用机械盾",
     "awakenedHiddenWolfKill": "觉醒狼刀",
     "awakenedHiddenWolfDoubleKill": "觉醒双刀",
-    "cupidLink": "爱之箭"
+    "cupidLink": "爱之箭",
+    "thiefChooseCard": "身份窃取"
   },
   "effects": {
     "werewolfAttack": "狼人夜袭",
@@ -51,6 +53,7 @@
     "awakenedHiddenWolfDoubleKill": "觉醒隐狼双刀",
     "cupidLink": "爱之箭连线",
     "cupidLinkedDeath": "情侣殉情",
+    "thiefChooseCard": "盗贼选牌",
     "sheriffElected": "获得警徽",
     "sheriffTransferred": "移交警徽",
     "mode": "技能特效",
@@ -59,7 +62,8 @@
     "off": "关闭"
   },
   "playerMarkers": {
-    "cupidLover": "情侣"
+    "cupidLover": "情侣",
+    "thiefOrigin": "原盗贼"
   },
   "boards": {
     "quick6": {
@@ -81,6 +85,10 @@
     "cupid12": {
       "name": "12 人预女猎爱场",
       "description": "预言家、女巫、猎人、丘比特，四狼四民，上警屠边。"
+    },
+    "thiefCupid12": {
+      "name": "12 人盗丘场",
+      "description": "十四张身份牌发十二席：三狼、五民、预女猎白、丘比特与盗贼，上警屠边。"
     },
     "mirrorHidden10": {
       "name": "10 人镜隐迷踪局",
@@ -104,6 +112,7 @@
     "nightAwakenedHiddenWolfCopy": "觉醒隐狼复制技能",
     "nightAwakenedHiddenWolfLearn": "觉醒隐狼学习",
     "nightCupid": "丘比特连线",
+    "nightThief": "盗贼选牌",
     "nightResolve": "夜间结算",
     "sheriffSignup": "警长竞选报名",
     "sheriffSpeech": "警上发言",
@@ -174,6 +183,11 @@
     "cupidLinkedForPlayer": "你与{{player}}成为情侣。",
     "cupidLinkedDeath": "{{target}}因情侣关系殉情。",
     "cupidLoversRevealed": "最终情侣关系：{{players}}。",
+    "thiefSelected": "你选择{{selectedRole}}作为最终身份，{{buriedRole}}成为未入场底牌。",
+    "thiefRevealed": "{{player}}原为盗贼，选择{{selectedRole}}作为最终身份；{{buriedRole}}未入场。",
+    "roleCardsReserved": "本局底牌：{{roles}}。",
+    "roleCardsRevealed": "最终底牌：{{roles}}。",
+    "roleTransformed": "{{player}}的最终身份是{{role}}。",
     "factionMembers": "你的狼人队友是：{{players}}。",
     "factionNoTeammates": "你没有狼人队友。",
     "werewolfMembers": "狼人阵营成员：{{players}}。",
@@ -463,6 +477,12 @@
     "agentSeat": "{{seat}} 号座位默认 Agent",
     "characterSeat": "{{seat}} 号座位扮演角色",
     "playerCount": "共 {{count}} 人",
+    "cardAndPlayerCount": "{{cards}} 张牌 · {{players}} 个席位",
+    "reserveCount": "{{count}} 张底牌",
+    "reserveCards": "底牌数量",
+    "reserveCardsHint": "身份牌池减去底牌数量后得到实际玩家席位；盗贼板必须使用两张底牌。",
+    "decreaseReserve": "减少底牌数量",
+    "increaseReserve": "增加底牌数量",
     "decrease": "减少{{role}}",
     "increase": "增加{{role}}",
     "sheriff": "开启警长竞选",
@@ -552,6 +572,7 @@
     "title": "编排今晚的对局",
     "playerCount": "选择人数",
     "playerCountOption": "{{count}} 人",
+    "boardCardSummary": "{{players}} 席 · {{cards}} 张身份牌 · {{reserves}} 张底牌",
     "board": "选择板子",
     "manageBoards": "管理自建板子",
     "customBoard": "自建",
@@ -561,6 +582,9 @@
     "start": "开始对局",
     "randomRoles": "随机身份",
     "manualRoles": "指定身份",
+    "reserveCards": "指定底牌",
+    "reserveCardsHint": "底牌与座位身份共享同一牌池；选择新身份时会与现有卡槽交换。",
+    "reserveCard": "底牌 {{index}}",
     "boardHint": "{{count}} 人 · {{roles}}",
     "seat": "{{seat}} 号座位",
     "playerName": "玩家昵称",

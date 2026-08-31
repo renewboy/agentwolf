@@ -46,6 +46,8 @@ function board(id: string, playerCount: number, options: Partial<BoardSummary> =
     name: `${playerCount} 人板子`,
     description: '测试板子说明',
     playerCount,
+    cardCount: playerCount,
+    reserveCount: 0,
     roles: [
       { roleId: 'role-villager', count: Math.max(1, playerCount - 1), name: '平民' },
       { roleId: 'role-werewolf', count: 1, name: '狼人' },
@@ -206,6 +208,45 @@ describe('NewMatchPage', () => {
     )
     expect(screen.getByText('自建')).toBeVisible()
     await waitFor(() => expect(seatNameInputs()).toHaveLength(12))
+  })
+
+  it('shows reserve slots and submits the complete manual role-card pool', async () => {
+    apiMocks.listBoards.mockResolvedValue([
+      board('board-thief-six', 6, {
+        name: '6 人盗贼板',
+        cardCount: 8,
+        reserveCount: 2,
+        roles: [
+          { roleId: 'role-werewolf', count: 2, name: '狼人' },
+          { roleId: 'role-villager', count: 4, name: '平民' },
+          { roleId: 'role-cupid', count: 1, name: '丘比特' },
+          { roleId: 'role-thief', count: 1, name: '盗贼' },
+        ] as BoardSummary['roles'],
+      }),
+    ])
+    renderPage()
+    expect(await screen.findByText('6 席 · 8 张身份牌 · 2 张底牌')).toBeVisible()
+    await waitFor(() => expect(seatNameInputs()).toHaveLength(6))
+    await userEvent.click(screen.getByRole('button', { name: '指定身份' }))
+    const firstReserve = screen.getByRole('combobox', { name: '底牌 1' })
+    const secondReserve = screen.getByRole('combobox', { name: '底牌 2' })
+    expect(firstReserve).toHaveAttribute('data-value', 'role-cupid')
+    expect(secondReserve).toHaveAttribute('data-value', 'role-thief')
+    await userEvent.click(firstReserve)
+    await userEvent.click(screen.getByRole('option', { name: '平民' }))
+    expect(firstReserve).toHaveAttribute('data-value', 'role-villager')
+    expect(
+      screen
+        .getAllByRole('combobox', { name: '身份牌' })
+        .some((select) => select.getAttribute('data-value') === 'role-cupid'),
+    ).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: '开始对局' }))
+    expect(apiMocks.createMatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roleAssignment: 'manual',
+        manualReserveRoleIds: ['role-villager', 'role-thief'],
+      }),
+    )
   })
 })
 

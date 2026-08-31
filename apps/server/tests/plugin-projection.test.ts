@@ -4,6 +4,8 @@ import {
   MatchIdSchema,
   PhaseIdSchema,
   PlayerIdSchema,
+  RoleCardIdSchema,
+  RoleIdSchema,
   playerIdForSeat,
 } from '@agentwolf/contracts'
 import {
@@ -15,11 +17,154 @@ import {
   cupidEventTypes,
   magicMirrorInspectedEventType,
   mirrorHiddenBoard,
+  thiefAbilityIds,
+  thiefCupidBoard,
+  thiefEventTypes,
+  thiefState,
 } from '@agentwolf/game-engine'
 import { describe, expect, it } from 'vitest'
 import { projectMatch } from '../src/projector.js'
 
 describe('plugin event projection', () => {
+  it('keeps Thief reserves and transformation private until the terminal reveal', () => {
+    const ruleset = createClassicRuleset()
+    const matchId = MatchIdSchema.parse('match-thief-private-projection')
+    const roleIds = [
+      'role-werewolf',
+      'role-werewolf',
+      'role-villager',
+      'role-villager',
+      'role-villager',
+      'role-villager',
+      'role-seer',
+      'role-witch',
+      'role-hunter',
+      'role-idiot',
+      'role-cupid',
+      'role-thief',
+    ].map((roleId) => RoleIdSchema.parse(roleId))
+    const engine = GameEngine.create({
+      matchId,
+      board: thiefCupidBoard,
+      ruleset,
+      roleAssignment: 'manual',
+      manualReserveRoleIds: [
+        RoleIdSchema.parse('role-werewolf'),
+        RoleIdSchema.parse('role-villager'),
+      ],
+      seed: 1,
+      players: roleIds.map((roleId, index) => ({
+        id: playerIdForSeat(index + 1),
+        seat: index + 1,
+        name: `Thief projection ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-thief-projection-${index + 1}`),
+        roleId,
+      })),
+    })
+    const thief = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-thief',
+    )!
+    const unrelated = [...engine.state.players.values()].find(
+      (player) => player.roleId === 'role-seer',
+    )!
+    const base = {
+      matchId,
+      board: thiefCupidBoard,
+      boardName: 'Thief projection board',
+      roles: ruleset.roles,
+    }
+    const godSetup = projectMatch({
+      ...base,
+      state: engine.state,
+      events: engine.events,
+      view: { kind: 'god' },
+    })
+    expect(godSetup.timeline.some((item) => item.title.includes('本局底牌'))).toBe(true)
+    expect(
+      projectMatch({
+        ...base,
+        state: engine.state,
+        events: engine.events,
+        view: { kind: 'closed-eye' },
+      }).timeline,
+    ).toEqual([])
+
+    engine.start()
+    engine.submit({
+      type: 'night-action',
+      matchId,
+      actorId: thief.id,
+      abilityId: thiefAbilityIds.chooseCard,
+      targetIds: [],
+      roleCardId: RoleCardIdSchema.parse('role-card-r01'),
+    })
+    const selected = { ...base, state: engine.state, events: engine.events }
+    for (const view of [
+      { kind: 'god' as const },
+      { kind: 'player' as const, playerId: thief.id },
+    ]) {
+      const projection = projectMatch({ ...selected, view })
+      expect(projection.timeline.some((item) => item.title.includes('未入场底牌'))).toBe(true)
+      expect(projection.effectCues.some((cue) => cue.effectId === 'thief-choose-card')).toBe(true)
+      expect(projection.seats.find((seat) => seat.playerId === thief.id)?.markers).toContain(
+        'thief-origin',
+      )
+    }
+    for (const view of [
+      { kind: 'closed-eye' as const },
+      { kind: 'player' as const, playerId: unrelated.id },
+    ]) {
+      const projection = projectMatch({ ...selected, view })
+      expect(projection.timeline.some((item) => item.title.includes('未入场底牌'))).toBe(false)
+      expect(projection.effectCues.some((cue) => cue.effectId === 'thief-choose-card')).toBe(false)
+      expect(projection.seats.every((seat) => !seat.markers.includes('thief-origin'))).toBe(true)
+    }
+
+    const selection = thiefState(engine.state).selection!
+    const cardsRevealed = GameEventSchema.parse({
+      matchId,
+      sequence: engine.state.lastSequence + 1,
+      occurredAt: '2026-08-31T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: { type: 'role.cards-revealed', cards: engine.state.reservedRoleCards },
+    })
+    const thiefRevealed = GameEventSchema.parse({
+      matchId,
+      sequence: cardsRevealed.sequence + 1,
+      occurredAt: '2026-08-31T00:00:01.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'plugin.event',
+        pluginId: 'plugin-role-thief',
+        eventType: thiefEventTypes.revealed,
+        schemaVersion: 1,
+        data: selection,
+      },
+    })
+    const terminalEvents = [...engine.events, cardsRevealed, thiefRevealed]
+    const terminalState = {
+      ...engine.state,
+      status: 'ended' as const,
+      lastSequence: thiefRevealed.sequence,
+    }
+    for (const view of [
+      { kind: 'god' as const },
+      { kind: 'closed-eye' as const },
+      { kind: 'player' as const, playerId: unrelated.id },
+    ]) {
+      const projection = projectMatch({
+        ...base,
+        state: terminalState,
+        events: terminalEvents,
+        view,
+      })
+      expect(projection.timeline.at(-1)?.title).toContain('原为盗贼')
+      expect(projection.seats.find((seat) => seat.playerId === thief.id)?.markers).toContain(
+        'thief-origin',
+      )
+    }
+  })
+
   it('keeps Cupid phase and lovers private while presenting linked deaths by visibility', () => {
     const ruleset = createClassicRuleset()
     const matchId = MatchIdSchema.parse('match-cupid-private-projection')

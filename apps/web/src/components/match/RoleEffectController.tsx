@@ -1,5 +1,6 @@
 import {
   Crosshair,
+  Cards,
   ArrowsLeftRight,
   Crown,
   Drop,
@@ -159,6 +160,7 @@ function effectIcon(icon: (typeof roleEffectCatalog)[string]['icon']): ReactNode
     mirror: <Eye size={34} weight="duotone" />,
     burst: <Skull size={34} weight="duotone" />,
     heart: <Heart size={34} weight="fill" />,
+    cards: <Cards size={34} weight="fill" />,
   }
   return icons[icon]
 }

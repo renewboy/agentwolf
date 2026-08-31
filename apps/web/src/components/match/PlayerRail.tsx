@@ -1,4 +1,4 @@
-import { Crown, HandPalm, Heart, Medal, Skull, Trophy } from '@phosphor-icons/react'
+import { Cards, Crown, HandPalm, Heart, Medal, Skull, Trophy } from '@phosphor-icons/react'
 import { getCopy, getPlayerMarkerDefinition, type PlayerMarkerDefinition } from '@agentwolf/assets'
 import type { PlayerMarkerId, PostgameReviewView, SeatView } from '@agentwolf/contracts'
 import { RoleBadge } from '../RoleBadge.js'
@@ -182,6 +182,8 @@ function PlayerMarkerIcon({ icon }: { readonly icon: PlayerMarkerDefinition['ico
   switch (icon) {
     case 'heart':
       return <Heart size={11} weight="fill" aria-hidden />
+    case 'cards':
+      return <Cards size={11} weight="fill" aria-hidden />
   }
   throw new Error('Unknown player marker icon')
 }

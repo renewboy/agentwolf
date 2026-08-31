@@ -464,6 +464,9 @@ function foundationFacts(events: GameEvent[], character: boolean) {
     ],
     board: {
       roles: [{ roleId, faction: 'village' as const, count: 2 }],
+      cardCount: 2,
+      playerCount: 6,
+      reserveCount: 0,
       nightActionOrder: [{ phaseId, firstNightOnly: false }],
       sheriff: false,
       policies: policies(),

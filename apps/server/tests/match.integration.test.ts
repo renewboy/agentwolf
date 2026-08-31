@@ -11,7 +11,7 @@ import {
   type PlayerId,
 } from '@agentwolf/contracts'
 import { type AcpPromptResult } from '@agentwolf/acp'
-import { cupidBoard, sixPlayerBoard, standardBoard } from '@agentwolf/game-engine'
+import { cupidBoard, sixPlayerBoard, standardBoard, thiefCupidBoard } from '@agentwolf/game-engine'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
@@ -41,6 +41,117 @@ afterEach(async () => {
 })
 
 describe('match orchestration', () => {
+  it('runs a Thief-to-Cupid transformation through the real mailbox and archives its reveal', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-thief-runtime-'))
+    temporaryDirectories.push(root)
+    let server: AgentWolfServer
+    const prompts = new Map<PlayerId, string[]>()
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: true,
+      publicSpeechInterruptMode: 'legacy',
+    }
+    server = await buildServer({
+      config,
+      sessionFactory: scriptedSessionFactory({
+        prompts,
+        mailbox: () => server.matches.mailbox,
+      }),
+    })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: 'Thief scripted ACP',
+      kind: 'custom',
+      command: 'thief-scripted-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Thief scripted player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const assignments = [
+      'role-werewolf',
+      'role-werewolf',
+      'role-werewolf',
+      'role-villager',
+      'role-villager',
+      'role-villager',
+      'role-villager',
+      'role-seer',
+      'role-witch',
+      'role-hunter',
+      'role-idiot',
+      'role-thief',
+    ] as const
+    const created = server.matches.createMatch({
+      boardId: thiefCupidBoard.id,
+      roleAssignment: 'manual',
+      manualReserveRoleIds: ['role-cupid', 'role-villager'],
+      seats: assignments.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Thief runtime player ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    server.matches.beginMatch(created.id)
+    const terminal = await waitForMatch(server, created.id)
+    if (terminal.status === 'paused') throw new Error(terminal.pausedReason ?? 'Thief Match paused')
+    expect(terminal.status).toBe('ended')
+    const events = server.repository.listMatchEvents(created.id)
+    expect(
+      events.find(
+        (event) =>
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === 'event-thief-selected',
+      ),
+    ).toMatchObject({
+      visibility: { kind: 'players', playerIds: ['player-12'] },
+      payload: {
+        data: {
+          selectedCard: { roleId: 'role-cupid' },
+          buriedCard: { roleId: 'role-villager' },
+        },
+      },
+    })
+    expect(
+      events.find((event) => event.payload.type === 'role.transformed')?.payload,
+    ).toMatchObject({
+      playerId: 'player-12',
+      fromRoleId: 'role-thief',
+      toRoleId: 'role-cupid',
+      faction: 'independent',
+    })
+    expect(
+      events.find(
+        (event) =>
+          event.visibility.kind === 'public' &&
+          event.payload.type === 'plugin.event' &&
+          event.payload.eventType === 'event-thief-revealed',
+      ),
+    ).toBeDefined()
+    expect(events.find((event) => event.payload.type === 'role.cards-revealed')).toBeDefined()
+    expect(terminal.seats.find((seat) => seat.playerId === 'player-12')?.markers).toContain(
+      'thief-origin',
+    )
+    const archive = await waitForArchive(server, created.id)
+    expect(archive).toMatchObject({
+      sourceRuleset: { familyId: 'classic', revision: 7 },
+      trajectoryAudit: { ok: true, issues: [] },
+    })
+  }, 20_000)
+
   it('runs a Cupid board through the real mailbox and captures its exact terminal winners', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-cupid-runtime-'))
     temporaryDirectories.push(root)
@@ -172,7 +283,7 @@ describe('match orchestration', () => {
     )
     const archive = await waitForArchive(server, created.id)
     expect(archive).toMatchObject({
-      sourceRuleset: { familyId: 'classic', revision: 6 },
+      sourceRuleset: { familyId: 'classic', revision: 7 },
       trajectoryAudit: { ok: true, issues: [] },
     })
     const archivedClosedEye = server.matches.getMatch(created.id, { kind: 'closed-eye' })

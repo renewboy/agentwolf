@@ -13,6 +13,17 @@
   "events": [
     { "eventType": "match.created", "audience": "public", "omit": true },
     { "eventType": "role.assigned", "audience": "player", "omit": true },
+    { "eventType": "role.cards-reserved", "audience": "god", "omit": true },
+    {
+      "eventType": "role.transformed",
+      "audience": "player",
+      "template": "events/role-transformed.njk"
+    },
+    {
+      "eventType": "role.cards-revealed",
+      "audience": "public",
+      "template": "events/role-cards-revealed.njk"
+    },
     { "eventType": "role.revealed", "audience": "public", "template": "events/role-revealed.njk" },
     { "eventType": "faction.members", "audience": "player", "omit": true },
     { "eventType": "match.started", "audience": "public", "omit": true },
@@ -94,7 +105,7 @@
       {
         "name": "submit_night_action",
         "title": "提交夜间行动",
-        "description": "提交当前身份允许的夜间行动。所有目标使用 Player ID。",
+        "description": "提交当前身份允许的夜间行动。玩家目标使用 Player ID；身份牌选择使用 Role Card ID。",
         "fields": [
           {
             "name": "abilityId",
@@ -103,6 +114,10 @@
           {
             "name": "targetPlayerIds",
             "text": "玩家目标的 Player ID 数组；确切数量与是否允许自己由 ability 规则校验。"
+          },
+          {
+            "name": "roleCardId",
+            "text": "仅在当前回合提供身份牌选项时使用裁判给出的 Role Card ID。"
           },
           {
             "name": "option",

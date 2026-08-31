@@ -144,6 +144,7 @@ function runEngineSimulationWithOptions(
     simulation.setup.players,
     simulation.setup.speechCharacterLimit,
     simulation.setup.publicSpeechInterruptMode,
+    simulation.setup.reserveRoleIds,
   )
   const events = canonicalizeSimulationEvents(engine.events, normalization)
   const actual: SimulationExpected = {

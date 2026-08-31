@@ -57,6 +57,7 @@ export function createSimulationEngine(
       roleId: player.roleId,
     })),
     roleAssignment: 'manual',
+    manualReserveRoleIds: simulation.setup.reserveRoleIds,
     seed: 1,
     clock,
     ruleset,

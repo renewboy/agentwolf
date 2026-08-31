@@ -27,6 +27,7 @@ export interface RoleEffectDefinition {
     | 'mirror'
     | 'burst'
     | 'heart'
+    | 'cards'
 }
 
 export const roleEffectCatalog: Readonly<Record<string, RoleEffectDefinition>> = {
@@ -209,6 +210,15 @@ export const roleEffectCatalog: Readonly<Record<string, RoleEffectDefinition>> =
     tier: 'large',
     durationMs: 720,
     icon: 'heart',
+  },
+  'thief-choose-card': {
+    id: 'thief-choose-card',
+    roleId: RoleIdSchema.parse('role-thief'),
+    abilityId: AbilityIdSchema.parse('ability-thief-choose-card'),
+    labelKey: 'effects.thiefChooseCard',
+    tier: 'medium',
+    durationMs: 620,
+    icon: 'cards',
   },
 }
 

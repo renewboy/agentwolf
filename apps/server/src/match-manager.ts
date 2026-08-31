@@ -128,6 +128,7 @@ export class MatchManager {
       })),
       roleAssignment: request.roleAssignment,
       seed: Number.parseInt(matchId.slice(-12), 16),
+      manualReserveRoleIds: request.manualReserveRoleIds,
       ruleset,
     })
     const timestamp = new Date().toISOString()
@@ -140,6 +141,7 @@ export class MatchManager {
       setup: {
         boardId: request.boardId,
         roleAssignment: request.roleAssignment,
+        manualReserveRoleIds: request.manualReserveRoleIds,
         seats: snapshotSeats,
         speechCharacterLimit: settings.speechCharacterLimit,
         publicSpeechInterruptMode: this.#options.config.publicSpeechInterruptMode,

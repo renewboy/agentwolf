@@ -35,7 +35,7 @@ export const cupidPlugin: RulePlugin<RulesetBuilder> = {
     { id: classicPluginIds.night, version: 3 },
     { id: classicPluginIds.death, version: 3 },
     { id: classicPluginIds.day, version: 3 },
-    { id: classicPluginIds.terminal, version: 2 },
+    { id: classicPluginIds.terminal, version: 3 },
   ],
   register: ({ events, phases, roles, rules, triggers, victories }) => {
     roles.register(new CupidRole())

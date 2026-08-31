@@ -28,6 +28,7 @@ export interface GameEngineOptions {
   readonly players: readonly EnginePlayerInput[]
   readonly roleAssignment: 'random' | 'manual'
   readonly seed: number
+  readonly manualReserveRoleIds?: readonly RoleId[]
   readonly clock?: () => Date
   readonly ruleset?: RulesetRuntime
   readonly roles?: RoleRegistry

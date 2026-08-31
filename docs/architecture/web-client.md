@@ -83,6 +83,10 @@ flowchart TB
 - setup、Agent/Profile、board、Character、settings、Lobby 和 developer 页面位于共享 `AppShell`；
 - Match 页面使用独立全视口外壳并 lazy load，避免常规导航布局介入实时舞台。
 
+Board 页面把 Role 数量编辑为完整身份牌池,并单独维护零至两张底牌;席位数由两者之差派生,逐 Seat
+Profile/Character defaults 随席位数调整。新建 Match 的手动模式把 Seat 与底牌显示为同一 multiset
+中的可交换卡槽,最终仍由 server 对牌池、Role plugin 要求与合法 deal 进行权威校验。
+
 启动时 `RuntimeConfigProvider` 读取 `/api/runtime-config`。developer route 只有在
 `developerMode=true` 时可达；该值只决定客户端导航，真正的 developer API 注册与访问控制仍由
 server loopback 配置拥有。

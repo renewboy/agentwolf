@@ -46,6 +46,8 @@ function board(id: string, editable: boolean): BoardSummary {
     name: editable ? '自建板子' : '内置板子',
     description: '板子说明',
     playerCount: 6,
+    cardCount: 6,
+    reserveCount: 0,
     roles: [
       { roleId: 'role-villager', count: 5, name: '平民' },
       { roleId: 'role-werewolf', count: 1, name: '狼人' },
@@ -137,7 +139,7 @@ describe('BoardsPage', () => {
     const addWolf = screen.getByRole('button', { name: '增加狼人' })
     for (let index = 0; index < 5; index += 1) await userEvent.click(addVillager)
     await userEvent.click(addWolf)
-    expect(document.querySelector('.aw-board-role-editor')).toHaveTextContent('6 人')
+    expect(document.querySelector('.aw-board-role-editor')).toHaveTextContent('6 张牌 · 6 个席位')
     expect(document.querySelectorAll('.aw-board-character-slot')).toHaveLength(6)
     await userEvent.click(screen.getByRole('button', { name: '减少平民' }))
     await userEvent.click(addVillager)
@@ -161,6 +163,7 @@ describe('BoardsPage', () => {
         name: '新板子',
         sheriff: true,
         victory: 'slaughter-edge',
+        reserveCount: 0,
         roles: expect.arrayContaining([
           { roleId: 'role-villager', count: 5 },
           { roleId: 'role-werewolf', count: 1 },
@@ -207,5 +210,39 @@ describe('BoardsPage', () => {
       }),
     )
     expect(await screen.findByText(getCopy('boardManagement.readOnly'))).toBeVisible()
+  })
+
+  it('derives player seats from a custom role-card pool and Thief reserves', async () => {
+    apiMocks.listRoles.mockResolvedValue([
+      ...roles,
+      {
+        id: 'role-thief',
+        name: '盗贼',
+        faction: 'independent',
+        kind: 'independent',
+        requiredReserveCount: 2,
+      },
+    ])
+    render(<BoardsPage />)
+    await screen.findByText(getCopy('boardManagement.readOnly'))
+    await userEvent.click(screen.getByRole('button', { name: getCopy('boardManagement.create') }))
+    const editor = document.querySelector<HTMLElement>('.aw-agent-editor')!
+    fireEvent.change(within(editor).getAllByRole('textbox')[0]!, {
+      target: { value: '盗贼自建板' },
+    })
+    for (let index = 0; index < 4; index += 1) {
+      await userEvent.click(screen.getByRole('button', { name: '增加平民' }))
+    }
+    for (let index = 0; index < 3; index += 1) {
+      await userEvent.click(screen.getByRole('button', { name: '增加狼人' }))
+    }
+    await userEvent.click(screen.getByRole('button', { name: '增加盗贼' }))
+    expect(document.querySelector('.aw-board-role-editor')).toHaveTextContent('8 张牌 · 6 个席位')
+    expect(document.querySelector('.aw-board-reserve-counter output')).toHaveTextContent('2')
+    expect(document.querySelectorAll('.aw-board-character-slot')).toHaveLength(6)
+    await userEvent.click(screen.getByRole('button', { name: getCopy('boardManagement.save') }))
+    expect(apiMocks.createBoard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reserveCount: 2 }),
+    )
   })
 })

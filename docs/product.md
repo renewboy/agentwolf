@@ -17,14 +17,15 @@ Agent 设置页管理 Agent Tools 与有序的 Agent Profiles。选择一个 Too
 公开推理表现、发言风格、演绎边界与头像。它只改变表达:每个 Agent 保留完整的推理质量与最强
 的对局判断。
 
-Board 管理将只读内置 boards 与 6–24 人自定义 boards 相结合。自定义 board 存储 Role 数量、
-sheriff 与胜负政策,以及可选的逐 Seat Agent Profile 与 Character 默认值。内置 boards 可先复制
-再编辑。
+Board 管理将只读内置 boards 与 6–24 席自定义 boards 相结合。自定义 board 存储完整身份牌池、
+零至两张底牌、sheriff 与胜负政策,以及可选的逐 Seat Agent Profile 与 Character 默认值。实际席位
+数量等于身份牌数量减去底牌数量;包含 Thief 时使用两张底牌。内置 boards 可先复制再编辑。
 
 新建 Match 流程选择一个兼容 board,并按显式覆盖、board 默认值、再到首个有序 Profile 的顺序
 解析每个 Seat。Profiles 与 Characters 可跨 Seat 复用。选择 Character 会以其 Character 名作为
 昵称建议,昵称仍可编辑且必须唯一。开始 Match 会冻结 board、政策、Profile 选择、Character 卡、
-昵称以及当前的全局发言长度指引。
+昵称以及当前的全局发言长度指引。手动身份模式同时指定每个 Seat 和每张底牌,两类卡槽共同组成
+board 冻结的完整身份牌池。
 公开发言 interrupt 模式同时冻结到 Match;它决定旁听者是否获得后台反应回合,恢复时不会随 server
 启动默认值变化。
 
@@ -50,7 +51,7 @@ Match 界面以中央实时信息流为核心,两侧是玩家栏。信息流流�
 
 Character 名与头像在每个视图中保持公开,不泄露隐藏的游戏 Role。淘汰与放逐在 Match 进行期间
 保持普通身份隐藏;Role 特定的公开揭示仍属于其规则的一部分。终局身份事件在游戏结果之后揭示
-每个 Seat。
+每个 Seat;存在底牌时同时揭示底牌和已完成的身份转换来源。
 
 结构化动作的就绪状态只在允许看到该玩家运行时状态的投影中显示。并行投票与动作在所有有资格
 的玩家完成之前保持密封,因此响应顺序不会泄露选择。投票卡在每个目标下分组投票 Seat,并保留

@@ -18,9 +18,10 @@ describe('phase plugin ownership', () => {
     expect(contribution('plugin-classic-day')).toContain('phase-day-speech')
     expect(contribution('plugin-classic-terminal')).toEqual(['phase-match-ended'])
     expect(contribution('plugin-role-cupid')).toEqual(['phase-night-cupid'])
-    expect(classicPhaseGraph.entry).toBe('phase-night-cupid')
+    expect(contribution('plugin-role-thief')).toEqual(['phase-night-thief'])
+    expect(classicPhaseGraph.entry).toBe('phase-night-thief')
     expect(
-      phaseNode('phase-day-resolve').edges.some((edge) => edge.to === 'phase-night-cupid'),
+      phaseNode('phase-day-resolve').edges.some((edge) => edge.to === 'phase-night-thief'),
     ).toBe(true)
   })
 })

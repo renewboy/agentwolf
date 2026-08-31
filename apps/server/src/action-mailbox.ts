@@ -5,6 +5,7 @@ import {
   MatchIdSchema,
   PlayerActionSchema,
   PlayerIdSchema,
+  RoleCardIdSchema,
   PostgameReviewSubmissionInputSchema,
   type ActionReceipt,
   type AbilityId,
@@ -12,6 +13,8 @@ import {
   type PhaseId,
   type PlayerAction,
   type PlayerId,
+  type RoleCardId,
+  type RoleId,
   type PostgameReviewSubmission,
   type PostgameReviewSubmissionInput,
   type SheriffActionKind,
@@ -37,6 +40,12 @@ export interface ActionExpectation {
     readonly abilityId: AbilityId
     readonly label: string
     readonly description: string
+  }[]
+  readonly roleCardChoices?: readonly {
+    readonly cardId: RoleCardId
+    readonly roleId: RoleId
+    readonly label: string
+    readonly selectable: boolean
   }[]
   readonly allowedSheriffActions?: readonly SheriffActionKind[]
   readonly passAllowed?: boolean
@@ -156,8 +165,17 @@ export class ActionMailbox {
     abilityId: string,
     targetPlayerIds: readonly string[],
     option?: string,
+    roleCardId?: string,
   ): ActionReceipt {
     const expectation = this.#expectation(token, 'night-action')
+    const roleCardChoices = expectation.roleCardChoices ?? []
+    if (roleCardChoices.length > 0) {
+      if (targetPlayerIds.length > 0) throw new Error('Role-card choices cannot target players')
+      const selected = roleCardChoices.find((choice) => choice.cardId === roleCardId)
+      if (!selected?.selectable) throw new Error('The selected role card is unavailable')
+    } else if (roleCardId !== undefined) {
+      throw new Error('The current action does not accept a role card')
+    }
     return this.#accept(
       expectation,
       PlayerActionSchema.parse({
@@ -166,6 +184,7 @@ export class ActionMailbox {
         actorId: expectation.playerId,
         abilityId: AbilityIdSchema.parse(abilityId),
         targetIds: targetPlayerIds.map((target) => PlayerIdSchema.parse(target)),
+        ...(roleCardId ? { roleCardId: RoleCardIdSchema.parse(roleCardId) } : {}),
         ...(option ? { option } : {}),
       }),
     )

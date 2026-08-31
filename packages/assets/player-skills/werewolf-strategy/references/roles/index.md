@@ -32,3 +32,4 @@
 26. [暴狼](baowolf.md)
 27. [猎人](hunter_bad.md)
 28. [炸弹师](bomber.md)
+29. [盗贼](classic-thief.md)

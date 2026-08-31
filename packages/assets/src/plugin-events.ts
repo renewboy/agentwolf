@@ -4,13 +4,18 @@ import {
   PluginEventTypeSchema,
   PluginIdSchema,
   RoleIdSchema,
+  RoleCardIdSchema,
   type GameEvent,
   type PlayerId,
   type RoleEffectId,
 } from '@agentwolf/contracts'
 import { formatCopy, getCopy } from './catalog.js'
 import type { NarrationCatalog } from './narration.js'
-import { cupidLoverMarkerId, type PlayerMarkerContribution } from './player-markers.js'
+import {
+  cupidLoverMarkerId,
+  thiefOriginMarkerId,
+  type PlayerMarkerContribution,
+} from './player-markers.js'
 
 interface PluginEventEffect {
   readonly effectId: RoleEffectId
@@ -45,6 +50,11 @@ const cupidPluginId = PluginIdSchema.parse('plugin-role-cupid')
 const cupidEventTypes = {
   linked: PluginEventTypeSchema.parse('event-cupid-linked'),
   linkedDeath: PluginEventTypeSchema.parse('event-cupid-linked-death'),
+} as const
+const thiefPluginId = PluginIdSchema.parse('plugin-role-thief')
+const thiefEventTypes = {
+  selected: PluginEventTypeSchema.parse('event-thief-selected'),
+  revealed: PluginEventTypeSchema.parse('event-thief-revealed'),
 } as const
 
 const presentations: readonly PluginEventPresentation[] = [
@@ -266,6 +276,47 @@ const presentations: readonly PluginEventPresentation[] = [
       }
     },
   },
+  {
+    pluginId: thiefPluginId,
+    eventType: thiefEventTypes.selected,
+    playerIds: (data) => [thiefSelectionData(data).playerId],
+    narrate: (data, catalog) => {
+      const parsed = thiefSelectionData(data)
+      return formatCopy(getCopy('narration.thiefSelected'), {
+        selectedRole: catalog.roleName(parsed.selectedCard.roleId),
+        buriedRole: catalog.roleName(parsed.buriedCard.roleId),
+      })
+    },
+    effect: (data) => {
+      const parsed = thiefSelectionData(data)
+      return {
+        effectId: 'thief-choose-card',
+        sourcePlayerIds: [parsed.playerId],
+        targetPlayerIds: [],
+        variant: parsed.selectedCard.roleId,
+      }
+    },
+    playerMarkers: (data) => [
+      { markerId: thiefOriginMarkerId, playerIds: [thiefSelectionData(data).playerId] },
+    ],
+  },
+  {
+    pluginId: thiefPluginId,
+    eventType: thiefEventTypes.revealed,
+    playerIds: (data) => [thiefSelectionData(data).playerId],
+    narrate: (data, catalog) => {
+      const parsed = thiefSelectionData(data)
+      return formatCopy(getCopy('narration.thiefRevealed'), {
+        player: playerLabel(parsed.playerId, catalog),
+        selectedRole: catalog.roleName(parsed.selectedCard.roleId),
+        buriedRole: catalog.roleName(parsed.buriedCard.roleId),
+      })
+    },
+    effect: () => null,
+    playerMarkers: (data) => [
+      { markerId: thiefOriginMarkerId, playerIds: [thiefSelectionData(data).playerId] },
+    ],
+  },
 ]
 
 export function renderPluginEventNarration(
@@ -379,6 +430,22 @@ function cupidLinkedDeathData(data: unknown) {
     targetId: PlayerIdSchema.parse(record['targetId']),
     timing: DeathTimingSchema.parse(record['timing']),
     presentation,
+  }
+}
+
+function thiefSelectionData(data: unknown) {
+  const record = pluginData(data, 'Thief selection')
+  const card = (value: unknown, label: string) => {
+    const parsed = pluginData(value, label)
+    return {
+      id: RoleCardIdSchema.parse(parsed['id']),
+      roleId: RoleIdSchema.parse(parsed['roleId']),
+    }
+  }
+  return {
+    playerId: PlayerIdSchema.parse(record['playerId']),
+    selectedCard: card(record['selectedCard'], 'Selected Role card'),
+    buriedCard: card(record['buriedCard'], 'Buried Role card'),
   }
 }
 

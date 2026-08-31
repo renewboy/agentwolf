@@ -8,7 +8,7 @@ import { phase } from './shared.js'
 
 export const classicTerminalPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.terminal,
-  version: 2,
+  version: 3,
   requires: [{ id: classicPluginIds.victory, version: 1 }],
   register: ({ phases, rules }) => {
     phases.register({
@@ -46,6 +46,15 @@ export const classicTerminalPlugin: RulePlugin<RulesetBuilder> = {
           visibility.public,
         )
         appendFinalRoleReveals(runtime)
+        if (runtime.state.reservedRoleCards.length > 0) {
+          runtime.append(
+            {
+              type: 'role.cards-revealed',
+              cards: runtime.state.reservedRoleCards.map((card) => ({ ...card })),
+            },
+            visibility.public,
+          )
+        }
       },
       { id: 'classic-match-ended' },
     )

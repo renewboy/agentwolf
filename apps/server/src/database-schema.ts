@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 
 export function migrateDatabase(database: Database.Database): void {
   const version = database.pragma('user_version', { simple: true }) as number
-  if (version > 9) throw new Error(`Database schema ${version} is newer than this server`)
+  if (version > 10) throw new Error(`Database schema ${version} is newer than this server`)
   if (version === 0) {
     database.exec(`
       CREATE TABLE agent_tools (
@@ -57,7 +57,7 @@ export function migrateDatabase(database: Database.Database): void {
       ${trajectoryTables()}
       ${postgameReviewTables()}
       ${matchArchiveTables()}
-      PRAGMA user_version = 9;
+      PRAGMA user_version = 10;
     `)
   }
   if (version === 1) {
@@ -138,6 +138,53 @@ export function migrateDatabase(database: Database.Database): void {
     database.exec(matchArchiveTables())
     database.pragma('user_version = 9')
   }
+  const roleCardSchemaVersion = database.pragma('user_version', { simple: true }) as number
+  if (roleCardSchemaVersion === 9) {
+    database.transaction(() => {
+      if (tableExists(database, 'custom_boards')) {
+        database.exec(`
+          UPDATE custom_boards
+          SET json = json_set(json, '$.reserveCount', 0)
+          WHERE json_type(json, '$.reserveCount') IS NULL;
+        `)
+      }
+      if (tableExists(database, 'matches')) {
+        if (columnExists(database, 'matches', 'board_snapshot_json')) {
+          database.exec(`
+            UPDATE matches
+            SET board_snapshot_json = json_set(
+              board_snapshot_json,
+              '$.schemaVersion', 4,
+              '$.reserveCount', COALESCE(json_extract(board_snapshot_json, '$.reserveCount'), 0)
+            )
+            WHERE board_snapshot_json IS NOT NULL;
+          `)
+        }
+        if (columnExists(database, 'matches', 'setup_json')) {
+          database.exec(`
+            UPDATE matches
+            SET setup_json = json_set(setup_json, '$.manualReserveRoleIds', json('[]'))
+            WHERE json_type(setup_json, '$.manualReserveRoleIds') IS NULL;
+          `)
+        }
+      }
+      database.pragma('user_version = 10')
+    })()
+  }
+}
+
+function tableExists(database: Database.Database, name: string): boolean {
+  return Boolean(
+    database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name),
+  )
+}
+
+function columnExists(database: Database.Database, table: string, column: string): boolean {
+  return (
+    database.prepare(`SELECT name FROM pragma_table_info(?)`).all(table) as Array<{
+      name: string
+    }>
+  ).some((entry) => entry.name === column)
 }
 
 function matchArchiveTables(): string {

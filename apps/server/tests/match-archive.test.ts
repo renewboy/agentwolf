@@ -86,6 +86,7 @@ describe('Match archive', () => {
         setup: {
           boardId: 'board-archive-service' as never,
           roleAssignment: 'random',
+          manualReserveRoleIds: [],
           seats: Array.from({ length: 6 }, (_, index) => ({
             seat: index + 1,
             name: `Player ${index + 1}`,

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AbilityIdSchema, MatchIdSchema, PlayerIdSchema } from './ids.js'
+import { AbilityIdSchema, MatchIdSchema, PlayerIdSchema, RoleCardIdSchema } from './ids.js'
 
 const ActionBaseSchema = z.object({
   matchId: MatchIdSchema,
@@ -22,6 +22,7 @@ export const NightActionSchema = ActionBaseSchema.extend({
   type: z.literal('night-action'),
   abilityId: AbilityIdSchema,
   targetIds: z.array(PlayerIdSchema).max(3),
+  roleCardId: RoleCardIdSchema.optional(),
   option: z.string().max(80).optional(),
 })
 

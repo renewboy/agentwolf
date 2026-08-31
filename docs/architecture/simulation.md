@@ -92,7 +92,7 @@ capture 同时运行 trajectory audit，并把 audit issues、source reconstruct
 
 candidate 包含：
 
-- 规范化 setup 与逐 Seat Role/Character；
+- 规范化 setup、完整 board 牌池/底牌 Roles 与逐 Seat Role/Character；
 - 每个 bootstrap/action Turn 的 day、phase、action type、mode、expected actors、event range、attempt、
   completion order、fault 与 action；
 - Match 冻结的公开发言 interrupt 模式；
@@ -182,6 +182,10 @@ barrier 检查。
 runner 创建执行 Match 时把采集 action 的 Match ID 重新绑定到当前执行 Match，并向 GameEngine 注入
 同一 deterministic resolver。restart variant 恢复 GameEngine 时继续复用该 resolver，因此 create、
 restore、engine runner 与 orchestration runner 观察到相同的已记录选择。
+
+含底牌的 fixture 额外冻结按顺序排列的 reserve Role IDs。runner 通过手动 deal 重建相同稳定 Role
+Card IDs,因此后续 `roleCardId` action、转换事件和 Prompt/MCP choice contract 可以在两条执行路径中
+逐项比较。
 
 rolling capture 中,engine runner 按 Turn completion order 归并被中断的部分 speech 与 interrupt
 action；orchestration runner 让 cancelled replay Prompt 保持 active,直到生产 coordinator 发送

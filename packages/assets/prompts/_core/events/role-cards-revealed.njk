@@ -1,0 +1,1 @@
+本局底牌为：{% for card in payload.cards %}{{ helpers.role(card.roleId) }}{% if not loop.last %}、{% endif %}{% endfor %}。

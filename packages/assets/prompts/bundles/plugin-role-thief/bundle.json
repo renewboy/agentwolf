@@ -1,0 +1,50 @@
+{
+  "pluginId": "plugin-role-thief",
+  "imports": [],
+  "roles": [
+    {
+      "id": "role-thief",
+      "label": "盗贼",
+      "template": "role.njk",
+      "abilities": [
+        {
+          "id": "ability-thief-choose-card",
+          "label": "身份窃取",
+          "description": "首夜从裁判展示的两张底牌中选择一张作为最终身份；底牌含狼人时必须选择狼人，本阶段不能放弃。",
+          "decision": "比较两张底牌对阵容、信息与胜负路线的影响；若存在狼人牌，只能选择狼人牌。",
+          "foundation": true
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-night-thief",
+      "label": "盗贼选牌",
+      "audience": "player",
+      "daytime": false,
+      "template": "turn.njk"
+    }
+  ],
+  "events": [
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-thief",
+        "eventType": "event-thief-selected"
+      },
+      "audience": "player",
+      "template": "selected.njk"
+    },
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-role-thief",
+        "eventType": "event-thief-revealed"
+      },
+      "audience": "public",
+      "template": "revealed.njk"
+    }
+  ],
+  "announcements": []
+}

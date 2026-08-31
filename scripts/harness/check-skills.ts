@@ -57,6 +57,7 @@ const installedRoleIds = createClassicRuleset()
 const installedStrategyPages = new Map<string, string>([
   ['role-awakened-hidden-wolf', 'robotwolf.md'],
   ['role-cupid', 'cupid.md'],
+  ['role-thief', 'classic-thief.md'],
   ['role-guard', 'guard.md'],
   ['role-hunter', 'hunter.md'],
   ['role-idiot', 'idiot.md'],

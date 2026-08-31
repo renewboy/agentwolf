@@ -14,6 +14,7 @@ import {
   type GameState,
   type PhaseNode,
   type RuleRuntime,
+  type RoleCardChoice,
   type RulesetRuntime,
   type TurnDescriptor,
 } from '@agentwolf/game-engine'
@@ -47,6 +48,13 @@ export class ContextRenderer {
 
   public abilityContracts(abilityIds: readonly AbilityId[]) {
     return [...new Set(abilityIds)].map((abilityId) => this.#prompts.abilityContract(abilityId))
+  }
+
+  public roleCardChoiceContracts(choices: readonly RoleCardChoice[]) {
+    return choices.map((choice) => ({
+      ...choice,
+      label: this.#prompts.roleLabel(choice.roleId),
+    }))
   }
 
   public async foundation(
@@ -91,6 +99,7 @@ export class ContextRenderer {
     turn: TurnDescriptor,
     speechCharacterLimit: number,
     continuation = false,
+    roleCardChoices: readonly RoleCardChoice[] = [],
   ): Promise<ContextEnvelope> {
     const player = state.players.get(playerId)
     if (!player?.roleId || !player.faction) throw new Error(`Player ${playerId} has no role`)
@@ -115,6 +124,7 @@ export class ContextRenderer {
           interruptAbilityIds: (turn.interruptAbilityIds ?? []).filter(canUse),
           interruptWindow: false,
           sheriffActions: [...(turn.sheriffActions ?? [])],
+          roleCardChoices: roleCardChoices.map((choice) => ({ ...choice })),
         },
         speechCharacterLimit,
         continuation,
@@ -159,6 +169,7 @@ export class ContextRenderer {
           interruptAbilityIds: allowed,
           interruptWindow: true,
           sheriffActions: [],
+          roleCardChoices: [],
         },
         speechCharacterLimit,
         continuation,
@@ -262,6 +273,9 @@ function boardFacts(
       faction: ruleset.roles.role(slot.roleId).faction,
       count: slot.count,
     })),
+    cardCount: board.roles.reduce((total, slot) => total + slot.count, 0),
+    playerCount: board.playerCount,
+    reserveCount: board.reserveCount,
     nightActionOrder: nightActionOrderFacts(board, ruleset, prompts, state, events),
     sheriff: board.sheriff,
     policies: { ...board.policies },

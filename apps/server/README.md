@@ -6,7 +6,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 ## 职责
 
 - REST 与 WebSocket 路由组装及 schema 校验。
-- Agent Tool/Profile、Character、board、settings 与 Match 目录。
+- Agent Tool/Profile、Character、身份牌池 board、settings 与 Match 目录。
 - 不可变的 Match 设置、活跃运行时编排、恢复、暂停、继续、只读归档与删除。
 - 用于 events、Session 绑定、delivery、复盘与开发者数据的 SQLite schema 与 repository。
 - 可见性安全的视图 projection，以及接入 Core subscription/presentation runtime 的实时连接协调。

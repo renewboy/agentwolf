@@ -64,7 +64,7 @@ const flowPlugins = {
 export function createClassicRuleset(): RulesetRuntime {
   return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic'),
-    revision: 6,
+    revision: 7,
     plugins: plugins(classicRolePlugins, classicWolfTeamPlugin, flowPlugins),
   }).build()
 }

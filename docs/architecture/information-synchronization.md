@@ -84,6 +84,11 @@ sequence cursor，保持事件原顺序。
 - player 始终可见自己的 Role；
 - player 只在已收到 `faction.members` 且双方属于该事件成员集时看见共享阵营成员 Role。
 
+底牌在 Match 创建时以 god-visible Role Card 事件固定,普通玩家与 closed-eye 不接收其 Role IDs。
+发生 Role 转换时,归属玩家收到 private transformation/plugin event;GameState 与自身投影立即显示最终
+Role。转换为共享阵营成员会追加新的 `faction.members`,使当前有资格成员从同一事件获得更新后的
+名册。原始 Thief 等转换来源通过私有 player marker 保留,不会从最终 Role 反向推断给无关视角。
+
 公开淘汰状态从公开的夜间死亡名单、逐人淘汰公告和无旁白淘汰事实派生。Role plugin 可以让专属
 事件负责旁白,同时用通用淘汰事实更新玩家卡片,无需让 projector 识别具体 Role。夜间自动死亡反应
 的公开细节在死亡名单形成时保持 god 可见,closed-eye 和普通 player 只看见完整名单,不会知道其中
@@ -279,8 +284,8 @@ Core live projection controller 在瞬时断线期间保留最后有效 MatchVie
 
 ## 终局与赛后同步
 
-GameEngine 先发出带明确获胜 Player IDs 的 public `match.ended`，再按稳定顺序发出最终 Role reveals
-和 Role plugin 拥有的公开揭晓公告。MatchRuntime 在启用赛后复盘时暂缓首个 ended snapshot，先持久
+GameEngine 先发出带明确获胜 Player IDs 的 public `match.ended`,再按稳定顺序发出最终 Role reveals、
+底牌公开和 Role plugin 拥有的关系/转换揭晓。MatchRuntime 在启用赛后复盘时暂缓首个 ended snapshot，先持久
 创建 countdown record，再广播包含 winner、获胜玩家、全部最终身份、公开关系和十秒 deadline 的
 一致快照。
 
@@ -311,6 +316,7 @@ reflection 作为带独立稳定 sequence 的 postgame timeline item 合并到 M
 ## 架构不变量
 
 - 原始 GameState 和未过滤事件只存在于 server/engine 边界内。
+- 底牌、Role 转换与来源标识遵循同一 event visibility/projector 边界,不能通过 board 牌池推断 Seat。
 - 事件 payload、Role、phase、Session status、timeline 和 effect cues 都必须按 view 投影。
 - 并行 actor 共享同一冻结 sequence，动作在全部回合落定前不进入 GameEngine。
 - sequential speech 提交后，下一 action boundary只由 GameEngine 推进；浏览器最多门控推进时机。

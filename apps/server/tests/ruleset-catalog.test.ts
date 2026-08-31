@@ -12,12 +12,12 @@ describe('RulesetCatalog', () => {
     const catalog = new RulesetCatalog()
     const lock = catalog.lock()
     expect(rulesetReleaseDefinitions).toEqual([
-      expect.objectContaining({ familyId: 'classic', revision: 6, default: true }),
+      expect.objectContaining({ familyId: 'classic', revision: 7, default: true }),
     ])
-    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic', revision: 6 })
-    expect(lock).toMatchObject({ id: 'ruleset-classic', revision: 6 })
+    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic', revision: 7 })
+    expect(lock).toMatchObject({ id: 'ruleset-classic', revision: 7 })
     expect(lock.fingerprint).toBe(
-      '806490f20fe1ca19e9dbbf14a5f2158819963796e9eb5130c58394eb805e98d5',
+      '27fe89fe310087d529e04c206c9854eba75d63d74bb7624c35e453b3e024fddb',
     )
     const snapshot = snapshotFor(lock)
     expect(catalog.forExecution(snapshot)).toBe(catalog.current())
@@ -50,13 +50,13 @@ describe('RulesetCatalog', () => {
       default: true,
       create: createClassicRuleset,
     }
-    expect(() => new RulesetCatalog([mismatched])).toThrow(/runtime is 6/)
+    expect(() => new RulesetCatalog([mismatched])).toThrow(/runtime is 7/)
   })
 })
 
 function snapshotFor(ruleset: ReturnType<RulesetCatalog['lock']>) {
   return MatchBoardSnapshotSchema.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     rulesetId: 'classic',
     ruleset,
     policies: guardBoard.policies,
@@ -67,6 +67,7 @@ function snapshotFor(ruleset: ReturnType<RulesetCatalog['lock']>) {
     characters: [],
     agentProfiles: [],
     playerCount: guardBoard.playerCount,
+    reserveCount: guardBoard.reserveCount,
     sheriff: guardBoard.sheriff,
     victory: guardBoard.policies.victory,
     source: 'built-in',

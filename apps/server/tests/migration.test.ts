@@ -161,7 +161,7 @@ describe('database migration', () => {
     expect(reopened.listProfiles().map(({ id }) => id)).toEqual([older.id, newer.id])
     reopened.close()
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(9)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(10)
     expect(
       migrated
         .prepare(
@@ -255,7 +255,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(9)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(10)
     const indexes = migrated
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ?")
       .all('trajectory_records') as Array<{ name: string }>
@@ -310,7 +310,7 @@ describe('database migration', () => {
       repository.close()
 
       const migrated = new Database(databasePath)
-      expect(migrated.pragma('user_version', { simple: true })).toBe(9)
+      expect(migrated.pragma('user_version', { simple: true })).toBe(10)
       const tables = migrated
         .prepare(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('custom_characters', 'character_assets') ORDER BY name",
@@ -340,7 +340,7 @@ describe('database migration', () => {
     repository.close()
 
     const migrated = new Database(databasePath)
-    expect(migrated.pragma('user_version', { simple: true })).toBe(9)
+    expect(migrated.pragma('user_version', { simple: true })).toBe(10)
     expect(
       migrated
         .prepare(
@@ -400,7 +400,7 @@ describe('database migration', () => {
     const prompt = database
       .prepare('SELECT json FROM trajectory_records WHERE record_id = ?')
       .get('prompt-record') as { json: string }
-    expect(database.pragma('user_version', { simple: true })).toBe(9)
+    expect(database.pragma('user_version', { simple: true })).toBe(10)
     expect(JSON.parse(turn.json)).toEqual({ status: 'completed' })
     expect(prompt.json).toBe(promptRecordJson)
     database.close()
@@ -414,7 +414,7 @@ describe('database migration', () => {
     repository.close()
 
     const database = new Database(databasePath)
-    expect(database.pragma('user_version', { simple: true })).toBe(9)
+    expect(database.pragma('user_version', { simple: true })).toBe(10)
     const tables = database
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'postgame_%'")
       .all() as Array<{ name: string }>
@@ -429,6 +429,57 @@ describe('database migration', () => {
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'match_archives'")
         .get(),
     ).toEqual({ name: 'match_archives' })
+    database.close()
+  })
+
+  it('upgrades schema nine board pools and Match snapshots to the role-card schema', async () => {
+    const database = new Database(':memory:')
+    database.exec(`
+      CREATE TABLE custom_boards (
+        id TEXT PRIMARY KEY,
+        json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE matches (
+        id TEXT PRIMARY KEY,
+        board_id TEXT NOT NULL,
+        board_snapshot_json TEXT,
+        status TEXT NOT NULL,
+        setup_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        paused_reason TEXT
+      );
+      INSERT INTO custom_boards VALUES (
+        'board-old',
+        '{"name":"旧板子"}',
+        '2026-08-31T00:00:00.000Z'
+      );
+      INSERT INTO matches VALUES (
+        'match-old',
+        'board-old',
+        '{"schemaVersion":3}',
+        'ended',
+        '{}',
+        '2026-08-31T00:00:00.000Z',
+        '2026-08-31T00:00:00.000Z',
+        NULL
+      );
+      PRAGMA user_version = 9;
+    `)
+    migrateDatabase(database)
+    const board = database.prepare('SELECT json FROM custom_boards').get() as { json: string }
+    const match = database.prepare('SELECT board_snapshot_json, setup_json FROM matches').get() as {
+      board_snapshot_json: string
+      setup_json: string
+    }
+    expect(database.pragma('user_version', { simple: true })).toBe(10)
+    expect(JSON.parse(board.json)).toMatchObject({ reserveCount: 0 })
+    expect(JSON.parse(match.board_snapshot_json)).toMatchObject({
+      schemaVersion: 4,
+      reserveCount: 0,
+    })
+    expect(JSON.parse(match.setup_json)).toMatchObject({ manualReserveRoleIds: [] })
     database.close()
   })
 })

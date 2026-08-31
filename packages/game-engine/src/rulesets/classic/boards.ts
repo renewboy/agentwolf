@@ -26,6 +26,7 @@ export const classicPhaseGraph = createClassicRuleset().phases
 export const sixPlayerBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-quick-6'),
   playerCount: 6,
+  reserveCount: 0,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 2 },
     { roleId: RoleIdSchema.parse('role-villager'), count: 2 },
@@ -43,6 +44,7 @@ export const sixPlayerBoard: BoardManifest = {
 export const ninePlayerBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-standard-9'),
   playerCount: 9,
+  reserveCount: 0,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 3 },
     { roleId: RoleIdSchema.parse('role-villager'), count: 3 },
@@ -58,6 +60,7 @@ export const ninePlayerBoard: BoardManifest = {
 export const standardBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-standard-12'),
   playerCount: 12,
+  reserveCount: 0,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 4 },
     { roleId: RoleIdSchema.parse('role-villager'), count: 4 },
@@ -89,9 +92,27 @@ export const cupidBoard = twelvePlayerBoard('board-cupid-12', [
   { roleId: RoleIdSchema.parse('role-cupid'), count: 1 },
 ])
 
+export const thiefCupidBoard = createClassicBoardManifest({
+  id: BoardIdSchema.parse('board-thief-cupid-12'),
+  roles: [
+    { roleId: RoleIdSchema.parse('role-werewolf'), count: 3 },
+    { roleId: RoleIdSchema.parse('role-villager'), count: 5 },
+    { roleId: RoleIdSchema.parse('role-seer'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-witch'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-hunter'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-idiot'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-cupid'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-thief'), count: 1 },
+  ],
+  reserveCount: 2,
+  sheriff: true,
+  victory: 'slaughter-edge',
+})
+
 export const mirrorHiddenBoard: BoardManifest = {
   id: BoardIdSchema.parse('board-mirror-hidden-10'),
   playerCount: 10,
+  reserveCount: 0,
   roles: [
     { roleId: RoleIdSchema.parse('role-werewolf'), count: 2 },
     { roleId: RoleIdSchema.parse('role-awakened-hidden-wolf'), count: 1 },
@@ -119,6 +140,7 @@ function twelvePlayerBoard(id: string, roles: BoardManifest['roles']): BoardMani
   return {
     id: BoardIdSchema.parse(id),
     playerCount: 12,
+    reserveCount: 0,
     roles,
     sheriff: true,
     policies: classicBoardPolicyDefaults,
@@ -133,6 +155,7 @@ const boards = new Map(
     standardBoard,
     guardBoard,
     cupidBoard,
+    thiefCupidBoard,
     mirrorHiddenBoard,
     whiteWolfKingBoard,
   ].map((board) => [board.id, board]),
@@ -153,12 +176,17 @@ export function createClassicBoardManifest(input: {
   readonly roles: readonly BoardRoleSlot[]
   readonly sheriff: boolean
   readonly victory: BoardVictory
+  readonly reserveCount?: number
 }): BoardManifest {
-  const playerCount = input.roles.reduce((total, role) => total + role.count, 0)
+  const reserveCount = input.reserveCount ?? 0
+  const cardCount = input.roles.reduce((total, role) => total + role.count, 0)
+  const playerCount = cardCount - reserveCount
   assertRule(playerCount >= 6 && playerCount <= 24, 'Board requires between 6 and 24 players')
+  assertRule(reserveCount >= 0 && reserveCount <= 2, 'Board supports zero to two reserve cards')
   return {
     id: input.id,
     playerCount,
+    reserveCount,
     roles: input.roles.map((role) => ({ ...role })),
     sheriff: input.sheriff,
     policies: { ...classicBoardPolicyDefaults, victory: input.victory },
@@ -173,6 +201,7 @@ export function boardManifestFromSnapshot(snapshot: MatchBoardSnapshot): BoardMa
     roles: parsed.roles,
     sheriff: parsed.sheriff,
     victory: parsed.victory,
+    reserveCount: parsed.reserveCount,
   })
   return { ...manifest, policies: { ...parsed.policies } }
 }

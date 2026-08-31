@@ -49,8 +49,8 @@ export function renderGameCatalog(): string {
     '## Built-in boards',
     '',
     ...boards.flatMap((board) => [`### ${board.name}`, '', board.description, '']),
-    'Built-in boards are read-only. Custom boards may compose installed Roles for 6–24 players and',
-    'freeze their selected Ruleset, policies, Profile defaults, and Character defaults in each Match.',
+    '内置 board 保持只读。自定义 board 可以组合已安装 Roles,使用 6–24 个席位与 0–2 张底牌,',
+    '并在每个 Match 中冻结 Ruleset、牌池、政策、Profile defaults 与 Character defaults。',
     '',
   ]
   return lines.join('\n')

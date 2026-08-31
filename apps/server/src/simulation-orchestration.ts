@@ -76,6 +76,7 @@ export async function runOrchestrationSimulation(
       setup: {
         boardId: simulation.setup.board.id,
         roleAssignment: 'manual',
+        manualReserveRoleIds: simulation.setup.reserveRoleIds,
         speechCharacterLimit: simulation.setup.speechCharacterLimit,
         publicSpeechInterruptMode: simulation.setup.publicSpeechInterruptMode,
         seats: simulation.setup.players.map((player) => ({
@@ -152,6 +153,7 @@ export async function runOrchestrationSimulation(
       simulation.setup.players,
       simulation.setup.speechCharacterLimit,
       simulation.setup.publicSpeechInterruptMode,
+      simulation.setup.reserveRoleIds,
     )
     const events = canonicalizeSimulationEvents(engine.events, normalization)
     actual = {

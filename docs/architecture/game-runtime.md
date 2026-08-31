@@ -13,6 +13,7 @@
 - 每次状态变化都能由事件解释并重建；
 - 动作在改变状态前完成 actor、phase、能力、目标和次数校验；
 - 多个能力通过统一 effect 管线结算，不在中央代码中建立 Role 分支；
+- 身份牌池、底牌和运行中 Role 转换保持确定性并可由事件恢复；
 - 事件携带可见性，但 IO 层负责针对实际观看者进行最终过滤。
 
 [`packages/game-engine`](../../packages/game-engine/README.md) 依赖 AgentWolf contracts、Zod 与固定
@@ -26,7 +27,7 @@ Core revision 的 Ruleset/确定性运行时入口。它执行无 IO 的纯规�
 
 ```mermaid
 flowchart LR
-    Board["BoardManifest<br/>人数、Role、政策"]
+    Board["BoardManifest<br/>牌池、底牌、人数、政策"]
     Plugins["有序 RulePlugin 集合"]
     Core["Agent Arena Core<br/>loader、ownership、graph、resolution、lock"]
     Builder["RulesetBuilder<br/>依赖与所有权校验"]
@@ -61,6 +62,7 @@ flowchart LR
 | `RulesetBuilder`      | plugin 安装顺序、依赖、配置 schema 与语义所有权                                                                                      | RulePlugin 列表 → 冻结 `RulesetRuntime`                   |
 | registries            | Role/Ability、actor selector、action validator、phase handler、effect、query、trigger、interrupt、plugin event 与 victory 的唯一注册 | plugin 贡献 → 可按契约查询的行为集合                      |
 | `PhaseGraphRegistry`  | phase 节点、循环入口和有序插入，保证返回边、引用与可达性有效                                                                         | plugin nodes/insertions → `PhaseGraph`                    |
+| deal registry         | plugin-owned 牌池约束、合法底牌组合与转换前置条件                                                                                    | board + Role cards → 合法 deal                            |
 | `GameEngine`          | 当前 action boundary、事件序列与派生 GameState                                                                                       | board、Ruleset、动作 → 新事件与下一 `TurnDescriptor`      |
 | action validator      | 当前 actor、动作类型、能力、目标、基数、使用次数与 Role 自定义规则                                                                   | `PhaseNode` + GameState + action → 接受或 `RuleViolation` |
 | `ResolutionRegistry`  | effect lane、同 lane 顺序、动态入队与 finalizer 合并                                                                                 | abilities 产生的 effects → `ResolutionResult`             |
@@ -82,6 +84,7 @@ Phase、plugin event、query 与 trigger 记录为该 plugin 的贡献;跨 plugi
 - resolution effects 与 finalizers；
 - query definitions/modifiers；
 - decision triggers 与 interrupts；
+- Role-card deal validators；
 - plugin event reducers；
 - victory evaluators；
 - 有序 plugin 元数据和 semantic contributions。
@@ -91,6 +94,38 @@ factory;表中恰好有一个默认规则族。game-engine 通过 Core lock help
 revision、有序 plugin lock、规范化配置哈希和整体 fingerprint。只有与表中当前 revision 和 fingerprint
 完全一致的 snapshot 可以建立可执行 runtime,其他 revision 没有 factory。board 的 phase 图始终来自
 该 runtime。
+
+## 身份牌池、底牌与 Role 转换
+
+Board 的 Role slots 描述完整身份牌池。`playerCount` 等于身份牌数量减去 `reserveCount`;Match 创建时
+为每张牌分配稳定 Role Card ID,由确定性发牌器选择底牌并把其余卡牌分配给按 Seat 排序的玩家。
+手动分配同时提交 Seat Roles 与底牌 Roles,两者的 multiset 必须与冻结牌池完全一致。
+
+下图说明 Role plugin 如何约束发牌而不进入通用初始化分支。
+
+```mermaid
+flowchart LR
+    Pool["冻结身份牌池"] --> Cards["稳定 Role Card IDs"]
+    Cards --> Candidates["底牌候选"]
+    Plugins["plugin deal validators"] --> Candidates
+    Candidates --> Deal["assignments + reserves"]
+    Deal --> Assign["role.assigned"]
+    Deal --> Reserve["role.cards-reserved"]
+    Assign --> State["GameState"]
+    Reserve --> State
+    State --> Choice["已校验 roleCardId action"]
+    Choice --> Transform["role.transformed"]
+    Transform --> State
+```
+
+Deal registry 先验证 board 级要求,再验证每个候选组合。随机发牌只从合法组合中确定性选择;不存在
+合法组合时 Match 在创建前失败。底牌以 god-visible 事件进入 GameState,使 restore 和 simulation
+直接重放已经发生的 deal,不重新抽牌。
+
+需要改变身份的 Role 通过正式 Role Card choice 声明可选项。动作仍经过当前 phase、ability、actor 与
+plugin 校验;转换事件原子替换 Role/Faction 并清空旧 Role state,随后重新发布有资格玩家的阵营名册。
+Phase actor selector、capability、query、死亡 trigger 与 victory 从转换后的当前 Role 读取,因此同一夜
+后续阶段立即看到最终身份。Role plugin event 独立保存选择 provenance 与可见性安全的叙述事实。
 
 ## Phase 图与 action boundary
 
@@ -149,7 +184,7 @@ sequenceDiagram
    必须存活并拥有节点声明的 capability；
 2. sequential 节点只接受当前首个 actor；
 3. action type 与 `PhaseNode.action` 对齐；
-4. ability/capability、目标 IDs、目标数量、pass 语义和次数限制通过 Role registry 校验；
+4. ability/capability、Player/Role Card 目标、目标数量、pass 语义和次数限制通过 Role registry 校验；
 5. plugin 注册的有序 action validators 对关系或规则组合贡献额外纯校验；
 6. decision trigger 或 interrupt 还需通过其声明的 signal、context 与 handler 契约。
 
@@ -206,7 +241,8 @@ plugin 可以在通用终局事实与身份公开完成后追加自身拥有的�
 ## 事件、状态与 replay
 
 `GameEngine` 通过唯一 append 函数生成事件：分配 Match 内递增 sequence、时间、visibility 和 payload，
-验证 plugin event schema，然后立即调用 reducer。核心 reducer 负责 Match、phase、玩家、Sheriff、
+验证 plugin event schema，然后立即调用 reducer。核心 reducer 负责 Match、phase、玩家、Role cards/
+转换、Sheriff、
 死亡、投票、能力、capability 和终局状态；plugin event registry 负责各插件的 `pluginState` 分片。
 
 事件可见性有 public、god、players 和 faction 四类。死亡事实记录原因与昼夜时点，终局事实记录
@@ -226,6 +262,7 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
   action validators、triggers、interrupts 或 victory modifier；跨层实现使用
   [Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md)。
 - 新共享机制进入最窄 registry；只在多个插件需要同一契约时扩展通用类型。
+- 新牌池约束通过 deal registry 注册；board/server 不按具体 Role ID 选择发牌算法。
 - 新 phase 行为通过节点声明、selector、predicate 和 handler 表达，server 与 action validator 不添加
   phase ID 推断。
 - 新持久 Role 状态必须由 plugin event schema/reducer 重建；进程内缓存不能成为规则事实。
@@ -245,6 +282,7 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 ## 架构不变量
 
 - GameState 的规则变化只来自已校验并按序追加的 GameEvent。
+- Seat assignments、底牌与 Role 转换都由事件固定,restore 不重新发牌或推断最终身份。
 - 通用内核不包含具体 Role、Ability、Phase 或 Plugin ID 分支。
 - PhaseNode 是 actor、action、visibility、interrupt 和控制流的语义来源。
 - 自动死亡反应先形成完整死亡批次，交互式死亡技能与胜负只读取该稳定结果。

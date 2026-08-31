@@ -25,6 +25,7 @@ import {
 } from '../roles/white-wolf-king.js'
 import { awakenedHiddenWolfPlugin } from './awakened-hidden-wolf-plugin.js'
 import { cupidPlugin } from './cupid-plugin.js'
+import { thiefPlugin } from './thief-plugin.js'
 import { classicPluginIds } from './ids.js'
 import { phase } from './shared.js'
 
@@ -191,6 +192,7 @@ const classicBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
 export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   ...classicBaseRolePlugins,
   cupidPlugin,
+  thiefPlugin,
 ]
 
 function rolePlugin(

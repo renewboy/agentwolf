@@ -5,6 +5,8 @@ import {
   MatchIdSchema,
   PhaseIdSchema,
   PlayerIdSchema,
+  RoleCardIdSchema,
+  RoleIdSchema,
 } from '@agentwolf/contracts'
 import { builtInCharacterCards } from '@agentwolf/assets'
 import {
@@ -16,6 +18,8 @@ import {
   mirrorHiddenBoard,
   ninePlayerBoard,
   sixPlayerBoard,
+  thiefAbilityIds,
+  thiefCupidBoard,
   v1AbilityIds,
   whiteWolfKingBoard,
   type BoardManifest,
@@ -27,6 +31,108 @@ import { describe, expect, it } from 'vitest'
 import { ContextRenderer } from '../src/context-renderer.js'
 
 describe('plugin-owned Prompt rendering', () => {
+  it('renders private Thief choices and refreshes the selected Role owner contract', async () => {
+    const ruleset = createClassicRuleset()
+    const roleIds = [
+      'role-werewolf',
+      'role-werewolf',
+      'role-villager',
+      'role-villager',
+      'role-villager',
+      'role-villager',
+      'role-seer',
+      'role-witch',
+      'role-hunter',
+      'role-idiot',
+      'role-cupid',
+      'role-thief',
+    ].map((roleId) => RoleIdSchema.parse(roleId))
+    const players: EnginePlayerInput[] = roleIds.map((roleId, index) => ({
+      id: PlayerIdSchema.parse(`player-${index + 1}`),
+      seat: index + 1,
+      name: `Thief prompt ${index + 1}`,
+      profileId: AgentProfileIdSchema.parse(`profile-thief-prompt-${index + 1}`),
+      roleId,
+    }))
+    const engine = GameEngine.create({
+      matchId: MatchIdSchema.parse('match-thief-prompt'),
+      board: thiefCupidBoard,
+      players,
+      roleAssignment: 'manual',
+      manualReserveRoleIds: [
+        RoleIdSchema.parse('role-werewolf'),
+        RoleIdSchema.parse('role-villager'),
+      ],
+      seed: 1,
+      ruleset,
+    })
+    const renderer = new ContextRenderer(ruleset)
+    const thief = players.find((player) => player.roleId === 'role-thief')!
+    const unrelated = players.find((player) => player.roleId === 'role-seer')!
+    const foundation = await renderer.foundation(
+      engine.state,
+      thiefCupidBoard,
+      thief.id,
+      engine.events,
+    )
+    expect(foundation.prompt).toContain('你的初始身份是盗贼')
+    expect(foundation.prompt).toContain('身份牌池共 14 张，发给 12 个席位，留下 2 张底牌')
+    expect(foundation.prompt).toContain('盗贼选牌（仅首夜） → 丘比特连线（仅首夜）')
+
+    engine.start()
+    const turn = engine.currentTurn()
+    if (!turn) throw new Error('Expected Thief turn')
+    const choices = engine.roleCardChoicesFor(thief.id)
+    const turnPrompt = await renderer.turn(
+      engine.state,
+      thiefCupidBoard,
+      engine.events,
+      thief.id,
+      0,
+      turn,
+      300,
+      false,
+      choices,
+    )
+    expect(turnPrompt.prompt).toContain('`role-card-r01`：狼人')
+    expect(turnPrompt.prompt).toContain('`role-card-r02`：村民（本轮不可选')
+    expect(turnPrompt.prompt).not.toContain(thiefAbilityIds.chooseCard)
+
+    const beforeChoice = engine.state.lastSequence
+    engine.submit({
+      type: 'night-action',
+      matchId: engine.state.matchId,
+      actorId: thief.id,
+      abilityId: thiefAbilityIds.chooseCard,
+      targetIds: [],
+      roleCardId: RoleCardIdSchema.parse('role-card-r01'),
+    })
+    const selectedRolePrompt = await renderer.turn(
+      engine.state,
+      thiefCupidBoard,
+      engine.events,
+      thief.id,
+      beforeChoice,
+      daySpeechTurn(thief.id),
+      300,
+    )
+    expect(selectedRolePrompt.prompt).toContain('你的最终身份是狼人')
+    expect(selectedRolePrompt.prompt).toContain('你的身份是狼人，属于狼人阵营')
+    expect(selectedRolePrompt.prompt).toContain('你的存活狼队友')
+    expect(selectedRolePrompt.prompt).toContain('村民成为未入场底牌')
+    const unrelatedPrompt = await renderer.turn(
+      engine.state,
+      thiefCupidBoard,
+      engine.events,
+      unrelated.id,
+      beforeChoice,
+      daySpeechTurn(unrelated.id),
+      300,
+    )
+    expect(unrelatedPrompt.prompt).not.toContain('未入场底牌')
+    expect(unrelatedPrompt.prompt).not.toContain('原为盗贼')
+  })
+
   it('renders Cupid as a mandatory private first-night contract without leaking lover roles', async () => {
     const setup = createBoardEngine(cupidBoard)
     const cupid = setup.players.find((player) => player.roleId === 'role-cupid')!
@@ -275,7 +381,7 @@ describe('plugin-owned Prompt rendering', () => {
     ).prompt
 
     expect(hiddenPrompt).toContain(
-      '身份配置：狼人 2 名、觉醒隐狼 1 名、村民 4 名、魔镜少女 1 名、女巫 1 名、守卫 1 名。',
+      '身份牌池共 10 张，发给 10 个席位，留下 0 张底牌：狼人 2 张、觉醒隐狼 1 张、村民 4 张、魔镜少女 1 张、女巫 1 张、守卫 1 张。',
     )
     expect(hiddenPrompt).toContain('你的身份是觉醒隐狼')
     expect(hiddenPrompt).not.toContain('机械狼')
@@ -334,7 +440,9 @@ describe('plugin-owned Prompt rendering', () => {
         six.engine.events,
       )
     ).prompt
-    expect(sixPrompt).toContain('身份配置：狼人 2 名、村民 2 名、预言家 1 名、猎人 1 名。')
+    expect(sixPrompt).toContain(
+      '身份牌池共 6 张，发给 6 个席位，留下 0 张底牌：狼人 2 张、村民 2 张、预言家 1 张、猎人 1 张。',
+    )
     expect(sixPrompt).toContain('屠城是指狼人阵营让所有好人（所有平民和神职）出局')
     expect(sixPrompt).toContain('屠边是指狼人阵营让所有平民或所有神职出局')
     expect(sixPrompt).toContain('本局采用屠城规则')
@@ -920,7 +1028,9 @@ function createBoardEngine(board: BoardManifest) {
   const roleIds = board.roles.flatMap(({ roleId, count }) =>
     Array.from({ length: count }, () => roleId),
   )
-  const players: EnginePlayerInput[] = roleIds.map((roleId, index) => ({
+  const assignmentRoleIds = roleIds.slice(0, board.playerCount)
+  const reserveRoleIds = roleIds.slice(board.playerCount)
+  const players: EnginePlayerInput[] = assignmentRoleIds.map((roleId, index) => ({
     id: PlayerIdSchema.parse(`player-${index + 1}`),
     seat: index + 1,
     name: `Prompt player ${index + 1}`,
@@ -932,6 +1042,7 @@ function createBoardEngine(board: BoardManifest) {
     board,
     players,
     roleAssignment: 'manual',
+    manualReserveRoleIds: reserveRoleIds,
     seed: 1,
     ruleset,
   })

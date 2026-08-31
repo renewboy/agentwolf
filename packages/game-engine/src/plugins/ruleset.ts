@@ -15,6 +15,7 @@ import { PluginEventRegistry } from './event-registry.js'
 import { PhaseGraphRegistry } from './phase-registry.js'
 import { QueryRegistry } from './query-registry.js'
 import { TriggerRegistry } from './trigger-registry.js'
+import { DealRegistry } from './deal-registry.js'
 import { SemanticOwnershipRecorder, type PluginSemanticContribution } from './semantic-ownership.js'
 
 export class RulesetRuntime {
@@ -31,6 +32,7 @@ export class RulesetRuntime {
     public readonly phases: import('../types.js').PhaseGraph,
     public readonly queries: QueryRegistry,
     public readonly triggers: TriggerRegistry,
+    public readonly deals: DealRegistry,
     public readonly contributions: readonly PluginSemanticContribution[],
   ) {}
 }
@@ -46,6 +48,7 @@ export class RulesetBuilder implements PluginInstallScope {
   public readonly phases = new PhaseGraphRegistry(this.#ownership)
   public readonly queries = new QueryRegistry(this.#ownership)
   public readonly triggers = new TriggerRegistry(this.#ownership)
+  public readonly deals = new DealRegistry()
 
   readonly #id: RulesetId
   readonly #revision: number
@@ -77,6 +80,7 @@ export class RulesetBuilder implements PluginInstallScope {
       this.phases.build(),
       this.queries,
       this.triggers,
+      this.deals,
       contributions,
     )
   }

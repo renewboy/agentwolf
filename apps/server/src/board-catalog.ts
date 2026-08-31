@@ -24,6 +24,9 @@ import {
   sixPlayerBoard,
   standardBoard,
   whiteWolfKingBoard,
+  thiefCupidBoard,
+  createClassicBoardManifest,
+  hasLegalRoleDeal,
   type BoardManifest,
 } from '@agentwolf/game-engine'
 import { createReadableId } from './ids.js'
@@ -62,6 +65,11 @@ const builtInBoards: readonly BuiltInBoardDefinition[] = [
     manifest: cupidBoard,
     nameKey: 'boards.cupid12.name',
     descriptionKey: 'boards.cupid12.description',
+  },
+  {
+    manifest: thiefCupidBoard,
+    nameKey: 'boards.thiefCupid12.name',
+    descriptionKey: 'boards.thiefCupid12.description',
   },
   {
     manifest: mirrorHiddenBoard,
@@ -112,6 +120,9 @@ export class BoardCatalogService {
           name: getCopy(role.displayNameKey),
           faction: role.faction,
           kind: role.kind,
+          ...(role.requiredReserveCount !== undefined
+            ? { requiredReserveCount: role.requiredReserveCount }
+            : {}),
         }),
       )
   }
@@ -128,6 +139,7 @@ export class BoardCatalogService {
     this.#rulesets.forExecution(parsed)
     const summary = BoardSummarySchema.parse({
       ...parsed,
+      cardCount: parsed.roles.reduce((total, slot) => total + slot.count, 0),
       roles: parsed.roles.map((slot) => ({
         ...slot,
         name: getCopy(this.#roles().role(slot.roleId).displayNameKey),
@@ -196,9 +208,13 @@ export class BoardCatalogService {
       throw new RuleViolation('Board role entries must be unique')
     }
     const count = parsed.roles.reduce((total, role) => total + role.count, 0)
-    if (count < 6 || count > 24) throw new RuleViolation('Board requires between 6 and 24 players')
-    this.#validateCharacters(parsed.characters, count)
-    this.#validateAgentProfiles(parsed.agentProfiles, count)
+    const playerCount = count - parsed.reserveCount
+    if (playerCount < 6 || playerCount > 24) {
+      throw new RuleViolation('Board requires between 6 and 24 player seats')
+    }
+    if (count > 26) throw new RuleViolation('Board supports at most 26 role cards')
+    this.#validateCharacters(parsed.characters, playerCount)
+    this.#validateAgentProfiles(parsed.agentProfiles, playerCount)
 
     const resolved = parsed.roles.map((slot) => ({
       slot,
@@ -226,6 +242,17 @@ export class BoardCatalogService {
         throw new RuleViolation('Slaughter-edge boards require both Villagers and village gods')
       }
     }
+    const ruleset = this.#rulesets.current()
+    const manifest = createClassicBoardManifest({
+      id: BoardIdSchema.parse('board-validation-current'),
+      roles: parsed.roles,
+      reserveCount: parsed.reserveCount,
+      sheriff: parsed.sheriff,
+      victory: parsed.victory,
+    })
+    if (!hasLegalRoleDeal(manifest, ruleset.roles, ruleset.deals)) {
+      throw new RuleViolation('Board has no legal role-card deal')
+    }
     return parsed
   }
 
@@ -235,6 +262,7 @@ export class BoardCatalogService {
       name: getCopy(definition.nameKey),
       description: getCopy(definition.descriptionKey),
       roles: definition.manifest.roles,
+      reserveCount: definition.manifest.reserveCount,
       characters: [],
       agentProfiles: [],
       sheriff: definition.manifest.sheriff,
@@ -254,6 +282,7 @@ export class BoardCatalogService {
     readonly name: string
     readonly description: string
     readonly roles: readonly CustomBoard['roles'][number][]
+    readonly reserveCount: number
     readonly characters: readonly CustomBoard['characters'][number][]
     readonly agentProfiles: readonly CustomBoard['agentProfiles'][number][]
     readonly sheriff: boolean
@@ -262,17 +291,14 @@ export class BoardCatalogService {
     readonly source: BoardSummary['source']
     readonly editable: boolean
   }): BoardSummary {
+    const cardCount = input.roles.reduce((total, role) => total + role.count, 0)
+    const playerCount = cardCount - input.reserveCount
     return BoardSummarySchema.parse({
       ...input,
-      playerCount: input.roles.reduce((total, role) => total + role.count, 0),
-      characters: this.#normalizedCharacters(
-        input.characters,
-        input.roles.reduce((total, role) => total + role.count, 0),
-      ),
-      agentProfiles: this.#normalizedAgentProfiles(
-        input.agentProfiles,
-        input.roles.reduce((total, role) => total + role.count, 0),
-      ),
+      cardCount,
+      playerCount,
+      characters: this.#normalizedCharacters(input.characters, playerCount),
+      agentProfiles: this.#normalizedAgentProfiles(input.agentProfiles, playerCount),
       roles: input.roles.map((slot) => ({
         ...slot,
         name: getCopy(this.#roles().role(slot.roleId).displayNameKey),
@@ -282,7 +308,7 @@ export class BoardCatalogService {
 
   #snapshot(summary: BoardSummary): MatchBoardSnapshot {
     return MatchBoardSnapshotSchema.parse({
-      schemaVersion: 3,
+      schemaVersion: 4,
       rulesetId: this.#rulesets.currentSnapshotId(),
       ruleset: this.#rulesets.lock(),
       id: summary.id,
@@ -292,6 +318,7 @@ export class BoardCatalogService {
       characters: summary.characters,
       agentProfiles: summary.agentProfiles,
       playerCount: summary.playerCount,
+      reserveCount: summary.reserveCount,
       sheriff: summary.sheriff,
       victory: summary.victory,
       policies: { ...classicBoardPolicyDefaults, victory: summary.victory },

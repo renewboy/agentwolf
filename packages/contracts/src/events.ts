@@ -11,6 +11,7 @@ import {
   PluginEventTypeSchema,
   PluginIdSchema,
   PlayerIdSchema,
+  RoleCardIdSchema,
   RoleIdSchema,
 } from './ids.js'
 import { JsonValueSchema } from './plugins.js'
@@ -47,6 +48,31 @@ export const GameEventPayloadSchema = z.discriminatedUnion('type', [
     playerId: PlayerIdSchema,
     roleId: RoleIdSchema,
     faction: FactionSchema,
+  }),
+  z.object({
+    type: z.literal('role.cards-reserved'),
+    cards: z.array(
+      z.object({
+        id: RoleCardIdSchema,
+        roleId: RoleIdSchema,
+      }),
+    ),
+  }),
+  z.object({
+    type: z.literal('role.transformed'),
+    playerId: PlayerIdSchema,
+    fromRoleId: RoleIdSchema,
+    toRoleId: RoleIdSchema,
+    faction: FactionSchema,
+  }),
+  z.object({
+    type: z.literal('role.cards-revealed'),
+    cards: z.array(
+      z.object({
+        id: RoleCardIdSchema,
+        roleId: RoleIdSchema,
+      }),
+    ),
   }),
   z.object({
     type: z.literal('role.revealed'),
@@ -287,6 +313,9 @@ export type GameEventPayload = z.infer<typeof GameEventPayloadSchema>
 export const coreGameEventTypes = [
   'match.created',
   'role.assigned',
+  'role.cards-reserved',
+  'role.transformed',
+  'role.cards-revealed',
   'role.revealed',
   'faction.members',
   'match.started',

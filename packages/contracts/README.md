@@ -4,7 +4,7 @@
 
 ## 职责
 
-- Player、Match、board、Profile、Tool、Character、插件与运行时标识符。
+- Player、Match、board、Role card、Profile、Tool、Character、插件与运行时标识符。
 - 结构化玩家动作与动作预期。
 - 领域事件信封与可见性描述符。
 - REST 与 WebSocket 请求/响应 DTOs。

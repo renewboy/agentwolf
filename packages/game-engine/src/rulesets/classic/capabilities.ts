@@ -21,4 +21,5 @@ export const classicCapabilities = {
     'capability-awakened-hidden-wolf-double-kill',
   ),
   cupidLink: CapabilityIdSchema.parse('capability-cupid-link'),
+  thiefChooseCard: CapabilityIdSchema.parse('capability-thief-choose-card'),
 } as const

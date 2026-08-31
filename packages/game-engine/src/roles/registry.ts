@@ -1,6 +1,6 @@
 import type { AbilityId, CapabilityId, RoleId } from '@agentwolf/contracts'
 import { assertRule } from '../errors.js'
-import type { AbilityDefinition } from './base.js'
+import type { AbilityDefinition, RoleCardChoice } from './base.js'
 import type { Role } from './base.js'
 import type { PlayerState } from '../types.js'
 import type { SemanticOwnershipRecorder } from '../plugins/semantic-ownership.js'
@@ -69,6 +69,27 @@ export class RoleRegistry {
     return [...this.#abilities.values()]
       .filter(({ ability }) => ability.requiredCapability === capabilityId)
       .map(({ ability }) => ability.id)
+  }
+
+  public roleCardChoicesFor(
+    player: PlayerState,
+    abilityIds: readonly AbilityId[],
+    context: {
+      readonly state: import('../types.js').GameState
+      readonly board: import('../types.js').BoardManifest
+    },
+  ): readonly RoleCardChoice[] {
+    return abilityIds.flatMap((abilityId) => {
+      const { ability } = this.ability(abilityId)
+      if (!this.canUseAbility(player, abilityId) || !ability.roleCardChoices) return []
+      return ability.roleCardChoices({ ...context, roles: this, actor: player }).map((choice) => ({
+        abilityId,
+        cardId: choice.card.id,
+        roleId: choice.card.roleId,
+        selectable: choice.selectable,
+        ...(choice.reason ? { reason: choice.reason } : {}),
+      }))
+    })
   }
 
   public list(): readonly Role[] {

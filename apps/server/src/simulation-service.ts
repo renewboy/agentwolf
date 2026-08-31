@@ -94,6 +94,7 @@ export class SimulationService {
       players,
       match.setup.speechCharacterLimit,
       match.setup.publicSpeechInterruptMode,
+      reservedRoleIds(events),
     )
     const records = this.#repository.listTrajectoryRecords(matchId)
     const completionOrder = new Map(
@@ -301,6 +302,13 @@ function roleAssignments(
     }
   }
   return roles
+}
+
+function reservedRoleIds(events: ReturnType<SqliteRepository['listMatchEvents']>): RoleId[] {
+  const event = events.find((candidate) => candidate.payload.type === 'role.cards-reserved')
+  return event?.payload.type === 'role.cards-reserved'
+    ? event.payload.cards.map((card) => card.roleId)
+    : []
 }
 
 function actionForTurn(

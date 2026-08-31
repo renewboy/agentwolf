@@ -7,6 +7,7 @@
 - 版本化的 Ruleset 与 RulePlugin 安装。
 - Role、Ability、capability、phase、action validator、query、trigger、interrupt、event、resolution 与胜负 registries。
 - 内置与自定义 board manifests。
+- 确定性身份牌池发牌、底牌校验与事件化 Role 转换。
 - 纯函数的动作校验、状态归约、可见性过滤、发言规范化与 replay。
 - `AgentWolfGameModule` 对现有 action/event/audience/observation 的 Core `GameModule` 适配。
 - 确定性的投票裁决、发言顺序、效果结算与终局评估。
@@ -28,6 +29,10 @@ RulePlugin 通过 `RulesetBuilder` 在安装作用域下注册语义。Core plug
 记录依赖、配置和归属;AgentWolf registrar 持有 Role、Ability、Phase、event、query、trigger、
 interrupt 与 victory registries。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory
 modifier 组合;终局候选携带明确获胜 Player IDs。
+
+Deal registry 让 Role plugin 贡献牌池与底牌约束;通用发牌器只拥有稳定卡牌 ID、确定性选择和
+Seat assignment。Role 转换以核心事件进入同一 reducer,后续 phase、capability 与 victory 读取转换后的
+当前 Role。
 
 GameModule adapter 从当前 `TurnDescriptor` 派生稳定 decision boundary，将 AgentWolf visibility 映射为
 public/host/participants/group，并在不改变持久事件格式的前提下向 Core Match runtime 暴露 observation

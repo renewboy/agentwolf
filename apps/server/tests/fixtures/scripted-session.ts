@@ -248,9 +248,22 @@ export class ScriptedSession implements PlayerSession {
         'player-1',
         this.#playerCount === 6 ? 'player-2' : 'player-5',
       ])
+    } else if (phase === 'nightThief') {
+      const binding = this.#mailbox().binding(this.#token)
+      if (!binding) throw new Error('Missing Thief mailbox binding')
+      const expectation = this.#mailbox().peekExpectation(binding.matchId, binding.playerId)
+      const choice = expectation?.roleCardChoices?.find((entry) => entry.selectable)
+      if (!choice) throw new Error('Missing selectable Thief role card')
+      this.#mailbox().submitNightAction(
+        this.#token,
+        'ability-thief-choose-card',
+        [],
+        undefined,
+        choice.cardId,
+      )
     } else if (phase === 'nightWolfVote') {
       const quickTargets = [5, 6, 3, 4]
-      const cupidTargets = this.#playerCount === 6 ? [3, 5] : [12, 5, 6, 7, 8]
+      const cupidTargets = this.#playerCount === 6 ? [3, 5] : [12, 5, 6, 7, 8, 4]
       const targetSeat = this.#cupidGame
         ? cupidTargets[this.#night - 1]
         : this.#playerCount === 6
@@ -315,6 +328,7 @@ function latestPhase(mailbox: ActionMailbox, token: string): string | null {
   const expectation = mailbox.peekExpectation(binding.matchId, binding.playerId)
   if (!expectation) return null
   const abilities = new Set((expectation.allowedAbilityIds ?? []).map(String))
+  if (abilities.has('ability-thief-choose-card')) return 'nightThief'
   if (abilities.has('ability-cupid-link')) return 'nightCupid'
   if (abilities.has('ability-hunter-shot')) return 'hunterShot'
   if (abilities.has('ability-seer-inspect')) return 'nightSeer'

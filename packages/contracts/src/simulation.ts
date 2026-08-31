@@ -50,6 +50,7 @@ export const SimulationSetupSchema = z.object({
   matchId: MatchIdSchema,
   board: MatchBoardSnapshotSchema,
   players: z.array(SimulationPlayerSchema).min(6).max(24),
+  reserveRoleIds: z.array(RoleIdSchema).max(2).default([]),
   speechCharacterLimit: SpeechCharacterLimitSchema.default(300),
   publicSpeechInterruptMode: PublicSpeechInterruptModeSchema.default('legacy'),
 })

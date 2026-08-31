@@ -56,11 +56,12 @@ const AgentWolfArenaSetupSchema = z
         .strict(),
     ),
     roleAssignment: z.enum(['random', 'manual']),
+    manualReserveRoleIds: z.array(RoleIdSchema).max(2).default([]),
     start: z.boolean().default(true),
   })
   .strict()
 
-export type AgentWolfArenaSetup = z.infer<typeof AgentWolfArenaSetupSchema>
+export type AgentWolfArenaSetup = z.input<typeof AgentWolfArenaSetupSchema>
 
 export interface AgentWolfArenaFacts {
   readonly status: GameState['status']
@@ -122,6 +123,7 @@ export class AgentWolfGameModule implements GameModule<
         ...(player.roleId ? { roleId: player.roleId } : {}),
       })),
       roleAssignment: setup.roleAssignment,
+      manualReserveRoleIds: setup.manualReserveRoleIds,
       seed: options.seed,
       ruleset: this.runtime,
       ...(options.clock ? { clock: options.clock } : {}),

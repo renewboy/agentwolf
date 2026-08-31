@@ -49,7 +49,8 @@ function resolveNight(runtime: RuleRuntime): void {
   const actions = submittedNightActions.filter(
     (action) =>
       (action.type === 'night-action' || action.type === 'skill-trigger') &&
-      action.option !== 'pass',
+      action.option !== 'pass' &&
+      runtime.roles.ability(action.abilityId).ability.resolutionTiming !== 'phase',
   )
   const { agenda, consumedAbilityIds } = effectsForActions(
     runtime.state,

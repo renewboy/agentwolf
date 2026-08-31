@@ -151,6 +151,19 @@ export function renderEventNarration(event: GameEvent, catalog: NarrationCatalog
           role: catalog.roleName(payload.roleId),
         },
       )
+    case 'role.cards-reserved':
+      return formatCopy(getCopy('narration.roleCardsReserved'), {
+        roles: payload.cards.map((card) => catalog.roleName(card.roleId)).join('、'),
+      })
+    case 'role.cards-revealed':
+      return formatCopy(getCopy('narration.roleCardsRevealed'), {
+        roles: payload.cards.map((card) => catalog.roleName(card.roleId)).join('、'),
+      })
+    case 'role.transformed':
+      return formatCopy(getCopy('narration.roleTransformed'), {
+        player: playerLabel(payload.playerId, catalog),
+        role: catalog.roleName(payload.toRoleId),
+      })
     case 'role.revealed':
       return formatCopy(getCopy('narration.roleRevealed'), {
         player: playerLabel(payload.playerId, catalog),

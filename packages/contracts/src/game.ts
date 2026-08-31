@@ -5,6 +5,7 @@ import {
   CharacterIdSchema,
   MatchIdSchema,
   PlayerIdSchema,
+  RoleCardIdSchema,
   RoleIdSchema,
 } from './ids.js'
 import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
@@ -40,8 +41,9 @@ export const CreateMatchRequestSchema = z.object({
   boardId: BoardIdSchema,
   seats: z.array(SeatAssignmentInputSchema).min(6).max(24),
   roleAssignment: z.enum(['random', 'manual']).default('random'),
+  manualReserveRoleIds: z.array(RoleIdSchema).max(2).default([]),
 })
-export type CreateMatchRequest = z.infer<typeof CreateMatchRequestSchema>
+export type CreateMatchRequest = z.input<typeof CreateMatchRequestSchema>
 
 export const MatchSeatSnapshotSchema = SeatAssignmentInputSchema.omit({ characterId: true }).extend(
   {
@@ -67,6 +69,12 @@ export const BoardRoleSlotSchema = z.object({
 })
 export type BoardRoleSlot = z.infer<typeof BoardRoleSlotSchema>
 
+export const RoleCardSchema = z.object({
+  id: RoleCardIdSchema,
+  roleId: RoleIdSchema,
+})
+export type RoleCard = z.infer<typeof RoleCardSchema>
+
 export const BoardCharacterSlotSchema = z.object({
   seat: z.number().int().positive().max(24),
   characterId: CharacterIdSchema.nullable(),
@@ -83,12 +91,13 @@ export const CustomBoardInputSchema = z.object({
   name: z.string().trim().min(1).max(48),
   description: z.string().trim().max(240).default(''),
   roles: z.array(BoardRoleSlotSchema).min(2).max(24),
+  reserveCount: z.number().int().min(0).max(2).default(0),
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   agentProfiles: z.array(BoardAgentProfileSlotSchema).max(24).default([]),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
 })
-export type CustomBoardInput = z.infer<typeof CustomBoardInputSchema>
+export type CustomBoardInput = z.input<typeof CustomBoardInputSchema>
 
 export const CustomBoardSchema = CustomBoardInputSchema.extend({
   id: BoardIdSchema,
@@ -103,6 +112,8 @@ export const BoardSummarySchema = z.object({
   name: z.string(),
   description: z.string(),
   playerCount: z.number().int().positive(),
+  cardCount: z.number().int().positive(),
+  reserveCount: z.number().int().min(0).max(2),
   roles: z.array(
     z.object({
       roleId: RoleIdSchema,
@@ -128,6 +139,7 @@ const MatchBoardSnapshotFields = {
   characters: z.array(BoardCharacterSlotSchema).max(24).default([]),
   agentProfiles: z.array(BoardAgentProfileSlotSchema).max(24).default([]),
   playerCount: z.number().int().min(6).max(24),
+  reserveCount: z.number().int().min(0).max(2),
   sheriff: z.boolean(),
   victory: BoardVictorySchema,
   source: z.enum(['built-in', 'custom']),
@@ -146,7 +158,7 @@ export const BoardPolicySnapshotSchema = z.object({
 export type BoardPolicySnapshot = z.infer<typeof BoardPolicySnapshotSchema>
 
 export const MatchBoardSnapshotSchema = z.object({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   rulesetId: z.literal('classic'),
   ruleset: RulesetLockSchema,
   policies: BoardPolicySnapshotSchema,
@@ -159,6 +171,7 @@ export const RoleSummarySchema = z.object({
   name: z.string(),
   faction: z.enum(['village', 'werewolf', 'independent']),
   kind: z.enum(['villager', 'god', 'werewolf', 'independent']),
+  requiredReserveCount: z.number().int().min(0).max(2).optional(),
 })
 export type RoleSummary = z.infer<typeof RoleSummarySchema>
 

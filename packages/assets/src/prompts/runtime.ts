@@ -172,19 +172,15 @@ export class PromptBundleRegistry {
     validatePromptBundleGraph(bundles)
     precompilePromptTemplates(this.#environment, bundles)
   }
-
   public coreAssets(): PromptCoreAssets {
     return new PromptCoreAssets(this.#core)
   }
-
   public roleLabel(roleId: RoleId): string {
     return this.#role(roleId).presentation.label
   }
-
   public abilityLabel(abilityId: AbilityId): string {
     return this.#ability(abilityId).presentation.label
   }
-
   public abilityContract(abilityId: AbilityId) {
     const presentation = this.#ability(abilityId).presentation
     return {
@@ -193,17 +189,15 @@ export class PromptBundleRegistry {
       description: presentation.description,
     }
   }
-
   public phasePresentation(phaseId: PhaseId): PromptPhasePresentation {
     return this.#phase(phaseId).presentation
   }
-
   public factionLabel(faction: Faction): string {
     return this.#core.manifest.core!.factions[faction]
   }
-
   public renderFoundation(input: FoundationPromptFacts): string {
     const facts = FoundationPromptFactsSchema.parse(input)
+    const actorRole = this.#role(facts.actor.roleId)
     const context = {
       ...this.#context(facts.actor, facts.roster, facts.events, facts),
       currentPhase: null,
@@ -216,7 +210,6 @@ export class PromptBundleRegistry {
         role: roleContext(owned.presentation, slot.faction),
       })
     })
-    const actorRole = this.#role(facts.actor.roleId)
     const ownerRole = this.#render(actorRole.bundleId, actorRole.presentation.template, {
       ...context,
       section: 'owner',
@@ -241,10 +234,11 @@ export class PromptBundleRegistry {
     if (!phase.presentation.template) {
       throw new Error(`Interactive Prompt Phase ${facts.turn.phaseId} has no turn template`)
     }
+    const actorRole = this.#role(facts.actor.roleId)
     const context = {
       ...this.#context(facts.actor, facts.roster, facts.events, facts),
       currentPhase: phase.presentation,
-      activeRole: roleContext(this.#role(facts.actor.roleId).presentation, facts.actor.faction),
+      activeRole: roleContext(actorRole.presentation, facts.actor.faction),
     }
     const interrupts = facts.turn.interruptAbilityIds.map((abilityId) => {
       const ability = this.#ability(abilityId)
@@ -261,7 +255,19 @@ export class PromptBundleRegistry {
       const decision = this.#ability(abilityId).presentation.decision
       return decision ? [decision] : []
     })
-    const currentTurn = this.#render(
+    const transformed = facts.events.some(
+      (event) =>
+        event.payload.type === 'role.transformed' &&
+        event.payload.playerId === facts.actor.playerId,
+    )
+    const ownerRoleContext = transformed
+      ? this.#render(actorRole.bundleId, actorRole.presentation.template, {
+          ...context,
+          section: 'owner',
+          role: roleContext(actorRole.presentation, facts.actor.faction),
+        })
+      : ''
+    const renderedTurn = this.#render(
       facts.turn.interruptWindow ? '_core' : phase.bundleId,
       facts.turn.interruptWindow ? 'turns/interrupt.njk' : phase.presentation.template,
       {
@@ -273,6 +279,7 @@ export class PromptBundleRegistry {
         interruptInstructions: interrupts,
       },
     )
+    const currentTurn = ownerRoleContext ? `${ownerRoleContext}\n\n${renderedTurn}` : renderedTurn
     return facts.continuation
       ? this.#render('_core', this.#core.manifest.core!.layouts.continuation, {
           ...context,
@@ -280,7 +287,6 @@ export class PromptBundleRegistry {
         })
       : currentTurn
   }
-
   public renderEventNarration(input: FoundationPromptFacts): string[] {
     const facts = FoundationPromptFactsSchema.parse(input)
     const context = {
@@ -291,11 +297,9 @@ export class PromptBundleRegistry {
       .map((line) => line.trim())
       .filter(Boolean)
   }
-
   public renderBootstrapContinuation(): string {
     return this.#render('_core', this.#core.manifest.core!.layouts.bootstrapContinuation, {})
   }
-
   #context(
     actor: PromptActorFact,
     roster: readonly PromptPlayerFact[],
@@ -347,7 +351,6 @@ export class PromptBundleRegistry {
     }
     return { ...facts, helpers }
   }
-
   #renderEvents(events: readonly GameEvent[], context: Record<string, unknown>): string[] {
     const lines: string[] = []
     for (const event of events) {
@@ -376,17 +379,14 @@ export class PromptBundleRegistry {
     if (finalLine) lines[lines.length - 1] = finalLine.replace(/\n$/, '')
     return lines
   }
-
   #render(bundleId: '_core' | PluginId, reference: string, context: object): string {
     return this.#environment.render(resolvePromptTemplate(bundleId, reference), context).trim()
   }
-
   #role(roleId: RoleId): OwnedRole {
     const role = this.#roles.get(roleId)
     if (!role) throw new Error(`Unknown Prompt Role ${roleId}`)
     return role
   }
-
   #ability(abilityId: AbilityId): OwnedAbility {
     const ability = this.#abilities.get(abilityId)
     if (!ability) throw new Error(`Unknown Prompt Ability ${abilityId}`)

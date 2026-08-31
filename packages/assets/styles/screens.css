@@ -598,6 +598,28 @@
   line-height: 1.45;
 }
 
+.aw-board-reserve-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-board-reserve-counter > span {
+  display: grid;
+  gap: 4px;
+}
+
+.aw-board-reserve-counter small,
+.aw-reserve-role-picker p {
+  color: var(--aw-color-text-muted);
+  line-height: 1.45;
+}
+
 .aw-counter {
   display: grid;
   grid-template-columns: 34px 34px 34px;
@@ -1505,6 +1527,17 @@
   flex: 1;
 }
 
+.aw-reserve-role-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.aw-reserve-role-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .aw-seat-config-list {
   display: grid;
   gap: 10px;
@@ -2214,6 +2247,12 @@
 .aw-player-marker[data-tone='rose'] {
   color: var(--aw-role-cupid);
   background: var(--aw-role-cupid-soft);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+
+.aw-player-marker[data-tone='amber'] {
+  color: var(--aw-role-thief);
+  background: var(--aw-role-thief-soft);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
 }
 

@@ -12,6 +12,7 @@ import type {
   PlayerAction,
   PlayerId,
   RoleId,
+  RoleCard,
   JsonValue,
   PluginId,
 } from '@agentwolf/contracts'
@@ -116,6 +117,7 @@ export interface PhaseGraph {
 export interface BoardManifest {
   readonly id: BoardId
   readonly playerCount: number
+  readonly reserveCount: number
   readonly roles: readonly RoleSlot[]
   readonly sheriff: boolean
   readonly policies: BoardPolicies
@@ -167,6 +169,7 @@ export interface GameState {
   readonly phaseId: PhaseId | null
   readonly phaseLabelKey: string
   readonly players: ReadonlyMap<PlayerId, PlayerState>
+  readonly reservedRoleCards: readonly RoleCard[]
   readonly pluginState: ReadonlyMap<PluginId, JsonValue>
   readonly sheriff: SheriffState
   readonly pendingDeaths: ReadonlyMap<PlayerId, PendingDeath>

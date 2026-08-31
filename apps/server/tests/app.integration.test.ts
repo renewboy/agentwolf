@@ -3,7 +3,13 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { AbilityIdSchema, MatchIdSchema, PlayerIdSchema } from '@agentwolf/contracts'
+import {
+  AbilityIdSchema,
+  MatchIdSchema,
+  PlayerIdSchema,
+  RoleCardIdSchema,
+  RoleIdSchema,
+} from '@agentwolf/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import { AgentProbeService } from '../src/agent-probe.js'
@@ -461,6 +467,7 @@ describe('Fastify API', () => {
       'board-standard-12',
       'board-guard-12',
       'board-cupid-12',
+      'board-thief-cupid-12',
       'board-mirror-hidden-10',
       'board-white-wolf-king-12',
     ])
@@ -665,6 +672,58 @@ describe('Fastify API', () => {
     expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
       type: 'night-action',
       option: 'pass',
+    })
+
+    server.matches.mailbox.expect({
+      matchId,
+      playerId,
+      actionType: 'night-action',
+      allowedAbilityIds: [AbilityIdSchema.parse('ability-thief-choose-card')],
+      abilityContracts: [
+        {
+          abilityId: AbilityIdSchema.parse('ability-thief-choose-card'),
+          label: '身份窃取',
+          description: '从两张底牌中选择最终身份。',
+        },
+      ],
+      roleCardChoices: [
+        {
+          cardId: RoleCardIdSchema.parse('role-card-r01'),
+          roleId: RoleIdSchema.parse('role-werewolf'),
+          label: '狼人',
+          selectable: true,
+        },
+        {
+          cardId: RoleCardIdSchema.parse('role-card-r02'),
+          roleId: RoleIdSchema.parse('role-villager'),
+          label: '村民',
+          selectable: false,
+        },
+      ],
+    })
+    const thiefTools = await client.listTools()
+    const thiefNightSchema = thiefTools.tools.find(
+      (tool) => tool.name === 'submit_night_action',
+    )?.inputSchema
+    expect(JSON.stringify(thiefNightSchema)).toContain('"const":"role-card-r01"')
+    expect(JSON.stringify(thiefNightSchema)).not.toContain('"const":"role-card-r02"')
+    expect(thiefNightSchema).toMatchObject({
+      properties: { targetPlayerIds: { maxItems: 0 } },
+      required: expect.arrayContaining(['roleCardId']),
+    })
+    const thiefChoice = await client.callTool({
+      name: 'submit_night_action',
+      arguments: {
+        abilityId: 'ability-thief-choose-card',
+        targetPlayerIds: [],
+        roleCardId: 'role-card-r01',
+      },
+    })
+    expect(thiefChoice.isError).not.toBe(true)
+    expect(server.matches.mailbox.take(matchId, playerId)).toMatchObject({
+      type: 'night-action',
+      roleCardId: 'role-card-r01',
+      targetIds: [],
     })
 
     server.matches.mailbox.expect({ matchId, playerId, actionType: 'vote', voteKind: 'exile' })
@@ -941,6 +1000,80 @@ describe('Fastify API', () => {
       'Unknown Agent Profile profile-missing-default',
     )
 
+    const thiefBoardResponse = await server.app.inject({
+      method: 'POST',
+      url: '/api/boards',
+      payload: {
+        name: '自定义盗丘场',
+        description: '十四张身份牌发十二席',
+        roles: [
+          { roleId: 'role-werewolf', count: 3 },
+          { roleId: 'role-villager', count: 5 },
+          { roleId: 'role-seer', count: 1 },
+          { roleId: 'role-witch', count: 1 },
+          { roleId: 'role-hunter', count: 1 },
+          { roleId: 'role-idiot', count: 1 },
+          { roleId: 'role-cupid', count: 1 },
+          { roleId: 'role-thief', count: 1 },
+        ],
+        reserveCount: 2,
+        sheriff: true,
+        victory: 'slaughter-edge',
+      },
+    })
+    expect(thiefBoardResponse.statusCode).toBe(201)
+    const thiefBoard = thiefBoardResponse.json()
+    expect(thiefBoard).toMatchObject({ playerCount: 12, cardCount: 14, reserveCount: 2 })
+    const invalidThiefBoard = await server.app.inject({
+      method: 'POST',
+      url: '/api/boards',
+      payload: {
+        name: '无底牌盗贼场',
+        description: '',
+        roles: thiefBoard.roles.map(({ roleId, count }: { roleId: string; count: number }) => ({
+          roleId,
+          count,
+        })),
+        reserveCount: 0,
+        sheriff: true,
+        victory: 'slaughter-edge',
+      },
+    })
+    expect(invalidThiefBoard.statusCode).toBe(400)
+    expect(invalidThiefBoard.json().message).toContain('exactly two reserve cards')
+    const manualThiefMatch = await server.app.inject({
+      method: 'POST',
+      url: '/api/matches',
+      payload: {
+        boardId: thiefBoard.id,
+        roleAssignment: 'manual',
+        manualReserveRoleIds: ['role-werewolf', 'role-villager'],
+        seats: [
+          'role-werewolf',
+          'role-werewolf',
+          'role-villager',
+          'role-villager',
+          'role-villager',
+          'role-villager',
+          'role-seer',
+          'role-witch',
+          'role-hunter',
+          'role-idiot',
+          'role-cupid',
+          'role-thief',
+        ].map((roleId, index) => ({
+          seat: index + 1,
+          name: `Manual Thief ${index + 1}`,
+          profileId: profile.id,
+          roleId,
+        })),
+      },
+    })
+    expect(manualThiefMatch.statusCode).toBe(201)
+    expect(
+      server.repository.getMatch(manualThiefMatch.json().id)?.setup.manualReserveRoleIds,
+    ).toEqual(['role-werewolf', 'role-villager'])
+
     const matchResponse = await server.app.inject({
       method: 'POST',
       url: '/api/matches',
@@ -967,9 +1100,9 @@ describe('Fastify API', () => {
     ).toEqual([boardProfile.id, profile.id, profile.id, profile.id, profile.id, profile.id])
     const snapshot = server.repository.getMatch(match.id)?.boardSnapshot
     expect(snapshot).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       rulesetId: 'classic',
-      ruleset: { id: 'ruleset-classic', revision: 6 },
+      ruleset: { id: 'ruleset-classic', revision: 7 },
       policies: { victory: 'slaughter-all' },
       agentProfiles: expect.arrayContaining([
         { seat: 1, profileId: boardProfile.id },

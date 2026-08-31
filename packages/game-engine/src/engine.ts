@@ -4,7 +4,6 @@ import {
   PlayerActionSchema,
   type AbilityId,
   type EventVisibility,
-  type Faction,
   type GameEvent,
   type GameEventPayload,
   type PlayerAction,
@@ -35,6 +34,7 @@ import {
   type DeterministicIndexResolver,
 } from './deterministic.js'
 import { prepareMatchSetup } from './match-setup.js'
+import { appendFactionKnowledge } from './faction-knowledge.js'
 import { appendAbilityOutcomes, effectsForActions } from './resolution.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
 import type { RoleRegistry } from './roles/registry.js'
@@ -78,6 +78,7 @@ export class GameEngine {
             defaultRuleset.phases,
             defaultRuleset.queries,
             defaultRuleset.triggers,
+            defaultRuleset.deals,
             defaultRuleset.contributions,
           )
         : defaultRuleset
@@ -232,6 +233,17 @@ export class GameEngine {
     }
   }
 
+  public roleCardChoicesFor(playerId: PlayerId) {
+    const turn = this.currentTurn()
+    if (!turn?.actors.includes(playerId)) return []
+    const player = this.#state.players.get(playerId)
+    if (!player) return []
+    return this.#roles.roleCardChoicesFor(player, turn.allowedAbilityIds ?? [], {
+      state: this.#state,
+      board: this.#board,
+    })
+  }
+
   public interruptAbilityIdsFor(playerId: PlayerId): readonly AbilityId[] {
     if (this.#state.status !== 'running' || !this.#state.phaseId) return []
     const actor = this.#state.players.get(playerId)
@@ -341,6 +353,9 @@ export class GameEngine {
       options.players,
       options.roleAssignment,
       options.seed,
+      this.#roles,
+      this.#ruleset.deals,
+      options.manualReserveRoleIds,
     )
     this.#append(
       {
@@ -356,6 +371,13 @@ export class GameEngine {
       visibility.public,
     )
 
+    if (setup.reserveCards.length > 0) {
+      this.#append(
+        { type: 'role.cards-reserved', cards: setup.reserveCards.map((card) => ({ ...card })) },
+        visibility.god,
+      )
+    }
+
     setup.players.forEach((player, index) => {
       const roleId = setup.assignments[index]!
       const role = this.#roles.role(roleId)
@@ -368,25 +390,7 @@ export class GameEngine {
   }
 
   #appendFactionKnowledge(): void {
-    const membersByFaction = new Map<Faction, PlayerId[]>()
-    for (const player of this.#state.players.values()) {
-      if (!player.faction || !player.roleId) continue
-      const members = membersByFaction.get(player.faction) ?? []
-      members.push(player.id)
-      membersByFaction.set(player.faction, members)
-    }
-    for (const [faction, memberIds] of membersByFaction) {
-      const playerIds = memberIds.filter((playerId) => {
-        const roleId = this.#state.players.get(playerId)?.roleId
-        return roleId ? this.#roles.role(roleId).sharesFactionKnowledge : false
-      })
-      if (playerIds.length === 0) continue
-      const eventVisibility =
-        playerIds.length === memberIds.length
-          ? visibility.faction(faction)
-          : visibility.players(playerIds)
-      this.#append({ type: 'faction.members', faction, playerIds }, eventVisibility)
-    }
+    appendFactionKnowledge(this.#runtime())
   }
 
   #append(payload: GameEventPayload, eventVisibility: EventVisibility): GameEvent {

@@ -79,6 +79,10 @@ describe('copy catalog', () => {
       labelKey: 'playerMarkers.cupidLover',
       icon: 'heart',
     })
+    expect(getPlayerMarkerDefinition('thief-origin')).toMatchObject({
+      labelKey: 'playerMarkers.thiefOrigin',
+      icon: 'cards',
+    })
     expect(() => getPlayerMarkerDefinition('unknown-marker')).toThrow(/Unknown player marker/)
   })
 })
@@ -174,6 +178,30 @@ describe('plugin event presentations', () => {
     ).toEqual([])
   })
 
+  it('renders private and public Thief selection events with stable provenance', () => {
+    const data = {
+      playerId: player1,
+      selectedCard: { id: 'role-card-r01', roleId: 'role-werewolf' },
+      buriedCard: { id: 'role-card-r02', roleId: 'role-villager' },
+    }
+    const selected = plugin('plugin-role-thief', 'event-thief-selected', data)
+    expect(renderPluginEventNarration(selected, catalog)).toContain('选择狼人作为最终身份')
+    expect(pluginEventPlayerIds(selected)).toEqual([player1])
+    expect(pluginEventEffect(selected)).toMatchObject({
+      effectId: 'thief-choose-card',
+      variant: 'role-werewolf',
+    })
+    expect(pluginEventPlayerMarkers(selected)).toEqual([
+      { markerId: 'thief-origin', playerIds: [player1] },
+    ])
+    const revealed = plugin('plugin-role-thief', 'event-thief-revealed', data)
+    expect(renderPluginEventNarration(revealed, catalog)).toContain('一号原为盗贼')
+    expect(pluginEventEffect(revealed)).toBeNull()
+    expect(pluginEventPlayerMarkers(revealed)).toEqual([
+      { markerId: 'thief-origin', playerIds: [player1] },
+    ])
+  })
+
   it('renders the current partner-only linked-death announcement', () => {
     const current = plugin('plugin-role-cupid', 'event-cupid-linked-death', {
       sourceId: player1,
@@ -216,6 +244,7 @@ describe('plugin event presentations', () => {
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-poisoned', null, 'target'],
       ['plugin-role-awakened-hidden-wolf', 'event-awakened-hidden-wolf-attacked', null, 'attack'],
       ['plugin-role-cupid', 'event-cupid-linked', null, 'Cupid link'],
+      ['plugin-role-thief', 'event-thief-selected', null, 'Thief selection'],
       [
         'plugin-role-cupid',
         'event-cupid-linked-death',

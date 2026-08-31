@@ -125,12 +125,12 @@ flowchart TB
 
 - actor：当前玩家的 Player ID、Seat、昵称、生存状态、Role、Faction 和 ability usage；
 - roster：按 Seat 排序的公开身份，以及该玩家通过自身、阵营共享、公开 reveal 或终局可知的 Role；
-- board：Role 构成、Faction、Sheriff 开关、冻结政策，以及从 phase graph 提取并按当前板子过滤的
-  夜间行动顺序；
+- board：完整 Role card 牌池、席位/底牌数量、Faction、Sheriff 开关、冻结政策，以及从 phase graph
+  提取并按当前板子过滤的夜间行动顺序；
 - game：day、night、status 与 paused reason；
 - events：送达游标之后对该玩家可见且保持原 sequence 顺序的事件；
-- turn：phase、action type、speech/vote kind、可用 abilities、pass 许可、interrupts、后台 interrupt
-  窗口、Sheriff actions 和发言上限；
+- turn：phase、action type、speech/vote kind、可用 abilities、pass 许可、actor-specific Role Card
+  choices、interrupts、后台 interrupt 窗口、Sheriff actions 和发言上限；
 - Character：仅 foundation 中该 Seat 的不可变公开表达卡。
 
 允许的 ability/interrupt 在进入 facts 前再次按 actor 当前 capability 过滤。Prompt registry 提供
@@ -176,7 +176,7 @@ sequenceDiagram
 ### Foundation
 
 foundation 要求输入历史的最后 sequence 与 GameState `lastSequence` 完全相同。它一次性呈现公开 board
-规则、夜间行动顺序、公开 Role 说明、actor 自身 Role/Abilities、可见阵营知识、初始可见事件、完整
+牌池/底牌规则、夜间行动顺序、公开 Role 说明、actor 自身 Role/Abilities、可见阵营知识、初始可见事件、完整
 初始 roster 和 Character。公开 Role 说明描述 board 中存在的语义，不建立 Seat 到隐藏 Role 的映射。
 
 player-session binding 在 foundation 前处于 `bootstrapState=pending`。派发前改为 `dispatched`，
@@ -196,7 +196,14 @@ continuation，不重发 foundation。
 rolling listener 使用同一增量事实管线。它只接收自身确认游标之后可见的公开事件与当前合法
 interrupt abilities。较新的发言 supersede 旧 listener 后,确认取消的 delivery 推进同一游标；下一
 Prompt 因而只呈现尚未送达的发言。listener 模板呈现 Role 化的当前决策目标、当前应调用的正式工具名、禁止输出发言边界，以及新增事件。它不渲染普通回合的当前天数与存活名册摘要，也不复制工具字段、枚举、空值或目标结构。
-MCP tool description 与 input schema 独立承载具体调用契约。每个 Ability 的语义说明属于 Prompt bundle，并注入当前 ability schema；当前 expectation 将可用 Ability 与 Sheriff action 收窄为 schema enum。
+MCP tool description 与 input schema 独立承载具体调用契约。每个 Ability 的语义说明属于 Prompt bundle,
+并注入当前 ability schema;当前 expectation 将可用 Ability、Role Card choice 与 Sheriff action 收窄为
+schema enum。Role Card action 继续使用 `submit_night_action`,Player targets 为空并提交独立
+`roleCardId`,不把卡牌选择编码进 `option`。
+
+玩家提交 Role 转换动作后,转换事件位于其 delivery cursor 之后。下一份增量 turn 同时呈现事件叙述
+和最终 Role 的 owner 契约;若最终 Role 在同一夜拥有后续 phase,该契约与对应 ability schema 一起
+到达同一持久 Session。无权看到转换的玩家不会收到事件或 owner 文本。
 
 ### 赛后 Prompt
 

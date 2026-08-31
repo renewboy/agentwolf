@@ -37,6 +37,7 @@ export function NewMatchPage() {
   const [boardId, setBoardId] = useState<string>('')
   const [roleAssignment, setRoleAssignment] = useState<'random' | 'manual'>('random')
   const [seats, setSeats] = useState<SeatDraft[]>([])
+  const [manualReserveRoleIds, setManualReserveRoleIds] = useState<RoleId[]>([])
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
 
@@ -151,6 +152,7 @@ export function NewMatchPage() {
         }
       }),
     )
+    setManualReserveRoleIds(roleIds.slice(board.playerCount))
   }, [board, characters, profiles])
 
   const rerollSeat = (seatNumber: number): void => {
@@ -176,17 +178,53 @@ export function NewMatchPage() {
   }
 
   const swapSeatRole = (seatNumber: number, roleId: RoleId): void => {
-    setSeats((current) => {
-      const selected = current.find((seat) => seat.seat === seatNumber)
-      if (!selected || selected.roleId === roleId) return current
-      const swap = current.find((seat) => seat.seat !== seatNumber && seat.roleId === roleId)
-      if (!swap) return current
-      return current.map((seat) => {
-        if (seat.seat === selected.seat) return { ...seat, roleId }
-        if (seat.seat === swap.seat) return { ...seat, roleId: selected.roleId }
-        return seat
-      })
-    })
+    const selected = seats.find((seat) => seat.seat === seatNumber)
+    if (!selected || selected.roleId === roleId) return
+    const swap = seats.find((seat) => seat.seat !== seatNumber && seat.roleId === roleId)
+    if (swap) {
+      setSeats((current) =>
+        current.map((seat) => {
+          if (seat.seat === selected.seat) return { ...seat, roleId }
+          if (seat.seat === swap.seat) return { ...seat, roleId: selected.roleId }
+          return seat
+        }),
+      )
+      return
+    }
+    const reserveIndex = manualReserveRoleIds.findIndex((entry) => entry === roleId)
+    if (reserveIndex < 0) return
+    setSeats((current) =>
+      current.map((seat) => (seat.seat === selected.seat ? { ...seat, roleId } : seat)),
+    )
+    setManualReserveRoleIds((current) =>
+      current.map((entry, index) => (index === reserveIndex ? selected.roleId : entry)),
+    )
+  }
+
+  const swapReserveRole = (reserveIndex: number, roleId: RoleId): void => {
+    const selected = manualReserveRoleIds[reserveIndex]
+    if (!selected || selected === roleId) return
+    const otherReserveIndex = manualReserveRoleIds.findIndex(
+      (entry, index) => index !== reserveIndex && entry === roleId,
+    )
+    if (otherReserveIndex >= 0) {
+      setManualReserveRoleIds((current) =>
+        current.map((entry, index) => {
+          if (index === reserveIndex) return roleId
+          if (index === otherReserveIndex) return selected
+          return entry
+        }),
+      )
+      return
+    }
+    const swap = seats.find((seat) => seat.roleId === roleId)
+    if (!swap) return
+    setSeats((current) =>
+      current.map((seat) => (seat.seat === swap.seat ? { ...seat, roleId: selected } : seat)),
+    )
+    setManualReserveRoleIds((current) =>
+      current.map((entry, index) => (index === reserveIndex ? roleId : entry)),
+    )
   }
 
   const startMatch = async (): Promise<void> => {
@@ -201,6 +239,7 @@ export function NewMatchPage() {
       const created = await api.createMatch({
         boardId: board.id,
         roleAssignment,
+        manualReserveRoleIds: roleAssignment === 'manual' ? manualReserveRoleIds : [],
         seats: seats.map(
           (seat): SeatAssignmentInput => ({
             seat: seat.seat,
@@ -293,7 +332,13 @@ export function NewMatchPage() {
                   </strong>
                   <span className="aw-board-option__description">{entry.description}</span>
                   <small>
-                    {formatCopy(getCopy('setup.playerCountOption'), { count: entry.playerCount })}
+                    {formatCopy(getCopy('setup.boardCardSummary'), {
+                      players: entry.playerCount,
+                      cards:
+                        entry.cardCount ??
+                        entry.roles.reduce((total, role) => total + role.count, 0),
+                      reserves: entry.reserveCount ?? 0,
+                    })}
                   </small>
                   <span className="aw-board-option__roles">
                     {entry.roles.map((role) => (
@@ -329,6 +374,27 @@ export function NewMatchPage() {
               {getCopy('setup.manualRoles')}
             </button>
           </div>
+          {roleAssignment === 'manual' && board.reserveCount > 0 ? (
+            <div className="aw-picker-block aw-reserve-role-picker">
+              <h2>{getCopy('setup.reserveCards')}</h2>
+              <p>{getCopy('setup.reserveCardsHint')}</p>
+              <div className="aw-reserve-role-list">
+                {manualReserveRoleIds.map((roleId, index) => (
+                  <label className="aw-field" key={`reserve-${index + 1}`}>
+                    <span className="aw-field__label">
+                      {formatCopy(getCopy('setup.reserveCard'), { index: index + 1 })}
+                    </span>
+                    <GameSelect
+                      ariaLabel={formatCopy(getCopy('setup.reserveCard'), { index: index + 1 })}
+                      value={roleId}
+                      options={roleOptions}
+                      onChange={(nextRoleId) => swapReserveRole(index, nextRoleId)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="aw-seat-editor aw-panel">

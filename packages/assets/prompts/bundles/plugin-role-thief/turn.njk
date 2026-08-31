@@ -1,0 +1,4 @@
+现在必须从以下两张底牌中选择最终身份：
+{% for choice in turn.roleCardChoices %}- `{{ choice.cardId }}`：{{ helpers.role(choice.roleId) }}{% if not choice.selectable %}（本轮不可选；底牌含狼人时必须选择狼人）{% endif %}
+{% endfor %}本阶段不能放弃，也不能选择玩家目标。
+{% include "_core/turns/action-submit.njk" %}

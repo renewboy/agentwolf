@@ -77,7 +77,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
           ),
           'utf8',
         ),
@@ -110,7 +110,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
           ),
           'utf8',
         ),
@@ -180,7 +180,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
           ),
           'utf8',
         ),
@@ -612,7 +612,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
           ),
           'utf8',
         ),
@@ -738,6 +738,7 @@ async function createPausedSource(developerMode = true): Promise<{
   const setup = {
     boardId: sixPlayerBoard.id,
     roleAssignment: 'manual' as const,
+    manualReserveRoleIds: [],
     speechCharacterLimit: 300,
     publicSpeechInterruptMode: 'legacy' as const,
     seats: roles.map((roleId, index) => ({

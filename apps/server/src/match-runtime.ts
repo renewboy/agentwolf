@@ -181,22 +181,18 @@ export class MatchRuntime {
   public activatePostgameReview(): void {
     this.#requirePostgame().activate()
   }
-
   public startPostgameReview(): MatchView {
     this.#requirePostgame().start()
     return this.project({ kind: 'god' })
   }
-
   public async skipPostgameReview(): Promise<MatchView> {
     await this.#requirePostgame().skip()
     return this.project({ kind: 'god' })
   }
-
   public resumePostgameReview(): MatchView {
     this.#requirePostgame().resume()
     return this.project({ kind: 'god' })
   }
-
   async #startPlayerSessions(historyEvents: readonly GameEvent[]): Promise<void> {
     await ensurePlayerSkills({
       dataDirectory: this.#options.config.dataDirectory,
@@ -266,7 +262,6 @@ export class MatchRuntime {
         this.#assertOpen()
       }
     })
-
     await this.#bootstrapPendingPlayerSessions(historyEvents)
   }
 
@@ -375,6 +370,8 @@ export class MatchRuntime {
       ...(turn.allowedAbilityIds ?? []),
       ...(interrupts.interruptAbilityIds ?? []),
     ])
+    const roleCardChoices = this.engine.roleCardChoicesFor(playerId)
+    const roleCardChoiceContracts = this.#renderer.roleCardChoiceContracts(roleCardChoices)
     const expectation: ActionExpectation = {
       matchId: this.engine.state.matchId,
       playerId,
@@ -387,6 +384,7 @@ export class MatchRuntime {
       ...(turn.sheriffActions?.length ? { allowedSheriffActions: turn.sheriffActions } : {}),
       ...(turn.passAllowed !== undefined ? { passAllowed: turn.passAllowed } : {}),
       ...(abilityContracts.length > 0 ? { abilityContracts } : {}),
+      ...(roleCardChoiceContracts.length > 0 ? { roleCardChoices: roleCardChoiceContracts } : {}),
       ...interrupts,
       validate: (action) => this.engine.validateAction(action),
     }
@@ -399,6 +397,7 @@ export class MatchRuntime {
       turn,
       this.#options.record.setup.speechCharacterLimit,
       runtime.continuationPending,
+      roleCardChoices,
     )
     return { playerId, runtime, envelope, expectation }
   }

@@ -24,14 +24,14 @@ Match 生命周期需要保证：
 
 创建 Match 前，server 暴露四类目录和一份全局设置：
 
-| 配置            | 所有者              | 影响范围                                                           | 创建 Match 时的处理                                           |
-| --------------- | ------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Agent Tool      | Agent catalog       | ACP command、args、environment binding、默认 mode 与能力提示       | Player Session binding 保存所选 Tool 全量快照                 |
-| Agent Profile   | Agent catalog       | Tool、model、reasoning、mode、timeout 与非机密 connection 配置     | Match setup 保存 Profile ID，Session binding 保存全量 Profile |
-| board           | Board catalog       | Role 构成、人数、Sheriff、胜负政策和逐 Seat 默认 Profile/Character | 解析为当前 board snapshot 与 GameEngine manifest              |
-| Character       | Character catalog   | 公开名称、头像、traits、style、boundaries 与 opening               | 逐 Seat 保存不可变 Character snapshot                         |
-| global settings | settings repository | 发言字符上限                                                       | 复制到 Match setup snapshot                                   |
-| server rollout  | server config       | 公开发言 interrupt 的新 Match 默认模式                             | 复制到 Match setup snapshot                                   |
+| 配置            | 所有者              | 影响范围                                                       | 创建 Match 时的处理                                           |
+| --------------- | ------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| Agent Tool      | Agent catalog       | ACP command、args、environment binding、默认 mode 与能力提示   | Player Session binding 保存所选 Tool 全量快照                 |
+| Agent Profile   | Agent catalog       | Tool、model、reasoning、mode、timeout 与非机密 connection 配置 | Match setup 保存 Profile ID，Session binding 保存全量 Profile |
+| board           | Board catalog       | Role card 牌池、底牌、席位、Sheriff、胜负政策和逐 Seat 默认值  | 解析为当前 board snapshot 与 GameEngine manifest              |
+| Character       | Character catalog   | 公开名称、头像、traits、style、boundaries 与 opening           | 逐 Seat 保存不可变 Character snapshot                         |
+| global settings | settings repository | 发言字符上限                                                   | 复制到 Match setup snapshot                                   |
+| server rollout  | server config       | 公开发言 interrupt 的新 Match 默认模式                         | 复制到 Match setup snapshot                                   |
 
 内置 Tool/board/Character 来自代码或 assets，自定义项来自 SQLite。Profile 保持显式排序，作为 Seat
 没有任何 Profile 选择时的稳定 fallback。被 board 或其他目录记录引用的 Profile/Character 受到
@@ -71,10 +71,11 @@ flowchart TD
 1. board 决定精确人数，Seat 必须从 1 连续编号且 Match 内昵称唯一；
 2. Profile 按“请求显式值 → board Seat 默认值 → 首个有序 Profile”解析，最终每 Seat 必须有 Profile；
 3. Character 按“请求显式值（可为 null）→ board Seat 默认值 → null”解析，并立即转成 snapshot；
-4. manual Role assignment 必须与 board Role multiset 相符；random assignment 使用 Match 稳定 seed；
+4. manual assignment 的 Seat Roles 与底牌 Roles 必须共同匹配 board 牌池;random assignment 使用 Match
+   稳定 seed 并只从 Ruleset deal validators 接受的组合中选择；
 5. board summary 转为 snapshot，写入 Ruleset family/revision、plugin lock/config hash、fingerprint、政策与修订；
-6. Match setup 写入逐 Seat 名称、Profile ID、可选 manual Role、Character snapshot、发言上限和公开
-   发言 interrupt 模式；
+6. Match setup 写入逐 Seat 名称、Profile ID、可选 manual Role、manual reserve Roles、Character snapshot、
+   发言上限和公开发言 interrupt 模式；
 7. GameEngine 产生初始事件，repository 在创建 Match record 的同一事务中保存它们；
 8. MatchManager 创建 trajectory recorder 与 MatchRuntime，并把 runtime 置入活跃表。
 
@@ -85,8 +86,8 @@ Match ID 同时提供可读 board 前缀与稳定随机 seed。确切 ID 生成�
 
 Match 使用两份互补快照：
 
-- **board snapshot** 使用唯一 schema，固定 Ruleset family/revision、Role 构成、人数、Sheriff、政策、
-  目录来源、修订和 board 默认配置；只有当前 revision 可以恢复为运行时。
+- **board snapshot** 使用唯一 schema，固定 Ruleset family/revision、完整 Role card 牌池、底牌/席位数量、
+  Sheriff、政策、目录来源、修订和 board 默认配置；只有当前 revision 可以恢复为运行时。
 - **setup snapshot** 固定实际逐 Seat 选择、Match 级发言上限和公开发言 interrupt 模式；它保存 Character card 内容，但只
   保存 Profile ID。首次建立 Player Session binding 时，选中的 Profile/Tool 全量配置被进一步冻结。
 

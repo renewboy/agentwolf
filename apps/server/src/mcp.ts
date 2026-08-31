@@ -91,6 +91,8 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
     nightAbilityIds,
     expectation?.actionType === 'night-action' ? expectation.abilityContracts : boundNightContracts,
   )
+  const roleCardChoices = expectation?.roleCardChoices ?? []
+  const selectableRoleCards = roleCardChoices.filter((choice) => choice.selectable)
   const triggerAbilityContracts = contractsFor(
     triggerAbilityIds,
     expectation?.abilityContracts ?? boundTriggerContracts,
@@ -141,16 +143,28 @@ function createPlayerMcpServer(mailbox: ActionMailbox, token: string): McpServer
         ),
         targetPlayerIds: z
           .array(z.string())
-          .max(3)
+          .max(roleCardChoices.length > 0 ? 0 : 3)
           .describe(promptCore.toolField('submit_night_action', 'targetPlayerIds')),
+        roleCardId:
+          selectableRoleCards.length > 0
+            ? constrainedChoiceString(
+                selectableRoleCards,
+                promptCore.toolField('submit_night_action', 'roleCardId'),
+              )
+            : z
+                .string()
+                .optional()
+                .describe(promptCore.toolField('submit_night_action', 'roleCardId')),
         option: z
           .string()
           .optional()
           .describe(promptCore.toolField('submit_night_action', 'option')),
       },
     },
-    ({ abilityId, targetPlayerIds, option }) =>
-      toolResult(() => mailbox.submitNightAction(token, abilityId, targetPlayerIds, option)),
+    ({ abilityId, targetPlayerIds, option, roleCardId }) =>
+      toolResult(() =>
+        mailbox.submitNightAction(token, abilityId, targetPlayerIds, option, roleCardId),
+      ),
   )
   server.registerTool(
     'submit_sheriff_action',
@@ -269,6 +283,18 @@ function contractsFor<T extends { readonly abilityId: string }>(
   if (!abilityIds?.length || !contracts?.length) return []
   const allowed = new Set(abilityIds)
   return contracts.filter((contract) => allowed.has(contract.abilityId))
+}
+
+function constrainedChoiceString(
+  choices: readonly { readonly cardId: string; readonly label: string }[],
+  description: string,
+) {
+  const schemaFor = (choice: (typeof choices)[number]) =>
+    z.literal(choice.cardId).describe(`${choice.label}：${description}`)
+  if (choices.length === 1) return schemaFor(choices[0]!)
+  return z
+    .union(choices.map(schemaFor) as [ReturnType<typeof schemaFor>, ReturnType<typeof schemaFor>])
+    .describe(description)
 }
 
 export async function handleMcpRequest(

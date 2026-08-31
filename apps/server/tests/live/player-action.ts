@@ -12,9 +12,12 @@ import {
 } from '@agentwolf/acp'
 import {
   AgentToolKindSchema,
+  AbilityIdSchema,
   MatchIdSchema,
   PlayerIdSchema,
   PostgameReviewSubmissionSchema,
+  RoleCardIdSchema,
+  RoleIdSchema,
   type PlayerAction,
   type PostgameReviewSubmission,
 } from '@agentwolf/contracts'
@@ -39,6 +42,7 @@ const probeStrategy = process.argv.includes('--probe-strategy')
 const probeSandbox = process.argv.includes('--probe-sandbox')
 const probeResume = process.argv.includes('--resume')
 const probePostgameReview = process.argv.includes('--postgame-review')
+const probeThiefChoice = process.argv.includes('--thief-choice')
 const isolated = !process.argv.includes('--unisolated')
 const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-player-action-'))
 const matchId = MatchIdSchema.parse('match-player-action-probe')
@@ -100,6 +104,36 @@ try {
       })
       return
     }
+    if (probeThiefChoice) {
+      server.matches.mailbox.expect({
+        matchId,
+        playerId,
+        actionType: 'night-action',
+        allowedAbilityIds: [AbilityIdSchema.parse('ability-thief-choose-card')],
+        abilityContracts: [
+          {
+            abilityId: AbilityIdSchema.parse('ability-thief-choose-card'),
+            label: '身份窃取',
+            description: '从两张底牌中选择最终身份。',
+          },
+        ],
+        roleCardChoices: [
+          {
+            cardId: RoleCardIdSchema.parse('role-card-r01'),
+            roleId: RoleIdSchema.parse('role-werewolf'),
+            label: '狼人',
+            selectable: true,
+          },
+          {
+            cardId: RoleCardIdSchema.parse('role-card-r02'),
+            roleId: RoleIdSchema.parse('role-villager'),
+            label: '村民',
+            selectable: false,
+          },
+        ],
+      })
+      return
+    }
     server.matches.mailbox.expect({
       matchId,
       playerId,
@@ -108,7 +142,11 @@ try {
     })
   }
   expectSubmission()
-  const submittedTool = probePostgameReview ? 'submit_postgame_review' : 'submit_vote'
+  const submittedTool = probePostgameReview
+    ? 'submit_postgame_review'
+    : probeThiefChoice
+      ? 'submit_night_action'
+      : 'submit_vote'
   const playerMcpServer = {
     type: 'http' as const,
     name: 'agentwolf-player-actions',
@@ -168,7 +206,9 @@ try {
   const result = await session.prompt(
     probePostgameReview
       ? `Call submit_postgame_review exactly once with this JSON input: ${JSON.stringify(postgameInput)}. End the turn immediately after the accepted receipt.`
-      : `Call the submit_vote tool with targetPlayerId ${tokenTarget}. End the turn immediately after the accepted receipt. Do not answer with text instead of the tool.`,
+      : probeThiefChoice
+        ? 'Call submit_night_action exactly once with abilityId ability-thief-choose-card, targetPlayerIds [], and roleCardId role-card-r01. End the turn immediately after the accepted receipt.'
+        : `Call the submit_vote tool with targetPlayerId ${tokenTarget}. End the turn immediately after the accepted receipt. Do not answer with text instead of the tool.`,
     90_000,
   )
   const action = probePostgameReview
@@ -221,7 +261,9 @@ try {
     resumeResult = await session.prompt(
       probePostgameReview
         ? `Continue the current postgame review. Call submit_postgame_review with this JSON input: ${JSON.stringify(postgameInput)}, then end the turn after the accepted receipt.`
-        : `Continue the current judge stage. Call submit_vote with targetPlayerId ${tokenTarget}, then end the turn after the accepted receipt.`,
+        : probeThiefChoice
+          ? 'Continue the current judge stage. Call submit_night_action with abilityId ability-thief-choose-card, targetPlayerIds [], and roleCardId role-card-r01, then end the turn after the accepted receipt.'
+          : `Continue the current judge stage. Call submit_vote with targetPlayerId ${tokenTarget}, then end the turn after the accepted receipt.`,
       90_000,
     )
     resumedAction = probePostgameReview

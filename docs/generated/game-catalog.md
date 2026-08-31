@@ -13,6 +13,7 @@ This reference is generated from Role-owned Prompt manifests and localized built
 - `role-idiot` — 白痴
 - `role-magic-mirror-girl` — 魔镜少女
 - `role-seer` — 预言家
+- `role-thief` — 盗贼
 - `role-villager` — 平民
 - `role-werewolf` — 狼人
 - `role-white-wolf-king` — 白狼王
@@ -40,6 +41,10 @@ This reference is generated from Role-owned Prompt manifests and localized built
 
 预言家、女巫、猎人、丘比特，四狼四民，上警屠边。
 
+### 12 人盗丘场
+
+十四张身份牌发十二席：三狼、五民、预女猎白、丘比特与盗贼，上警屠边。
+
 ### 10 人镜隐迷踪局
 
 阵容：4 名平民、魔镜少女、女巫、守卫，对阵 2 名狼人和 1 名觉醒隐狼；上警屠边。
@@ -48,5 +53,5 @@ This reference is generated from Role-owned Prompt manifests and localized built
 
 三名狼人和白狼王对阵预言家、女巫、猎人、守卫与四名平民。
 
-Built-in boards are read-only. Custom boards may compose installed Roles for 6–24 players and
-freeze their selected Ruleset, policies, Profile defaults, and Character defaults in each Match.
+内置 board 保持只读。自定义 board 可以组合已安装 Roles,使用 6–24 个席位与 0–2 张底牌,
+并在每个 Match 中冻结 Ruleset、牌池、政策、Profile defaults 与 Character defaults。

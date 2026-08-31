@@ -26,6 +26,7 @@ interface BoardDraft {
   readonly name: string
   readonly description: string
   readonly roles: Readonly<Record<string, number>>
+  readonly reserveCount: number
   readonly characters: readonly (CharacterId | null)[]
   readonly agentProfiles: readonly (AgentProfileId | null)[]
   readonly sheriff: boolean
@@ -66,10 +67,11 @@ export function BoardsPage() {
   }, [])
   useEffect(() => void load(), [load])
 
-  const playerCount = useMemo(
+  const cardCount = useMemo(
     () => Object.values(draft?.roles ?? {}).reduce((total, count) => total + count, 0),
     [draft?.roles],
   )
+  const playerCount = cardCount - (draft?.reserveCount ?? 0)
   const characterOptions = useMemo(
     () => [
       { value: 'none' as const, label: getCopy('setup.noCharacter') },
@@ -108,6 +110,7 @@ export function BoardsPage() {
       name: '',
       description: getCopy('boardManagement.emptyDescription'),
       roles: Object.fromEntries(roles.map((role) => [role.id, 0])),
+      reserveCount: 0,
       characters: [],
       agentProfiles: [],
       sheriff: false,
@@ -131,16 +134,39 @@ export function BoardsPage() {
     if (!draft?.editable) return
     const next = Math.max(0, Math.min(24, (draft.roles[roleId] ?? 0) + delta))
     const nextRoles = { ...draft.roles, [roleId]: next }
-    const nextPlayerCount = Object.values(nextRoles).reduce((total, count) => total + count, 0)
+    const requiredReserveCount = roles?.find((role) => role.id === roleId)?.requiredReserveCount
+    const nextReserveCount =
+      next > 0 && requiredReserveCount !== undefined ? requiredReserveCount : draft.reserveCount
+    const nextPlayerCount =
+      Object.values(nextRoles).reduce((total, count) => total + count, 0) - nextReserveCount
     setDraft({
       ...draft,
       roles: nextRoles,
+      reserveCount: nextReserveCount,
       characters: Array.from(
-        { length: nextPlayerCount },
+        { length: Math.max(0, nextPlayerCount) },
         (_, index) => draft.characters[index] ?? null,
       ),
       agentProfiles: Array.from(
-        { length: nextPlayerCount },
+        { length: Math.max(0, nextPlayerCount) },
+        (_, index) => draft.agentProfiles[index] ?? null,
+      ),
+    })
+  }
+
+  const updateReserveCount = (delta: number): void => {
+    if (!draft?.editable) return
+    const reserveCount = Math.max(0, Math.min(2, draft.reserveCount + delta))
+    const nextPlayerCount = cardCount - reserveCount
+    setDraft({
+      ...draft,
+      reserveCount,
+      characters: Array.from(
+        { length: Math.max(0, nextPlayerCount) },
+        (_, index) => draft.characters[index] ?? null,
+      ),
+      agentProfiles: Array.from(
+        { length: Math.max(0, nextPlayerCount) },
         (_, index) => draft.agentProfiles[index] ?? null,
       ),
     })
@@ -157,6 +183,7 @@ export function BoardsPage() {
         roles: Object.entries(draft.roles)
           .filter((entry) => entry[1] > 0)
           .map(([roleId, count]) => ({ roleId, count })),
+        reserveCount: draft.reserveCount,
         characters: draft.characters.map((characterId, index) => ({
           seat: index + 1,
           characterId,
@@ -238,6 +265,9 @@ export function BoardsPage() {
                     {formatCopy(getCopy('boardManagement.playerCount'), {
                       count: board.playerCount,
                     })}
+                    {board.reserveCount > 0
+                      ? ` · ${formatCopy(getCopy('boardManagement.reserveCount'), { count: board.reserveCount })}`
+                      : ''}
                   </small>
                 </span>
               </button>
@@ -272,7 +302,10 @@ export function BoardsPage() {
             <div className="aw-panel-heading">
               <h3>{getCopy('boardManagement.roles')}</h3>
               <strong>
-                {formatCopy(getCopy('boardManagement.playerCount'), { count: playerCount })}
+                {formatCopy(getCopy('boardManagement.cardAndPlayerCount'), {
+                  cards: cardCount,
+                  players: playerCount,
+                })}
               </strong>
             </div>
             <div className="aw-board-role-grid">
@@ -306,7 +339,7 @@ export function BoardsPage() {
                       aria-label={formatCopy(getCopy('boardManagement.increase'), {
                         role: role.name,
                       })}
-                      disabled={!draft.editable || playerCount >= 24}
+                      disabled={!draft.editable || playerCount >= 24 || cardCount >= 26}
                       type="button"
                       onClick={() => updateRole(role.id, 1)}
                     >
@@ -315,6 +348,33 @@ export function BoardsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="aw-board-reserve-counter">
+              <span>
+                <strong>{getCopy('boardManagement.reserveCards')}</strong>
+                <small>{getCopy('boardManagement.reserveCardsHint')}</small>
+              </span>
+              <div className="aw-counter">
+                <button
+                  className="aw-button aw-button--square"
+                  aria-label={getCopy('boardManagement.decreaseReserve')}
+                  disabled={!draft.editable || draft.reserveCount === 0}
+                  type="button"
+                  onClick={() => updateReserveCount(-1)}
+                >
+                  <Minus size={16} aria-hidden />
+                </button>
+                <output>{draft.reserveCount}</output>
+                <button
+                  className="aw-button aw-button--square"
+                  aria-label={getCopy('boardManagement.increaseReserve')}
+                  disabled={!draft.editable || draft.reserveCount === 2 || playerCount <= 6}
+                  type="button"
+                  onClick={() => updateReserveCount(1)}
+                >
+                  <Plus size={16} aria-hidden />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -470,6 +530,7 @@ function boardToDraft(board: BoardSummary, editable: boolean): BoardDraft {
     name: board.name,
     description: board.description,
     roles: Object.fromEntries(board.roles.map((role) => [role.roleId, role.count])),
+    reserveCount: board.reserveCount ?? 0,
     characters: [...board.characters]
       .sort((left, right) => left.seat - right.seat)
       .map(({ characterId }) => characterId),

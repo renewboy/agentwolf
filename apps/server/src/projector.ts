@@ -479,6 +479,7 @@ function playerIdsForEvent(event: GameEvent): PlayerId[] {
   if (registered) return registered
   switch (payload.type) {
     case 'role.assigned':
+    case 'role.transformed':
     case 'speech.started':
     case 'speech.committed':
     case 'speech.sanitized':

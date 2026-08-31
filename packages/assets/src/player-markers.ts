@@ -8,11 +8,12 @@ export interface PlayerMarkerContribution {
 export interface PlayerMarkerDefinition {
   readonly id: PlayerMarkerId
   readonly labelKey: string
-  readonly icon: 'heart'
-  readonly tone: 'rose'
+  readonly icon: 'heart' | 'cards'
+  readonly tone: 'rose' | 'amber'
 }
 
 export const cupidLoverMarkerId = PlayerMarkerIdSchema.parse('cupid-lover')
+export const thiefOriginMarkerId = PlayerMarkerIdSchema.parse('thief-origin')
 
 export const playerMarkerCatalog: Readonly<Record<string, PlayerMarkerDefinition>> = {
   [cupidLoverMarkerId]: {
@@ -20,6 +21,12 @@ export const playerMarkerCatalog: Readonly<Record<string, PlayerMarkerDefinition
     labelKey: 'playerMarkers.cupidLover',
     icon: 'heart',
     tone: 'rose',
+  },
+  [thiefOriginMarkerId]: {
+    id: thiefOriginMarkerId,
+    labelKey: 'playerMarkers.thiefOrigin',
+    icon: 'cards',
+    tone: 'amber',
   },
 }
 

@@ -6,6 +6,7 @@ import {
   GameEventSchema,
   PhaseIdSchema,
   PlayerIdSchema,
+  RoleCardIdSchema,
   RoleIdSchema,
   SheriffActionKindSchema,
 } from '@agentwolf/contracts'
@@ -51,6 +52,9 @@ export const PromptBoardFactSchema = z
         })
         .strict(),
     ),
+    cardCount: z.number().int().positive(),
+    playerCount: z.number().int().min(6).max(24),
+    reserveCount: z.number().int().min(0).max(2),
     nightActionOrder: z
       .array(
         z
@@ -101,9 +105,22 @@ export const PromptTurnFactSchema = z
     interruptAbilityIds: z.array(AbilityIdSchema).default([]),
     interruptWindow: z.boolean().default(false),
     sheriffActions: z.array(SheriffActionKindSchema).default([]),
+    roleCardChoices: z
+      .array(
+        z
+          .object({
+            abilityId: AbilityIdSchema,
+            cardId: RoleCardIdSchema,
+            roleId: RoleIdSchema,
+            selectable: z.boolean(),
+            reason: z.string().optional(),
+          })
+          .strict(),
+      )
+      .default([]),
   })
   .strict()
-export type PromptTurnFact = z.infer<typeof PromptTurnFactSchema>
+export type PromptTurnFact = z.input<typeof PromptTurnFactSchema>
 
 export const TurnPromptFactsSchema = z
   .object({
@@ -117,4 +134,4 @@ export const TurnPromptFactsSchema = z
     continuation: z.boolean(),
   })
   .strict()
-export type TurnPromptFacts = z.infer<typeof TurnPromptFactsSchema>
+export type TurnPromptFacts = z.input<typeof TurnPromptFactsSchema>

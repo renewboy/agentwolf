@@ -189,6 +189,11 @@
   --aw-role-background: var(--aw-role-cupid-soft);
 }
 
+.aw-role-badge[data-role-id='role-thief'] {
+  --aw-role-color: var(--aw-role-thief);
+  --aw-role-background: var(--aw-role-thief-soft);
+}
+
 .aw-field {
   display: grid;
   gap: 8px;
