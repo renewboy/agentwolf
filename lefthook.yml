@@ -12,4 +12,5 @@ pre-commit:
 pre-push:
   commands:
     harness:
-      run: pnpm check
+      files: printf 'package.json\n'
+      run: test -n "{files}" && pnpm check

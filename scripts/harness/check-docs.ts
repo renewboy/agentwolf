@@ -256,7 +256,7 @@ for (const requiredText of [
   'pre-commit:',
   'pre-push:',
   'git --no-pager diff --cached --check',
-  'run: pnpm check',
+  'pnpm check',
 ]) {
   if (!hooks.includes(requiredText)) errors.push(`lefthook.yml is missing ${requiredText}`)
 }
