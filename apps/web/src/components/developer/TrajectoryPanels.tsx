@@ -93,6 +93,7 @@ export function TrajectoryLedger({
   const followController = useMemo(() => new FollowLatestController(), [])
   useFollowLatest(followController)
   const centeredSelection = useRef<string | null>(null)
+  const expandedSelection = useRef<string | null>(null)
   const previousOwner = useRef<TrajectoryOwnerId | null>(null)
   const scrollByOwner = useRef(new Map<TrajectoryOwnerId, number>())
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
@@ -102,8 +103,8 @@ export function TrajectoryLedger({
     : null
   const selectedGroupId = selectedTurn ? timelineGroupId(selectedTurn.timelineGroup) : null
   const rows = useMemo(
-    () => buildRows(page, query, collapsedGroups, selectedGroupId),
-    [collapsedGroups, page, query, selectedGroupId],
+    () => buildRows(page, query, collapsedGroups),
+    [collapsedGroups, page, query],
   )
   const groupIds = useMemo(
     () => [...new Set(page.turns.map((turn) => timelineGroupId(turn.timelineGroup)))],
@@ -124,6 +125,21 @@ export function TrajectoryLedger({
   useLayoutEffect(() => {
     if (virtualRef.current) virtualRef.current.style.height = `${totalSize}px`
   }, [totalSize])
+  useLayoutEffect(() => {
+    if (!selectedId) {
+      expandedSelection.current = null
+      return
+    }
+    if (expandedSelection.current === selectedId) return
+    expandedSelection.current = selectedId
+    if (!selectedGroupId) return
+    setCollapsedGroups((current) => {
+      if (!current.has(selectedGroupId)) return current
+      const next = new Set(current)
+      next.delete(selectedGroupId)
+      return next
+    })
+  }, [selectedGroupId, selectedId])
   useLayoutEffect(() => {
     const ownerChanged = previousOwner.current !== page.ownerId
     previousOwner.current = page.ownerId
@@ -208,10 +224,7 @@ export function TrajectoryLedger({
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index]
             if (!row) return null
-            const groupIsCollapsed =
-              row.kind === 'group' &&
-              collapsedGroups.has(row.groupId) &&
-              selectedGroupId !== row.groupId
+            const groupIsCollapsed = row.kind === 'group' && collapsedGroups.has(row.groupId)
             return (
               <div
                 className="aw-trajectory-virtual-row"
@@ -385,7 +398,6 @@ function buildRows(
   page: TrajectoryPage,
   query: string,
   collapsedGroups: ReadonlySet<string>,
-  selectedGroupId: string | null,
 ): LedgerRow[] {
   const needle = query.trim().toLocaleLowerCase()
   const groups = new Map<
@@ -402,7 +414,9 @@ function buildRows(
     groups.set(groupId, current)
   }
   return [...groups].flatMap(([groupId, group]) => {
-    const groupRecords = page.records.filter((record) => group.turnIds.has(record.turnId))
+    const groupRecords = page.records
+      .filter((record) => group.turnIds.has(record.turnId))
+      .sort((left, right) => left.ordinal - right.ordinal)
     const records = groupRecords.filter(
       (record) =>
         !needle ||
@@ -411,8 +425,7 @@ function buildRows(
           .includes(needle),
     )
     if (needle && records.length === 0) return []
-    const visibleRecords =
-      !needle && collapsedGroups.has(groupId) && selectedGroupId !== groupId ? [] : records
+    const visibleRecords = !needle && collapsedGroups.has(groupId) ? [] : records
     return [
       {
         kind: 'group' as const,

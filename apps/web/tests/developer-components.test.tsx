@@ -210,6 +210,33 @@ describe('Trajectory panels', () => {
     expect(document.querySelectorAll('.aw-trajectory-record')).toHaveLength(0)
   })
 
+  it('orders merged records and collapses the group containing the selected record', async () => {
+    const current = page()
+    render(
+      <TrajectoryLedger
+        followLatest={false}
+        loading={false}
+        onLoadOlder={vi.fn()}
+        onQuery={vi.fn()}
+        onSelect={vi.fn()}
+        page={{ ...current, records: [...current.records].reverse() }}
+        query=""
+        selectedId="record-1"
+      />,
+    )
+
+    const ordinals = [...document.querySelectorAll('.aw-trajectory-record > span:first-child')].map(
+      (node) => node.textContent,
+    )
+    expect(ordinals).toEqual(allKinds.map((_, index) => `#${index + 1}`))
+
+    await userEvent.click(screen.getByRole('button', { name: '折叠全部阶段' }))
+    const groups = [...document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-group')]
+    expect(groups).toHaveLength(2)
+    expect(groups.every((group) => group.getAttribute('aria-expanded') === 'false')).toBe(true)
+    expect(document.querySelectorAll('.aw-trajectory-record')).toHaveLength(0)
+  })
+
   it('renders all preview formats and action labels', () => {
     const actionTypes = [
       'bootstrap',

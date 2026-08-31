@@ -383,6 +383,17 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     '注入提示词',
   )
   await expect(page.getByRole('tabpanel', { name: '记录详情' })).toContainText('时间')
+  await page.getByRole('button', { name: '折叠全部阶段' }).click()
+  await expect(page.getByRole('button', { name: '展开全部阶段' })).toBeVisible()
+  expect(
+    await page
+      .locator('.aw-trajectory-group')
+      .evaluateAll((groups) =>
+        groups.every((group) => group.getAttribute('aria-expanded') === 'false'),
+      ),
+  ).toBe(true)
+  await expect(page.locator('.aw-trajectory-record')).toHaveCount(0)
+  await page.getByRole('button', { name: '展开全部阶段' }).click()
   const viewportMetrics = await page.evaluate(() => ({
     bodyHeight: document.body.scrollHeight,
     viewportHeight: window.innerHeight,
