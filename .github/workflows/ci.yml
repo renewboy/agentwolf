@@ -41,7 +41,22 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:coverage
+      - run: pnpm test:coverage:ci
+
+  process-guardian:
+    name: Process guardian (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run --config vitest.config.ts packages/acp/tests/process.test.ts
 
   build:
     name: Production build

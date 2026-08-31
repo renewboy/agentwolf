@@ -8,6 +8,11 @@ const required = [
   'AGENTS.md',
   'README.md',
   'artifacts_rules.md',
+  '.github/workflows/ci.yml',
+  '.jscpd.json',
+  '.oxfmtrc.json',
+  '.oxlintrc.json',
+  'lefthook.yml',
   'apps/server/AGENTS.md',
   'apps/server/README.md',
   'apps/web/AGENTS.md',
@@ -227,7 +232,8 @@ const workflow = await text(resolve(projectRoot, '.github/workflows/ci.yml')).ca
 for (const requiredText of [
   'pnpm install --frozen-lockfile',
   'pnpm run check:static',
-  'pnpm test:coverage',
+  'pnpm test:coverage:ci',
+  'Process guardian (macOS)',
   'pnpm build',
   'pnpm test:e2e',
 ]) {
@@ -235,6 +241,26 @@ for (const requiredText of [
 }
 if (workflow.includes('continue-on-error: true')) {
   errors.push('CI workflow contains a non-blocking required gate')
+}
+
+const hooks = await text(resolve(projectRoot, 'lefthook.yml')).catch(() => '')
+for (const requiredText of [
+  'pre-commit:',
+  'pre-push:',
+  'git --no-pager diff --cached --check',
+  'run: pnpm check',
+]) {
+  if (!hooks.includes(requiredText)) errors.push(`lefthook.yml is missing ${requiredText}`)
+}
+const manifest = JSON.parse(await text(resolve(projectRoot, 'package.json'))) as {
+  readonly scripts?: Readonly<Record<string, string>>
+  readonly devDependencies?: Readonly<Record<string, string>>
+}
+if (manifest.scripts?.['prepare'] !== 'node scripts/harness/install-hooks.mjs') {
+  errors.push('package.json must install repository hooks during prepare')
+}
+if (!manifest.devDependencies?.['lefthook']) {
+  errors.push('package.json must declare lefthook')
 }
 
 failIfErrors(errors, 'docs')
