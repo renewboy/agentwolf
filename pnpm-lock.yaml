@@ -71,6 +71,9 @@ importers:
       '@agent-arena/trajectory':
         specifier: workspace:*
         version: link:../../vendor/agent-arena-core/packages/trajectory
+      '@agent-arena/web-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/web-runtime
       '@agentclientprotocol/sdk':
         specifier: 1.4.0
         version: 1.4.0(zod@4.4.3)
@@ -114,6 +117,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@agent-arena/devtools-react':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/devtools-react
+      '@agent-arena/react':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/react
+      '@agent-arena/web-runtime':
+        specifier: workspace:*
+        version: link:../../vendor/agent-arena-core/packages/web-runtime
       '@agentwolf/assets':
         specifier: workspace:*
         version: link:../../packages/assets
@@ -237,6 +249,30 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  vendor/agent-arena-core/packages/devtools-react:
+    dependencies:
+      '@agent-arena/react':
+        specifier: workspace:*
+        version: link:../react
+      '@agent-arena/simulation':
+        specifier: workspace:*
+        version: link:../simulation
+      '@agent-arena/trajectory':
+        specifier: workspace:*
+        version: link:../trajectory
+      '@agent-arena/web-runtime':
+        specifier: workspace:*
+        version: link:../web-runtime
+      '@tanstack/react-virtual':
+        specifier: 3.14.10
+        version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react:
+        specifier: '>=18.2 <20'
+        version: 19.2.8
+      react-dom:
+        specifier: '>=18.2 <20'
+        version: 19.2.8(react@19.2.8)
+
   vendor/agent-arena-core/packages/game-runtime:
     dependencies:
       '@agent-arena/contracts':
@@ -276,6 +312,18 @@ importers:
       '@types/nunjucks':
         specifier: 3.2.6
         version: 3.2.6
+
+  vendor/agent-arena-core/packages/react:
+    dependencies:
+      '@agent-arena/web-runtime':
+        specifier: workspace:*
+        version: link:../web-runtime
+      react:
+        specifier: '>=18.2 <20'
+        version: 19.2.8
+      react-dom:
+        specifier: '>=18.2 <20'
+        version: 19.2.8(react@19.2.8)
 
   vendor/agent-arena-core/packages/ruleset:
     dependencies:
@@ -331,6 +379,8 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+
+  vendor/agent-arena-core/packages/web-runtime: {}
 
 packages:
 

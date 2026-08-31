@@ -1,18 +1,44 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { useLiveProjection } from '@agent-arena/react'
+import {
+  LiveProjectionController,
+  type LiveChannel,
+  type LiveClientCommand,
+  type LiveConnectionState,
+  type LiveProjectionTransport,
+} from '@agent-arena/web-runtime'
+import { getCopy } from '@agentwolf/assets'
 import {
   LiveMessageSchema,
   MatchIdSchema,
   type LiveClientMessage,
+  type MatchId,
   type MatchView,
+  type PlayerId,
   type SpeechPlaybackState,
   type SpectatorView,
 } from '@agentwolf/contracts'
-import { getCopy } from '@agentwolf/assets'
 import { api, ApiError } from '../api.js'
 
-export type LiveConnectionState = 'connecting' | 'live' | 'reconnecting' | 'settled' | 'unavailable'
+export type { LiveConnectionState }
 
-type LoadResult = 'loaded' | 'missing' | 'failed'
+interface SpeechChunk {
+  readonly playerId: PlayerId
+  readonly text: string
+}
+
+type SpeechControlCommand =
+  | { readonly type: 'set'; readonly enabled: boolean }
+  | {
+      readonly type: 'resolve'
+      readonly sequence: number
+      readonly outcome: 'completed' | 'skipped'
+    }
+
+interface LiveControlState {
+  readonly playback: SpeechPlaybackState
+  readonly error: string | null
+}
 
 const disabledPlayback: SpeechPlaybackState = {
   enabled: false,
@@ -20,180 +46,172 @@ const disabledPlayback: SpeechPlaybackState = {
   pendingSequence: null,
 }
 
+const disconnectedControl: LiveControlState = { playback: disabledPlayback, error: null }
+
 export function useLiveMatch(matchIdValue: string | undefined, view: SpectatorView) {
-  const [match, setMatch] = useState<MatchView | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [controlError, setControlError] = useState<string | null>(null)
-  const [connectionState, setConnectionState] = useState<LiveConnectionState>('connecting')
-  const [loadedViewKey, setLoadedViewKey] = useState<string | null>(null)
-  const [playbackState, setPlaybackState] = useState<SpeechPlaybackState>(disabledPlayback)
-  const terminalRef = useRef(false)
-  const socketRef = useRef<WebSocket | null>(null)
-  const requestedViewKeyRef = useRef<string | null>(null)
-  const viewRef = useRef(view)
   const parsedMatchId = matchIdValue ? MatchIdSchema.safeParse(matchIdValue) : null
   const matchId = parsedMatchId?.success ? parsedMatchId.data : null
-  const viewKey = keyForView(view)
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- view changes are sent through the live observer command without recreating the connection controller.
+  const controller = useMemo(() => createController(matchId, view), [matchId])
+  const state = useLiveProjection(controller)
 
-  const load = useCallback(async (): Promise<LoadResult> => {
-    if (!matchId) return 'missing'
-    setError(null)
-    try {
-      const selectedView = viewRef.current
-      const nextMatch = await api.getMatch(matchId, selectedView)
-      setMatch(nextMatch)
-      setLoadedViewKey(keyForView(selectedView))
-      if (isTerminalMatch(nextMatch)) {
-        terminalRef.current = true
-        setConnectionState('settled')
-      }
-      return 'loaded'
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 404) {
-        terminalRef.current = true
-        setMatch(null)
-        setLoadedViewKey(null)
-        setConnectionState('unavailable')
-        setError(getCopy('errors.matchNotFound'))
-        return 'missing'
-      }
-      setError(cause instanceof Error ? cause.message : String(cause))
-      return 'failed'
-    }
-  }, [matchId])
+  useEffect(() => {
+    controller.setObserver(view)
+  }, [controller, view])
 
-  const send = useCallback((message: LiveClientMessage): boolean => {
-    const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN) return false
-    socket.send(JSON.stringify(message))
-    return true
-  }, [])
+  const retry = useCallback(() => controller.retry(), [controller])
   const setSpeechPlaybackEnabled = useCallback(
-    (enabled: boolean): boolean => send({ type: 'speech-playback.set', enabled }),
-    [send],
+    (enabled: boolean): boolean => controller.sendControl({ type: 'set', enabled }),
+    [controller],
   )
   const resolveSpeechPlayback = useCallback(
     (sequence: number, outcome: 'completed' | 'skipped'): boolean =>
-      send({ type: 'speech-playback.resolve', sequence, outcome }),
-    [send],
+      controller.sendControl({ type: 'resolve', sequence, outcome }),
+    [controller],
   )
 
-  useEffect(() => {
-    viewRef.current = view
-  }, [view])
+  return {
+    match: state.projection,
+    error: localizeError(state.error),
+    controlError: state.controlState.error,
+    retry,
+    connectionState: state.connectionState,
+    playbackState: state.controlState.playback,
+    setSpeechPlaybackEnabled,
+    resolveSpeechPlayback,
+    viewPending: state.observerPending,
+  }
+}
 
-  useEffect(() => {
-    if (!matchId) {
-      terminalRef.current = true
-      setConnectionState('unavailable')
-      setError(getCopy('errors.invalidMatchId'))
-      return undefined
-    }
-    terminalRef.current = false
-    void load()
-    let disposed = false
-    let reconnectTimer: number | null = null
-    let reconnectDelay = 250
-    setConnectionState('connecting')
-    const connect = (): void => {
-      if (terminalRef.current) return
-      const selectedView = viewRef.current
+function createController(matchId: MatchId | null, observer: SpectatorView) {
+  return new LiveProjectionController({
+    observer,
+    initialControlState: disconnectedControl,
+    transport: createTransport(matchId),
+    scheduler: {
+      set: (delay, callback) => window.setTimeout(callback, delay),
+      clear: (handle: number) => window.clearTimeout(handle),
+    },
+    observerKey: keyForView,
+    applyTransient: applySpeechChunk,
+    isSettled: isTerminalMatch,
+    isUnavailableError: (error) =>
+      error instanceof InvalidMatchError || (error instanceof ApiError && error.status === 404),
+    disconnectedControlState: () => disconnectedControl,
+  })
+}
+
+function createTransport(
+  matchId: MatchId | null,
+): LiveProjectionTransport<
+  SpectatorView,
+  MatchView,
+  SpeechChunk,
+  LiveControlState,
+  SpeechControlCommand
+> {
+  return {
+    loadSnapshot: async (observer) => {
+      if (!matchId) throw new InvalidMatchError()
+      return api.getMatch(matchId, observer)
+    },
+    openChannel: (observer, handlers) => {
+      if (!matchId) return closedChannel()
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const url = new URL(`/api/matches/${matchId}/live`, `${protocol}//${window.location.host}`)
-      url.searchParams.set('view', selectedView.kind)
-      if (selectedView.kind === 'player') url.searchParams.set('playerId', selectedView.playerId)
+      url.searchParams.set('view', observer.kind)
+      if (observer.kind === 'player') url.searchParams.set('playerId', observer.playerId)
       const socket = new WebSocket(url)
-      socketRef.current = socket
-      requestedViewKeyRef.current = keyForView(selectedView)
-      socket.addEventListener('open', () => {
-        if (terminalRef.current) {
-          socket.close()
-          return
-        }
-        reconnectDelay = 250
-        setConnectionState('live')
-      })
+      let control = disconnectedControl
+      socket.addEventListener('open', () => handlers.open())
       socket.addEventListener('message', (event) => {
         try {
           const message = LiveMessageSchema.parse(JSON.parse(String(event.data)))
-          if (message.type === 'snapshot') {
-            setMatch(message.data)
-            setLoadedViewKey(keyForView(message.view))
-            if (isTerminalMatch(message.data)) {
-              terminalRef.current = true
-              setConnectionState('settled')
-              socket.close()
+          switch (message.type) {
+            case 'snapshot':
+              handlers.event({ type: 'snapshot', observer: message.view, projection: message.data })
+              return
+            case 'speech-chunk':
+              handlers.event({
+                type: 'transient',
+                value: { playerId: message.playerId, text: message.text },
+              })
+              return
+            case 'speech-playback.state':
+              control = {
+                playback: message.state,
+                error:
+                  message.state.controlledByThisClient || !message.state.enabled
+                    ? null
+                    : control.error,
+              }
+              handlers.event({ type: 'control', state: control })
+              return
+            case 'error':
+              control = {
+                ...control,
+                error: localizeLiveError(message.code, message.message),
+              }
+              handlers.event({ type: 'control', state: control })
+              return
+            case 'event':
+              return
+            default: {
+              const exhaustive: never = message
+              void exhaustive
+              return
             }
-          } else if (message.type === 'speech-chunk') {
-            setMatch((current) =>
-              current
-                ? {
-                    ...current,
-                    activeSpeech: {
-                      playerId: message.playerId,
-                      text:
-                        current.activeSpeech?.playerId === message.playerId
-                          ? `${current.activeSpeech.text}${message.text}`
-                          : message.text,
-                      final: false,
-                    },
-                  }
-                : current,
-            )
-          } else if (message.type === 'speech-playback.state') {
-            setPlaybackState(message.state)
-            if (message.state.controlledByThisClient || !message.state.enabled) {
-              setControlError(null)
-            }
-          } else if (message.type === 'error') {
-            setControlError(localizeLiveError(message.code, message.message))
           }
-        } catch (cause) {
-          setError(cause instanceof Error ? cause.message : String(cause))
+        } catch (error) {
+          handlers.error(error)
         }
       })
       socket.addEventListener('error', () => socket.close())
-      socket.addEventListener('close', () => {
-        if (socketRef.current === socket) socketRef.current = null
-        setPlaybackState(disabledPlayback)
-        requestedViewKeyRef.current = null
-        if (disposed || terminalRef.current) return
-        setConnectionState('reconnecting')
-        void load().then((result) => {
-          if (disposed || terminalRef.current || result === 'missing') return undefined
-          reconnectTimer = window.setTimeout(connect, reconnectDelay)
-          reconnectDelay = Math.min(reconnectDelay * 2, 5_000)
-          return undefined
-        })
-      })
-    }
-    connect()
-    return () => {
-      disposed = true
-      if (reconnectTimer !== null) window.clearTimeout(reconnectTimer)
-      socketRef.current?.close()
-      socketRef.current = null
-    }
-  }, [load, matchId])
+      socket.addEventListener('close', () => handlers.close())
+      return {
+        send: (command) => sendCommand(socket, command),
+        close: () => socket.close(),
+      }
+    },
+  }
+}
 
-  useEffect(() => {
-    const socket = socketRef.current
-    if (!socket || socket.readyState !== WebSocket.OPEN) return
-    if (requestedViewKeyRef.current === viewKey) return
-    requestedViewKeyRef.current = viewKey
-    send({ type: 'view.set', view })
-  }, [send, view, viewKey])
+function closedChannel(): LiveChannel<SpectatorView, SpeechControlCommand> {
+  return { send: () => false, close: () => undefined }
+}
 
+function sendCommand(
+  socket: WebSocket,
+  command: LiveClientCommand<SpectatorView, SpeechControlCommand>,
+): boolean {
+  if (socket.readyState !== WebSocket.OPEN) return false
+  let message: LiveClientMessage
+  if (command.type === 'observer.set') {
+    message = { type: 'view.set', view: command.observer }
+  } else if (command.command.type === 'set') {
+    message = { type: 'speech-playback.set', enabled: command.command.enabled }
+  } else {
+    message = {
+      type: 'speech-playback.resolve',
+      sequence: command.command.sequence,
+      outcome: command.command.outcome,
+    }
+  }
+  socket.send(JSON.stringify(message))
+  return true
+}
+
+function applySpeechChunk(match: MatchView, message: SpeechChunk): MatchView {
   return {
-    match,
-    error,
-    controlError,
-    retry: load,
-    connectionState,
-    playbackState,
-    setSpeechPlaybackEnabled,
-    resolveSpeechPlayback,
-    viewPending: match !== null && loadedViewKey !== viewKey,
+    ...match,
+    activeSpeech: {
+      playerId: message.playerId,
+      text:
+        match.activeSpeech?.playerId === message.playerId
+          ? `${match.activeSpeech.text}${message.text}`
+          : message.text,
+      final: false,
+    },
   }
 }
 
@@ -208,10 +226,24 @@ function keyForView(view: SpectatorView): string {
   return view.kind === 'player' ? `${view.kind}:${view.playerId}` : view.kind
 }
 
+function localizeError(error: Error | null): string | null {
+  if (!error) return null
+  if (error instanceof InvalidMatchError) return getCopy('errors.invalidMatchId')
+  if (error instanceof ApiError && error.status === 404) return getCopy('errors.matchNotFound')
+  return error.message
+}
+
 function localizeLiveError(code: string | undefined, fallback: string): string {
   if (code === 'speech-playback-controller-busy') return getCopy('match.audioControllerBusy')
   if (code === 'speech-playback-invalid-resolution') {
     return getCopy('match.audioInvalidResolution')
   }
   return fallback
+}
+
+class InvalidMatchError extends Error {
+  public constructor() {
+    super('Invalid Match ID')
+    this.name = 'InvalidMatchError'
+  }
 }

@@ -18,8 +18,10 @@ Web 客户端同时满足以下约束：
 - 用户离开 feed 最新位置后，实时更新保留其自由滚动位置并显式提示新活动；
 - developer UI 只在 server 宣告的 loopback developer mode 中出现。
 
-[`apps/web`](../../apps/web/README.md) 只依赖 contracts 与 assets 的浏览器安全入口。Prompt runtime、
-玩家 Skill builder、GameEngine、SQLite 和 ACP 不进入 Web bundle。
+[`apps/web`](../../apps/web/README.md) 在 AgentWolf packages 中只依赖 contracts 与 assets 的浏览器安全
+入口。Prompt runtime、玩家 Skill builder、GameEngine、SQLite 和 ACP 不进入 Web bundle。跨游戏
+live/presentation/local-state controllers、React primitives 与 devtools state 来自固定 Core revision；
+AgentWolf adapters 提供 wire、View、copy、class names 与领域 renderer。
 
 ## 组件与依赖
 
@@ -30,11 +32,13 @@ flowchart TB
     Contracts["contracts schemas"]
     Assets["浏览器安全 assets<br/>文案、Character、effect catalog"]
     API["API adapter<br/>fetch + WebSocket parse"]
+    Core["Core Web runtime<br/>projection、presentation、local state"]
+    CoreReact["Core React/devtools<br/>hooks、primitives、explorer state"]
 
     subgraph App["React 应用"]
         Routes["App routes + RuntimeConfig"]
         Pages["配置 / Lobby / Developer pages"]
-        Live["useLiveMatch<br/>远端投影与连接状态"]
+        Live["useLiveMatch adapter<br/>AgentWolf wire 与错误文案"]
         Match["MatchPage<br/>产品流程组合"]
         Components["Header / PlayerRail / Feed / Postgame"]
         Speech["useSpeechPlayback"]
@@ -48,6 +52,8 @@ flowchart TB
     Assets --> Pages
     Assets --> Components
     Server <--> API
+    API --> Core
+    Core --> CoreReact
     API --> Routes
     API --> Pages
     API --> Live --> Match --> Components
@@ -55,15 +61,16 @@ flowchart TB
     Match --> Motion --> Browser
 ```
 
-| 层                        | 主要职责                                                   | 状态边界                               |
-| ------------------------- | ---------------------------------------------------------- | -------------------------------------- |
-| `src/api.ts`              | 发起 HTTP、规范错误、逐响应 Zod parse                      | 不缓存 Match，不解释业务状态           |
-| App routes/runtime config | 组合导航、lazy Match route、developer capability gate      | 只保存 server 宣告的本次运行能力       |
-| Pages                     | 加载目录、维护表单 draft、调用生命周期 API、组合产品流程   | 表单状态可丢弃，不成为 server 配置真相 |
-| `useLiveMatch`            | HTTP 初始/追平、WebSocket、view 切换、连接状态和 MatchView | 唯一实时远端状态 owner                 |
-| MatchPage                 | 组合当前 projection、动作按钮、review panel 与呈现控制     | 不复制 server reducer                  |
-| Components                | 可复用渲染、可访问交互、局部展开/滚动状态                  | 不发明隐藏字段或 Match 状态            |
-| Hooks/controllers         | speech、GSAP、local preference 和外部生命周期清理          | 副作用受 projection sequence 驱动      |
+| 层                        | 主要职责                                                    | 状态边界                               |
+| ------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| `src/api.ts`              | 发起 HTTP、规范错误、逐响应 Zod parse                       | 不缓存 Match，不解释业务状态           |
+| App routes/runtime config | 组合导航、lazy Match route、developer capability gate       | 只保存 server 宣告的本次运行能力       |
+| Pages                     | 加载目录、维护表单 draft、调用生命周期 API、组合产品流程    | 表单状态可丢弃，不成为 server 配置真相 |
+| Core live controller      | HTTP port、typed channel、view 切换、追平、退避与 MatchView | 唯一实时远端状态 owner                 |
+| `useLiveMatch`            | 解析 AgentWolf wire、注入 View/终局/error adapters          | 不复制连接状态机                       |
+| MatchPage                 | 组合当前 projection、动作按钮、review panel 与呈现控制      | 不复制 server reducer                  |
+| Components                | 可复用渲染、可访问交互、局部展开/滚动状态                   | 不发明隐藏字段或 Match 状态            |
+| Core/产品 controllers     | speech、follow-latest、cue、GSAP 与 local preference        | 通用状态与产品 renderer 分离           |
 
 ## API 与路由边界
 
@@ -84,18 +91,18 @@ server loopback 配置拥有。
 
 Web 客户端不维护一份平行 GameState。主要状态归属如下：
 
-| 状态                                                  | 所有者                    | 更新/失效方式                                                       |
-| ----------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
-| Match status、phase、Seat、timeline、winner、postgame | server `MatchView`        | HTTP 或 WebSocket snapshot 整体替换                                 |
-| 流式 `activeSpeech`                                   | `useLiveMatch`            | speech-chunk 追加，后续 snapshot 规范化为 committed 状态            |
-| `connecting/live/reconnecting/settled/unavailable`    | `useLiveMatch`            | socket、HTTP 追平、404 和完整终局驱动                               |
-| 当前 SpectatorView                                    | MatchPage                 | header 选择；server 返回对应 projection 后生效                      |
-| `viewPending`                                         | `useLiveMatch`            | 请求 view key 与 loaded snapshot view key 不同                      |
-| 自动/手动 speech queue                                | `useSpeechPlayback`       | projection、speech events、browser callbacks 与 server barrier 驱动 |
-| Role effect baseline/queue                            | `RoleEffectController`    | projection key、lastSequence、mode 与 cleanup 驱动                  |
-| presence/motion                                       | 纯派生 + GSAP controllers | MatchView、连接和 speech 状态变化时重算                             |
-| feed 展开、following-latest、scrollTop                | `MatchFeed`               | 用户输入和新增 timeline/stream 驱动                                 |
-| 表单 draft、modal、busy/error                         | 各 page/component         | 提交、取消、路由卸载时失效                                          |
+| 状态                                                  | 所有者                       | 更新/失效方式                                                  |
+| ----------------------------------------------------- | ---------------------------- | -------------------------------------------------------------- |
+| Match status、phase、Seat、timeline、winner、postgame | server `MatchView`           | HTTP 或 WebSocket snapshot 整体替换                            |
+| 流式 `activeSpeech`                                   | `useLiveMatch`               | speech-chunk 追加，后续 snapshot 规范化为 committed 状态       |
+| `connecting/live/reconnecting/settled/unavailable`    | Core live controller         | typed channel、HTTP port、404 和完整终局驱动                   |
+| 当前 SpectatorView                                    | MatchPage                    | header 选择；server 返回对应 projection 后生效                 |
+| `viewPending`                                         | `useLiveMatch`               | 请求 view key 与 loaded snapshot view key 不同                 |
+| 自动/手动 speech queue                                | Core presentation controller | projection、speech events、browser port 与 server barrier 驱动 |
+| Role effect baseline/queue                            | `RoleEffectController`       | projection key、lastSequence、mode 与 cleanup 驱动             |
+| presence/motion                                       | 纯派生 + GSAP controllers    | MatchView、连接和 speech 状态变化时重算                        |
+| feed 展开、following-latest、scrollTop                | `MatchFeed`                  | 用户输入和新增 timeline/stream 驱动                            |
+| 表单 draft、modal、busy/error                         | 各 page/component            | 提交、取消、路由卸载时失效                                     |
 
 这一划分使断线时可以保留最后 MatchView，同时独立清理 WebSocket、speech 和 motion 资源；重连完成
 后只需用新 snapshot 替换远端投影。
@@ -128,8 +135,9 @@ sequenceDiagram
     end
 ```
 
-`useLiveMatch` 解析 URL Match ID，并发启动 HTTP 初始加载和带 view query 的 WebSocket；任一路径先到
-都用完整 snapshot 替换 MatchView。speech-chunk 只对 `activeSpeech` 做临时追加，最终
+`useLiveMatch` adapter 解析 URL Match ID，并把 HTTP loader、WebSocket channel、view key、transient
+reducer 与终局判断注入 Core live controller。controller 并发启动初始加载和 channel；channel 已产生
+新 snapshot 时，迟到的旧 load 不会覆盖它。speech-chunk 只对 `activeSpeech` 做临时追加，最终
 `speech.committed` snapshot 重新建立规范 timeline。playback state 与 MatchView 分离，因为它属于
 连接 owner 而非领域投影。
 
@@ -168,6 +176,7 @@ ended 等呈现状态。它只影响文案和 motion，不能触发 GameEngine t
 MatchFeed 按对局周期把 timeline 组织为 setup、day/night 和 postgame groups，并只把展开集合保存在
 本地。公开 speech、vote 和 system event 使用不同组件，但都由 server 已生成的 TimelineItem 驱动。
 
+MatchFeed 与 trajectory ledger 共享 Core follow-latest controller，并分别连接普通 DOM 与 virtualizer。
 滚动策略显式区分“跟随最新”和“用户阅读历史”：
 
 - 初始位于底部或距离底部小于阈值时，新增 sequence、stream text 或 postgame result 通过下一帧
@@ -182,8 +191,9 @@ MatchFeed 按对局周期把 timeline 组织为 setup、day/night 和 postgame g
 
 ## Speech playback
 
-`useSpeechPlayback` 是浏览器 SpeechSynthesis 的唯一 owner。它接收 server playback state、timeline、
-activeSpeech、projection key 和 viewPending，并维护：
+`useSpeechPlayback` 将 AgentWolf TimelineItem、中文断句和 copy 映射到 Core presentation controller；
+显式 browser speech port 是 SpeechSynthesis 的唯一 owner。controller 接收 server playback state、
+timeline、activeSpeech、projection key 和 viewPending，并维护：
 
 - committed speech queue；
 - 当前 stream job、已消费字符和完整句 units；
@@ -207,7 +217,8 @@ utterance。
 - `RoleEffectController` 消费 server 投影的 semantic `RoleEffectCue`，再从 assets catalog 读取 icon、
   duration、tier 和样式。
 
-Role effect queue 只接受大于当前 baseline 的 cues，按 sequence 排序并用 cue ID 去重。首次加载和
+Role effect renderer 使用 Core sequenced cue queue，只接受大于当前 baseline 的 cues，按 sequence
+排序并用 cue ID 去重。首次加载和
 projection key 变化把 baseline 设为当前 `lastSequence`，避免播放历史事件。mode 为 full、reduced 或
 off；系统 reduced-motion 关闭连续/强 motion，off 同时推进 baseline，后续开启不会补播。
 
@@ -216,12 +227,13 @@ GSAP timeline 在依赖变化时 revert，并清理 player dataset、tweens、vi
 
 ## Developer UI
 
-developer 页面组合 trajectory summary、owner/Turn 分页、record inspector、player Session/delivery debug、
-audit issues 和 simulation wizard。实时 trajectory 使用 revision delta 追平，页面只为当前可见 Turn
-加载 Records。
+developer 页面以 lazy chunk 组合 Core trajectory explorer state、AgentWolf record renderer、player
+Session/delivery debug 与领域 audit。Core state 负责 summary/page、owner、revision delta、分页、query
+和 selection；页面只为当前可见 Turn 加载 Records。
 
-simulation wizard 通过 Match ID 请求 server 创建/读取候选、执行 review 并按 warning/current-behavior
-选择调用 approve。客户端不上传 fixture 内容、不接受文件路径，也不在浏览器执行 runner。
+simulation wizard 同样位于 developer-only lazy chunk，通过 Core review state 执行 review、warning、
+accept-current 与 approve。AgentWolf adapter 只传 Match ID 和当前 REST DTO；客户端不上传 fixture
+内容、不接受文件路径，也不在浏览器执行 runner。
 
 ## 故障与降级
 
@@ -255,4 +267,6 @@ simulation wizard 通过 Match ID 请求 server 创建/读取候选、执行 rev
 - [仿真](simulation.md)：simulation wizard 的 candidate、review 与 approve 契约。
 - [前端方向](../frontend.md)：视觉语言、响应式布局和动效品味。
 - [Web package](../../apps/web/README.md)：页面、组件、hook 和验证归属。
+- [Core Web runtime](../../vendor/agent-arena-core/packages/web-runtime/README.md)：连接、presentation 与
+  本地交互状态机。
 - [测试与验收](../testing.md)：jsdom 与 Playwright 的行为边界。

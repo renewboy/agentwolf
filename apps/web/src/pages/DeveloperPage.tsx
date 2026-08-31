@@ -1,10 +1,15 @@
 import { ArrowLeft, ArrowsLeftRight } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useTrajectoryExplorer, type TrajectoryDataSource } from '@agent-arena/devtools-react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
   MatchIdSchema,
+  PlayerIdSchema,
+  TrajectoryOwnerIdSchema,
   TrajectoryDeltaSchema,
+  type TrajectoryRecord,
+  type TrajectoryTurn,
   type MatchView,
   type TrajectoryAuditIssue,
   type TrajectoryOwnerId,
@@ -31,97 +36,63 @@ export function DeveloperPage() {
   const matchId = parsedMatchId.success ? parsedMatchId.data : null
   const { developerMode } = useRuntimeConfig()
   const [match, setMatch] = useState<MatchView | null>(null)
-  const [summary, setSummary] = useState<TrajectorySummary | null>(null)
   const [audit, setAudit] = useState<TrajectoryAuditReport | null>(null)
-  const [ownerId, setOwnerId] = useState<TrajectoryOwnerId>('system')
-  const [page, setPage] = useState<TrajectoryPage | null>(null)
-  const [pageLoading, setPageLoading] = useState(false)
-  const [pageBeforeTurn, setPageBeforeTurn] = useState<number | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [inspectorTab, setInspectorTab] = useState<TrajectoryInspectorTab>('player')
   const [playerDebug, setPlayerDebug] = useState<TrajectoryPlayerDebug | null>(null)
   const [playerDebugLoading, setPlayerDebugLoading] = useState(false)
-  const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const revision = useRef(0)
+  const trajectoryDataSource = useMemo(() => createTrajectoryDataSource(), [])
+  const explorer = useTrajectoryExplorer({
+    resourceId: matchId,
+    dataSource: trajectoryDataSource,
+    initialOwner: firstTrajectoryOwner,
+  })
+  const { summary, page, ownerId, loading: pageLoading, query, selectedId } = explorer
+  const selectTrajectory = explorer.select
   const pendingAuditFocus = useRef<{
     readonly issue: TrajectoryAuditIssue
     readonly turn: TrajectorySummary['turns'][number]
   } | null>(null)
-  const summaryLoaded = summary !== null
   const owners = useMemo(() => orderedOwners(summary?.owners ?? []), [summary])
+  const visibleError = !matchId
+    ? getCopy('trajectory.unavailable')
+    : (explorer.error?.message ?? error)
 
-  const loadTrajectory = useCallback(async () => {
+  const loadContext = useCallback(async () => {
     if (!matchId) {
       setError(getCopy('trajectory.unavailable'))
       return
     }
     setError(null)
     setMatch(null)
-    setSummary(null)
     setAudit(null)
-    setPage(null)
-    setPageLoading(true)
-    setPageBeforeTurn(null)
-    setSelectedId(null)
     setInspectorTab('player')
     setPlayerDebug(null)
     try {
-      const [nextMatch, nextSummary, nextAudit] = await Promise.all([
+      const [nextMatch, nextAudit] = await Promise.all([
         api.getMatch(matchId, { kind: 'god' }),
-        api.trajectorySummary(matchId),
         api.trajectoryAudit(matchId),
       ])
-      revision.current = nextSummary.revision
       setMatch(nextMatch)
-      setSummary(nextSummary)
       setAudit(nextAudit)
-      const firstPlayer = nextSummary.owners.find(
-        (owner) => owner.ownerId !== 'system' && owner.turnCount > 0,
-      )
-      const firstActive = firstPlayer ?? nextSummary.owners.find((owner) => owner.turnCount > 0)
-      setOwnerId(firstActive?.ownerId ?? nextSummary.owners[0]?.ownerId ?? 'system')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
-    } finally {
-      setPageLoading(false)
     }
   }, [matchId])
 
-  useEffect(() => void loadTrajectory(), [loadTrajectory])
+  useEffect(() => void loadContext(), [loadContext])
 
   useEffect(() => {
-    if (!matchId || !summaryLoaded) return undefined
-    let active = true
-    setPageLoading(true)
-    setSelectedId(null)
-    const load = async (): Promise<void> => {
-      try {
-        const next = await api.trajectoryPage(matchId, ownerId, pageBeforeTurn)
-        if (!active) return
-        revision.current = Math.max(revision.current, next.revision)
-        setPage(next)
-        const focus = pendingAuditFocus.current
-        if (focus?.turn.ownerId === ownerId) {
-          const targetId = auditTargetRecordId(focus.issue, next) ?? focus.turn.turnId
-          pendingAuditFocus.current = null
-          setSelectedId(targetId)
-          setInspectorTab('record')
-        }
-      } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : String(cause))
-      } finally {
-        if (active) setPageLoading(false)
-      }
-    }
-    void load()
-    return () => {
-      active = false
-    }
-  }, [matchId, ownerId, pageBeforeTurn, summaryLoaded])
+    const focus = pendingAuditFocus.current
+    if (!focus || !page || focus.turn.ownerId !== page.ownerId) return
+    const targetId = auditTargetRecordId(focus.issue, page) ?? focus.turn.turnId
+    pendingAuditFocus.current = null
+    selectTrajectory(targetId)
+    setInspectorTab('record')
+  }, [page, selectTrajectory])
 
   useEffect(() => {
-    if (!matchId || ownerId === 'system') {
+    if (!matchId || !ownerId || ownerId === 'system') {
       setPlayerDebug(null)
       setPlayerDebugLoading(false)
       return undefined
@@ -130,7 +101,7 @@ export function DeveloperPage() {
     setPlayerDebug(null)
     setPlayerDebugLoading(true)
     void api
-      .trajectoryPlayerDebug(matchId, ownerId)
+      .trajectoryPlayerDebug(matchId, PlayerIdSchema.parse(ownerId))
       .then((debug) => {
         if (active) setPlayerDebug(debug)
         return undefined
@@ -147,77 +118,14 @@ export function DeveloperPage() {
     }
   }, [matchId, ownerId])
 
-  useEffect(() => {
-    if (!matchId || !summaryLoaded) return undefined
-    let closed = false
-    let socket: WebSocket | null = null
-    let reconnect: number | null = null
-    const connect = (): void => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      socket = new WebSocket(
-        `${protocol}//${window.location.host}/api/developer/matches/${matchId}/trajectory/live?afterRevision=${revision.current}`,
-      )
-      socket.addEventListener('message', (event) => {
-        const delta = TrajectoryDeltaSchema.parse(JSON.parse(String(event.data)))
-        revision.current = Math.max(revision.current, delta.revision)
-        setSummary((current) =>
-          current
-            ? {
-                ...current,
-                revision: delta.revision,
-                turns: mergeBy(current.turns, delta.turns, (turn) => turn.turnId),
-              }
-            : current,
-        )
-        setPage((current) => {
-          if (!current) return current
-          const turns = delta.turns.filter((turn) => turn.ownerId === current.ownerId)
-          const records = delta.records.filter((record) => record.ownerId === current.ownerId)
-          return {
-            ...current,
-            revision: delta.revision,
-            turns: mergeBy(current.turns, turns, (turn) => turn.turnId),
-            records: mergeBy(current.records, records, (record) => record.recordId),
-          }
-        })
-      })
-      socket.addEventListener('close', () => {
-        if (!closed) reconnect = window.setTimeout(connect, 700)
-      })
-    }
-    connect()
-    return () => {
-      closed = true
-      if (reconnect !== null) window.clearTimeout(reconnect)
-      socket?.close()
-    }
-  }, [matchId, summaryLoaded])
-
-  const loadOlder = async (): Promise<void> => {
-    if (!matchId || !page?.nextBeforeTurn) return
-    try {
-      const older = await api.trajectoryPage(matchId, ownerId, page.nextBeforeTurn)
-      setPage({
-        ...page,
-        turns: mergeBy(older.turns, page.turns, (turn) => turn.turnId),
-        records: mergeBy(older.records, page.records, (record) => record.recordId),
-        nextBeforeTurn: older.nextBeforeTurn,
-      })
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-    }
-  }
-
   const selectOwner = (nextOwnerId: TrajectoryOwnerId): void => {
     pendingAuditFocus.current = null
-    setPageBeforeTurn(null)
-    setOwnerId(nextOwnerId)
-    setSelectedId(null)
+    explorer.selectOwner(nextOwnerId)
     setInspectorTab(nextOwnerId === 'system' ? 'record' : 'player')
   }
 
   const selectRecord = (recordId: string): void => {
-    setSelectedId(recordId)
+    explorer.select(recordId)
     setInspectorTab('record')
   }
 
@@ -225,13 +133,11 @@ export function DeveloperPage() {
     const turn = summary?.turns.find((candidate) => candidate.turnId === issue.turnId)
     if (!turn) return
     pendingAuditFocus.current = { issue, turn }
-    setSelectedId(null)
     setInspectorTab('record')
-    setPageBeforeTurn(turn.ordinal + 1)
-    setOwnerId(turn.ownerId)
+    explorer.focus(turn.ownerId, turn.ordinal + 1, turn.turnId)
   }
 
-  if (!matchId || (error && !match && !summary)) {
+  if (!matchId || (visibleError && !match)) {
     return (
       <main className="aw-page">
         <div className="aw-developer-navigation aw-developer-navigation--standalone">
@@ -255,8 +161,11 @@ export function DeveloperPage() {
           ) : null}
         </div>
         <ErrorState
-          message={error ?? getCopy('trajectory.unavailable')}
-          retry={() => void loadTrajectory()}
+          message={visibleError ?? getCopy('trajectory.unavailable')}
+          retry={() => {
+            explorer.reload()
+            void loadContext()
+          }}
         />
       </main>
     )
@@ -362,8 +271,8 @@ export function DeveloperPage() {
           page={page}
           query={query}
           selectedId={selectedId}
-          onLoadOlder={() => void loadOlder()}
-          onQuery={setQuery}
+          onLoadOlder={() => void explorer.loadOlder()}
+          onQuery={explorer.setQuery}
           onSelect={selectRecord}
         />
         <TrajectoryInspectorTabs
@@ -382,9 +291,69 @@ export function DeveloperPage() {
         turns={summary.turns}
         onLocate={focusAuditIssue}
       />
-      {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+      {visibleError ? (
+        <p className="aw-form-message aw-form-message--error">{visibleError}</p>
+      ) : null}
     </main>
   )
+}
+
+function createTrajectoryDataSource(): TrajectoryDataSource<
+  TrajectoryTurn,
+  TrajectoryRecord,
+  TrajectorySummary['owners'][number],
+  TrajectorySummary,
+  TrajectoryPage
+> {
+  return {
+    loadSummary: async (resourceId) => api.trajectorySummary(MatchIdSchema.parse(resourceId)),
+    loadPage: async (resourceId, ownerId, beforeTurn) =>
+      api.trajectoryPage(
+        MatchIdSchema.parse(resourceId),
+        TrajectoryOwnerIdSchema.parse(ownerId),
+        beforeTurn,
+      ),
+    subscribe: (resourceId, afterRevision, onDelta, onError) => {
+      let closed = false
+      let socket: WebSocket | null = null
+      let reconnect: number | null = null
+      let revision = afterRevision
+      const connect = (): void => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        socket = new WebSocket(
+          `${protocol}//${window.location.host}/api/developer/matches/${resourceId}/trajectory/live?afterRevision=${revision}`,
+        )
+        socket.addEventListener('message', (event) => {
+          try {
+            const delta = TrajectoryDeltaSchema.parse(JSON.parse(String(event.data)))
+            revision = Math.max(revision, delta.revision)
+            onDelta(delta)
+          } catch (cause) {
+            onError(cause)
+            socket?.close()
+          }
+        })
+        socket.addEventListener('error', () => socket?.close())
+        socket.addEventListener('close', () => {
+          if (!closed) reconnect = window.setTimeout(connect, 700)
+        })
+      }
+      connect()
+      return () => {
+        closed = true
+        if (reconnect !== null) window.clearTimeout(reconnect)
+        socket?.close()
+      }
+    },
+  }
+}
+
+function firstTrajectoryOwner(summary: TrajectorySummary): string | null {
+  const firstPlayer = summary.owners.find(
+    (owner) => owner.ownerId !== 'system' && owner.turnCount > 0,
+  )
+  const firstActive = firstPlayer ?? summary.owners.find((owner) => owner.turnCount > 0)
+  return firstActive?.ownerId ?? summary.owners[0]?.ownerId ?? 'system'
 }
 
 function ownerSeat(ownerId: TrajectoryOwnerId): number | null {
@@ -401,16 +370,6 @@ function orderedOwners(owners: TrajectorySummary['owners']): TrajectorySummary['
     if (rightSeat === null) return -1
     return leftSeat - rightSeat
   })
-}
-
-function mergeBy<Value>(
-  current: readonly Value[],
-  incoming: readonly Value[],
-  key: (value: Value) => string,
-): Value[] {
-  const values = new Map(current.map((value) => [key(value), value]))
-  for (const value of incoming) values.set(key(value), value)
-  return [...values.values()]
 }
 
 function auditTargetRecordId(issue: TrajectoryAuditIssue, page: TrajectoryPage): string | null {

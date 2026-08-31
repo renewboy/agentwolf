@@ -1,6 +1,8 @@
 import { CaretDown, CaretRight, MagnifyingGlass } from '@phosphor-icons/react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useFollowLatest } from '@agent-arena/react'
+import { FollowLatestController } from '@agent-arena/web-runtime'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
   TrajectoryOwnerId,
@@ -88,8 +90,8 @@ export function TrajectoryLedger({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualRef = useRef<HTMLDivElement>(null)
-  const followTail = useRef(followLatest)
-  const detachedByUser = useRef(false)
+  const followController = useMemo(() => new FollowLatestController(), [])
+  useFollowLatest(followController)
   const centeredSelection = useRef<string | null>(null)
   const previousOwner = useRef<TrajectoryOwnerId | null>(null)
   const scrollByOwner = useRef(new Map<TrajectoryOwnerId, number>())
@@ -129,15 +131,18 @@ export function TrajectoryLedger({
       const savedPosition = scrollByOwner.current.get(page.ownerId)
       if (savedPosition !== undefined && scrollRef.current) {
         scrollRef.current.scrollTop = savedPosition
+        followController.detach()
       } else {
+        if (followLatest) followController.returnToLatest()
+        else followController.detach()
         virtualizer.scrollToIndex(followLatest ? rows.length - 1 : 0, {
           align: followLatest ? 'end' : 'start',
         })
       }
-    } else if (rows.length > 0 && followLatest && followTail.current) {
+    } else if (rows.length > 0 && followLatest && followController.contentChanged()) {
       virtualizer.scrollToIndex(rows.length - 1, { align: 'end' })
     }
-  }, [followLatest, page.ownerId, rows.length, virtualizer])
+  }, [followController, followLatest, page.ownerId, rows.length, virtualizer])
   useLayoutEffect(() => {
     if (!selectedId) {
       centeredSelection.current = null
@@ -150,8 +155,7 @@ export function TrajectoryLedger({
     virtualizer.scrollToIndex(index, { align: 'center' })
   }, [rows, selectedId, virtualizer])
   const stopFollowingTail = (): void => {
-    detachedByUser.current = true
-    followTail.current = false
+    followController.detach()
   }
   return (
     <section className="aw-trajectory-ledger" aria-busy={loading} data-loading={loading}>
@@ -194,13 +198,7 @@ export function TrajectoryLedger({
           const target = event.currentTarget
           scrollByOwner.current.set(page.ownerId, target.scrollTop)
           const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight
-          if (detachedByUser.current) {
-            const returnedToBottom = distanceFromBottom <= 1
-            detachedByUser.current = !returnedToBottom
-            followTail.current = returnedToBottom
-          } else {
-            followTail.current = distanceFromBottom < 80
-          }
+          followController.observeDistance(distanceFromBottom, 80)
         }}
         onWheel={(event) => {
           if (event.deltaY < 0) stopFollowingTail()

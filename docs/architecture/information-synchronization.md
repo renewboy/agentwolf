@@ -157,7 +157,8 @@ barrier 对外只在全部动作按稳定顺序提交后发布结果。
 
 普通并行 action 由 Core MatchOrchestrator/ActionGateway 收集并按冻结 actor 顺序 seal。AgentWolf
 participant driver 仍通过 PlayerRuntime、ActionMailbox 和持久 pending action 完成真实 ACP 回合。
-speech stream、rolling listener 与播放门控属于产品执行边界，不进入通用 barrier。
+speech stream 与 rolling listener 属于产品执行边界；播放门控通过 Core presentation barrier 执行单一
+owner、精确 sequence 和断线释放，AgentWolf adapter 提供 speech visibility 与轨迹 control 记录。
 
 投票使用同一 barrier。进入 vote phase 前，前置 sequential speech phase 已经提交所有必需发言，
 并且最后一个发言的外部播放边界已经释放，因此每位投票者的冻结 Prompt 包含相同的完整公开发言集。
@@ -238,13 +239,15 @@ gateway 持久接受的动作优先于 supersede。取消期间完成多段发�
 并通过 delivery cursor 接收所有尚未确认的可见事件。listener 失败只使该 Seat 暂时失去后台判断；
 轮到该 Seat 执行权威 phase action 时再恢复同一 Session。
 
-只有一个 WebSocket subscriber 可以拥有自动播放控制。若没有 owner、speech 对 owner 不可见或浏览器
-未启用播放，`waitFor` 立即返回 `not-required`。控制者断开、切换到不可见 view、关闭播放、合成失败
-或显式 skip 都以 skipped 释放当前边界，Match 不会因浏览器能力永久阻塞。
+Core presentation barrier 保证只有一个 WebSocket subscriber 可以拥有自动播放控制。若没有 owner、
+speech 对 owner 不可见或浏览器未启用播放，`waitFor` 立即返回 `not-required`。控制者断开、切换到
+不可见 view、关闭播放、合成失败或显式 skip 都以 skipped 释放当前边界，Match 不会因浏览器能力
+永久阻塞。
 
-Web `useSpeechPlayback` 把流式文本切为完整句子，边生成边播放；`speech.committed` 到达时只补播尚未
-消费的尾部，并把最终 sequence 绑定到整个 stream job。每个 barrier sequence 只回执一次。手动播放
-只读取已提交 timeline，不拥有 server barrier，也不影响 phase。
+Web adapter 将 TimelineItem、中文断句和 copy 注入 Core presentation playback controller。controller
+把流式文本切为完整句子，边生成边播放；`speech.committed` 到达时只补播尚未消费的尾部，并把最终
+sequence 绑定到整个 stream job。每个 barrier sequence 只回执一次。手动播放只读取已提交 timeline，
+不拥有 server barrier，也不影响 phase。
 
 ## WebSocket、视图切换与重连
 
@@ -264,15 +267,15 @@ stateDiagram-v2
     Settled --> [*]
 ```
 
-`useLiveMatch` 在瞬时断线期间保留最后有效 MatchView，通过 HTTP `getMatch` 追平，再以 250ms 起步、
-最大 5s 的有界退避建立 WebSocket。404 表示 Match 不存在，进入 unavailable 且停止重试。Match ended
-但 postgame 仍处于 countdown/collecting/speaking/paused 时保持 live；postgame completed/skipped 或无
-postgame 时进入 settled。
+Core live projection controller 在瞬时断线期间保留最后有效 MatchView，通过 AgentWolf HTTP port
+追平，再以 250ms 起步、最大 5s 的有界退避建立 typed WebSocket channel。404 表示 Match 不存在，
+进入 unavailable 且停止重试。Match ended 但 postgame 仍处于 countdown/collecting/speaking/paused
+时保持 live；postgame completed/skipped 或无 postgame 时进入 settled。
 
-视图切换期间 `loadedViewKey` 与请求 view 不同，页面标记 `viewPending`，旧 stage 设为 inert/隐藏，
-直到新 snapshot 到达。RoleEffectController 同时把 baseline 重置到新投影 `lastSequence`，不会重播
-旧 view 曾可见或新 view 追平的历史 cues。Speech hook 中断当前自动播放，并只在新投影仍含 pending
-sequence 时恢复。
+视图切换期间 Core controller 比较已加载 observer key 与请求 view，页面通过 `viewPending` 把旧 stage
+设为 inert/隐藏，直到新 snapshot 到达。Core sequenced cue queue 同时把 baseline 重置到新投影
+`lastSequence`，不会重播旧 view 曾可见或新 view 追平的历史 cues。Presentation controller 中断当前
+自动播放，并只在新投影仍含 pending sequence 时恢复。
 
 ## 终局与赛后同步
 
@@ -300,7 +303,8 @@ reflection 作为带独立稳定 sequence 的 postgame timeline item 合并到 M
 - ACP delivery 不确定只恢复受影响 Session，并在 pending action/ledger 边界对账；精确语义见
   [ACP Session 运行时](acp-session-runtime.md)。
 - snapshot schema 或 projector 失败会阻止该消息发送，而不会把未校验对象降级给浏览器。
-- 无效 WebSocket client message 返回稳定 live error；播放 owner 冲突和错误 sequence 不影响 Match。
+- 无效 WebSocket client message 返回稳定 live error；Core controller 保留最后验证投影并重新连接；
+  播放 owner 冲突和错误 sequence 不影响 Match。
 - trajectory 记录 delivery range、visible event sequences、Session updates 和 playback controls；
   audit 可以在每个 `toSequence` 重建状态并验证可见性与 action boundary。
 

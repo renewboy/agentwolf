@@ -11,7 +11,9 @@ import {
   Smiley,
   Sparkle,
 } from '@phosphor-icons/react'
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useMemo, type ReactNode, type RefObject } from 'react'
+import { useSequencedCues } from '@agent-arena/react'
+import { SequencedCueQueue } from '@agent-arena/web-runtime'
 import { getCopy, getRoleEffectDefinition, roleEffectCatalog } from '@agentwolf/assets'
 import type { RoleEffectCue, RoleEffectMode } from '@agentwolf/contracts'
 import { gsap, useGSAP } from '../../motion/gsap.js'
@@ -29,45 +31,19 @@ export function RoleEffectController({
   readonly projectionKey: string
   readonly mode: RoleEffectMode
 }) {
-  const baseline = useRef<number | null>(null)
-  const previousProjection = useRef<string | null>(null)
-  const pending = useRef<RoleEffectCue[]>([])
-  const [current, setCurrent] = useState<RoleEffectCue | null>(null)
-
-  useEffect(() => {
-    if (previousProjection.current === projectionKey) return
-    previousProjection.current = projectionKey
-    baseline.current = lastSequence
-    pending.current = []
-    setCurrent(null)
-  }, [lastSequence, projectionKey])
-
-  useEffect(() => {
-    if (baseline.current === null) {
-      baseline.current = lastSequence
-      return
-    }
-    if (mode === 'off') {
-      baseline.current = Math.max(baseline.current, lastSequence)
-      pending.current = []
-      setCurrent(null)
-      return
-    }
-    const next = cues
-      .filter((cue) => cue.sequence > (baseline.current ?? 0))
-      .sort((left, right) => left.sequence - right.sequence)
-    baseline.current = Math.max(baseline.current, lastSequence)
-    if (next.length === 0) return
-    const existing = new Set(pending.current.map((cue) => cue.cueId))
-    pending.current.push(
-      ...next.filter((cue) => {
-        if (existing.has(cue.cueId)) return false
-        existing.add(cue.cueId)
-        return true
+  const queue = useMemo(
+    () =>
+      new SequencedCueQueue<RoleEffectCue, string>({
+        key: (cue) => cue.cueId,
+        sequence: (cue) => cue.sequence,
       }),
-    )
-    setCurrent((active) => active ?? pending.current.shift() ?? null)
-  }, [cues, lastSequence, mode])
+    [],
+  )
+  const update = useMemo(
+    () => ({ cues, lastSequence, projectionKey, enabled: mode !== 'off' }),
+    [cues, lastSequence, mode, projectionKey],
+  )
+  const { current } = useSequencedCues(queue, update)
 
   useGSAP(
     () => {
@@ -83,7 +59,7 @@ export function RoleEffectController({
       ])
       for (const card of playerCards) card.dataset['roleEffect'] = current.effectId
       const timeline = gsap.timeline({
-        onComplete: () => setCurrent(pending.current.shift() ?? null),
+        onComplete: () => queue.completeCurrent(),
       })
       if (overlay) {
         timeline.fromTo(
@@ -148,7 +124,7 @@ export function RoleEffectController({
         for (const card of playerCards) delete card.dataset['roleEffect']
       }
     },
-    { scope, dependencies: [current?.cueId, mode], revertOnUpdate: true },
+    { scope, dependencies: [current?.cueId, mode, queue], revertOnUpdate: true },
   )
 
   if (!current || mode === 'off') return null

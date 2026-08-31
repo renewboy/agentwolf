@@ -19,9 +19,9 @@ Status: implemented
 AgentWolf 只通过 Core 的公开 package 边界消费平台能力。
 
 Core 拥有通用 contracts、Ruleset 组合、确定性 game runtime、Match 编排、ACP runtime、Prompt
-bundle runtime、参考 SQLite stores、trajectory、simulation、repository harness 与 runtime testkit。
-AgentWolf 拥有狼人杀 action/event/state、Role、Faction、board、projection、Prompt 内容、SQLite
-产品 schema、Match 舞台、Role 动效与赛后复盘。
+bundle runtime、参考 SQLite stores、trajectory、simulation、Web runtime、React/devtools adapters、
+repository harness 与 runtime testkit。AgentWolf 拥有狼人杀 action/event/state、Role、Faction、board、
+projection、Prompt 内容、产品 wire、SQLite schema、Match 舞台、Role 动效 renderer、主题与赛后复盘。
 
 Ruleset 以泛型 `RulePlugin<Registrar>` 为扩展入口。Core 校验依赖、配置、安装作用域、semantic
 ownership、revision、lock、fingerprint、phase graph 与有界 resolution agenda；游戏模块提供自己的
@@ -42,9 +42,9 @@ Match、Session binding、delivery、trajectory 与 simulation 通过 ports 持�
 数据库边界。确定性游戏事件和 Session、delivery、trajectory 运行记录使用独立数据流。
 
 Core 的 `hidden-team` 与 `reaction-card` conformance games 共同约束公开 API。前者覆盖团队私有事实、
-文字 stream、轮换 actor 与 barrier；后者覆盖确定性牌堆、连续行动、pass、嵌套响应与响应窗口恢复。
-两者都通过同一 simulation workflow 验证 candidate、review、approve、双 runner、重复执行、失败注入
-与 restart。
+文字 stream、轮换 actor、barrier 与 observer projection；后者覆盖确定性牌堆、连续行动、pass、嵌套
+响应、响应窗口恢复与 sequenced cue reset。两者都通过同一 simulation workflow 验证 candidate、review、
+approve、双 runner、重复执行、失败注入与 restart。
 
 ## Alternatives considered
 
@@ -62,10 +62,11 @@ Core 的 `hidden-team` 与 `reaction-card` conformance games 共同约束公开 
 
 ## Consequences
 
-- 新游戏通过实现 `GameModule`、Ruleset Registrar、projection、Prompt facts 与 simulation adapter
-  接入，无需修改 Core 的 Match、ACP、trajectory、simulation 或 repository harness。
-- AgentWolf 的通用回合、Session store、Prompt loader、trajectory、simulation 与仓库门禁由 Core
-  运行，狼人杀语义继续由 AgentWolf packages 和 server adapters 持有。
+- 新游戏通过实现 `GameModule`、Ruleset Registrar、projection、Prompt facts、Web adapters 与 simulation
+  adapter 接入，无需修改 Core 的 Match、ACP、trajectory、simulation、Web runtime 或 repository harness。
+- AgentWolf 的通用回合、Session store、Prompt loader、trajectory、simulation、live/presentation 状态机、
+  React primitives 与仓库门禁由 Core 运行，狼人杀语义和 renderer 继续由 AgentWolf packages、server
+  与 Web adapters 持有。
 - Core API 必须同时通过两个 conformance games 与 AgentWolf 消费者验证；只服务单一游戏的抽象不能
   进入平台公共契约。
 - submodule pointer 是 AgentWolf 构建输入。CI、安装与审查必须初始化并核对固定 Core revision。

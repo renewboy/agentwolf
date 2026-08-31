@@ -72,7 +72,7 @@ SQLite 保存恢复所需的权威记录；WebSocket、当前进程中的 GameSt
 
 ```mermaid
 flowchart TB
-    Core["Agent Arena Core<br/>Ruleset、Game/Match/Prompt/ACP runtime、storage、trajectory、simulation、harness"]
+    Core["Agent Arena Core<br/>规则、Agent、Match、Web 与验证 runtime"]
     Contracts["contracts<br/>branded IDs、Zod schemas、wire DTO"]
     Engine["game-engine<br/>Ruleset、事件归约、replay"]
     Assets["assets<br/>Prompt bundles、文案、效果"]
@@ -93,17 +93,18 @@ flowchart TB
     Server --> ACP
     Web --> Contracts
     Web --> Assets
+    Web --> Core
 ```
 
 | 组件                                                                | 主要职责                                                                                     | 稳定边界                                                |
 | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供规则、ACP、Prompt、Match 编排、存储、trajectory、simulation 与验证基础机制               | 本仓通过游戏/应用 adapters 消费固定 revision            |
+| [Agent Arena Core](../vendor/agent-arena-core/docs/architecture.md) | 提供规则、ACP、Prompt、Match、存储、trajectory、simulation、Web 与验证基础机制               | 本仓通过游戏/应用 adapters 消费固定 revision            |
 | [`contracts`](../packages/contracts/README.md)                      | 定义跨 JSON、数据库、进程和浏览器边界的 IDs、动作、事件、配置、视图与诊断 schemas            | 不求值规则、不执行 IO、不拥有 UI 或编排                 |
 | [`game-engine`](../packages/game-engine/README.md)                  | 组合狼人杀 registries,校验动作,推进 phase 图,结算 effects,发出事件并重建状态                 | 依赖 AgentWolf contracts 与固定 Core revision;保持无 IO |
 | [`assets`](../packages/assets/README.md)                            | 持有 plugin-owned Prompt、玩家 Skills、本地化文案、Character 与 Role 效果定义                | server-only Prompt/Skill 入口与浏览器安全导出分离       |
 | [`acp`](../packages/acp/README.md)                                  | 绑定 Agent Tool catalog、Provider launch policy、玩家隔离配置与 Core ACP runtime             | Match phase、仓库与恢复决策由 server 持有               |
 | [`server`](../apps/server/README.md)                                | 组合所有下层模块，拥有 Match 生命周期、SQLite、Agent 回合、MCP gateway、可见性投影和实时连接 | 是唯一应用组合根和隐藏信息序列化边界                    |
-| [`web`](../apps/web/README.md)                                      | 校验 REST/WebSocket DTO，组合页面，持有浏览器副作用与本地呈现状态                            | 不执行规则、持久化、Prompt 渲染或授权过滤               |
+| [`web`](../apps/web/README.md)                                      | 将产品 wire 接入 Core Web/React controllers，组合页面、主题与游戏 renderer                   | 不执行规则、持久化、Prompt 渲染或授权过滤               |
 
 `server` 内部继续按稳定职责拆分：`MatchManager` 管理活跃 runtime 与恢复，`MatchRuntime` 驱动
 回合，`PlayerRuntime` 管理单个 Seat 的 delivery，repositories 管理持久状态，projector 构造
@@ -111,9 +112,10 @@ flowchart TB
 
 当前直接消费边界是：game-engine 提供 Core GameModule adapter 并使用 Ruleset/game runtime；assets 将
 现有 Prompt manifests/facts 接入 Core prompt runtime；acp package 使用 Core ACP runtime；server 将普通
-action boundary、Session binding、trajectory 与 simulation workflow 接入 Core。MatchRuntime、现有
-SQLite repositories、ContextRenderer、rolling speech/playback、postgame 与 Web projector 继续拥有
-AgentWolf 产品语义。
+action boundary、Session binding、trajectory、simulation workflow、live subscription 与 presentation
+barrier 接入 Core；Web 使用 Core projection/playback/local-state controllers、React primitives 与
+devtools state。MatchRuntime、SQLite repositories、ContextRenderer、speech visibility、postgame、Web
+projector、舞台 renderer 与主题继续拥有 AgentWolf 产品语义。
 
 ## 控制面与事实流
 
@@ -201,7 +203,7 @@ mailbox 和 Session binding 中，直到全部有资格回合落定，随后按 
 | 赛后评分与感想                    | postgame repositories/coordinator              | 与游戏事件日志分离，复用原始玩家 Sessions，完成或跳过后关闭  |
 | trajectory                        | trajectory recorder/service/audit              | Turn/Record 独立持久，只观察生产链路                         |
 | simulation                        | simulation service/workflow/runners            | candidate 经双 runner 审查后成为版本化测试 fixture           |
-| 浏览器播放、动效与滚动状态        | React hooks/components                         | 连接或页面生命周期内存在，不写回游戏规则                     |
+| 浏览器连接、播放、动效与滚动状态  | Core controllers + AgentWolf React adapters    | 连接或页面生命周期内存在，不写回游戏规则                     |
 
 删除 Match 会先关闭活跃 runtime 和玩家进程，撤销 action token，再通过数据库外键删除 Match 所属
 记录，并只移除该 Match 的玩家 workspace。共享 Skill 构建产物、Agent/Profile/board/Character

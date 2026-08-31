@@ -10,5 +10,11 @@
     "types": ["vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
-  "references": [{ "path": "../../packages/contracts" }, { "path": "../../packages/assets" }]
+  "references": [
+    { "path": "../../vendor/agent-arena-core/packages/devtools-react" },
+    { "path": "../../vendor/agent-arena-core/packages/web-runtime" },
+    { "path": "../../vendor/agent-arena-core/packages/react" },
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/assets" }
+  ]
 }

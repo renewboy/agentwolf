@@ -147,7 +147,7 @@ describe('LobbyPage', () => {
     expect(simulation[3]).toBeDisabled()
     expect(simulation[4]).toBeDisabled()
     await userEvent.click(simulation[1]!)
-    expect(screen.getByTestId('simulation-dialog')).toHaveTextContent('Paused')
+    expect(await screen.findByTestId('simulation-dialog')).toHaveTextContent('Paused')
     await userEvent.click(screen.getByRole('button', { name: 'close simulation' }))
     expect(screen.queryByTestId('simulation-dialog')).not.toBeInTheDocument()
   })

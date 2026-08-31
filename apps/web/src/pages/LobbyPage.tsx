@@ -1,5 +1,5 @@
 import { ArrowClockwise, ArrowRight, Flask, Plus, Pulse, Trash } from '@phosphor-icons/react'
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type { MatchView } from '@agentwolf/contracts'
@@ -7,8 +7,12 @@ import { api } from '../api.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { StatusBadge } from '../components/StatusBadge.js'
-import { SimulationWizardDialog } from '../components/SimulationWizardDialog.js'
 import { useRuntimeConfig } from '../hooks/useRuntimeConfig.js'
+
+const SimulationWizardDialog = lazy(async () => {
+  const module = await import('../components/SimulationWizardDialog.js')
+  return { default: module.SimulationWizardDialog }
+})
 
 export function LobbyPage() {
   const { developerMode } = useRuntimeConfig()
@@ -146,10 +150,14 @@ export function LobbyPage() {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && void deleteMatch(pendingDelete)}
       />
-      <SimulationWizardDialog
-        match={pendingSimulation}
-        onClose={() => setPendingSimulation(null)}
-      />
+      {pendingSimulation ? (
+        <Suspense fallback={null}>
+          <SimulationWizardDialog
+            match={pendingSimulation}
+            onClose={() => setPendingSimulation(null)}
+          />
+        </Suspense>
+      ) : null}
     </main>
   )
 }

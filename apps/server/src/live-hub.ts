@@ -5,6 +5,7 @@ import {
   type SpeechPlaybackState,
   type SpectatorView,
 } from '@agentwolf/contracts'
+import { LiveSubscriptionHub } from '@agent-arena/web-runtime'
 import type { GameState } from '@agentwolf/game-engine'
 
 export interface LiveSubscriber {
@@ -26,26 +27,25 @@ export type StreamedSpeechKind =
   | 'postgame'
 
 export class LiveHub {
-  readonly #subscribers = new Set<LiveSubscriber>()
+  readonly #hub = new LiveSubscriptionHub<LiveSubscriber, LiveMessage>()
 
   public subscribe(subscriber: LiveSubscriber): () => void {
-    this.#subscribers.add(subscriber)
-    return () => this.#subscribers.delete(subscriber)
+    return this.#hub.subscribe({
+      observer: subscriber,
+      send: (message) => subscriber.send(message),
+    })
   }
 
   public broadcastSnapshot(project: (subscriber: LiveSubscriber) => LiveMessage): void {
-    for (const subscriber of this.#subscribers)
-      subscriber.send(LiveMessageSchema.parse(project(subscriber)))
+    this.#hub.broadcast(({ observer }) => LiveMessageSchema.parse(project(observer)))
   }
 
   public broadcastPlaybackState(
     project: (subscriber: LiveSubscriber) => SpeechPlaybackState,
   ): void {
-    for (const subscriber of this.#subscribers) {
-      subscriber.send(
-        LiveMessageSchema.parse({ type: 'speech-playback.state', state: project(subscriber) }),
-      )
-    }
+    this.#hub.broadcast(({ observer }) =>
+      LiveMessageSchema.parse({ type: 'speech-playback.state', state: project(observer) }),
+    )
   }
 
   public broadcastSpeechChunk(
@@ -54,17 +54,15 @@ export class LiveHub {
     kind: StreamedSpeechKind,
     text: string,
   ): void {
-    for (const subscriber of this.#subscribers) {
-      if (!canSeeSpeech(state, subscriber.view, actorId, kind)) continue
-      subscriber.send(
-        LiveMessageSchema.parse({
-          type: 'speech-chunk',
-          matchId: state.matchId,
-          playerId: actorId,
-          text,
-        }),
-      )
-    }
+    this.#hub.broadcast(({ observer }) => {
+      if (!canSeeSpeech(state, observer.view, actorId, kind)) return null
+      return LiveMessageSchema.parse({
+        type: 'speech-chunk',
+        matchId: state.matchId,
+        playerId: actorId,
+        text,
+      })
+    })
   }
 }
 

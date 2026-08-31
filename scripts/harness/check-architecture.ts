@@ -22,8 +22,8 @@ const allowedCoreDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
   assets: new Set(['prompt-runtime']),
   'game-engine': new Set(['contracts', 'game-runtime', 'ruleset']),
   acp: new Set(['acp-runtime']),
-  server: new Set(['contracts', 'match-runtime', 'simulation', 'trajectory']),
-  web: new Set(),
+  server: new Set(['contracts', 'match-runtime', 'simulation', 'trajectory', 'web-runtime']),
+  web: new Set(['devtools-react', 'react', 'web-runtime']),
 }
 
 const files = await sourceFiles(roots, new Set(['.ts', '.tsx']))

@@ -56,9 +56,9 @@ describe('App routing', () => {
     ['/settings', 'settings page'],
     ['/matches/new', 'new match page'],
     ['/matches/match-test-abcdef/trajectory', 'developer page'],
-  ])('renders %s', (path, content) => {
+  ])('renders %s', async (path, content) => {
     renderApp(path)
-    expect(screen.getByText(content)).toBeVisible()
+    expect(await screen.findByText(content)).toBeVisible()
     expect(screen.getByTestId('shell')).toBeVisible()
     expect(document.title).toBe('月影议会')
   })

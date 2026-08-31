@@ -3,12 +3,32 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
+      'react/jsx-runtime': fileURLToPath(
+        new URL('./apps/web/node_modules/react/jsx-runtime.js', import.meta.url),
+      ),
+      'react/jsx-dev-runtime': fileURLToPath(
+        new URL('./apps/web/node_modules/react/jsx-dev-runtime.js', import.meta.url),
+      ),
+      react: fileURLToPath(new URL('./apps/web/node_modules/react/index.js', import.meta.url)),
+      'react-dom/client': fileURLToPath(
+        new URL('./apps/web/node_modules/react-dom/client.js', import.meta.url),
+      ),
+      'react-dom/test-utils': fileURLToPath(
+        new URL('./apps/web/node_modules/react-dom/test-utils.js', import.meta.url),
+      ),
+      'react-dom': fileURLToPath(
+        new URL('./apps/web/node_modules/react-dom/index.js', import.meta.url),
+      ),
       '@agent-arena/acp-runtime': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/acp-runtime/src/index.ts', import.meta.url),
       ),
       '@agent-arena/contracts': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/contracts/src/index.ts', import.meta.url),
+      ),
+      '@agent-arena/devtools-react': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/devtools-react/src/index.ts', import.meta.url),
       ),
       '@agent-arena/game-runtime': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/game-runtime/src/index.ts', import.meta.url),
@@ -19,6 +39,9 @@ export default defineConfig({
       '@agent-arena/prompt-runtime': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/prompt-runtime/src/index.ts', import.meta.url),
       ),
+      '@agent-arena/react': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/react/src/index.ts', import.meta.url),
+      ),
       '@agent-arena/ruleset': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/ruleset/src/index.ts', import.meta.url),
       ),
@@ -27,6 +50,9 @@ export default defineConfig({
       ),
       '@agent-arena/trajectory': fileURLToPath(
         new URL('./vendor/agent-arena-core/packages/trajectory/src/index.ts', import.meta.url),
+      ),
+      '@agent-arena/web-runtime': fileURLToPath(
+        new URL('./vendor/agent-arena-core/packages/web-runtime/src/index.ts', import.meta.url),
       ),
       '@agentwolf/contracts': fileURLToPath(
         new URL('./packages/contracts/src/index.ts', import.meta.url),

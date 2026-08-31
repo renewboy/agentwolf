@@ -9,7 +9,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 - Agent Tool/Profile、Character、board、settings 与 Match 目录。
 - 不可变的 Match 设置、活跃运行时编排、恢复、暂停、继续、只读归档与删除。
 - 用于 events、Session 绑定、delivery、复盘与开发者数据的 SQLite schema 与 repository。
-- 可见性安全的视图 projection 与实时连接协调。
+- 可见性安全的视图 projection，以及接入 Core subscription/presentation runtime 的实时连接协调。
 - 玩家绑定的 MCP 动作传输、Prompt 上下文适配与 Session 恢复。
 - 轨迹采集、读取与语义审计。
 - 仿真候选采集、双 runner 评审与 fixture 批准。
@@ -27,6 +27,8 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 - `arena-session-store.ts`:将既有 player Session binding repository 适配为 Core store port。
 - `match-archive.ts`:终局 spectator projections 与 audit 的规则无关冻结边界。
 - `projector.ts`:server 持有的可见性安全 DTO。
+- `live-hub.ts` 与 `speech-playback-coordinator.ts`:将 AgentWolf view、wire、speech visibility 和轨迹
+  controls 适配到 Core live subscription 与 presentation barrier。
 - `mcp.ts`:玩家绑定的结构化动作传输。
 - `player-runtime.ts`:单个逻辑 Session 的 delivery 与恢复。
 - `postgame-review-coordinator.ts`:复盘倒计时、sheets、聚合与反思。

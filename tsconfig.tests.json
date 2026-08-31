@@ -11,6 +11,9 @@
     "paths": {
       "@agent-arena/acp-runtime": ["./vendor/agent-arena-core/packages/acp-runtime/src/index.ts"],
       "@agent-arena/contracts": ["./vendor/agent-arena-core/packages/contracts/src/index.ts"],
+      "@agent-arena/devtools-react": [
+        "./vendor/agent-arena-core/packages/devtools-react/src/index.ts"
+      ],
       "@agent-arena/game-runtime": ["./vendor/agent-arena-core/packages/game-runtime/src/index.ts"],
       "@agent-arena/match-runtime": [
         "./vendor/agent-arena-core/packages/match-runtime/src/index.ts"
@@ -18,9 +21,11 @@
       "@agent-arena/prompt-runtime": [
         "./vendor/agent-arena-core/packages/prompt-runtime/src/index.ts"
       ],
+      "@agent-arena/react": ["./vendor/agent-arena-core/packages/react/src/index.ts"],
       "@agent-arena/ruleset": ["./vendor/agent-arena-core/packages/ruleset/src/index.ts"],
       "@agent-arena/simulation": ["./vendor/agent-arena-core/packages/simulation/src/index.ts"],
       "@agent-arena/trajectory": ["./vendor/agent-arena-core/packages/trajectory/src/index.ts"],
+      "@agent-arena/web-runtime": ["./vendor/agent-arena-core/packages/web-runtime/src/index.ts"],
       "@agentwolf/contracts": ["./packages/contracts/src/index.ts"],
       "@agentwolf/assets": ["./packages/assets/src/index.ts"],
       "@agentwolf/assets/prompts": ["./packages/assets/src/prompts.ts"],

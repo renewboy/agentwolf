@@ -9,6 +9,8 @@ import {
   Stop,
 } from '@phosphor-icons/react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useFollowLatest } from '@agent-arena/react'
+import { FollowLatestController } from '@agent-arena/web-runtime'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
   MatchView,
@@ -60,10 +62,9 @@ export function MatchFeed({
     () => new Set(latestKey ? [latestKey] : []),
   )
   const scrollRef = useRef<HTMLDivElement>(null)
-  const followingLatest = useRef(true)
-  const detachedByUser = useRef(false)
+  const followController = useMemo(() => new FollowLatestController(), [])
+  const followState = useFollowLatest(followController)
   const pendingScrollFrame = useRef<number | null>(null)
-  const [hasNewActivity, setHasNewActivity] = useState(false)
   const lastSequence = timeline.at(-1)?.sequence ?? 0
   const liveLength = activeSpeech && !activeSpeech.final ? activeSpeech.text.length : 0
 
@@ -79,18 +80,15 @@ export function MatchFeed({
   useLayoutEffect(() => {
     const scroller = scrollRef.current
     if (!scroller) return undefined
-    if (!followingLatest.current) {
-      setHasNewActivity(true)
-      return undefined
-    }
+    if (!followController.contentChanged()) return undefined
     const frame = window.requestAnimationFrame(() => {
       pendingScrollFrame.current = null
-      if (!followingLatest.current) return
+      if (!followController.snapshot().following) return
       scroller.scrollTo({
         top: scroller.scrollHeight,
         behavior: 'auto',
       })
-      setHasNewActivity(false)
+      followController.returnToLatest()
     })
     pendingScrollFrame.current = frame
     return () => {
@@ -98,7 +96,7 @@ export function MatchFeed({
       window.cancelAnimationFrame(frame)
       pendingScrollFrame.current = null
     }
-  }, [lastSequence, liveLength, postgameResultAt, postgameStartedAt])
+  }, [followController, lastSequence, liveLength, postgameResultAt, postgameStartedAt])
 
   const toggleGroup = (key: string): void => {
     setOpenGroups((current) => {
@@ -112,15 +110,12 @@ export function MatchFeed({
   const returnToLatest = (): void => {
     const scroller = scrollRef.current
     if (!scroller) return
-    detachedByUser.current = false
-    followingLatest.current = true
+    followController.returnToLatest()
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
-    setHasNewActivity(false)
   }
 
   const stopFollowingLatest = (): void => {
-    detachedByUser.current = true
-    followingLatest.current = false
+    followController.detach()
     if (pendingScrollFrame.current === null) return
     window.cancelAnimationFrame(pendingScrollFrame.current)
     pendingScrollFrame.current = null
@@ -143,14 +138,7 @@ export function MatchFeed({
         onScroll={(event) => {
           const element = event.currentTarget
           const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight
-          if (detachedByUser.current) {
-            const returnedToBottom = distanceFromBottom <= 1
-            detachedByUser.current = !returnedToBottom
-            followingLatest.current = returnedToBottom
-          } else {
-            followingLatest.current = distanceFromBottom < 96
-          }
-          if (followingLatest.current) setHasNewActivity(false)
+          followController.observeDistance(distanceFromBottom, 96)
         }}
         onWheel={(event) => {
           if (event.deltaY < 0) stopFollowingLatest()
@@ -224,7 +212,7 @@ export function MatchFeed({
           />
         ) : null}
       </div>
-      {hasNewActivity ? (
+      {followState.hasNewActivity ? (
         <button className="aw-feed-latest" type="button" onClick={returnToLatest}>
           <ArrowDown size={17} aria-hidden />
           {getCopy('match.backLatest')}

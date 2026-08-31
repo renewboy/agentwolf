@@ -10,11 +10,15 @@ import { NewMatchPage } from './pages/NewMatchPage.js'
 import { SettingsPage } from './pages/SettingsPage.js'
 import { LoadingState } from './components/AsyncState.js'
 import { RuntimeConfigProvider, useRuntimeConfig } from './hooks/useRuntimeConfig.js'
-import { DeveloperPage } from './pages/DeveloperPage.js'
 
 const MatchPage = lazy(async () => {
   const module = await import('./pages/MatchPage.js')
   return { default: module.MatchPage }
+})
+
+const DeveloperPage = lazy(async () => {
+  const module = await import('./pages/DeveloperPage.js')
+  return { default: module.DeveloperPage }
 })
 
 export function App() {
@@ -41,7 +45,15 @@ function AppRoutes() {
         <Route path="settings" element={<SettingsPage />} />
         <Route
           path="matches/:matchId/trajectory"
-          element={developerMode ? <DeveloperPage /> : <Navigate to="/" replace />}
+          element={
+            developerMode ? (
+              <Suspense fallback={<LoadingState />}>
+                <DeveloperPage />
+              </Suspense>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
         />
         <Route path="matches/new" element={<NewMatchPage />} />
       </Route>

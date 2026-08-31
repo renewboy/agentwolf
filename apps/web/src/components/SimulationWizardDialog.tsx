@@ -9,18 +9,20 @@ import {
   WarningCircle,
   XCircle,
 } from '@phosphor-icons/react'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef } from 'react'
+import { useSimulationReview, type SimulationReviewStage } from '@agent-arena/devtools-react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
-import type {
-  MatchView,
-  SimulationApprovalResult,
-  SimulationReviewResult,
+import {
+  type SimulationApprovalRequest,
+  type MatchView,
+  type SimulationApprovalResult,
+  type SimulationReviewResult,
 } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ModalDialog } from './ModalDialog.js'
 import { StatusBadge } from './StatusBadge.js'
 
-type WizardStage = 'prepare' | 'reviewing' | 'review' | 'approving' | 'complete'
+type WizardStage = SimulationReviewStage
 
 export function SimulationWizardDialog({
   match,
@@ -33,22 +35,32 @@ export function SimulationWizardDialog({
   const descriptionId = useId()
   const cancelRef = useRef<HTMLButtonElement>(null)
   const stageActionRef = useRef<HTMLButtonElement>(null)
-  const [stage, setStage] = useState<WizardStage>('prepare')
-  const [review, setReview] = useState<SimulationReviewResult | null>(null)
-  const [approval, setApproval] = useState<SimulationApprovalResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [acknowledgeWarnings, setAcknowledgeWarnings] = useState(false)
-  const [acceptCurrent, setAcceptCurrent] = useState(false)
-  const busy = stage === 'reviewing' || stage === 'approving'
-
-  useEffect(() => {
-    setStage('prepare')
-    setReview(null)
-    setApproval(null)
-    setError(null)
-    setAcknowledgeWarnings(false)
-    setAcceptCurrent(false)
-  }, [match?.id])
+  const dataSource = useMemo(
+    () => ({
+      review: (target: MatchView) => api.reviewSimulation(target.id),
+      approve: (simulationId: string, options: SimulationApprovalRequest) =>
+        api.approveSimulation(simulationId as SimulationApprovalResult['simulationId'], options),
+    }),
+    [],
+  )
+  const workflow = useSimulationReview<MatchView, SimulationReviewResult, SimulationApprovalResult>(
+    { target: match, targetKey: match?.id ?? null, dataSource },
+  )
+  const {
+    stage,
+    review,
+    approval,
+    acknowledgeWarnings,
+    acceptCurrent,
+    busy,
+    warningReady,
+    behaviorReady,
+    runReview,
+    approve,
+    setAcknowledgeWarnings,
+    setAcceptCurrent,
+  } = workflow
+  const error = workflow.error?.message ?? null
 
   useEffect(() => {
     if (!match || busy) return undefined
@@ -57,43 +69,6 @@ export function SimulationWizardDialog({
   }, [busy, match, stage])
 
   if (!match) return null
-
-  const runReview = async (): Promise<void> => {
-    setStage('reviewing')
-    setReview(null)
-    setApproval(null)
-    setError(null)
-    setAcknowledgeWarnings(false)
-    setAcceptCurrent(false)
-    try {
-      setReview(await api.reviewSimulation(match.id))
-      setStage('review')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-      setStage('prepare')
-    }
-  }
-
-  const approve = async (): Promise<void> => {
-    if (!review) return
-    setStage('approving')
-    setError(null)
-    try {
-      setApproval(
-        await api.approveSimulation(review.simulationId, {
-          acceptCurrent,
-          acknowledgeWarnings,
-        }),
-      )
-      setStage('complete')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-      setStage('review')
-    }
-  }
-
-  const warningReady = !review?.warnings.length || acknowledgeWarnings
-  const behaviorReady = Boolean(review?.canApprove || (acceptCurrent && review?.canAcceptCurrent))
 
   return (
     <ModalDialog
