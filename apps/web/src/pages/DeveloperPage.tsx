@@ -46,6 +46,7 @@ export function DeveloperPage() {
     resourceId: matchId,
     dataSource: trajectoryDataSource,
     initialOwner: firstTrajectoryOwner,
+    initialPageMode: 'complete',
   })
   const { summary, page, ownerId, loading: pageLoading, query, selectedId } = explorer
   const selectTrajectory = explorer.select
@@ -132,6 +133,12 @@ export function DeveloperPage() {
   const focusAuditIssue = (issue: TrajectoryAuditIssue): void => {
     const turn = summary?.turns.find((candidate) => candidate.turnId === issue.turnId)
     if (!turn) return
+    if (page?.ownerId === turn.ownerId) {
+      pendingAuditFocus.current = null
+      explorer.select(auditTargetRecordId(issue, page) ?? turn.turnId)
+      setInspectorTab('record')
+      return
+    }
     pendingAuditFocus.current = { issue, turn }
     setInspectorTab('record')
     explorer.focus(turn.ownerId, turn.ordinal + 1, turn.turnId)
@@ -174,7 +181,17 @@ export function DeveloperPage() {
   if (!match || !summary || !page) {
     return (
       <main className="aw-page">
-        <LoadingState />
+        {visibleError ? (
+          <ErrorState
+            message={visibleError}
+            retry={() => {
+              explorer.reload()
+              void loadContext()
+            }}
+          />
+        ) : (
+          <LoadingState />
+        )}
       </main>
     )
   }

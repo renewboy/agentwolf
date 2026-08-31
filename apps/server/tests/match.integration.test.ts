@@ -197,7 +197,9 @@ describe('match orchestration', () => {
       code: 'invalid-live-message',
     })
     archivedConnection.close()
-    await expect(server.simulations.addCandidate(created.id)).rejects.toThrow(/read-only/)
+    const archivedCandidate = await server.simulations.addCandidate(created.id)
+    expect(archivedCandidate).toMatchObject({ created: true })
+    expect(server.repository.getMatchArchive(created.id)).toEqual(archive)
     expect(() => server.matches.beginMatch(created.id)).toThrow(/read-only/)
     await expect(server.matches.resumeMatch(created.id)).rejects.toThrow(/read-only/)
     expect(() => server.matches.startPostgameReview(created.id)).toThrow(/read-only/)
@@ -211,8 +213,12 @@ describe('match orchestration', () => {
       method: 'POST',
       url: `/api/developer/matches/${created.id}/simulation/candidates`,
     })
-    expect(simulationResponse).toMatchObject({ statusCode: 409 })
-    expect(simulationResponse.json()).toMatchObject({ error: 'match-read-only' })
+    expect(simulationResponse).toMatchObject({ statusCode: 201 })
+    expect(simulationResponse.json()).toMatchObject({
+      simulationId: archivedCandidate.simulationId,
+      created: false,
+    })
+    expect(server.repository.getMatchArchive(created.id)).toEqual(archive)
     expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
       ok: true,
       issues: [],

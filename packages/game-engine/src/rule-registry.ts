@@ -14,6 +14,7 @@ import type { ResolutionRegistry } from './plugins/resolution-registry.js'
 import type { VictoryRegistry } from './plugins/victory-registry.js'
 import type { QueryRegistry } from './plugins/query-registry.js'
 import type { TriggerRegistry } from './plugins/trigger-registry.js'
+import type { DeterministicIndexResolver } from './deterministic.js'
 
 export interface RuleRuntime {
   readonly state: GameState
@@ -24,6 +25,7 @@ export interface RuleRuntime {
   readonly victories: VictoryRegistry
   readonly queries: QueryRegistry
   readonly triggers: TriggerRegistry
+  readonly deterministicIndex?: DeterministicIndexResolver
   append(payload: GameEventPayload, visibility: EventVisibility): GameEvent
 }
 

@@ -112,9 +112,9 @@ export function LobbyPage() {
                       </Link>
                       <button
                         className="aw-button aw-button--icon"
-                        disabled={match.status !== 'paused'}
+                        disabled={match.status !== 'paused' && match.status !== 'ended'}
                         title={
-                          match.status === 'paused'
+                          match.status === 'paused' || match.status === 'ended'
                             ? getCopy('simulationWizard.open')
                             : getCopy('simulationWizard.unavailable')
                         }

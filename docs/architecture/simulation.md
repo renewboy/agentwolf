@@ -60,7 +60,7 @@ flowchart LR
 
 ## Candidate 采集
 
-capture 只接受尚未归档的 ended 或 paused Match，并要求：
+capture 接受 ended 或 paused Match，包括已经生成只读 archive 的终局 Match，并要求：
 
 - 存在不可变 board snapshot；
 - 至少一个结构化、非 system、非 postgame trajectory Turn；
@@ -69,16 +69,17 @@ capture 只接受尚未归档的 ended 或 paused Match，并要求：
 - action Record 能解析为结构化 PlayerAction；
 - Match setup、speech limit、事件和 Turn range 可以通过 contracts schema 校验。
 
-归档 Match 已经越过可执行规则边界，不能再生成 candidate。需要仿真证据的终局 Match 在 archive
-生成前采集；测试和受控编排也可以关闭 archive callback 后采集。
+archive 只拥有冻结 spectator projections 与 audit，不参与 candidate 内容构造。capture 继续只读使用
+Match 保留的 setup、board snapshot、领域事件和结构化轨迹，不恢复生产 MatchRuntime、不推进 Match，
+也不修改 archive。board snapshot 的 Ruleset 无法由当前 catalog 解析时，capture 在规则解析边界失败。
 
 `SimulationService` 读取逐 Seat setup、board snapshot、游戏事件、非 postgame Turns、accepted actions、
 Turn 完成 revision 顺序和 playback controls。每个 action Turn 在其 `toSequence` 处 restore GameEngine，
 补充 phase mode 与 expected actors；不能重建的边界保留 warning/fault，不伪造 action。
 
 Turn fault 将 failed/uncertain/cancelled 与错误文本归类为 uncertain-delivery、timeout、process-exit、
-invalid-action、cancelled 或 other。已完成但没有对应 accepted domain action 的 Turn 标记为
-invalid-action，使 runner 可以验证暂停语义。
+invalid-action、cancelled 或 other。已完成但没有对应 accepted domain action 的 Turn 同样标记为
+invalid-action，使 runner 可以消费已经产生文本但没有形成有效动作的回合，而不把它误报为缺失数据。
 
 capture 同时运行 trajectory audit，并把 audit issues、source reconstruction 和 sensitive-content scan
 转换为明确 warnings。source Match、repository 和 trajectory 始终只读。
@@ -96,8 +97,13 @@ candidate 包含：
   completion order、fault 与 action；
 - Match 冻结的公开发言 interrupt 模式；
 - playback enable/resolve/disconnect controls；
+- 影响阶段、发言顺序或平票结果的 `deterministic.index` controls；
 - 完整 canonical events 与 terminal checkpoint；
 - source status、cutoff、fingerprint 和 warnings。
+
+采集先使用来源 Match ID 执行一次规则重放，记录每个 deterministic key 的候选长度与最终 index，再把
+key 中的来源 Match ID 规范化为 candidate Match ID。同一 key 重复出现时必须得到相同 length/index；
+runner 读取 control 后验证范围并复用该选择，不能根据规范化后的 ID 重新计算。
 
 checkpoint 保存 status、day/night、phase、winner、Sheriff、alive/voting Players 与 lastSequence。原始
 Prompt、reasoning、message/tool output、credentials、diagnostics、运行时路径、postgame rows 和
@@ -173,6 +179,10 @@ engine runner 对 sequential phase 只取首 actor，对 parallel phase 要求�
 用 replay Session 通过真实 MCP mailbox 执行动作；结束后运行 trajectory audit 和 parallel Prompt
 barrier 检查。
 
+runner 创建执行 Match 时把采集 action 的 Match ID 重新绑定到当前执行 Match，并向 GameEngine 注入
+同一 deterministic resolver。restart variant 恢复 GameEngine 时继续复用该 resolver，因此 create、
+restore、engine runner 与 orchestration runner 观察到相同的已记录选择。
+
 rolling capture 中,engine runner 按 Turn completion order 归并被中断的部分 speech 与 interrupt
 action；orchestration runner 让 cancelled replay Prompt 保持 active,直到生产 coordinator 发送
 supersede。两条路径必须产生相同的部分发言、死亡、阶段跳转与终局。
@@ -185,7 +195,8 @@ restart boundary 与 playback completed/skipped/disconnected。paused fixture �
 
 - source Match 不存在、状态不适用、缺 snapshot/Role/trajectory/action 或存在 running Turn 时，capture
   返回 source conflict 且不写 candidate；
-- source Match 已归档时返回只读 source conflict；
+- source snapshot 的 Ruleset 无法由当前 catalog 执行时，capture 返回 source conflict；
+- deterministic control 重复、length 不一致或 index 越界时，capture/replay 失败关闭；
 - candidate schema、路径、secret、warning acknowledgement 与 overwrite 冲突由 workflow 分别拒绝；
 - runner 报告结构性 invariant、trajectory audit、初始化错误、oracle divergence 和 first difference；
 - 新 variant 必须明确只改变 completion、recovery、restart、playback 或其他一个控制轴；
@@ -200,6 +211,7 @@ restart boundary 与 playback completed/skipped/disconnected。paused fixture �
 - candidate 与 approved fixture 均非覆盖写入。
 - engine 与 orchestration runner 必须各自确定且彼此一致，才能接受当前行为作为 oracle。
 - parallel replay 使用完整 actor barrier，sequential replay 每次向当前运行时查询 actor。
+- 规范化身份不重新计算已经发生的确定性选择；两条 runner 使用同一组已校验 controls。
 - approved oracle 由稳定 digest、event types 和 checkpoint 表示，可独立检测语义漂移。
 - approved corpus 只包含 Catalog 当前 Ruleset family/revision，不承担历史 runtime 兼容。
 

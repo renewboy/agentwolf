@@ -1,1 +1,1 @@
-export { deterministicIndex } from '@agent-arena/game-runtime'
+export { deterministicIndex, type DeterministicIndexResolver } from '@agent-arena/game-runtime'

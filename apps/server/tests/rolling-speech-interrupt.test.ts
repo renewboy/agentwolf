@@ -182,6 +182,39 @@ describe('rolling public speech interrupts', () => {
     expect(orchestration).toMatchObject({ ok: true, failures: [] })
     expect(orchestration.actual).toEqual(engine.actual)
   }, 30_000)
+
+  it('replays ignored listener text and normalized deterministic choices', async () => {
+    const setup = await createRollingMatch({
+      explosionsRemaining: 1,
+      speechDelayMs: 100,
+      invalidListenerResponses: 1,
+      sheriffCandidateIds: ['player-2', 'player-4'] as PlayerId[],
+      singleWolfBoard: true,
+    })
+    await waitForEventCount(setup.server, setup.matchId, 'day.interrupted', 1)
+    await waitForCapturableMatch(setup.server, setup.matchId)
+    const capture = await setup.server.simulations.capture(setup.matchId)
+    const ignored = capture.turns.filter(
+      (turn) =>
+        turn.actionType === 'skill-trigger' && turn.status === 'completed' && turn.action === null,
+    )
+    const deterministic = capture.controls.filter(
+      (control) => control.type === 'deterministic.index',
+    )
+    const engine = runEngineSimulation(capture)
+    const orchestration = await runOrchestrationSimulation(capture, {
+      projectRoot: process.cwd(),
+    })
+
+    expect(ignored.length).toBeGreaterThan(0)
+    expect(ignored.every((turn) => turn.fault === 'invalid-action')).toBe(true)
+    expect(deterministic.length).toBeGreaterThan(0)
+    expect(deterministic.every((control) => control.key.includes(capture.setup.matchId))).toBe(true)
+    expect(deterministic.every((control) => !control.key.includes(setup.matchId))).toBe(true)
+    expect(engine).toMatchObject({ ok: true, failures: [] })
+    expect(orchestration).toMatchObject({ ok: true, failures: [] })
+    expect(orchestration.actual).toEqual(engine.actual)
+  }, 30_000)
 })
 
 async function createRollingMatch(
@@ -269,8 +302,10 @@ interface RollingControl {
   readonly beforeExplosion?: Promise<void>
   readonly onPublicChunk?: () => void
   readonly sheriffCandidateId?: PlayerId
+  readonly sheriffCandidateIds?: readonly PlayerId[]
   readonly singleWolfBoard?: boolean
   readonly passListeners?: boolean
+  invalidListenerResponses?: number
   explodedDays?: Set<number>
 }
 
@@ -350,6 +385,10 @@ class RollingSession implements PlayerSession {
     const expectation = expectedExpectation(this.#mailbox(), this.#token)
     if (prompt.includes('只回复“准备就绪”')) return result('准备就绪')
     if (prompt.includes('你正在旁听公开发言')) {
+      if ((this.#control.invalidListenerResponses ?? 0) > 0) {
+        this.#control.invalidListenerResponses! -= 1
+        return result('继续旁听')
+      }
       if (claimExplosion(this.#control, expectedDay(this.#mailbox(), this.#token))) {
         if (this.#control.beforeExplosion) await this.#control.beforeExplosion
         if (this.#control.explosionDelayMs) {
@@ -369,7 +408,10 @@ class RollingSession implements PlayerSession {
     if (expectation?.allowedSheriffActions?.includes('join')) {
       this.#mailbox().submitSheriffAction(
         this.#token,
-        this.#control.sheriffCandidateId === this.#playerId ? 'join' : 'decline',
+        this.#control.sheriffCandidateId === this.#playerId ||
+          this.#control.sheriffCandidateIds?.includes(this.#playerId)
+          ? 'join'
+          : 'decline',
       )
       return result('')
     }

@@ -48,6 +48,9 @@ contracts,模型/UI 呈现留在 assets。
 数据库变更包含前向迁移与迁移覆盖。当前 revision 的运行时恢复从 events 重建引擎并恢复已持久化的
 Session ID；终局 archive 直接返回冻结 DTO，不解释事件或启动 Session。
 
+Simulation capture 可以只读消费 paused/ended Match 保留的 snapshot、事件和轨迹，包括已经生成 archive
+的终局 Match；它不恢复生产 Session、不修改 archive，并要求 snapshot Ruleset 仍能由当前 catalog 执行。
+
 ## 启动配置
 
 `AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE` 接受 `legacy` 或 `rolling`,默认 `legacy`。该值只作为

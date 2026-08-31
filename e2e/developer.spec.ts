@@ -26,9 +26,16 @@ test('guides simulation review and approval from the Match row', async ({
     ...source,
     id: 'match-simulation-running-e2e',
   } as unknown as MatchView
+  const ended = {
+    ...paused,
+    id: 'match-simulation-ended-e2e',
+    status: 'ended',
+    phaseLabel: '对局结束',
+    winner: 'village',
+  } as unknown as MatchView
   await page.route(
     (url) => url.pathname.endsWith('/api/matches'),
-    (route) => route.fulfill({ json: [paused, running] }),
+    (route) => route.fulfill({ json: [paused, ended, running] }),
   )
   await page.route('**/api/developer/matches/*/simulation/review', async (route) => {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 220))
@@ -71,9 +78,11 @@ test('guides simulation review and approval from the Match row', async ({
 
   await page.goto('/')
   const pausedRow = page.locator(`[data-match-id="${paused.id}"]`)
+  const endedRow = page.locator(`[data-match-id="${ended.id}"]`)
   const runningRow = page.locator(`[data-match-id="${running.id}"]`)
   const trigger = pausedRow.getByRole('button', { name: '添加仿真' })
   await expect(trigger).toBeEnabled()
+  await expect(endedRow.getByRole('button', { name: '添加仿真' })).toBeEnabled()
   await expect(runningRow.getByRole('button', { name: '添加仿真' })).toBeDisabled()
   const rowBounds = await pausedRow.boundingBox()
   const actionBounds = await pausedRow.locator('.aw-match-row__actions').boundingBox()
@@ -391,9 +400,10 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   )
   const secondOwner = page.locator('.aw-trajectory-owner').filter({ hasText: '2号玩家' })
   await secondOwner.click()
-  await expect(playerTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('status')).toBeVisible()
+  await expect(page.locator('.aw-trajectory-layout')).toHaveCount(0)
   await expect(page.locator('.aw-trajectory-layout')).toBeVisible()
-  await expect(page.locator('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'true')
+  await expect(playerTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'false')
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   await firstOwner.click()

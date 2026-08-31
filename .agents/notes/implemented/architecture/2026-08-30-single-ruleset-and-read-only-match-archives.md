@@ -16,8 +16,9 @@ Ruleset 使用稳定 family ID `classic` 与整数 revision。server release tab
 
 完成赛后流程的 Match 生成规则无关的 `MatchArchive`。archive 冻结 god、closed-eye 与逐 Player 的
 `MatchView`,并保存终局 trajectory audit。Match 列表、查看、WebSocket 视角切换和 audit 直接读取
-archive；开始、继续、赛后控制与仿真采集以只读 conflict 失败。完整投影集合只停留在 server/SQLite
-边界,响应只选择请求视角。
+archive；开始、继续与赛后控制以只读 conflict 失败。仿真采集只读消费 Match 保留的 snapshot、事件与
+轨迹，不恢复生产 runtime，也不修改 archive。完整投影集合只停留在 server/SQLite 边界,响应只选择
+请求视角。
 
 Match snapshot 与核心死亡/终局事件各有一份当前 schema。历史 Ruleset runtime、旧 plugin 事件呈现
 和多版本 snapshot resolver 不属于生产运行时。本决策取代已归档的
@@ -38,11 +39,11 @@ Match snapshot 与核心死亡/终局事件各有一份当前 schema。历史 Ru
 - 当前规则 plugin 保持单一路径,不通过布尔参数同时表达多代行为。
 - Ruleset revision 变化前,旧 Match 必须完成归档或由操作者处理；archive 不依赖历史代码。
 - archive 存储多份授权后投影,以空间换取稳定读取与明确隐私边界。
-- 原始事件与轨迹继续作为只读审计事实,但 archived Match 不再把它们作为规则执行输入。
+- 原始事件与轨迹继续作为只读审计和仿真来源,但 archived Match 不把它们作为生产恢复输入。
 - 活动仿真 corpus 只覆盖 release table 的当前 revision。
 
 ## Verification
 
 架构门禁拒绝生产代码和活动仿真语料中的 `classic-vN`、历史 Ruleset factory 与 legacy Cupid
 presentation。Catalog、repository、生命周期、projection、trajectory、simulation 与浏览器测试共同
-验证当前 lock、archive 视角隔离、只读控制和无 GameEngine 历史读取。
+验证当前 lock、archive 视角隔离、只读运行控制和隔离仿真采集。

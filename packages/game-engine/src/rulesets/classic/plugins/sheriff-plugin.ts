@@ -133,6 +133,7 @@ export const classicSheriffPlugin: RulePlugin<RulesetBuilder> = {
         runtime.state.day,
         [...runtime.state.sheriff.standingCandidates],
         runtime.state.players,
+        runtime.deterministicIndex,
       ),
     )
     rules.registerActorSelector('original-sheriff-noncandidates', (runtime) =>

@@ -19,6 +19,8 @@
 它执行纯规则计算,输入为已解析的 board、动作与事件。
 
 通用内核不包含任何具体 Role 或 Ability IDs。Ruleset 插件持有具体语义;capability 将共享机制接入有资格的 Roles。
+`GameEngine.create` 与 `restore` 可以接收纯函数 deterministic index resolver；默认实现保持稳定散列，
+仿真 runner 用该入口注入已捕获的 canonical 选择 index，resolver 不改变候选集合或动作合法性。
 
 ## 扩展点
 

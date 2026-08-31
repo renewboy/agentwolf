@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
   AgentProfileIdSchema,
+  MatchViewSchema,
   MatchIdSchema,
   CanonicalSimulationEventSchema,
   PhaseIdSchema,
@@ -21,18 +22,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BoardCatalogService } from '../src/board-catalog.js'
 import { buildServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
+import { createMatchArchive } from '../src/match-archive.js'
 import { SqliteRepository, type MatchRecord } from '../src/repository.js'
 import {
   classifySimulationFault,
   normalizeSimulationCapture,
   scanSimulationSecrets,
 } from '../src/simulation-canonical.js'
+import { createSimulationEngine } from '../src/simulation-engine.js'
+import { runOrchestrationSimulation } from '../src/simulation-orchestration.js'
 import {
   checkSimulationInvariants,
   firstSimulationDifference,
+  recordSimulationDeterministicControls,
   runEngineSimulation,
 } from '../src/simulation-runner.js'
-import { runOrchestrationSimulation } from '../src/simulation-orchestration.js'
 import { SimulationService } from '../src/simulation-service.js'
 import {
   approveSimulationCandidate,
@@ -157,6 +161,11 @@ describe('simulation capture and engine replay', () => {
     expect(failures.join('\n')).toContain('outside its actor snapshot')
     expect(failures.join('\n')).toContain('has no action')
     expect(failures.join('\n')).toContain('different actor snapshots')
+    expect(
+      checkSimulationInvariants([], fixture.setup.players.length, [
+        { ...turns[1], completionOrder: 4, fault: 'invalid-action' },
+      ] as never).join('\n'),
+    ).not.toContain('has no action')
 
     expect(firstSimulationDifference([1], [1, 2])).toContain('length expected 1')
     expect(firstSimulationDifference({ nested: [1, 2] }, { nested: [1, 3] })).toContain(
@@ -164,6 +173,57 @@ describe('simulation capture and engine replay', () => {
     )
     expect(firstSimulationDifference({ a: 1 }, { a: 1 })).toBeNull()
     expect(firstSimulationDifference('left', 'right')).toContain('expected "left"')
+  })
+
+  it('records source deterministic choices under canonical replay keys', async () => {
+    const fixture = SimulationFixtureSchema.parse(
+      JSON.parse(
+        await readFile(
+          resolve(
+            'apps/server/tests/fixtures/simulations/simulation-ended-0f990cc1a48a6531.sim.json',
+          ),
+          'utf8',
+        ),
+      ),
+    )
+    const sourceMatchId = MatchIdSchema.parse('match-simulation-control-source')
+    const capture = SimulationCaptureSchema.parse({
+      schemaVersion: 1,
+      stage: 'candidate',
+      simulationId: 'simulation-control-recording',
+      title: 'Deterministic control recording',
+      source: {
+        matchId: sourceMatchId,
+        status: fixture.source.status,
+        cutoffSequence: fixture.source.cutoffSequence,
+        capturedAt: '2026-08-31T00:00:00.000Z',
+        fingerprint: 'a'.repeat(64),
+      },
+      setup: fixture.setup,
+      turns: fixture.turns,
+      controls: [],
+      observed: runEngineSimulation(fixture).actual,
+      warnings: [],
+    })
+    const controls = recordSimulationDeterministicControls(capture, sourceMatchId)
+    const controlled = SimulationCaptureSchema.parse({ ...capture, controls })
+    const engine = createSimulationEngine(controlled)
+
+    expect(controls.length).toBeGreaterThan(0)
+    for (const control of controls) {
+      if (control.type !== 'deterministic.index') continue
+      expect(control.key).toContain(capture.setup.matchId)
+      expect(control.key).not.toContain(sourceMatchId)
+      expect(engine.deterministicIndex(control.key, control.length)).toBe(control.index)
+    }
+    expect(() =>
+      createSimulationEngine(
+        SimulationCaptureSchema.parse({
+          ...controlled,
+          controls: [...controls, controls[0]],
+        }),
+      ),
+    ).toThrow(/Duplicate deterministic index control/)
   })
 
   it('rejects every incomplete simulation capture source boundary', async () => {
@@ -297,6 +357,58 @@ describe('simulation capture and engine replay', () => {
     ])
     expect(JSON.stringify(capture)).not.toContain('fake prompt with private data')
     expect(runEngineSimulation(capture)).toMatchObject({ ok: true, failures: [] })
+  })
+
+  it('captures an archived ended Match without mutating its frozen archive', async () => {
+    const source = await createPausedSource()
+    const match = source.repository.getMatch(source.matchId)!
+    const snapshot = match.boardSnapshot!
+    source.repository.updateMatchStatus(source.matchId, 'ended')
+    const archivedView = MatchViewSchema.parse({
+      id: source.matchId,
+      boardId: match.boardId,
+      boardName: 'Archived simulation source',
+      status: 'ended',
+      day: 1,
+      phaseId: 'phase-match-ended',
+      phaseLabel: 'Match ended',
+      lastSequence: source.repository.listMatchEvents(source.matchId).at(-1)?.sequence ?? 0,
+      seats: match.setup.seats.map((seat) => ({
+        playerId: PlayerIdSchema.parse(`player-${seat.seat}`),
+        seat: seat.seat,
+        name: seat.name,
+        agent: null,
+        alive: true,
+        canVote: true,
+        sheriff: false,
+        active: false,
+        sessionStatus: 'closed',
+        character: null,
+      })),
+      timeline: [],
+      activeSpeech: null,
+      winner: null,
+      winningPlayerIds: [],
+      pausedReason: null,
+    })
+    const archive = createMatchArchive({
+      matchId: source.matchId,
+      sourceRuleset: {
+        familyId: 'classic',
+        revision: snapshot.ruleset.revision,
+        fingerprint: snapshot.ruleset.fingerprint,
+      },
+      project: () => archivedView,
+      trajectoryAudit: { matchId: source.matchId, ok: true, auditedTurns: 0, issues: [] },
+      archivedAt: '2026-08-30T00:00:00.000Z',
+    })
+    source.repository.saveMatchArchive(archive)
+
+    const capture = await source.service.capture(source.matchId)
+
+    expect(capture.source.status).toBe('ended')
+    expect(capture.turns.length).toBeGreaterThan(0)
+    expect(source.repository.getMatchArchive(source.matchId)).toEqual(archive)
   })
 
   it('does not accept an observed checkpoint as truth after it is changed', async () => {

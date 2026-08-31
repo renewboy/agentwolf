@@ -66,7 +66,7 @@ export async function runOrchestrationSimulation(
     const boards = new BoardCatalogService(repository, null, rulesets)
     const ruleset = rulesets.forExecution(simulation.setup.board)
     saveSimulationAgents(repository, simulation)
-    const { board, engine } = createSimulationEngine(simulation)
+    const { board, deterministicIndex, engine } = createSimulationEngine(simulation)
     const timestamp = '2000-01-01T00:00:00.000Z'
     const record: MatchRecord = {
       id: simulation.setup.matchId,
@@ -139,7 +139,13 @@ export async function runOrchestrationSimulation(
       )
     }
     failures.push(
-      ...checkParallelPromptBarriers(repository, simulation.setup.matchId, board, ruleset),
+      ...checkParallelPromptBarriers(
+        repository,
+        simulation.setup.matchId,
+        board,
+        ruleset,
+        deterministicIndex,
+      ),
     )
     const normalization = createSimulationNormalization(
       simulation.setup.board,
@@ -254,6 +260,7 @@ function checkParallelPromptBarriers(
   matchId: SimulationInput['setup']['matchId'],
   board: BoardManifest,
   ruleset: RulesetRuntime,
+  deterministicIndex: ReturnType<typeof createSimulationEngine>['deterministicIndex'],
 ): string[] {
   const failures: string[] = []
   const turns = repository
@@ -282,6 +289,7 @@ function checkParallelPromptBarriers(
       status: 'running',
       pausedReason: null,
       ruleset,
+      deterministicIndex,
     })
     const expected = engine.currentTurn()?.actors ?? []
     if (expected.length !== owners.size || expected.some((playerId) => !owners.has(playerId))) {

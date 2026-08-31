@@ -189,9 +189,10 @@ Sessions。赛后 completed/skipped 或禁用赛后流程时，MatchRuntime 关�
 closed-eye 与每个 Player view 生成一份 `MatchArchive`。archive 保存终局 MatchView 和 trajectory
 audit，之后列表、查看与 WebSocket 视角切换均不再读取 GameEngine、Ruleset 或 Role registry。
 
-archive 是 Match 的只读边界：start、resume、postgame controls 与 simulation capture 返回
-`match-read-only` conflict；删除仍然可用。完整投影集合只存在于 server/SQLite，响应只选择请求
-视角对应的一份 MatchView。
+archive 是 Match 的只读边界：start、resume 与 postgame controls 返回 `match-read-only` conflict；
+删除仍然可用。simulation capture 可以只读消费 Match 保留的 setup、board snapshot、事件与结构化
+轨迹，但不恢复运行时或修改 archive。完整投影集合只存在于 server/SQLite，响应只选择请求视角对应的
+一份 MatchView。
 
 ## 赛后复盘状态机
 
@@ -263,7 +264,8 @@ Agent Tools/Profiles、自定义 boards、Characters、共享玩家 Skill 输出
 - MatchRuntime 的规则、Prompt、Session 或持久化错误统一转为 paused 状态与可见 reason，保留恢复
   所需记录。
 - postgame 不完整输入、重复/冲突提交和非法状态转换返回稳定 conflict；传输失败保留 turn record。
-- archive 读取不执行领域规则；归档后的运行控制和仿真导出返回稳定只读 conflict。
+- archive 投影读取不执行领域规则；归档后的运行控制返回稳定只读 conflict，仿真采集从保留的不可变
+  来源事实独立重建 candidate。
 - MatchView、领域事件、Session/delivery debug、postgame view 和 trajectory 提供从产品状态到协议
   细节的分层观测；浏览器本地状态不作为恢复证据。
 

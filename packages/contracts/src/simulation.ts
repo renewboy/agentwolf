@@ -78,6 +78,12 @@ export type SimulationTurn = z.infer<typeof SimulationTurnSchema>
 
 export const SimulationControlSchema = z.discriminatedUnion('type', [
   z.object({
+    type: z.literal('deterministic.index'),
+    key: z.string().min(1).max(2_000),
+    length: z.number().int().positive(),
+    index: z.number().int().nonnegative(),
+  }),
+  z.object({
     type: z.literal('playback.enabled'),
     order: z.number().int().positive(),
     enabled: z.boolean(),

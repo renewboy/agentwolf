@@ -142,4 +142,21 @@ describe('sheriff campaign order', () => {
       ).size,
     ).toBeGreaterThan(1)
   })
+
+  it('accepts a captured deterministic index without changing candidate membership', () => {
+    const candidates = [id(1), id(3), id(4), id(6)]
+    const calls: Array<{ key: string; length: number }> = []
+    const order = sheriffCampaignOrder(matchId, 1, candidates, playerMap, (key, length) => {
+      calls.push({ key, length })
+      return length - 1
+    })
+
+    expect(order).toEqual([id(6), id(1), id(3), id(4)])
+    expect(calls).toEqual([
+      {
+        key: `${matchId}:day:1:sheriff-campaign:${candidates.join(',')}`,
+        length: candidates.length,
+      },
+    ])
+  })
 })

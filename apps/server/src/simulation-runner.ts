@@ -1,9 +1,14 @@
 import {
+  PlayerActionSchema,
   SimulationCaptureSchema,
+  SimulationControlSchema,
   SimulationFixtureSchema,
   SimulationRunReportSchema,
+  type MatchId,
+  type PlayerAction,
   type CanonicalSimulationEvent,
   type SimulationCapture,
+  type SimulationControl,
   type SimulationExpected,
   type SimulationFixture,
   type SimulationRunReport,
@@ -22,15 +27,28 @@ import { createSimulationEngine } from './simulation-engine.js'
 
 type SimulationInput = SimulationCapture | SimulationFixture
 
+interface EngineSimulationOptions {
+  readonly matchId?: MatchId
+  readonly onDeterministicIndex?: (key: string, length: number, index: number) => void
+}
+
 export function runEngineSimulation(
   input: SimulationInput,
   variant: SimulationVariant = 'recorded',
 ): SimulationRunReport {
+  return runEngineSimulationWithOptions(input, variant)
+}
+
+function runEngineSimulationWithOptions(
+  input: SimulationInput,
+  variant: SimulationVariant,
+  options: EngineSimulationOptions = {},
+): SimulationRunReport {
   const simulation = parseInput(input)
   const expected = simulation.stage === 'candidate' ? simulation.observed : simulation.expected
   const failures: string[] = []
-  const created = createSimulationEngine(simulation)
-  const { board, clock, ruleset } = created
+  const created = createSimulationEngine(simulation, options)
+  const { board, clock, deterministicIndex, matchId, ruleset } = created
   let engine = created.engine
   const consumed = new Set<number>()
   let restarted = false
@@ -96,7 +114,7 @@ export function runEngineSimulation(
         consumed.add(turn.completionOrder)
         assertBoundary(turn, descriptor)
         try {
-          engine.submit(turn.action)
+          engine.submit(replayAction(turn.action, engine.state.matchId))
         } catch (error) {
           if (turn.fault !== 'invalid-action') throw error
           engine.pause('invalid-action', turn.playerId)
@@ -105,13 +123,14 @@ export function runEngineSimulation(
       }
       if (variant === 'restart-boundary' && !restarted && engine.state.status === 'running') {
         engine = GameEngine.restore({
-          matchId: simulation.setup.matchId,
+          matchId,
           board,
           events: engine.events,
           status: engine.state.status,
           pausedReason: engine.state.pausedReason,
           clock,
           ruleset,
+          deterministicIndex,
         })
         restarted = true
       }
@@ -148,6 +167,37 @@ export function runEngineSimulation(
   })
 }
 
+export function recordSimulationDeterministicControls(
+  input: SimulationCapture,
+  executionMatchId: MatchId,
+): SimulationControl[] {
+  const controls = new Map<string, Extract<SimulationControl, { type: 'deterministic.index' }>>()
+  let conflict: Error | null = null
+  runEngineSimulationWithOptions(input, 'recorded', {
+    matchId: executionMatchId,
+    onDeterministicIndex: (key, length, index) => {
+      const sourcePrefix = `${executionMatchId}:`
+      const canonicalKey = key.startsWith(sourcePrefix)
+        ? `${input.setup.matchId}:${key.slice(sourcePrefix.length)}`
+        : key
+      const control = SimulationControlSchema.parse({
+        type: 'deterministic.index',
+        key: canonicalKey,
+        length,
+        index,
+      }) as Extract<SimulationControl, { type: 'deterministic.index' }>
+      const existing = controls.get(canonicalKey)
+      if (existing && (existing.length !== control.length || existing.index !== control.index)) {
+        conflict = new Error(`Conflicting deterministic index control for ${canonicalKey}`)
+        return
+      }
+      controls.set(canonicalKey, control)
+    },
+  })
+  if (conflict) throw conflict
+  return [...controls.values()].sort((left, right) => left.key.localeCompare(right.key))
+}
+
 function submitRollingInterruptTurn(
   turns: readonly SimulationTurn[],
   consumed: Set<number>,
@@ -166,6 +216,9 @@ function submitRollingInterruptTurn(
         turn.actionType === 'skill-trigger',
     )
     .sort((left, right) => left.completionOrder - right.completionOrder)
+  for (const ignored of listeners.filter((turn) => turn.action === null && turn.fault !== null)) {
+    consumed.add(ignored.completionOrder)
+  }
   for (const pass of listeners.filter(
     (turn) => turn.action?.type === 'skill-trigger' && turn.action.option === 'pass',
   )) {
@@ -190,12 +243,14 @@ function submitRollingInterruptTurn(
   }
   if (speaker?.action) {
     consumed.add(speaker.completionOrder)
-    engine.submit(speaker.action, { deferContinuation: true })
+    engine.submit(replayAction(speaker.action, engine.state.matchId), {
+      deferContinuation: true,
+    })
   } else if (speaker) {
     consumed.add(speaker.completionOrder)
   }
   consumed.add(interrupt.completionOrder)
-  engine.submit(interrupt.action)
+  engine.submit(replayAction(interrupt.action, engine.state.matchId))
   return true
 }
 
@@ -323,7 +378,12 @@ function checkTurnInvariants(turns: readonly SimulationTurn[]): string[] {
     ) {
       failures.push(`turn ${turn.ordinal}/${turn.playerId} is outside its actor snapshot`)
     }
-    if (turn.status === 'completed' && turn.kind === 'action' && turn.action === null) {
+    if (
+      turn.status === 'completed' &&
+      turn.kind === 'action' &&
+      turn.action === null &&
+      turn.fault === null
+    ) {
       failures.push(`completed action turn ${turn.ordinal}/${turn.playerId} has no action`)
     }
     if (turn.mode === 'parallel' && turn.phaseId) {
@@ -449,6 +509,10 @@ function assertBoundary(
 
 function seatOf(simulation: SimulationInput, playerId: string): number {
   return simulation.setup.players.find((player) => player.playerId === playerId)?.seat ?? 0
+}
+
+function replayAction(action: PlayerAction, matchId: MatchId): PlayerAction {
+  return PlayerActionSchema.parse({ ...action, matchId })
 }
 
 function sameValues(left: readonly string[], right: readonly string[]): boolean {

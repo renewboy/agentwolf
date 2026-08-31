@@ -12,6 +12,7 @@ import type { RuleRegistry } from './rule-registry.js'
 import type { RoleRegistry } from './roles/registry.js'
 import type { RulesetRuntime } from './plugins/ruleset.js'
 import type { BoardManifest, GameState, PhaseNode } from './types.js'
+import type { DeterministicIndexResolver } from './deterministic.js'
 
 export interface EnginePlayerInput {
   readonly id: PlayerId
@@ -31,6 +32,7 @@ export interface GameEngineOptions {
   readonly ruleset?: RulesetRuntime
   readonly roles?: RoleRegistry
   readonly rules?: RuleRegistry
+  readonly deterministicIndex?: DeterministicIndexResolver
 }
 
 export interface GameEngineRestoreOptions {
@@ -43,6 +45,7 @@ export interface GameEngineRestoreOptions {
   readonly ruleset?: RulesetRuntime
   readonly roles?: RoleRegistry
   readonly rules?: RuleRegistry
+  readonly deterministicIndex?: DeterministicIndexResolver
 }
 
 export interface TurnDescriptor {

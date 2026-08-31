@@ -30,6 +30,10 @@ import type {
   TurnDescriptor,
 } from './engine-contracts.js'
 import { assertRule } from './errors.js'
+import {
+  deterministicIndex as defaultDeterministicIndex,
+  type DeterministicIndexResolver,
+} from './deterministic.js'
 import { prepareMatchSetup } from './match-setup.js'
 import { appendAbilityOutcomes, effectsForActions } from './resolution.js'
 import { RuleRegistry, visibility, type RuleRuntime } from './rule-registry.js'
@@ -52,10 +56,12 @@ export class GameEngine {
   readonly #rules: RuleRegistry
   readonly #ruleset: RulesetRuntime
   readonly #events: GameEvent[] = []
+  readonly #deterministicIndex: DeterministicIndexResolver
   #state: GameState
 
   private constructor(options: GameEngineOptions, restored?: GameEngineRestoreOptions) {
     this.#clock = options.clock ?? (() => new Date())
+    this.#deterministicIndex = options.deterministicIndex ?? defaultDeterministicIndex
     const defaultRuleset = options.ruleset ?? createClassicRuleset()
     this.#ruleset =
       options.roles || options.rules
@@ -110,6 +116,7 @@ export class GameEngine {
         ...(options.ruleset ? { ruleset: options.ruleset } : {}),
         ...(options.roles ? { roles: options.roles } : {}),
         ...(options.rules ? { rules: options.rules } : {}),
+        ...(options.deterministicIndex ? { deterministicIndex: options.deterministicIndex } : {}),
       },
       options,
     )
@@ -411,6 +418,7 @@ export class GameEngine {
       victories: this.#ruleset.victories,
       queries: this.#ruleset.queries,
       triggers: this.#ruleset.triggers,
+      deterministicIndex: this.#deterministicIndex,
       append: (payload, eventVisibility) => this.#append(payload, eventVisibility),
     }
   }

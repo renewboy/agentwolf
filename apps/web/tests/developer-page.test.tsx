@@ -35,13 +35,11 @@ vi.mock('../src/components/developer/TrajectoryPanels.js', () => ({
     </button>
   ),
   TrajectoryLedger: ({
-    onLoadOlder,
     onQuery,
     onSelect,
     page,
     query,
   }: {
-    onLoadOlder: () => void
     onQuery: (value: string) => void
     onSelect: (id: string) => void
     page: TrajectoryPage
@@ -49,9 +47,6 @@ vi.mock('../src/components/developer/TrajectoryPanels.js', () => ({
   }) => (
     <div data-testid="ledger">
       ledger:{page.ownerId}:{page.records.length}:{query}
-      <button type="button" onClick={onLoadOlder}>
-        older
-      </button>
       <button type="button" onClick={() => onQuery('needle')}>
         query
       </button>
@@ -126,27 +121,38 @@ class FakeWebSocket extends EventTarget {
 const firstTurn = {
   turnId: 'turn-1',
   ownerId: 'player-1',
-  ordinal: 1,
+  ordinal: 2,
   timelineGroup: { kind: 'setup' },
+}
+const olderTurn = {
+  ...firstTurn,
+  turnId: 'turn-older',
+  ordinal: 1,
 }
 const secondTurn = {
   ...firstTurn,
   turnId: 'turn-2',
   ownerId: 'system',
-  ordinal: 2,
+  ordinal: 1,
 }
 const promptRecord = {
   recordId: 'record-1',
   turnId: 'turn-1',
   ownerId: 'player-1',
-  ordinal: 1,
+  ordinal: 2,
   kind: 'prompt',
 }
 const usageRecord = {
   ...promptRecord,
   recordId: 'record-usage',
-  ordinal: 2,
+  ordinal: 3,
   kind: 'usage',
+}
+const olderRecord = {
+  ...promptRecord,
+  recordId: 'record-older',
+  turnId: 'turn-older',
+  ordinal: 1,
 }
 
 function summary(overrides: Partial<TrajectorySummary> = {}): TrajectorySummary {
@@ -156,21 +162,45 @@ function summary(overrides: Partial<TrajectorySummary> = {}): TrajectorySummary 
     owners: [
       { ownerId: 'system', label: 'System', turnCount: 1, recordCount: 1 },
       { ownerId: 'player-2', label: 'Two', turnCount: 0, recordCount: 0 },
-      { ownerId: 'player-1', label: 'One', turnCount: 1, recordCount: 2 },
+      { ownerId: 'player-1', label: 'One', turnCount: 2, recordCount: 3 },
       { ownerId: 'player-x', label: 'Invalid', turnCount: 0, recordCount: 0 },
     ],
-    turns: [firstTurn, secondTurn],
+    turns: [olderTurn, firstTurn, secondTurn],
     ...overrides,
   } as TrajectorySummary
 }
 
-function trajectoryPage(ownerId = 'player-1', before: number | null = null): TrajectoryPage {
+function trajectoryPage(
+  ownerId: TrajectoryPage['ownerId'] = 'player-1' as TrajectoryPage['ownerId'],
+  before: number | null = null,
+): TrajectoryPage {
+  if (ownerId === 'system') {
+    return {
+      matchId: 'match-test-abcdef' as TrajectoryPage['matchId'],
+      ownerId,
+      revision: 2,
+      turns: [secondTurn],
+      records: [],
+      nextBeforeTurn: null,
+    } as unknown as TrajectoryPage
+  }
+  if (ownerId !== 'player-1') {
+    return {
+      matchId: 'match-test-abcdef' as TrajectoryPage['matchId'],
+      ownerId,
+      revision: 2,
+      turns: [],
+      records: [],
+      nextBeforeTurn: null,
+    } as unknown as TrajectoryPage
+  }
   return {
+    matchId: 'match-test-abcdef' as TrajectoryPage['matchId'],
     ownerId,
     revision: before ? 3 : 2,
-    turns: ownerId === 'system' ? [secondTurn] : [firstTurn],
-    records: ownerId === 'system' ? [] : [promptRecord, usageRecord],
-    nextBeforeTurn: before ? null : 1,
+    turns: before ? [olderTurn] : [firstTurn],
+    records: before ? [olderRecord] : [promptRecord, usageRecord],
+    nextBeforeTurn: before ? null : 2,
   } as TrajectoryPage
 }
 
@@ -199,7 +229,7 @@ beforeEach(() => {
   apiMocks.trajectorySummary.mockResolvedValue(summary())
   apiMocks.trajectoryAudit.mockResolvedValue(audit())
   apiMocks.trajectoryPage.mockImplementation(
-    async (_matchId: string, ownerId: string, before: number | null) =>
+    async (_matchId: string, ownerId: TrajectoryPage['ownerId'], before: number | null) =>
       trajectoryPage(ownerId, before),
   )
   apiMocks.trajectoryPlayerDebug.mockResolvedValue({ profile: {} } as TrajectoryPlayerDebug)
@@ -233,15 +263,16 @@ describe('DeveloperPage', () => {
     unmount()
   })
 
-  it('loads ordered owners, pages, debugging, query, records, older data, and live deltas', async () => {
+  it('loads ordered owners, complete histories, debugging, query, records, and live deltas', async () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: '玩家行动轨迹' })).toBeVisible()
     expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'player-1', null)
+    expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'player-1', 2)
     expect(apiMocks.trajectoryPlayerDebug).toHaveBeenCalledWith('match-test-abcdef', 'player-1')
     const owners = document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-owner')
     expect(owners[0]).toHaveTextContent('1号玩家')
     expect(owners[owners.length - 1]).toHaveTextContent('裁判与运行时')
-    expect(FakeWebSocket.instances[0]?.url).toContain('afterRevision=1')
+    expect(FakeWebSocket.instances[0]?.url).toContain('afterRevision=3')
 
     await userEvent.click(screen.getByRole('button', { name: 'query' }))
     expect(screen.getByTestId('ledger')).toHaveTextContent('needle')
@@ -252,24 +283,19 @@ describe('DeveloperPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'player tab' }))
     expect(screen.getByTestId('inspector')).toHaveTextContent('player')
 
-    await userEvent.click(screen.getByRole('button', { name: 'older' }))
-    await waitFor(() =>
-      expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'player-1', 1),
-    )
-
     const socket = FakeWebSocket.instances[0]!
     act(() =>
       socket.message({
         type: 'trajectory.delta',
         revision: 4,
         turns: [{ ...firstTurn, ordinal: 3 }],
-        records: [{ ...promptRecord, recordId: 'record-live', ordinal: 3 }],
+        records: [{ ...promptRecord, recordId: 'record-live', ordinal: 4 }],
       }),
     )
-    expect(screen.getByTestId('ledger')).toHaveTextContent(':3:')
+    expect(screen.getByTestId('ledger')).toHaveTextContent(':4:')
   })
 
-  it('switches system/player owners and reports page, debug, and older-page failures', async () => {
+  it('switches system/player owners and reports debug failures', async () => {
     renderPage()
     await screen.findByRole('heading', { name: '玩家行动轨迹' })
     const ownerButtons = [...document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-owner')]
@@ -280,13 +306,6 @@ describe('DeveloperPage', () => {
     )
     expect(screen.getByTestId('inspector')).toHaveTextContent('record')
 
-    apiMocks.trajectoryPage.mockRejectedValueOnce(new Error('page failed'))
-    const playerTwo = [
-      ...document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-owner'),
-    ].find((button) => button.textContent?.includes('2号玩家'))!
-    await userEvent.click(playerTwo)
-    expect(await screen.findByText('page failed')).toBeVisible()
-
     apiMocks.trajectoryPlayerDebug.mockRejectedValueOnce('debug failed')
     await userEvent.click(system)
     const playerOne = [
@@ -294,9 +313,19 @@ describe('DeveloperPage', () => {
     ].find((button) => button.textContent?.includes('1号玩家'))!
     await userEvent.click(playerOne)
     expect(await screen.findByText('debug failed')).toBeVisible()
+  })
 
+  it('reports initial and older-page failures while loading a complete history', async () => {
+    apiMocks.trajectoryPage.mockRejectedValueOnce(new Error('page failed'))
+    const first = renderPage()
+    expect(await screen.findByText('page failed')).toBeVisible()
+    first.unmount()
+
+    apiMocks.trajectoryPage.mockImplementationOnce(async (_matchId, ownerId) =>
+      trajectoryPage(ownerId, null),
+    )
     apiMocks.trajectoryPage.mockRejectedValueOnce('older failed')
-    await userEvent.click(screen.getByRole('button', { name: 'older' }))
+    renderPage()
     expect(await screen.findByText('older failed')).toBeVisible()
   })
 
@@ -309,10 +338,23 @@ describe('DeveloperPage', () => {
     renderPage()
     await screen.findByRole('heading', { name: '玩家行动轨迹' })
     await userEvent.click(screen.getByRole('button', { name: 'locate issue' }))
-    await waitFor(() =>
-      expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'player-1', 2),
-    )
     expect(screen.getByTestId('inspector')).toHaveTextContent(`record:${expectedRecord}`)
+  })
+
+  it('focuses an audit turn without records after loading its owner history', async () => {
+    apiMocks.trajectoryAudit.mockResolvedValueOnce({
+      auditedTurns: 1,
+      issues: [{ turnId: 'turn-2', code: 'actor-mismatch', detail: 'issue' }],
+    })
+    renderPage()
+    await screen.findByRole('heading', { name: '玩家行动轨迹' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'locate issue' }))
+
+    await waitFor(() =>
+      expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'system', null),
+    )
+    expect(screen.getByTestId('inspector')).toHaveTextContent('record:turn-2')
   })
 
   it('ignores unknown audit turns and reconnects a closed live socket', async () => {
@@ -323,12 +365,9 @@ describe('DeveloperPage', () => {
     })
     renderPage()
     await vi.waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1))
+    const pageCalls = apiMocks.trajectoryPage.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'locate issue' }))
-    expect(apiMocks.trajectoryPage).not.toHaveBeenCalledWith(
-      'match-test-abcdef',
-      expect.anything(),
-      2,
-    )
+    expect(apiMocks.trajectoryPage).toHaveBeenCalledTimes(pageCalls)
     act(() => FakeWebSocket.instances[0]!.disconnect())
     void act(() => vi.advanceTimersByTime(700))
     expect(FakeWebSocket.instances).toHaveLength(2)

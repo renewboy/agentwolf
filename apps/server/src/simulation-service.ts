@@ -31,8 +31,8 @@ import {
   simulationFingerprint,
 } from './simulation-canonical.js'
 import { auditTrajectory } from './trajectory-audit.js'
+import { recordSimulationDeterministicControls } from './simulation-runner.js'
 import { approveSimulationCandidate, reviewSimulationCandidate } from './simulation-workflow.js'
-import { MatchReadOnlyError } from './match-manager.js'
 
 export class SimulationSourceError extends Error {
   public constructor(message: string) {
@@ -57,9 +57,6 @@ export class SimulationService {
   }
 
   public async capture(matchId: MatchId): Promise<SimulationCapture> {
-    if (this.#repository.getMatchArchive(matchId)) {
-      throw new MatchReadOnlyError(matchId)
-    }
     const match = this.#repository.getMatch(matchId)
     if (!match) throw new SimulationSourceError(`Unknown match ${matchId}`)
     if (match.status !== 'ended' && match.status !== 'paused') {
@@ -152,6 +149,9 @@ export class SimulationService {
       if (turn.kind === 'action' && !descriptor) warnings.push(`missing-boundary:${turn.turnId}`)
       let fault =
         turn.status === 'completed' ? null : classifySimulationFault(turn.status, turn.error)
+      if (turn.kind === 'action' && turn.status === 'completed' && action === null) {
+        fault = 'invalid-action'
+      }
       if (
         turn.kind === 'action' &&
         turn.status === 'completed' &&
@@ -194,9 +194,49 @@ export class SimulationService {
     }
     const audit = await auditTrajectory(this.#repository, this.#boards, matchId)
     warnings.push(...audit.issues.map((issue) => `trajectory-audit:${issue.code}:${issue.turnId}`))
-    const secretWarnings = scanSimulationSecrets({ setup: normalization.setup, turns, observed })
+    const capturedAt = new Date().toISOString()
+    const baseControls = playbackControls(records)
+    const provisionalFingerprint = simulationFingerprint({
+      setup: normalization.setup,
+      turns,
+      controls: baseControls,
+      observed,
+    })
+    const provisional = SimulationCaptureSchema.parse({
+      schemaVersion: 1,
+      stage: 'candidate',
+      simulationId: `simulation-${match.status}-${provisionalFingerprint.slice(0, 16)}`,
+      title: `${normalization.setup.board.id} ${match.status}`,
+      source: {
+        matchId,
+        status: match.status,
+        cutoffSequence: events.at(-1)?.sequence ?? 0,
+        capturedAt,
+        fingerprint: provisionalFingerprint,
+      },
+      setup: normalization.setup,
+      turns,
+      controls: baseControls,
+      observed,
+      warnings: [...new Set(warnings)],
+    })
+    const controls = [
+      ...baseControls,
+      ...recordSimulationDeterministicControls(provisional, matchId),
+    ]
+    const secretWarnings = scanSimulationSecrets({
+      setup: normalization.setup,
+      turns,
+      controls,
+      observed,
+    })
     warnings.push(...secretWarnings.map((warning) => `sensitive-content:${warning}`))
-    const fingerprint = simulationFingerprint({ setup: normalization.setup, turns, observed })
+    const fingerprint = simulationFingerprint({
+      setup: normalization.setup,
+      turns,
+      controls,
+      observed,
+    })
     const simulationId = SimulationIdSchema.parse(
       `simulation-${match.status}-${fingerprint.slice(0, 16)}`,
     )
@@ -209,12 +249,12 @@ export class SimulationService {
         matchId,
         status: match.status,
         cutoffSequence: events.at(-1)?.sequence ?? 0,
-        capturedAt: new Date().toISOString(),
+        capturedAt,
         fingerprint,
       },
       setup: normalization.setup,
       turns,
-      controls: playbackControls(records),
+      controls,
       observed,
       warnings: [...new Set(warnings)],
     })

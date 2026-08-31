@@ -1,5 +1,5 @@
 import type { MatchId, PlayerAction, PlayerId } from '@agentwolf/contracts'
-import { deterministicIndex } from './deterministic.js'
+import { deterministicIndex, type DeterministicIndexResolver } from './deterministic.js'
 import { assertRule } from './errors.js'
 import { visibility, type RuleRuntime } from './rule-registry.js'
 
@@ -23,6 +23,7 @@ export function sheriffCampaignOrder(
   day: number,
   candidates: readonly PlayerId[],
   players: ReadonlyMap<PlayerId, { readonly seat: number }>,
+  selectIndex?: DeterministicIndexResolver,
 ): PlayerId[] {
   const ordered = [...candidates].sort(
     (left, right) => (players.get(left)?.seat ?? 0) - (players.get(right)?.seat ?? 0),
@@ -30,7 +31,7 @@ export function sheriffCampaignOrder(
   if (ordered.length < 2) return ordered
   return rotate(
     ordered,
-    deterministicIndex(
+    (selectIndex ?? deterministicIndex)(
       `${matchId}:day:${day}:sheriff-campaign:${ordered.join(',')}`,
       ordered.length,
     ),
@@ -44,6 +45,7 @@ export function daySpeechOrder(input: {
   readonly recentDeathIds: readonly PlayerId[]
   readonly sheriffId: PlayerId | null
   readonly sheriffDirection?: SpeechDirection
+  readonly deterministicIndex?: DeterministicIndexResolver
 }): DaySpeechOrderDecision {
   const seats = [...input.players].sort((left, right) => left.seat - right.seat)
   const living = seats.filter((player) => player.alive)
@@ -58,6 +60,7 @@ export function daySpeechOrder(input: {
   const randomKey = `${input.matchId}:day:${input.day}:living:${livingIds.join(',')}:deaths:${deaths
     .map((player) => player.id)
     .join(',')}`
+  const selectIndex = input.deterministicIndex ?? deterministicIndex
 
   if (sheriffId) {
     assertRule(input.sheriffDirection, 'Living Sheriff must choose a day speech direction')
@@ -71,7 +74,7 @@ export function daySpeechOrder(input: {
     }
   }
 
-  const direction = deterministicDirection(`${randomKey}:direction`)
+  const direction = deterministicDirection(`${randomKey}:direction`, selectIndex)
   if (deaths.length > 0) {
     const anchorId = deaths[0]!.id
     return {
@@ -82,7 +85,7 @@ export function daySpeechOrder(input: {
     }
   }
 
-  const startId = livingIds[deterministicIndex(`${randomKey}:start`, livingIds.length)]!
+  const startId = livingIds[selectIndex(`${randomKey}:start`, livingIds.length)]!
   const directionalLiving = direction === 'clockwise' ? livingIds : [...livingIds].reverse()
   return {
     playerIds: rotate(directionalLiving, directionalLiving.indexOf(startId)),
@@ -110,6 +113,7 @@ export function resolveDaySpeechOrder(runtime: RuleRuntime): void {
     players: [...runtime.state.players.values()],
     recentDeathIds: [...runtime.state.recentDeaths.keys()],
     sheriffId: livingSheriff,
+    ...(runtime.deterministicIndex ? { deterministicIndex: runtime.deterministicIndex } : {}),
     ...(sheriffDirection ? { sheriffDirection } : {}),
   })
   runtime.append(
@@ -147,6 +151,9 @@ function rotate<Value>(values: readonly Value[], offset: number): Value[] {
   return [...values.slice(offset), ...values.slice(0, offset)]
 }
 
-function deterministicDirection(key: string): SpeechDirection {
-  return deterministicIndex(key, 2) === 0 ? 'clockwise' : 'counterclockwise'
+function deterministicDirection(
+  key: string,
+  selectIndex: DeterministicIndexResolver,
+): SpeechDirection {
+  return selectIndex(key, 2) === 0 ? 'clockwise' : 'counterclockwise'
 }

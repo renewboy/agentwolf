@@ -49,7 +49,7 @@ export function emitVoteResolution(
       ? (tiedPlayerIds[0] ?? null)
       : tiedPlayerIds.length > 1 && randomTieKey
         ? tiedPlayerIds[
-            deterministicIndex(
+            (runtime.deterministicIndex ?? deterministicIndex)(
               `${randomTieKey}:targets:${tiedPlayerIds.join(',')}`,
               tiedPlayerIds.length,
             )

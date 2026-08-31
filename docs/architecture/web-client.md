@@ -229,7 +229,9 @@ GSAP timeline 在依赖变化时 revert，并清理 player dataset、tweens、vi
 
 developer 页面以 lazy chunk 组合 Core trajectory explorer state、AgentWolf record renderer、player
 Session/delivery debug 与领域 audit。Core state 负责 summary/page、owner、revision delta、分页、query
-和 selection；页面只为当前可见 Turn 加载 Records。
+和 selection。AgentWolf 使用 complete initial-page mode：切换 owner 时先遍历全部历史页、刷新一次 head，
+再从最新 revision 建立 delta subscription，因此 minimap、搜索和 audit 定位面对完整轨迹且不会漏掉分页
+期间产生的记录。
 
 simulation wizard 同样位于 developer-only lazy chunk，通过 Core review state 执行 review、warning、
 accept-current 与 approve。AgentWolf adapter 只传 Match ID 和当前 REST DTO；客户端不上传 fixture
