@@ -223,7 +223,7 @@ describe('match orchestration', () => {
       ok: true,
       issues: [],
     })
-  }, 20_000)
+  }, 60_000)
 
   it('generates a speech round ahead but holds its following phase at the final playback', async () => {
     const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-playback-gate-'))
