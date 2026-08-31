@@ -63,6 +63,9 @@ barrels、CLI 与浏览器启动器、错误声明,以及 Web 的 GSAP 转发边
 Playwright 规范按产品域分组,可独立运行。并行的 Chromium worker 在 worker 专属命名空间内
 创建 Tool、Profile、Character、board 与 Match 记录,并在 teardown 中按依赖顺序移除。设置与
 Profile 顺序场景在依赖型的 `chromium-configuration` 项目中运行,使全局变更不与并行场景竞争。
+立即持久化且尚未带命名空间的资源使用服务端返回的 ID 注册清理,确保中途失败与 retry 不会污染
+共享 server。Browser acceptance 的 checkout 会物化 Git LFS 资产,浏览器不以 LFS 指针文件代替
+图片 fixture 或运行时图片。
 
 浏览器 server 使用内存型 E2E 数据库。共享的 Match DTO、发言、实时连接、资源与清理 helper
 位于 `e2e/fixtures` 下。架构检查拒绝超过 500 行的 E2E 规范。

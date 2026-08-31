@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import { expect, test as base, type APIRequestContext, type WorkerInfo } from '@playwright/test'
-import type { MatchView } from '@agentwolf/contracts'
+import type { CharacterId, MatchView } from '@agentwolf/contracts'
 
 export interface E2eResources {
   readonly runId: string
@@ -11,6 +11,7 @@ export interface E2eResources {
   readonly sharedProfileId: string
   readonly boardProfileName: string
   readonly boardProfileId: string
+  readonly trackCharacter: (id: CharacterId) => void
 }
 
 interface E2eWorkerFixtures {
@@ -27,6 +28,7 @@ export const test = base.extend<Record<never, never>, E2eWorkerFixtures>({
       const sharedToolName = `E2E Mock ${runId}`
       const sharedProfileName = `E2E Shared ${runId}`
       const boardProfileName = `E2E Board Agent ${runId}`
+      const trackedCharacterIds = new Set<CharacterId>()
       try {
         const toolResponse = await request.post('/api/agent-tools', {
           data: {
@@ -75,9 +77,10 @@ export const test = base.extend<Record<never, never>, E2eWorkerFixtures>({
           sharedProfileId,
           boardProfileName,
           boardProfileId,
+          trackCharacter: (id) => trackedCharacterIds.add(id),
         })
       } finally {
-        await removeNamespacedResources(request, runId)
+        await removeNamespacedResources(request, runId, trackedCharacterIds)
         await request.dispose()
       }
     },
@@ -87,7 +90,11 @@ export const test = base.extend<Record<never, never>, E2eWorkerFixtures>({
 
 export { expect }
 
-async function removeNamespacedResources(request: APIRequestContext, runId: string): Promise<void> {
+async function removeNamespacedResources(
+  request: APIRequestContext,
+  runId: string,
+  trackedCharacterIds: ReadonlySet<CharacterId>,
+): Promise<void> {
   const matches = (await (await request.get('/api/matches')).json()) as MatchView[]
   for (const match of matches.filter((entry) =>
     entry.seats.some((seat) => seat.name.includes(runId)),
@@ -111,10 +118,17 @@ async function removeNamespacedResources(request: APIRequestContext, runId: stri
     name: string
     source: string
   }>
-  for (const character of characters.filter(
-    (entry) => entry.source === 'custom' && entry.name.includes(runId),
-  )) {
-    await request.delete(`/api/characters/${character.id}`)
+  const removableCharacterIds = new Set([
+    ...trackedCharacterIds,
+    ...characters
+      .filter((entry) => entry.source === 'custom' && entry.name.includes(runId))
+      .map((entry) => entry.id),
+  ])
+  for (const characterId of removableCharacterIds) {
+    const response = await request.delete(`/api/characters/${characterId}`)
+    if (!response.ok() && response.status() !== 404) {
+      throw new Error(`Unable to clean E2E Character ${characterId}: HTTP ${response.status()}`)
+    }
   }
 
   const profiles = (await (await request.get('/api/agent-profiles')).json()) as Array<{

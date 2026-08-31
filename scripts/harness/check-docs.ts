@@ -242,6 +242,10 @@ for (const requiredText of [
 if (workflow.includes('continue-on-error: true')) {
   errors.push('CI workflow contains a non-blocking required gate')
 }
+const browserJob = workflow.match(/\n  e2e:\n[\s\S]*?(?=\n  [a-z][\w-]*:\n|$)/u)?.[0] ?? ''
+if (!browserJob.includes('lfs: true')) {
+  errors.push('Browser acceptance must materialize Git LFS assets')
+}
 
 const hooks = await text(resolve(projectRoot, 'lefthook.yml')).catch(() => '')
 for (const requiredText of [

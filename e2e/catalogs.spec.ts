@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import type { CharacterId } from '@agentwolf/contracts'
 import { expect, test } from './fixtures/test.js'
 
 test('creates, edits, selects, and deletes a custom six-player board', async ({
@@ -102,7 +103,15 @@ test('copies a Character, saves board defaults, and blocks duplicate Match nickn
   await page.goto('/collection/characters')
   await expect(page.locator('.aw-character-card')).toHaveCount(12)
   await page.getByRole('button', { name: /江户川柯南 名侦探柯南/ }).click()
+  const copiedCharacterResponse = page.waitForResponse((response) => {
+    const path = new URL(response.url()).pathname
+    return response.request().method() === 'POST' && /\/api\/characters\/[^/]+\/copy$/u.test(path)
+  })
   await page.getByRole('button', { name: '复制为自定义角色' }).click()
+  const response = await copiedCharacterResponse
+  expect(response.ok()).toBe(true)
+  const copiedCharacter = (await response.json()) as { readonly id: CharacterId }
+  resources.trackCharacter(copiedCharacter.id)
   await page.getByLabel('角色姓名', { exact: true }).fill(characterName)
   await page
     .locator('.aw-character-upload input[type="file"]')
