@@ -10,7 +10,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   start: vi.fn(),
-  resolveLaunch: vi.fn(),
+  prepareLaunch: vi.fn(),
   playerContract: vi.fn(() => 'contract'),
   tool: vi.fn((name: string) => ({ title: `Title ${name}` })),
 }))
@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@agentwolf/acp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@agentwolf/acp')>()),
   AcpPlayerSession: { start: mocks.start },
-  resolvePlayerLaunchSpec: mocks.resolveLaunch,
+  preparePlayerSessionLaunch: mocks.prepareLaunch,
   playerSessionMeta: vi.fn((kind: string, contract: string) => ({ kind, contract })),
   playerApprovedToolNames: vi.fn((kind: string) => [`approved-${kind}`]),
   playerActionToolNames: ['submit_vote', 'submit_night_action'],
@@ -56,10 +56,13 @@ const profile = {
 
 beforeEach(() => {
   mocks.start.mockReset()
-  mocks.resolveLaunch.mockReset()
+  mocks.prepareLaunch.mockReset()
   mocks.playerContract.mockClear()
   mocks.tool.mockClear()
-  mocks.resolveLaunch.mockReturnValue({ command: 'agent', args: [], env: {} })
+  mocks.prepareLaunch.mockResolvedValue({
+    cwd: '/isolated/player',
+    launch: { command: 'agent', args: [], env: {} },
+  })
   mocks.start.mockResolvedValue({ sessionId: 'session-1', connected: true })
 })
 
@@ -81,10 +84,10 @@ describe('defaultPlayerSessionFactory', () => {
         onPermissionDecision,
       }),
     ).resolves.toMatchObject({ sessionId: 'session-1' })
-    expect(mocks.resolveLaunch).toHaveBeenCalledWith(tool, '/tmp/player', [mcpServer])
+    expect(mocks.prepareLaunch).toHaveBeenCalledWith(tool, '/tmp/player', [mcpServer])
     expect(mocks.start).toHaveBeenCalledWith(
       expect.objectContaining({
-        cwd: '/tmp/player',
+        cwd: '/isolated/player',
         model: 'model-a',
         modelConfigKey: 'model-key',
         reasoningEffort: 'high',
@@ -162,7 +165,7 @@ describe('defaultPlayerSessionFactory', () => {
       mcpServers: [],
       verifyUnadvertisedSessionResume: true,
     })
-    expect(mocks.resolveLaunch).toHaveBeenCalledWith(codebuddyTool, '/tmp/codebuddy', [mcpServer])
+    expect(mocks.prepareLaunch).toHaveBeenCalledWith(codebuddyTool, '/tmp/codebuddy', [mcpServer])
   })
 
   it('omits mode when neither Profile nor Tool supplies one and propagates startup failure', async () => {

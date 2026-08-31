@@ -9,6 +9,7 @@ import {
   type PlayerAction,
 } from '@agentwolf/contracts'
 import { copyPlayerSkills } from '@agentwolf/assets/player-skills'
+import { playerIsolationWorkspace } from '@agentwolf/acp'
 import Database from 'better-sqlite3'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -131,6 +132,8 @@ describe('Player workspace links', () => {
       sourceRoot: resolve(process.cwd(), 'packages/assets/player-skills'),
     })
     const workspace = await preparePlayerWorkspace(root, matchId, playerId)
+    const detachedWorkspace = playerIsolationWorkspace(workspace)
+    await mkdir(detachedWorkspace, { recursive: true })
     await preparePlayerWorkspace(root, matchId, playerId)
     expect((await lstat(resolve(workspace, '.agents/skills'))).isSymbolicLink()).toBe(true)
 
@@ -141,6 +144,7 @@ describe('Player workspace links', () => {
 
     await removeMatchPlayerWorkspaces(root, matchId)
     await expect(lstat(workspace)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(lstat(detachedWorkspace)).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(removeMatchPlayerWorkspaces(root, '../escape' as never)).rejects.toThrow(
       /Invalid Match workspace path/,
     )

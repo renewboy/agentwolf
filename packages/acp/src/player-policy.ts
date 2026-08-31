@@ -103,8 +103,13 @@ const codexDisabledCodingFeatures = disabledCodingFeatures.filter(
 
 const sharedContextConfig = {
   include_apps_instructions: false,
+  include_collaboration_mode_instructions: false,
   include_environment_context: false,
   include_permissions_instructions: false,
+  include_apply_patch_tool: false,
+  developer_instructions: '',
+  personality: 'none',
+  project_doc_fallback_filenames: [],
   project_doc_max_bytes: 0,
   memories: {
     generate_memories: false,
@@ -118,13 +123,23 @@ const traePlayerContextArgs = [
   '-c',
   'include_apps_instructions=false',
   '-c',
+  'include_collaboration_mode_instructions=false',
+  '-c',
   'include_environment_context=false',
   '-c',
   'include_permissions_instructions=false',
   '-c',
+  'include_apply_patch_tool=false',
+  '-c',
+  'developer_instructions=""',
+  '-c',
+  'personality="none"',
+  '-c',
   'memories.generate_memories=false',
   '-c',
   'memories.use_memories=false',
+  '-c',
+  'project_doc_fallback_filenames=[]',
   '-c',
   'project_doc_max_bytes=0',
   '-c',
@@ -155,7 +170,7 @@ const codebuddyPlayerArgs = [
   '--agent',
   'cli',
   '--setting-sources',
-  '',
+  'none',
   '--tools',
   [
     ...codebuddyPlayerKnowledgeToolNames,
@@ -170,10 +185,13 @@ const codebuddyPlayerArgs = [
 const codebuddyPlayerEnvironment = {
   CODEBUDDY_CODE_DISABLE_AUTO_MEMORY: '1',
   CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS: '1',
+  CODEBUDDY_CODE_DISABLE_WORKFLOWS: '1',
   CODEBUDDY_DISABLE_AUTO_MEMORY: '1',
   CODEBUDDY_DISABLE_FORK_SUBAGENT: '1',
+  CODEBUDDY_DISABLE_IDE: '1',
   CODEBUDDY_MAIN_AGENT_ENABLED: '0',
   CODEBUDDY_MEMORY_ENABLED: '0',
+  CODEBUDDY_MEMORY_RELEVANCE_DISABLED: '1',
   CODEBUDDY_TEAM_MEMORY_ENABLED: '0',
   CODEBUDDY_TYPED_MEMORY_ENABLED: '0',
 } as const
@@ -182,7 +200,11 @@ export function resolvePlayerLaunchSpec(
   tool: AgentTool,
   workspace: string,
   mcpServers: readonly McpServer[] = [],
+  stateWorkspace: string = workspace,
 ): ProcessLaunchSpec {
+  if (tool.kind === 'custom') {
+    throw new Error(`Custom Agent Tool ${tool.id} has no verified player isolation adapter`)
+  }
   const launch = resolveLaunchSpec(tool)
   const modelInstructions = resolve(workspace, '.agents', 'skills', 'agentwolf-player', 'SKILL.md')
   if (tool.kind === 'trae-cli') {
@@ -207,6 +229,7 @@ export function resolvePlayerLaunchSpec(
       ...launch,
       env: {
         ...launch.env,
+        CODEX_HOME: resolve(stateWorkspace, '.provider-homes', 'codex'),
         CODEX_CONFIG: JSON.stringify(
           mergeCodexConfig(launch.env['CODEX_CONFIG'], modelInstructions),
         ),
@@ -224,7 +247,12 @@ export function resolvePlayerLaunchSpec(
         modelInstructions,
         ...mcp.args,
       ],
-      env: { ...launch.env, ...codebuddyPlayerEnvironment, ...mcp.env },
+      env: {
+        ...launch.env,
+        ...codebuddyPlayerEnvironment,
+        ...mcp.env,
+        CODEBUDDY_CONFIG_DIR: resolve(stateWorkspace, '.provider-homes', 'codebuddy'),
+      },
     }
   }
   return launch

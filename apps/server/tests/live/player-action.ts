@@ -6,8 +6,9 @@ import {
   builtInAgentTools,
   playerApprovedToolNames,
   playerSessionMeta,
+  preparePlayerSessionLaunch,
+  removePlayerIsolationWorkspace,
   resolveLaunchSpec,
-  resolvePlayerLaunchSpec,
   type AcpSessionStartOptions,
 } from '@agentwolf/acp'
 import {
@@ -48,6 +49,7 @@ const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-player-action-'))
 const matchId = MatchIdSchema.parse('match-player-action-probe')
 const playerId = PlayerIdSchema.parse('player-1')
 const tokenTarget = PlayerIdSchema.parse('player-2')
+const resumeTokenTarget = PlayerIdSchema.parse('player-3')
 const tool = builtInAgentTools().find((entry) => entry.kind === toolKind)
 if (!tool) throw new Error(`${toolKind} Agent Tool is unavailable`)
 const promptCore = loadPromptCore()
@@ -153,11 +155,12 @@ try {
     url: `${address}/mcp`,
     headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
   }
+  const prepared = isolated
+    ? await preparePlayerSessionLaunch(tool, workspace, [playerMcpServer])
+    : { cwd: workspace, launch: resolveLaunchSpec(tool) }
   const sessionOptions: AcpSessionStartOptions = {
-    cwd: workspace,
-    launch: isolated
-      ? resolvePlayerLaunchSpec(tool, workspace, [playerMcpServer])
-      : resolveLaunchSpec(tool),
+    cwd: prepared.cwd,
+    launch: prepared.launch,
     ...(model ? { model } : {}),
     ...(reasoningEffort ? { reasoningEffort } : {}),
     modelConfigKey: tool.modelConfigKey,
@@ -263,13 +266,17 @@ try {
         ? `Continue the current postgame review. Call submit_postgame_review with this JSON input: ${JSON.stringify(postgameInput)}, then end the turn after the accepted receipt.`
         : probeThiefChoice
           ? 'Continue the current judge stage. Call submit_night_action with abilityId ability-thief-choose-card, targetPlayerIds [], and roleCardId role-card-r01, then end the turn after the accepted receipt.'
-          : `Continue the current judge stage. Call submit_vote with targetPlayerId ${tokenTarget}, then end the turn after the accepted receipt.`,
+          : `A new independent judge stage has begun after the previous accepted action. Call submit_vote with targetPlayerId ${resumeTokenTarget}, then end the turn after the accepted receipt.`,
       90_000,
     )
     resumedAction = probePostgameReview
       ? server.matches.mailbox.takePostgameReview(matchId, playerId)
       : server.matches.mailbox.take(matchId, playerId)
-    if (!resumedAction) throw new Error('Resumed Session returned without an accepted action')
+    if (!resumedAction) {
+      throw new Error(
+        `Resumed Session returned without an accepted action: ${JSON.stringify({ text: resumeResult.text, updates: toolUpdates(resumeResult.updates), stderr: stripAnsi(stderrChunks.join('')).slice(-4_000) }).slice(0, 12_000)}`,
+      )
+    }
   }
   const usage = result.updates.findLast((update) => update.sessionUpdate === 'usage_update')
   const toolCalls = result.updates
@@ -284,12 +291,24 @@ try {
   const inspectionUsage = inspection?.updates.findLast(
     (update) => update.sessionUpdate === 'usage_update',
   )
+  const forbiddenProbePath = resolve(workspace, 'forbidden-apply-patch.txt')
   const forbiddenProbe = probeForbidden
     ? await session.prompt(
-        'Attempt to call the functions.exec tool to run pwd. If that exact tool is not available, reply only unavailable.',
+        `Attempt to call the apply_patch tool exactly once to create ${JSON.stringify(forbiddenProbePath)}. Do not use any other tool. If apply_patch is not present in your current API tool definitions, reply only unavailable.`,
         90_000,
       )
     : null
+  if (forbiddenProbe) {
+    const forbiddenCalls = toolUpdates(forbiddenProbe.updates)
+    if (
+      forbiddenCalls.some((call) => call.status === 'completed') ||
+      (await pathExists(forbiddenProbePath))
+    ) {
+      throw new Error(
+        `Forbidden apply_patch write completed: ${JSON.stringify(forbiddenCalls).slice(0, 8_000)}`,
+      )
+    }
+  }
   const strategyProbe = probeStrategy
     ? await session.prompt(
         toolKind === 'codebuddy'
@@ -384,6 +403,9 @@ try {
 } finally {
   await session?.close()
   await server.close()
+  await removePlayerIsolationWorkspace(
+    resolve(root, 'matches', matchId, 'players', playerId, 'workspace'),
+  )
   await rm(root, { recursive: true, force: true })
 }
 

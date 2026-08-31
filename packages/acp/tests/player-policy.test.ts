@@ -65,6 +65,11 @@ describe('game-only player process policy', () => {
       'WebFetch',
     ])
     expect(launch.args).toContain('skills.include_instructions=false')
+    expect(launch.args).toContain('include_collaboration_mode_instructions=false')
+    expect(launch.args).toContain('include_apply_patch_tool=false')
+    expect(launch.args).toContain('developer_instructions=""')
+    expect(launch.args).toContain('personality="none"')
+    expect(launch.args).toContain('project_doc_fallback_filenames=[]')
     expect(launch.args).toContain(
       'tools.enabled_tools=["Read","Grep","Glob","Bash","Skill","mcp__agentwolf_player_actions__submit_speech","mcp__agentwolf_player_actions__submit_vote","mcp__agentwolf_player_actions__submit_night_action","mcp__agentwolf_player_actions__submit_sheriff_action","mcp__agentwolf_player_actions__trigger_skill","mcp__agentwolf_player_actions__pass_skill","mcp__agentwolf_player_actions__submit_postgame_review"]',
     )
@@ -97,7 +102,12 @@ describe('game-only player process policy', () => {
       model: string
       model_instructions_file: string
       project_doc_max_bytes: number
+      project_doc_fallback_filenames: string[]
+      include_collaboration_mode_instructions: boolean
+      include_apply_patch_tool: boolean
       include_permissions_instructions: boolean
+      developer_instructions: string
+      personality: string
       features: Record<string, boolean>
       memories: { use_memories: boolean; generate_memories: boolean }
       skills: { include_instructions: boolean }
@@ -108,7 +118,15 @@ describe('game-only player process policy', () => {
       '/runtime/player-2/.agents/skills/agentwolf-player/SKILL.md',
     )
     expect(config.project_doc_max_bytes).toBe(0)
+    expect(config.project_doc_fallback_filenames).toEqual([])
+    expect(config.include_collaboration_mode_instructions).toBe(false)
+    expect(config.include_apply_patch_tool).toBe(false)
     expect(config.include_permissions_instructions).toBe(false)
+    expect(config.developer_instructions).toBe('')
+    expect(config.personality).toBe('none')
+    expect(resolvePlayerLaunchSpec(tool, '/runtime/player-2').env['CODEX_HOME']).toBe(
+      '/runtime/player-2/.provider-homes/codex',
+    )
     expect(config.features).toMatchObject({
       apply_patch_freeform: false,
       browser_use: false,
@@ -143,7 +161,7 @@ describe('game-only player process policy', () => {
 
     expect(launch.command).toBe('codebuddy')
     expect(launch.args).toContain('--acp')
-    expect(launch.args[settingsSourceIndex + 1]).toBe('')
+    expect(launch.args[settingsSourceIndex + 1]).toBe('none')
     expect(optionValues(launch.args, '--tools')).toEqual([
       [
         'Read',
@@ -170,12 +188,16 @@ describe('game-only player process policy', () => {
       AGENTWOLF_CODEBUDDY_MCP_0_HEADER_0: 'Bearer player-secret',
       CODEBUDDY_CODE_DISABLE_AUTO_MEMORY: '1',
       CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS: '1',
+      CODEBUDDY_CODE_DISABLE_WORKFLOWS: '1',
       CODEBUDDY_DISABLE_AUTO_MEMORY: '1',
       CODEBUDDY_DISABLE_FORK_SUBAGENT: '1',
+      CODEBUDDY_DISABLE_IDE: '1',
       CODEBUDDY_MAIN_AGENT_ENABLED: '0',
       CODEBUDDY_MEMORY_ENABLED: '0',
+      CODEBUDDY_MEMORY_RELEVANCE_DISABLED: '1',
       CODEBUDDY_TEAM_MEMORY_ENABLED: '0',
       CODEBUDDY_TYPED_MEMORY_ENABLED: '0',
+      CODEBUDDY_CONFIG_DIR: '/runtime/player-3/.provider-homes/codebuddy',
     })
     expect(() =>
       resolvePlayerLaunchSpec(tool, '/runtime/player-3', [
@@ -187,6 +209,23 @@ describe('game-only player process policy', () => {
         },
       ]),
     ).toThrow(/must use HTTP transport/)
+  })
+
+  it('fails closed for a custom Agent Tool without a verified player isolation adapter', () => {
+    const tool = AgentToolSchema.parse({
+      id: 'tool-custom-player',
+      name: 'Custom player',
+      kind: 'custom',
+      command: 'custom-agent',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+      builtIn: false,
+    })
+
+    expect(() => resolvePlayerLaunchSpec(tool, '/runtime/player-custom')).toThrow(
+      /no verified player isolation adapter/,
+    )
   })
 
   it('gives Claude only sandboxed local strategy tools and no ambient settings source', () => {

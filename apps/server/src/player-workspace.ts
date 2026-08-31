@@ -1,5 +1,6 @@
-import { access, lstat, mkdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
+import { access, lstat, mkdir, readdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
+import { removePlayerIsolationWorkspace } from '@agentwolf/acp'
 import type { MatchId, PlayerId } from '@agentwolf/contracts'
 
 const playerSkillNames = ['agentwolf-player', 'werewolf-strategy'] as const
@@ -29,6 +30,19 @@ export async function removeMatchPlayerWorkspaces(
   const localPath = relative(matchesRoot, matchRoot)
   if (localPath !== matchId || localPath.startsWith('..')) {
     throw new Error(`Invalid Match workspace path: ${matchRoot}`)
+  }
+  const playersRoot = resolve(matchRoot, 'players')
+  try {
+    const players = await readdir(playersRoot, { withFileTypes: true })
+    await Promise.all(
+      players
+        .filter((entry) => entry.isDirectory())
+        .map((entry) =>
+          removePlayerIsolationWorkspace(resolve(playersRoot, entry.name, 'workspace')),
+        ),
+    )
+  } catch (error) {
+    if (!isMissingPath(error)) throw error
   }
   await rm(matchRoot, { recursive: true, force: true })
 }

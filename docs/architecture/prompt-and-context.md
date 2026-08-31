@@ -216,6 +216,10 @@ terminal snapshot、候选集合和评分目标；重试使用专用 continuatio
 
 构建阶段把 `packages/assets/player-skills` 生成到 `.agentwolf/skills`。每个 Match/Player workspace
 只创建相对 symlink，使 `.agents/skills`、`.claude/skills` 和 `.trae/skills` 指向同一共享构建输出。
+Match workspace 同时拥有该 Seat 的 Provider home。Provider home 只引用宿主登录凭据并保存该玩家的
+Session 状态，不继承宿主 settings、记忆或全局指令。Claude 与 CodeBuddy 从不含仓库祖先指令的
+临时 launch workspace 运行；该目录只链接玩家游戏 Skill 入口，并在删除 Match workspace 时一同
+清理。
 
 Provider 启动策略统一执行以下环境契约：
 
@@ -223,24 +227,29 @@ Provider 启动策略统一执行以下环境契约：
 - 暴露本地只读知识工具和七个声明的 MCP 动作工具；
 - MCP endpoint 使用只绑定当前 Match/Player 的 bearer token；
 - 移除环境记忆、仓库项目指令、Web、插件、hooks、子代理、写入与无关开发能力；
-- Claude 额外使用严格无网络和禁止文件写入的 sandbox；Codex/Trae 通过各自配置面落实上下文、
-  Skill、Web 与工具限制；CodeBuddy 使用替换式 system prompt、空 settings source、严格 MCP、只读
-  工具白名单，并关闭环境记忆与子代理入口；玩家 bearer token 只进入进程环境绑定，不进入启动
-  参数中的 MCP 配置文本。
+- Trae 与 Codex 使用替换式模型指令，并关闭 collaboration、developer、personality、项目文档、
+  Skill、Web 与无关工具上下文；Codex 使用 Match-owned `CODEX_HOME`；
+- Claude 使用替换式 system prompt、空 settings source、严格无网络和禁止文件写入的 sandbox；
+- CodeBuddy 使用替换式 system prompt、`none` settings source、Match-owned 配置目录、禁用 IDE、
+  严格 MCP 与只读工具白名单；
+- 自定义 Agent Tool 没有内置隔离适配器，不能启动玩家 Session；
+- 玩家 bearer token 只进入进程环境绑定，不进入启动参数中的 MCP 配置文本。
 
 foundation Prompt 是当前对局事实，turn Prompt 提供 Role 化的行动目标、正式工具名与提交边界，player contract/Skills 是稳定玩法与行为边界，MCP schema 是包含 Ability 语义、字段与参数结构的具体调用契约。
 每个 bootstrap trajectory 对 Provider 报告的 context usage 执行 12,000 token 预算审计。
 
 ## 状态、故障与可观测性
 
-| 状态                  | 所有者                       | 生命周期                             |
-| --------------------- | ---------------------------- | ------------------------------------ |
-| Prompt 源与 manifests | assets 源目录                | 随代码版本发布，非本地化             |
-| bundle registry       | `PromptBundleRegistry`       | 按冻结 Ruleset runtime 构建并缓存    |
-| facts/envelope        | `ContextRenderer`            | 单次渲染快照，携带精确 sequence 范围 |
-| delivery cursor       | `PlayerRuntime` / repository | ACP 最终确认或恢复对账后推进         |
-| 实际 Prompt 与 usage  | trajectory                   | 发送时持久，历史记录不回算           |
-| 玩家 Skills           | assets builder / 数据目录    | 构建一次，多个 workspace 只链接      |
+| 状态                  | 所有者                       | 生命周期                                   |
+| --------------------- | ---------------------------- | ------------------------------------------ |
+| Prompt 源与 manifests | assets 源目录                | 随代码版本发布，非本地化                   |
+| bundle registry       | `PromptBundleRegistry`       | 按冻结 Ruleset runtime 构建并缓存          |
+| facts/envelope        | `ContextRenderer`            | 单次渲染快照，携带精确 sequence 范围       |
+| delivery cursor       | `PlayerRuntime` / repository | ACP 最终确认或恢复对账后推进               |
+| 实际 Prompt 与 usage  | trajectory                   | 发送时持久，历史记录不回算                 |
+| 玩家 Skills           | assets builder / 数据目录    | 构建一次，多个 workspace 只链接            |
+| Provider home         | Match/Player workspace       | 随 Seat Session 创建，随 Match 删除        |
+| detached launch 目录  | ACP player isolation         | Claude/CodeBuddy 启动前创建，随 Match 删除 |
 
 - bundle 缺失、语义覆盖不全、非法 import、audience 越权、模板未定义值或事件呈现歧义会在 registry
   建立或渲染时失败；MatchRuntime 在应用边界暂停 Match。
@@ -257,6 +266,8 @@ foundation Prompt 是当前对局事实，turn Prompt 提供 Role 化的行动�
   原始 GameState。
 - 新跨 bundle 复用只通过带 audience 的 shared template；公开资产不能引用更私密资产。
 - 新动作工具同时更新 core manifest、MCP gateway、玩家工具 allowlist、contracts 与边界测试。
+- 新 ACP Provider 必须提供可验证的替换指令、环境来源关闭、工具白名单和凭据隔离适配器，才能用于
+  玩家 Session。
 - Prompt 只描述当前任务和事实，结构化规则仍由 GameEngine/ActionMailbox 校验。
 - 玩家撰写的 speech 不由事件 renderer 改写策略含义；未知 Player ID 在提交边界拒绝。
 - 任何历史 Prompt 的审计依据是实际存储文本、sequence 和 usage，而非当前源重新渲染。

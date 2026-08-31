@@ -4,7 +4,7 @@ import {
   playerActionToolNames,
   playerApprovedToolNames,
   playerSessionMeta,
-  resolvePlayerLaunchSpec,
+  preparePlayerSessionLaunch,
   type AcpPromptCallbacks,
   type AcpPromptResult,
 } from '@agentwolf/acp'
@@ -41,11 +41,12 @@ export type PlayerSessionFactory = (options: {
 export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
   const mode = options.profile.mode ?? options.tool.initialMode
   const mcpServers = [options.mcpServer]
+  const prepared = await preparePlayerSessionLaunch(options.tool, options.cwd, mcpServers)
   // ACP processes may report provider defaults after resume; the Profile remains authoritative.
   return AcpPlayerSession.start({
-    cwd: options.cwd,
+    cwd: prepared.cwd,
     clientInfo: { name: 'agentwolf', version: '0.1.0' },
-    launch: resolvePlayerLaunchSpec(options.tool, options.cwd, mcpServers),
+    launch: prepared.launch,
     model: options.profile.model,
     modelConfigKey: options.tool.modelConfigKey,
     ...(options.profile.reasoningEffort
