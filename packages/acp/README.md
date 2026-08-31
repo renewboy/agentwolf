@@ -5,12 +5,13 @@
 
 ## 职责
 
-- 内置的 Trae、Codex、Claude、CodeBuddy 与自定义 Agent Tool 定义；自定义 Tool 只用于发现和
-  诊断，缺少玩家隔离适配器时不能启动玩家 Session。
+- 内置的 Trae、Codex、Claude、CodeBuddy 与自定义 Agent Tool 定义；只有绑定经过验证
+  Provider adapter 的 Tool 可以启动玩家 Session。
 - Core `AcpSession`、`AgentProcess`、delivery ledger 与 lifecycle errors 的兼容入口。
 - 对 active Prompt 发送标准 `session/cancel`,同时保留原 Prompt response 作为取消完成边界。
-- Provider 特有的仅游戏启动策略、Match-owned Provider home、隔离 launch workspace 与 sandbox
-  能力声明。
+- `PlayerProviderRegistry` 与 Provider adapter 契约，组合 workspace、state、launch 和 Session
+  policy。
+- Match-owned Provider home、隔离 launch workspace 与 sandbox 能力声明。
 - 通用的 delivery-ledger 类型与不确定送达错误。
 - 进程组监督与有界关闭集成。
 
@@ -28,6 +29,22 @@ Provider 适配器必须保持同一个逻辑行为:创建一次,恢复给定的
 
 主动取消只发送 ACP cancel notification,不创建并发 Prompt。server 在原 Prompt 结束前不会发送后继
 Prompt,并自行决定该完成属于 supersede、已接受动作还是不确定传输。
+
+## Provider adapter 模型
+
+`PlayerProviderRegistry` 先按精确 Agent Tool ID 解析 adapter，再按 Tool kind 解析。默认 registry
+注册 Trae、Codex、Claude 和 CodeBuddy；自定义 Tool 只有在注册经过验证的精确 adapter
+后才能启动玩家 Session。
+
+| policy    | 责任                                                             |
+| --------- | ---------------------------------------------------------------- |
+| workspace | 解析 launch 目录，准备 Skill 链接，并按 lifecycle key 去重清理   |
+| state     | 准备 Match-owned Provider home，只引用允许的宿主凭据             |
+| launch    | 从原始 Tool command/args/environment 生成仅游戏进程配置          |
+| Session   | 声明 MCP 传输方式、可见工具、resume 验证、permission 与 metadata |
+
+`preparePlayerProviderSession` 是唯一编排入口。它只执行 registry 解析和四类
+policy，返回 server 可直接传给 `AcpPlayerSession.start` 的完整 Session spec。
 
 ## 失败行为
 

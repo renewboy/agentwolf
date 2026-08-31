@@ -10,7 +10,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   start: vi.fn(),
-  prepareLaunch: vi.fn(),
+  prepareSession: vi.fn(),
   playerContract: vi.fn(() => 'contract'),
   tool: vi.fn((name: string) => ({ title: `Title ${name}` })),
 }))
@@ -18,9 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@agentwolf/acp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@agentwolf/acp')>()),
   AcpPlayerSession: { start: mocks.start },
-  preparePlayerSessionLaunch: mocks.prepareLaunch,
-  playerSessionMeta: vi.fn((kind: string, contract: string) => ({ kind, contract })),
-  playerApprovedToolNames: vi.fn((kind: string) => [`approved-${kind}`]),
+  preparePlayerProviderSession: mocks.prepareSession,
   playerActionToolNames: ['submit_vote', 'submit_night_action'],
 }))
 
@@ -56,12 +54,18 @@ const profile = {
 
 beforeEach(() => {
   mocks.start.mockReset()
-  mocks.prepareLaunch.mockReset()
+  mocks.prepareSession.mockReset()
   mocks.playerContract.mockClear()
   mocks.tool.mockClear()
-  mocks.prepareLaunch.mockResolvedValue({
+  mocks.prepareSession.mockResolvedValue({
+    providerId: 'fixture',
     cwd: '/isolated/player',
     launch: { command: 'agent', args: [], env: {} },
+    mcpServers: [],
+    sessionMeta: { provider: 'fixture' },
+    approvedToolNames: ['approved-fixture'],
+    verifyUnadvertisedSessionResume: false,
+    allowOpaqueMcpPermissions: false,
   })
   mocks.start.mockResolvedValue({ sessionId: 'session-1', connected: true })
 })
@@ -71,6 +75,16 @@ describe('defaultPlayerSessionFactory', () => {
     const onStderr = vi.fn()
     const onPermissionDecision = vi.fn()
     const mcpServer = { name: 'mcp' } as never
+    mocks.prepareSession.mockResolvedValueOnce({
+      providerId: 'fixture',
+      cwd: '/isolated/player',
+      launch: { command: 'agent', args: [], env: {} },
+      mcpServers: [mcpServer],
+      sessionMeta: { provider: 'fixture' },
+      approvedToolNames: ['approved-fixture'],
+      verifyUnadvertisedSessionResume: false,
+      allowOpaqueMcpPermissions: false,
+    })
     await expect(
       defaultPlayerSessionFactory({
         cwd: '/tmp/player',
@@ -84,7 +98,12 @@ describe('defaultPlayerSessionFactory', () => {
         onPermissionDecision,
       }),
     ).resolves.toMatchObject({ sessionId: 'session-1' })
-    expect(mocks.prepareLaunch).toHaveBeenCalledWith(tool, '/tmp/player', [mcpServer])
+    expect(mocks.prepareSession).toHaveBeenCalledWith({
+      tool,
+      workspace: '/tmp/player',
+      mcpServers: [mcpServer],
+      playerContract: 'contract',
+    })
     expect(mocks.start).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd: '/isolated/player',
@@ -97,7 +116,7 @@ describe('defaultPlayerSessionFactory', () => {
         resumeSessionId: 'session-old',
         verifyUnadvertisedSessionResume: false,
         allowOpaqueMcpPermissions: false,
-        approvedToolNames: ['approved-custom'],
+        approvedToolNames: ['approved-fixture'],
         onStderr,
         onPermissionDecision,
       }),
@@ -115,8 +134,7 @@ describe('defaultPlayerSessionFactory', () => {
       },
     ])
     expect(mocks.start.mock.calls[0]![0].sessionMeta).toMatchObject({
-      kind: 'custom',
-      contract: 'contract',
+      provider: 'fixture',
       agentwolf: { matchId: 'match-session-factory', playerId: 'player-1' },
     })
   })
@@ -128,6 +146,16 @@ describe('defaultPlayerSessionFactory', () => {
       mode: undefined,
       reasoningEffort: undefined,
     } as AgentProfile
+    mocks.prepareSession.mockResolvedValueOnce({
+      providerId: 'codex',
+      cwd: '/isolated/player',
+      launch: { command: 'agent', args: [], env: {} },
+      mcpServers: [],
+      sessionMeta: {},
+      approvedToolNames: [],
+      verifyUnadvertisedSessionResume: false,
+      allowOpaqueMcpPermissions: true,
+    })
     await defaultPlayerSessionFactory({
       cwd: '/tmp/codex',
       tool: codexTool,
@@ -151,6 +179,16 @@ describe('defaultPlayerSessionFactory', () => {
   it('enables the verified unadvertised resume path only for CodeBuddy', async () => {
     const mcpServer = { name: 'codebuddy-mcp' } as never
     const codebuddyTool = { ...tool, kind: 'codebuddy' } as AgentTool
+    mocks.prepareSession.mockResolvedValueOnce({
+      providerId: 'codebuddy',
+      cwd: '/isolated/player',
+      launch: { command: 'agent', args: [], env: {} },
+      mcpServers: [],
+      sessionMeta: {},
+      approvedToolNames: [],
+      verifyUnadvertisedSessionResume: true,
+      allowOpaqueMcpPermissions: false,
+    })
     await defaultPlayerSessionFactory({
       cwd: '/tmp/codebuddy',
       tool: codebuddyTool,
@@ -165,7 +203,12 @@ describe('defaultPlayerSessionFactory', () => {
       mcpServers: [],
       verifyUnadvertisedSessionResume: true,
     })
-    expect(mocks.prepareLaunch).toHaveBeenCalledWith(codebuddyTool, '/tmp/codebuddy', [mcpServer])
+    expect(mocks.prepareSession).toHaveBeenCalledWith({
+      tool: codebuddyTool,
+      workspace: '/tmp/codebuddy',
+      mcpServers: [mcpServer],
+      playerContract: 'contract',
+    })
   })
 
   it('omits mode when neither Profile nor Tool supplies one and propagates startup failure', async () => {

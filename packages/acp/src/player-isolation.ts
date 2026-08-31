@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
 import { access, lstat, mkdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { dirname, parse, relative, resolve } from 'node:path'
-import type { McpServer } from '@agentclientprotocol/sdk'
-import type { AgentTool } from '@agentwolf/contracts'
-import { resolvePlayerLaunchSpec } from './player-policy.js'
-import { resolveLaunchSpec, type ProcessLaunchSpec } from './tool-catalog.js'
+import type {
+  PlayerProviderStatePolicy,
+  PlayerProviderWorkspaceLifecycle,
+  PlayerProviderWorkspacePolicy,
+} from './player-provider-contracts.js'
 
 const ambientInstructionFileNames = [
   'CODEBUDDY.md',
@@ -16,60 +17,89 @@ const ambientInstructionFileNames = [
   'CLAUDE.local.md',
 ] as const
 
-export interface PreparedPlayerSessionLaunch {
-  readonly cwd: string
-  readonly launch: ProcessLaunchSpec
+const canonicalWorkspaceLifecycle: PlayerProviderWorkspaceLifecycle = {
+  key: 'canonical-player-workspace',
+  cleanup: () => Promise.resolve(),
 }
 
-export interface PlayerIsolationOptions {
-  readonly isolationRoot?: string
-  readonly hostCodexHome?: string
-  readonly hostCodeBuddyHome?: string
+const detachedWorkspaceLifecycle: PlayerProviderWorkspaceLifecycle = {
+  key: 'detached-player-workspace',
+  cleanup: (context) =>
+    removePlayerIsolationWorkspace(context.canonicalWorkspace, context.isolation.isolationRoot),
 }
 
-export async function preparePlayerSessionLaunch(
-  tool: AgentTool,
-  workspace: string,
-  mcpServers: readonly McpServer[] = [],
-  options: PlayerIsolationOptions = {},
-): Promise<PreparedPlayerSessionLaunch> {
-  const canonicalWorkspace = resolve(workspace)
-  const hostLaunch = resolveLaunchSpec(tool)
-  let runtimeWorkspace = canonicalWorkspace
+export const canonicalPlayerWorkspace: PlayerProviderWorkspacePolicy = {
+  lifecycle: canonicalWorkspaceLifecycle,
+  resolve: (context) => context.canonicalWorkspace,
+  prepare: () => Promise.resolve(),
+}
 
-  if (tool.kind === 'codex') {
-    await prepareCredentialLink(
-      resolve(
-        options.hostCodexHome ?? hostLaunch.env['CODEX_HOME'] ?? resolve(homedir(), '.codex'),
-      ),
-      resolve(canonicalWorkspace, '.provider-homes', 'codex'),
-      'auth.json',
-    )
-  }
+export const noPlayerProviderState: PlayerProviderStatePolicy = {
+  environment: () => ({}),
+  prepare: () => Promise.resolve(),
+}
 
-  if (tool.kind === 'claude' || tool.kind === 'codebuddy') {
-    runtimeWorkspace = await prepareDetachedPlayerWorkspace(
-      canonicalWorkspace,
-      options.isolationRoot,
-      tool.kind === 'claude' ? ['.agents', '.claude'] : ['.agents'],
-    )
-  }
-
-  if (tool.kind === 'codebuddy') {
-    await prepareCredentialLink(
-      resolve(
-        options.hostCodeBuddyHome ??
-          hostLaunch.env['CODEBUDDY_CONFIG_DIR'] ??
-          resolve(homedir(), '.codebuddy'),
-      ),
-      resolve(canonicalWorkspace, '.provider-homes', 'codebuddy'),
-      'local_storage',
-    )
-  }
-
+export function detachedPlayerWorkspace(
+  linkedDirectories: readonly string[],
+): PlayerProviderWorkspacePolicy {
   return {
-    cwd: runtimeWorkspace,
-    launch: resolvePlayerLaunchSpec(tool, runtimeWorkspace, mcpServers, canonicalWorkspace),
+    lifecycle: detachedWorkspaceLifecycle,
+    resolve: (context) =>
+      playerIsolationWorkspace(context.canonicalWorkspace, context.isolation.isolationRoot),
+    prepare: async (context) => {
+      const root = resolve(context.isolation.isolationRoot ?? defaultIsolationRoot())
+      requireDirectChild(root, context.runtimeWorkspace)
+      await mkdir(context.runtimeWorkspace, { recursive: true, mode: 0o700 })
+      await assertInstructionFreeAncestors(context.runtimeWorkspace)
+      await Promise.all(
+        linkedDirectories.map((directory) =>
+          ensureRelativeLink(
+            resolve(context.runtimeWorkspace, directory),
+            resolve(context.canonicalWorkspace, directory),
+          ),
+        ),
+      )
+    },
+  }
+}
+
+export interface PlayerProviderHomeOptions {
+  readonly id: string
+  readonly directoryName: string
+  readonly environmentVariable: string
+  readonly hostEnvironmentVariable?: string
+  readonly defaultHostHome: () => string
+  readonly credentialEntries: readonly string[]
+}
+
+export function playerProviderHome(options: PlayerProviderHomeOptions): PlayerProviderStatePolicy {
+  return {
+    environment: (context) => ({
+      [options.environmentVariable]: resolve(
+        context.canonicalWorkspace,
+        '.provider-homes',
+        options.directoryName,
+      ),
+    }),
+    prepare: async (context) => {
+      const isolatedHome = resolve(
+        context.canonicalWorkspace,
+        '.provider-homes',
+        options.directoryName,
+      )
+      const hostEnvironmentVariable = options.hostEnvironmentVariable ?? options.environmentVariable
+      const hostHome = resolve(
+        context.isolation.hostHomes?.[options.id] ??
+          context.baseLaunch.env[hostEnvironmentVariable] ??
+          options.defaultHostHome(),
+      )
+      await mkdir(isolatedHome, { recursive: true, mode: 0o700 })
+      await Promise.all(
+        options.credentialEntries.map((entryName) =>
+          prepareCredentialLink(hostHome, isolatedHome, entryName),
+        ),
+      )
+    },
   }
 }
 
@@ -89,30 +119,11 @@ export function playerIsolationWorkspace(workspace: string, isolationRoot?: stri
   return resolve(root, digest)
 }
 
-async function prepareDetachedPlayerWorkspace(
-  workspace: string,
-  isolationRoot?: string,
-  linkedDirectories: readonly string[] = ['.agents'],
-): Promise<string> {
-  const root = resolve(isolationRoot ?? defaultIsolationRoot())
-  const detached = playerIsolationWorkspace(workspace, root)
-  requireDirectChild(root, detached)
-  await mkdir(detached, { recursive: true, mode: 0o700 })
-  await assertInstructionFreeAncestors(detached)
-  await Promise.all(
-    linkedDirectories.map((directory) =>
-      ensureRelativeLink(resolve(detached, directory), resolve(workspace, directory)),
-    ),
-  )
-  return detached
-}
-
 async function prepareCredentialLink(
   hostHome: string,
   isolatedHome: string,
   entryName: string,
 ): Promise<void> {
-  await mkdir(isolatedHome, { recursive: true, mode: 0o700 })
   const source = resolve(hostHome, entryName)
   try {
     await access(source)

@@ -4,10 +4,9 @@ import { resolve } from 'node:path'
 import {
   AcpPlayerSession,
   builtInAgentTools,
-  playerApprovedToolNames,
-  playerSessionMeta,
-  preparePlayerSessionLaunch,
-  removePlayerIsolationWorkspace,
+  cleanupPlayerProviderWorkspaces,
+  defaultPlayerProviderRegistry,
+  preparePlayerProviderSession,
   resolveLaunchSpec,
   type AcpSessionStartOptions,
 } from '@agentwolf/acp'
@@ -155,9 +154,26 @@ try {
     url: `${address}/mcp`,
     headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
   }
+  const playerContract = probeSandbox
+    ? `${promptCore.playerContract()}${sandboxAcceptanceInstruction}`
+    : promptCore.playerContract()
+  const provider = defaultPlayerProviderRegistry.resolve(tool)
   const prepared = isolated
-    ? await preparePlayerSessionLaunch(tool, workspace, [playerMcpServer])
-    : { cwd: workspace, launch: resolveLaunchSpec(tool) }
+    ? await preparePlayerProviderSession({
+        tool,
+        workspace,
+        mcpServers: [playerMcpServer],
+        playerContract,
+      })
+    : {
+        cwd: workspace,
+        launch: resolveLaunchSpec(tool),
+        mcpServers: [playerMcpServer],
+        sessionMeta: {},
+        approvedToolNames: [submittedTool],
+        allowOpaqueMcpPermissions: provider.session.permissions === 'opaque-mcp',
+        verifyUnadvertisedSessionResume: provider.session.resume === 'verify',
+      }
   const sessionOptions: AcpSessionStartOptions = {
     cwd: prepared.cwd,
     launch: prepared.launch,
@@ -165,19 +181,12 @@ try {
     ...(reasoningEffort ? { reasoningEffort } : {}),
     modelConfigKey: tool.modelConfigKey,
     sessionMeta: {
-      ...(isolated
-        ? playerSessionMeta(
-            toolKind,
-            probeSandbox
-              ? `${promptCore.playerContract()}${sandboxAcceptanceInstruction}`
-              : promptCore.playerContract(),
-          )
-        : {}),
+      ...prepared.sessionMeta,
       agentwolf: { matchId, playerId },
     },
-    mcpServers: toolKind === 'codebuddy' && isolated ? [] : [playerMcpServer],
-    approvedToolNames: isolated ? playerApprovedToolNames(toolKind) : [submittedTool],
-    allowOpaqueMcpPermissions: toolKind === 'codex',
+    mcpServers: prepared.mcpServers,
+    approvedToolNames: prepared.approvedToolNames,
+    allowOpaqueMcpPermissions: prepared.allowOpaqueMcpPermissions,
     approvedMcpTools: [
       {
         server: 'agentwolf-player-actions',
@@ -188,7 +197,7 @@ try {
     onStderr: (chunk) => stderrChunks.push(chunk),
     onPermissionRequest: (request) => permissionRequests.push(request),
     requireSessionResume: true,
-    verifyUnadvertisedSessionResume: toolKind === 'codebuddy',
+    verifyUnadvertisedSessionResume: prepared.verifyUnadvertisedSessionResume,
   }
   session = await AcpPlayerSession.start(sessionOptions)
   const initialSessionId = session.sessionId
@@ -403,7 +412,7 @@ try {
 } finally {
   await session?.close()
   await server.close()
-  await removePlayerIsolationWorkspace(
+  await cleanupPlayerProviderWorkspaces(
     resolve(root, 'matches', matchId, 'players', playerId, 'workspace'),
   )
   await rm(root, { recursive: true, force: true })

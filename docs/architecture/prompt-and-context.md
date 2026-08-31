@@ -221,6 +221,28 @@ Session 状态，不继承宿主 settings、记忆或全局指令。Claude 与 C
 临时 launch workspace 运行；该目录只链接玩家游戏 Skill 入口，并在删除 Match workspace 时一同
 清理。
 
+下图表达 Provider 差异如何在 ACP 边界内收敛。Session factory 只消费已准备的 spec，
+不识别具体 Provider。
+
+```mermaid
+flowchart LR
+    Tool["Agent Tool"] --> Registry["PlayerProviderRegistry"]
+    Registry --> Adapter["PlayerProviderAdapter"]
+    Adapter --> Workspace["workspace policy"]
+    Adapter --> State["state policy"]
+    Adapter --> Launch["launch policy"]
+    Adapter --> Session["Session policy"]
+    Workspace --> Spec["Prepared Session spec"]
+    State --> Spec
+    Launch --> Spec
+    Session --> Spec
+    Spec --> Factory["PlayerSessionFactory"]
+```
+
+Registry 优先使用精确 Tool ID 绑定，再使用 Tool kind 绑定。Workspace policy 拥有
+launch 目录的 resolve、prepare 和 cleanup 生命周期；state policy 拥有 Provider home 与凭据
+引用；launch 和 Session policy 分别拥有进程配置与 ACP 能力声明。
+
 Provider 启动策略统一执行以下环境契约：
 
 - 载入 `agentwolf-player` 与 `werewolf-strategy` 游戏 Skills；
@@ -266,8 +288,8 @@ foundation Prompt 是当前对局事实，turn Prompt 提供 Role 化的行动�
   原始 GameState。
 - 新跨 bundle 复用只通过带 audience 的 shared template；公开资产不能引用更私密资产。
 - 新动作工具同时更新 core manifest、MCP gateway、玩家工具 allowlist、contracts 与边界测试。
-- 新 ACP Provider 必须提供可验证的替换指令、环境来源关闭、工具白名单和凭据隔离适配器，才能用于
-  玩家 Session。
+- 新 ACP Provider 必须注册完整 adapter，提供 workspace/state/launch/Session policy，并保证
+  替换指令、环境来源关闭、工具白名单与凭据隔离均可验证。
 - Prompt 只描述当前任务和事实，结构化规则仍由 GameEngine/ActionMailbox 校验。
 - 玩家撰写的 speech 不由事件 renderer 改写策略含义；未知 Player ID 在提交边界拒绝。
 - 任何历史 Prompt 的审计依据是实际存储文本、sequence 和 usage，而非当前源重新渲染。

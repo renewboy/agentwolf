@@ -2,9 +2,7 @@ import type { McpServer, RequestPermissionRequest } from '@agentclientprotocol/s
 import {
   AcpPlayerSession,
   playerActionToolNames,
-  playerApprovedToolNames,
-  playerSessionMeta,
-  preparePlayerSessionLaunch,
+  preparePlayerProviderSession,
   type AcpPromptCallbacks,
   type AcpPromptResult,
 } from '@agentwolf/acp'
@@ -41,7 +39,12 @@ export type PlayerSessionFactory = (options: {
 export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options) => {
   const mode = options.profile.mode ?? options.tool.initialMode
   const mcpServers = [options.mcpServer]
-  const prepared = await preparePlayerSessionLaunch(options.tool, options.cwd, mcpServers)
+  const prepared = await preparePlayerProviderSession({
+    tool: options.tool,
+    workspace: options.cwd,
+    mcpServers,
+    playerContract: promptCore.playerContract(),
+  })
   // ACP processes may report provider defaults after resume; the Profile remains authoritative.
   return AcpPlayerSession.start({
     cwd: prepared.cwd,
@@ -53,16 +56,16 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
       ? { reasoningEffort: options.profile.reasoningEffort }
       : {}),
     ...(mode ? { mode } : {}),
-    mcpServers: options.tool.kind === 'codebuddy' ? [] : mcpServers,
+    mcpServers: prepared.mcpServers,
     sessionMeta: {
-      ...playerSessionMeta(options.tool.kind, promptCore.playerContract()),
+      ...prepared.sessionMeta,
       agentwolf: { matchId: options.matchId, playerId: options.playerId },
     },
-    approvedToolNames: playerApprovedToolNames(options.tool.kind),
+    approvedToolNames: prepared.approvedToolNames,
     requireSessionResume: true,
-    verifyUnadvertisedSessionResume: options.tool.kind === 'codebuddy',
+    verifyUnadvertisedSessionResume: prepared.verifyUnadvertisedSessionResume,
     ...(options.resumeSessionId ? { resumeSessionId: options.resumeSessionId } : {}),
-    allowOpaqueMcpPermissions: options.tool.kind === 'codex',
+    allowOpaqueMcpPermissions: prepared.allowOpaqueMcpPermissions,
     approvedMcpTools: playerActionToolNames.map((tool) => ({
       server: 'agentwolf-player-actions',
       tool,

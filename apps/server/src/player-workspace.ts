@@ -1,6 +1,6 @@
 import { access, lstat, mkdir, readdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
-import { removePlayerIsolationWorkspace } from '@agentwolf/acp'
+import { cleanupPlayerProviderWorkspaces } from '@agentwolf/acp'
 import type { MatchId, PlayerId } from '@agentwolf/contracts'
 
 const playerSkillNames = ['agentwolf-player', 'werewolf-strategy'] as const
@@ -38,7 +38,7 @@ export async function removeMatchPlayerWorkspaces(
       players
         .filter((entry) => entry.isDirectory())
         .map((entry) =>
-          removePlayerIsolationWorkspace(resolve(playersRoot, entry.name, 'workspace')),
+          cleanupPlayerProviderWorkspaces(resolve(playersRoot, entry.name, 'workspace')),
         ),
     )
   } catch (error) {

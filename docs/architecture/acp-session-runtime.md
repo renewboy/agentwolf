@@ -38,6 +38,7 @@ flowchart LR
     end
 
     Factory["PlayerSessionFactory"]
+    Provider["Provider registry + adapter"]
     Session["Core AcpSession<br/>initialize / new / resume / prompt"]
     Process["AgentProcess + guardian"]
     Agent["ACP Agent 进程"]
@@ -47,7 +48,7 @@ flowchart LR
     Player <--> Binding
     Player <--> Ledger
     Player <--> Pending
-    Player --> Factory --> Session --> Process --> Agent
+    Player --> Factory --> Provider --> Session --> Process --> Agent
     Agent -->|"带玩家 token"| MCP
     MCP -->|"active expectation"| Match
     MCP --> Pending
@@ -60,6 +61,7 @@ flowchart LR
 | player-session repository | durable profile/tool snapshot、binding state、Session ID、bootstrap、pending action       | 不启动进程，不解释 ACP response                           |
 | `DeliveryLedger`          | Core 中的 `acknowledgedSequence` 与最多一个 active attempt                                | 不保存 Prompt 文本或游戏动作                              |
 | `ActionMailbox`           | token 绑定、当前 expectation、内存 action handoff                                         | 不成为持久动作所有者；接受回调立即写 repository           |
+| Provider registry/adapter | workspace/state/launch/Session policy 与可执行 spec                                       | 不决定 Match 重试、delivery 或游戏动作                    |
 | Core `AcpSession`         | ACP 连接、协议协商、逻辑 Session 操作、单个 active Prompt                                 | 不决定 Match 恢复或替换 Session                           |
 | Core `AgentProcess`       | 子进程组、stderr tail 与 TERM/KILL 关闭                                                   | 不理解协议消息或游戏状态                                  |
 
@@ -93,8 +95,10 @@ stateDiagram-v2
 
 `AcpPlayerSession.start` 的装配顺序为：
 
-1. 根据 Tool 与玩家隔离策略生成 command、args、environment 和 workspace；CodeBuddy 的单玩家 MCP
-   endpoint 进入严格的临时启动配置，header 值只通过进程环境绑定；
+1. Provider registry 根据精确 Tool ID 或 kind 解析 adapter，依次执行
+   workspace/state/launch/Session policy，生成 command、args、environment、workspace 与 ACP
+   能力 spec；CodeBuddy 的单玩家 MCP endpoint 进入严格的启动配置，header 值只通过
+   进程环境绑定；
 2. 通过 guardian 启动 stdio 进程，建立 NDJSON ACP connection；
 3. 协商精确协议版本并检查或验证 `session.resume` 能力；
 4. 调用 `session/new` 或 `session/resume` 并连接玩家绑定 MCP server；CodeBuddy 使用进程启动时预载的
@@ -264,8 +268,9 @@ Prompt timeout 或 cancel 未确认都会以显式 lifecycle/delivery error 上�
 
 ## 扩展边界与不变量
 
-- 新 Provider 只扩展 Tool catalog、launch policy 和 factory 适配，必须保持相同 Session、Prompt、
-  permission、stream 和 close 契约。
+- 新 Provider 通过 registry 注册 adapter，adapter 完整定义 workspace/state/launch/Session policy；
+  Session factory 不按 Provider kind 分支。新 adapter 必须保持相同 Session、Prompt、permission、
+  stream 和 close 契约。
 - Provider 必须声明 `session.resume`，或由内置适配在 foundation 前以新建的同一 Session ID 完成
   一次标准 `session/resume` 验证；恢复路径不使用 `session/load`。
 - Match 级重试、pending action、cursor 与 pause 策略留在 server，不能下沉到 Provider adapter。

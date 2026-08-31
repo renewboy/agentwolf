@@ -2,29 +2,35 @@ import { AgentToolSchema } from '@agentwolf/contracts'
 import { describe, expect, it } from 'vitest'
 import {
   builtInAgentTools,
+  defaultPlayerProviderRegistry,
   playerActionToolNames,
-  playerApprovedToolNames,
   playerBootstrapContextBudget,
+  playerIsolationWorkspace,
   playerKnowledgeToolNames,
-  playerSessionMeta,
   resolvePlayerLaunchSpec,
 } from '../src/index.js'
 
 describe('game-only player process policy', () => {
   it('keeps a mechanical bootstrap context budget below the former ambient baseline', () => {
+    const providers = new Map(
+      builtInAgentTools().map((tool) => [tool.kind, defaultPlayerProviderRegistry.resolve(tool)]),
+    )
     expect(playerBootstrapContextBudget).toBe(12_000)
-    expect(playerApprovedToolNames('trae-cli')).toEqual([
+    expect(providers.get('trae-cli')?.session.approvedToolNames).toEqual([
       ...playerActionToolNames,
       ...playerKnowledgeToolNames,
     ])
-    expect(playerApprovedToolNames('codex')).toEqual(playerActionToolNames)
-    expect(playerApprovedToolNames('claude')).toEqual(playerActionToolNames)
-    expect(playerApprovedToolNames('codebuddy')).toEqual([
+    expect(providers.get('codex')?.session.approvedToolNames).toEqual(playerActionToolNames)
+    expect(providers.get('claude')?.session.approvedToolNames).toEqual(playerActionToolNames)
+    expect(providers.get('codebuddy')?.session.approvedToolNames).toEqual([
       ...playerActionToolNames,
       'Read',
       'Grep',
       'Glob',
     ])
+    expect(providers.get('codex')?.session.permissions).toBe('opaque-mcp')
+    expect(providers.get('codebuddy')?.session.mcpTransport).toBe('launch')
+    expect(providers.get('codebuddy')?.session.resume).toBe('verify')
   })
 
   it('starts Trae with local strategy tools and structured game actions', () => {
@@ -81,6 +87,13 @@ describe('game-only player process policy', () => {
     expect(launch.args.indexOf('skills.include_instructions=false')).toBeLessThan(
       launch.args.indexOf('acp'),
     )
+
+    const launchWithoutAcpMarker = resolvePlayerLaunchSpec(
+      AgentToolSchema.parse({ ...tool, args: ['serve'] }),
+      '/runtime/player-1',
+    )
+    expect(launchWithoutAcpMarker.args.indexOf('--disable')).toBeGreaterThan(0)
+    expect(launchWithoutAcpMarker.args).toContain('serve')
   })
 
   it('merges an isolated Codex session config over user defaults', () => {
@@ -175,7 +188,7 @@ describe('game-only player process policy', () => {
     ])
     expect(optionValues(launch.args, '--permission-mode')).toEqual(['dontAsk'])
     expect(optionValues(launch.args, '--system-prompt-file')).toEqual([
-      '/runtime/player-3/.agents/skills/agentwolf-player/SKILL.md',
+      `${playerIsolationWorkspace('/runtime/player-3')}/.agents/skills/agentwolf-player/SKILL.md`,
     ])
     expect(launch.args).toContain('--strict-mcp-config')
     expect(mcpConfig.mcpServers['agentwolf-player-actions']).toEqual({
@@ -224,12 +237,16 @@ describe('game-only player process policy', () => {
     })
 
     expect(() => resolvePlayerLaunchSpec(tool, '/runtime/player-custom')).toThrow(
-      /no verified player isolation adapter/,
+      /no verified player Provider adapter/,
     )
   })
 
   it('gives Claude only sandboxed local strategy tools and no ambient settings source', () => {
-    expect(playerSessionMeta('claude', 'PLAYER CONTRACT')).toEqual({
+    const tools = builtInAgentTools()
+    const claude = defaultPlayerProviderRegistry.resolve(
+      tools.find((tool) => tool.kind === 'claude')!,
+    )
+    expect(claude.session.metadata('PLAYER CONTRACT')).toEqual({
       claudeCode: {
         options: {
           settingSources: [],
@@ -255,8 +272,16 @@ describe('game-only player process policy', () => {
         },
       },
     })
-    expect(playerSessionMeta('trae-cli', 'PLAYER CONTRACT')).toEqual({})
-    expect(playerSessionMeta('codebuddy', 'PLAYER CONTRACT')).toEqual({})
+    expect(
+      defaultPlayerProviderRegistry
+        .resolve(tools.find((tool) => tool.kind === 'trae-cli')!)
+        .session.metadata('PLAYER CONTRACT'),
+    ).toEqual({})
+    expect(
+      defaultPlayerProviderRegistry
+        .resolve(tools.find((tool) => tool.kind === 'codebuddy')!)
+        .session.metadata('PLAYER CONTRACT'),
+    ).toEqual({})
   })
 })
 

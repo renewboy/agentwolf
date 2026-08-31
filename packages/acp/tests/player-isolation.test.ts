@@ -1,11 +1,12 @@
 import { lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { AgentToolSchema } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   builtInAgentTools,
   playerIsolationWorkspace,
-  preparePlayerSessionLaunch,
+  preparePlayerProviderSession,
   removePlayerIsolationWorkspace,
 } from '../src/index.js'
 
@@ -22,7 +23,12 @@ describe('player provider isolation', () => {
     const isolationRoot = resolve(root, 'detached')
     const tool = builtInAgentTools().find((entry) => entry.kind === 'claude')!
 
-    const prepared = await preparePlayerSessionLaunch(tool, workspace, [], { isolationRoot })
+    const prepared = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+      isolation: { isolationRoot },
+    })
 
     expect(prepared.cwd).toBe(playerIsolationWorkspace(workspace, isolationRoot))
     expect(await realpath(resolve(prepared.cwd, '.agents'))).toBe(
@@ -42,8 +48,11 @@ describe('player provider isolation', () => {
     await writeFile(resolve(hostHome, 'AGENTS.md'), 'CODING INSTRUCTIONS\n', 'utf8')
     const tool = builtInAgentTools().find((entry) => entry.kind === 'codex')!
 
-    const prepared = await preparePlayerSessionLaunch(tool, workspace, [], {
-      hostCodexHome: hostHome,
+    const prepared = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+      isolation: { hostHomes: { codex: hostHome } },
     })
 
     const isolatedHome = resolve(workspace, '.provider-homes', 'codex')
@@ -64,13 +73,44 @@ describe('player provider isolation', () => {
     await mkdir(hostHome, { recursive: true })
     const tool = builtInAgentTools().find((entry) => entry.kind === 'codex')!
 
-    await preparePlayerSessionLaunch(tool, workspace, [], { hostCodexHome: hostHome })
+    await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+      isolation: { hostHomes: { codex: hostHome } },
+    })
 
     const isolatedHome = resolve(workspace, '.provider-homes', 'codex')
     expect((await lstat(isolatedHome)).isDirectory()).toBe(true)
     await expect(realpath(resolve(isolatedHome, 'auth.json'))).rejects.toMatchObject({
       code: 'ENOENT',
     })
+  })
+
+  it('resolves a Provider host home from the Tool launch environment', async () => {
+    const root = await temporaryRoot('agentwolf-codex-tool-home-')
+    const workspace = await playerWorkspace(root)
+    const hostHome = resolve(root, 'host-codex')
+    await mkdir(hostHome, { recursive: true })
+    await writeFile(resolve(hostHome, 'auth.json'), '{"credential":"fixture"}\n', 'utf8')
+    const builtIn = builtInAgentTools().find((entry) => entry.kind === 'codex')!
+    const tool = AgentToolSchema.parse({
+      ...builtIn,
+      environment: {
+        ...builtIn.environment,
+        CODEX_HOME: { source: 'literal', value: hostHome, secret: false },
+      },
+    })
+
+    await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+    })
+
+    expect(await realpath(resolve(workspace, '.provider-homes', 'codex', 'auth.json'))).toBe(
+      await realpath(resolve(hostHome, 'auth.json')),
+    )
   })
 
   it('runs CodeBuddy from an instruction-free detached cwd and isolated config home', async () => {
@@ -84,9 +124,11 @@ describe('player provider isolation', () => {
     await writeFile(resolve(hostHome, 'CODEBUDDY.md'), 'CODING INSTRUCTIONS\n', 'utf8')
     const tool = builtInAgentTools().find((entry) => entry.kind === 'codebuddy')!
 
-    const prepared = await preparePlayerSessionLaunch(tool, workspace, [], {
-      hostCodeBuddyHome: hostHome,
-      isolationRoot,
+    const prepared = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+      isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
     })
 
     const isolatedHome = resolve(workspace, '.provider-homes', 'codebuddy')
@@ -102,9 +144,11 @@ describe('player provider isolation', () => {
       code: 'ENOENT',
     })
 
-    const repeated = await preparePlayerSessionLaunch(tool, workspace, [], {
-      hostCodeBuddyHome: hostHome,
-      isolationRoot,
+    const repeated = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+      isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
     })
     expect(repeated.cwd).toBe(prepared.cwd)
     expect(await realpath(resolve(repeated.cwd, '.agents'))).toBe(
@@ -113,9 +157,11 @@ describe('player provider isolation', () => {
 
     await rm(resolve(prepared.cwd, '.agents'))
     await mkdir(resolve(prepared.cwd, '.agents'))
-    const repaired = await preparePlayerSessionLaunch(tool, workspace, [], {
-      hostCodeBuddyHome: hostHome,
-      isolationRoot,
+    const repaired = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+      isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
     })
     expect((await lstat(resolve(repaired.cwd, '.agents'))).isSymbolicLink()).toBe(true)
     expect(await realpath(resolve(repaired.cwd, '.agents'))).toBe(
@@ -131,7 +177,11 @@ describe('player provider isolation', () => {
     const workspace = await playerWorkspace(root)
     const tool = builtInAgentTools().find((entry) => entry.kind === 'claude')!
 
-    const prepared = await preparePlayerSessionLaunch(tool, workspace)
+    const prepared = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      playerContract: 'PLAYER CONTRACT',
+    })
 
     expect(prepared.cwd).toBe(playerIsolationWorkspace(workspace))
     await removePlayerIsolationWorkspace(workspace)
@@ -147,7 +197,12 @@ describe('player provider isolation', () => {
     const tool = builtInAgentTools().find((entry) => entry.kind === 'codebuddy')!
 
     await expect(
-      preparePlayerSessionLaunch(tool, workspace, [], { isolationRoot }),
+      preparePlayerProviderSession({
+        tool,
+        workspace,
+        playerContract: 'PLAYER CONTRACT',
+        isolation: { isolationRoot },
+      }),
     ).rejects.toThrow(/inherits model instructions/)
   })
 })
