@@ -76,6 +76,7 @@ function timelineItem(
     kind,
     title,
     playerIds: [],
+    ...(kind === 'speech.committed' ? { speechId: sequence as never } : {}),
     occurredAt: '2026-08-28T12:34:00.000Z',
     ...options,
   } as TimelineItem
@@ -83,6 +84,8 @@ function timelineItem(
 
 const audio = {
   supported: true,
+  mode: 'idle',
+  activeSpeechId: null,
   automaticSequence: null,
   automaticPlayerId: null,
   automaticBusy: false,
@@ -358,8 +361,19 @@ describe('MatchFeed', () => {
 
     rerender(
       <MatchFeed
-        activeSpeech={{ playerId: 'player-1' as never, text: '生成中', final: false }}
-        audio={{ ...audio, automaticPlayerId: 'player-1' as never, automaticBusy: true }}
+        activeSpeech={{
+          speechId: 9 as never,
+          playerId: 'player-1' as never,
+          text: '生成中',
+          final: false,
+        }}
+        audio={{
+          ...audio,
+          mode: 'automatic',
+          activeSpeechId: 9 as never,
+          automaticPlayerId: 'player-1' as never,
+          automaticBusy: true,
+        }}
         postgameReview={postgame}
         seats={seats}
         timeline={baseTimeline}
@@ -370,14 +384,18 @@ describe('MatchFeed', () => {
 
     rerender(
       <MatchFeed
-        activeSpeech={{ playerId: 'player-1' as never, text: '', final: false }}
-        audio={{ ...audio, automaticSequence: 6, manualSequence: 8 }}
+        activeSpeech={{
+          speechId: 10 as never,
+          playerId: 'player-1' as never,
+          text: '',
+          final: false,
+        }}
+        audio={{ ...audio, mode: 'manual', activeSpeechId: 8 as never, manualSequence: 8 }}
         postgameReview={postgame}
         seats={seats}
         timeline={baseTimeline}
       />,
     )
-    await userEvent.click(screen.getByRole('button', { name: /一号玩家.*跳过/ }))
     await userEvent.click(screen.getByRole('button', { name: /二号玩家.*停止/ }))
     expect(audio.stop).toHaveBeenCalledOnce()
     expect(screen.getByText('等待下一位玩家发言')).toBeVisible()
@@ -396,7 +414,12 @@ describe('MatchFeed', () => {
     expect(screen.getByText('等待裁判公布事件')).toBeVisible()
     rerender(
       <MatchFeed
-        activeSpeech={{ playerId: 'player-99' as never, text: '隐藏', final: false }}
+        activeSpeech={{
+          speechId: 99 as never,
+          playerId: 'player-99' as never,
+          text: '隐藏',
+          final: false,
+        }}
         audio={{ ...audio, supported: false }}
         postgameReview={null}
         seats={matchView().seats}
@@ -431,7 +454,12 @@ describe('MatchFeed', () => {
     fireEvent.wheel(log, { deltaY: -1 })
     rerender(
       <MatchFeed
-        activeSpeech={{ playerId: 'player-1' as never, text: '新增', final: false }}
+        activeSpeech={{
+          speechId: 2 as never,
+          playerId: 'player-1' as never,
+          text: '新增',
+          final: false,
+        }}
         audio={audio}
         postgameReview={null}
         seats={matchView().seats}

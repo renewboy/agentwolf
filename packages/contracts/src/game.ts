@@ -7,6 +7,7 @@ import {
   PlayerIdSchema,
   RoleCardIdSchema,
   RoleIdSchema,
+  SpeechIdSchema,
 } from './ids.js'
 import { CharacterCardSnapshotSchema, CharacterSummarySchema } from './characters.js'
 import { AgentConfigurationSummarySchema } from './agents.js'
@@ -209,6 +210,7 @@ export const TimelineItemSchema = z.object({
   title: z.string(),
   detail: z.string().optional(),
   playerIds: z.array(PlayerIdSchema),
+  speechId: SpeechIdSchema.optional(),
   occurredAt: z.string().datetime(),
   postgame: z.boolean().default(false),
 })
@@ -228,6 +230,7 @@ export const MatchViewSchema = z.object({
   effectCues: z.array(RoleEffectCueSchema).default([]),
   activeSpeech: z
     .object({
+      speechId: SpeechIdSchema,
       playerId: PlayerIdSchema,
       text: z.string(),
       final: z.boolean(),
@@ -270,6 +273,7 @@ export const LiveMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('speech-chunk'),
     matchId: MatchIdSchema,
+    speechId: SpeechIdSchema,
     playerId: PlayerIdSchema,
     text: z.string(),
   }),

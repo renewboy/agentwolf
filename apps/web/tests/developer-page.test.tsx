@@ -272,7 +272,7 @@ describe('DeveloperPage', () => {
     const owners = document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-owner')
     expect(owners[0]).toHaveTextContent('1号玩家')
     expect(owners[owners.length - 1]).toHaveTextContent('裁判与运行时')
-    expect(FakeWebSocket.instances[0]?.url).toContain('afterRevision=3')
+    await waitFor(() => expect(FakeWebSocket.instances[0]?.url).toContain('afterRevision=3'))
 
     await userEvent.click(screen.getByRole('button', { name: 'query' }))
     expect(screen.getByTestId('ledger')).toHaveTextContent('needle')

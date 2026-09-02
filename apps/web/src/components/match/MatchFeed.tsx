@@ -10,13 +10,14 @@ import {
 } from '@phosphor-icons/react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFollowLatest } from '@agent-arena/react'
-import { FollowLatestController } from '@agent-arena/web-runtime'
+import { FollowLatestController, type PresentationPlaybackMode } from '@agent-arena/web-runtime'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
   MatchView,
   PlayerId,
   PostgameReviewView,
   SeatView,
+  SpeechId,
   TimelineItem,
 } from '@agentwolf/contracts'
 import { PostgameFeedAwards } from './PostgameAwardResults.js'
@@ -29,13 +30,15 @@ interface TimelineGroup {
 
 export interface SpeechAudioControls {
   readonly supported: boolean
+  readonly mode: PresentationPlaybackMode
+  readonly activeSpeechId: SpeechId | null
   readonly automaticSequence: number | null
   readonly automaticPlayerId: PlayerId | null
   readonly automaticBusy: boolean
   readonly manualSequence: number | null
   readonly play: (item: TimelineItem) => void
   readonly stop: () => void
-  readonly skip: () => void
+  readonly skip: (speechId: SpeechId) => void
 }
 
 export function MatchFeed({
@@ -208,6 +211,7 @@ export function MatchFeed({
             live
             playerId={activeSpeech.playerId}
             seats={seats}
+            speechId={activeSpeech.speechId}
             text={activeSpeech.text}
           />
         ) : null}
@@ -289,6 +293,7 @@ function SpeechBubble({
   text,
   item,
   audio,
+  speechId,
   live = false,
 }: {
   readonly playerId: PlayerId
@@ -296,6 +301,7 @@ function SpeechBubble({
   readonly text: string
   readonly item?: TimelineItem
   readonly audio?: SpeechAudioControls
+  readonly speechId?: SpeechId
   readonly live?: boolean
 }) {
   const playerIndex = seats.findIndex((seat) => seat.playerId === playerId)
@@ -306,14 +312,17 @@ function SpeechBubble({
     seat: player.seat,
     name: player.name,
   })
+  const playbackSpeechId = item ? (item.speechId ?? (item.sequence as SpeechId)) : speechId
   const playback =
-    item?.sequence === audio?.automaticSequence
-      ? 'automatic'
-      : live && audio?.automaticPlayerId === playerId
-        ? 'automatic'
-        : item?.sequence === audio?.manualSequence
-          ? 'manual'
+    audio?.activeSpeechId !== undefined &&
+    audio.activeSpeechId !== null &&
+    audio.activeSpeechId === playbackSpeechId
+      ? audio.mode === 'manual'
+        ? 'manual'
+        : audio.mode === 'automatic'
+          ? 'automatic'
           : 'idle'
+      : 'idle'
   return (
     <article
       className="aw-feed-item aw-speech-bubble"
@@ -334,6 +343,7 @@ function SpeechBubble({
               item={item}
               playback={playback}
               playerLabel={playerLabel}
+              speechId={playbackSpeechId}
             />
           ) : live ? (
             <span>{getCopy('sessionStatuses.thinking')}</span>
@@ -343,6 +353,7 @@ function SpeechBubble({
               item={item}
               playback={playback}
               playerLabel={playerLabel}
+              speechId={playbackSpeechId}
             />
           ) : null}
         </header>
@@ -358,11 +369,13 @@ function SpeechAudioButton({
   item,
   playback,
   playerLabel,
+  speechId,
 }: {
   readonly audio: SpeechAudioControls
   readonly item: TimelineItem | undefined
   readonly playback: 'automatic' | 'manual' | 'idle'
   readonly playerLabel: string
+  readonly speechId: SpeechId | undefined
 }) {
   if (playback === 'automatic') {
     return (
@@ -370,7 +383,9 @@ function SpeechAudioButton({
         className="aw-speech-audio-control aw-speech-audio-control--skip"
         aria-label={formatCopy(getCopy('match.audioSkipSpeech'), { player: playerLabel })}
         type="button"
-        onClick={() => audio.skip()}
+        onClick={() => {
+          if (speechId !== undefined) audio.skip(speechId)
+        }}
       >
         <SkipForward size={15} aria-hidden />
         <span>{getCopy('match.audioSkip')}</span>
@@ -395,7 +410,7 @@ function SpeechAudioButton({
     <button
       className="aw-speech-audio-control"
       aria-label={formatCopy(getCopy('match.audioPlaySpeech'), { player: playerLabel })}
-      disabled={!audio.supported || audio.automaticBusy}
+      disabled={!audio.supported}
       title={getCopy(audio.supported ? 'match.audioPlay' : 'match.audioUnsupported')}
       type="button"
       onClick={() => audio.play(item)}

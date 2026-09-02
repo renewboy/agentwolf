@@ -2,6 +2,7 @@ import {
   AgentProfileIdSchema,
   MatchIdSchema,
   PlayerIdSchema,
+  SpeechIdSchema,
   type LiveMessage,
 } from '@agentwolf/contracts'
 import { GameEngine, standardBoard } from '@agentwolf/game-engine'
@@ -48,10 +49,12 @@ describe('LiveHub speech visibility', () => {
       playerId: PlayerIdSchema.parse('player-99'),
     })
 
-    hub.broadcastSpeechChunk(engine.state, wolfIds[0]!, 'day', 'public')
+    const speechId = SpeechIdSchema.parse(1)
+    hub.broadcastSpeechChunk(engine.state, speechId, wolfIds[0]!, 'day', 'public')
     for (const messages of received.values()) expect(messages).toHaveLength(1)
+    expect(received.get('god')?.[0]).toMatchObject({ type: 'speech-chunk', speechId })
 
-    hub.broadcastSpeechChunk(engine.state, wolfIds[0]!, 'wolf-council', 'private')
+    hub.broadcastSpeechChunk(engine.state, speechId, wolfIds[0]!, 'wolf-council', 'private')
     expect(received.get('god')).toHaveLength(2)
     expect(received.get('wolf')).toHaveLength(2)
     expect(received.get('closed')).toHaveLength(1)
@@ -61,6 +64,7 @@ describe('LiveHub speech visibility', () => {
     unsubscribeMissing()
     hub.broadcastSpeechChunk(
       engine.state,
+      speechId,
       PlayerIdSchema.parse('player-99'),
       'wolf-council',
       'unknown actor',

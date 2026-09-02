@@ -1,8 +1,8 @@
 import { ArrowClockwise, Trash } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
-import { PlayerIdSchema, type PlayerId, type SpectatorView } from '@agentwolf/contracts'
+import type { MatchView, SeatView } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { ErrorState } from '../components/AsyncState.js'
@@ -16,23 +16,18 @@ import {
 import { PlayerRail } from '../components/match/PlayerRail.js'
 import { PostgameReviewPanel } from '../components/match/PostgameReviewPanel.js'
 import { RoleEffectController } from '../components/match/RoleEffectController.js'
-import { useLiveMatch, type LiveConnectionState } from '../hooks/useLiveMatch.js'
+import type { LiveConnectionState } from '../hooks/useLiveMatch.js'
+import { useMatchSession } from '../hooks/useMatchSession.js'
 import { useRoleEffectMode } from '../hooks/useRoleEffectMode.js'
-import { useSpeechPlayback } from '../hooks/useSpeechPlayback.js'
 
 export function MatchPage() {
-  const { matchId } = useParams()
   const navigate = useNavigate()
   const stageRef = useRef<HTMLElement>(null)
-  const [viewKind, setViewKind] = useState<SpectatorView['kind']>('god')
-  const [playerId, setPlayerId] = useState<PlayerId>(PlayerIdSchema.parse('player-1'))
   const [actionBusy, setActionBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [effectMode, setEffectMode] = useRoleEffectMode()
-  const view: SpectatorView =
-    viewKind === 'player' ? { kind: 'player', playerId } : { kind: viewKind }
   const {
     match,
     error,
@@ -40,22 +35,21 @@ export function MatchPage() {
     retry,
     connectionState,
     playbackState,
-    setSpeechPlaybackEnabled,
-    resolveSpeechPlayback,
     viewPending,
-  } = useLiveMatch(matchId, view)
-  const projectionKey = view.kind === 'player' ? `${view.kind}:${view.playerId}` : view.kind
-  const speechPlayback = useSpeechPlayback({
-    timeline: match?.timeline ?? [],
-    activeSpeech: match?.activeSpeech ?? null,
-    playbackState,
     projectionKey,
-    viewPending,
-    resolveAutomatic: resolveSpeechPlayback,
-  })
+    speechPlayback,
+    voiceEnabled,
+    viewKind,
+    playerId,
+    setViewKind,
+    setPlayerId,
+    toggleVoice,
+  } = useMatchSession()
   const feedAudio = useMemo<SpeechAudioControls>(
     () => ({
       supported: speechPlayback.supported,
+      mode: speechPlayback.mode,
+      activeSpeechId: speechPlayback.activeSpeechId,
       automaticSequence: speechPlayback.automaticSequence,
       automaticPlayerId: speechPlayback.automaticPlayerId,
       automaticBusy: speechPlayback.automaticBusy,
@@ -166,15 +160,12 @@ export function MatchPage() {
       <AmbientField />
       <MatchHeader
         audioBusyElsewhere={playbackState.enabled && !playbackState.controlledByThisClient}
-        audioEnabled={playbackState.controlledByThisClient}
+        audioEnabled={voiceEnabled}
         audioSupported={speechPlayback.supported}
         connectionState={connectionState}
         effectMode={effectMode}
         match={match}
-        onToggleAudio={() => {
-          speechPlayback.cancelAll()
-          setSpeechPlaybackEnabled(!playbackState.controlledByThisClient)
-        }}
+        onToggleAudio={toggleVoice}
         playerId={playerId}
         setPlayerId={setPlayerId}
         setEffectMode={setEffectMode}
@@ -312,10 +303,8 @@ function PresenceStage({
   thinkingCount,
 }: {
   readonly state: MatchPresenceState
-  readonly match: NonNullable<ReturnType<typeof useLiveMatch>['match']>
-  readonly activePlayer:
-    | NonNullable<ReturnType<typeof useLiveMatch>['match']>['seats'][number]
-    | null
+  readonly match: MatchView
+  readonly activePlayer: SeatView | null
   readonly connectionState: LiveConnectionState
   readonly thinkingCount: number
 }) {
@@ -350,8 +339,8 @@ function PresenceStage({
 
 function presenceLabel(
   state: MatchPresenceState,
-  match: NonNullable<ReturnType<typeof useLiveMatch>['match']>,
-  activePlayer: NonNullable<ReturnType<typeof useLiveMatch>['match']>['seats'][number] | null,
+  match: MatchView,
+  activePlayer: SeatView | null,
   thinkingCount: number,
 ): string {
   const review = match.postgameReview

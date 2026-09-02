@@ -119,6 +119,13 @@ export type DecisionWindowId = Brand<string, 'DecisionWindowId'>
 export const EventSequenceSchema = z.number().int().positive()
 export type EventSequence = number
 
+export const SpeechIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .transform((value) => value as SpeechId)
+export type SpeechId = Brand<number, 'SpeechId'>
+
 export const SimulationIdSchema = z
   .string()
   .regex(/^simulation-[a-z0-9][a-z0-9-]{5,95}$/)

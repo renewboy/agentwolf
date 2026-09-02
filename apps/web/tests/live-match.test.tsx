@@ -102,6 +102,7 @@ describe('useLiveMatch', () => {
       socket.message({
         type: 'speech-chunk',
         matchId: initial.id,
+        speechId: 31,
         playerId: 'player-1',
         text: '第一段',
       }),
@@ -110,15 +111,18 @@ describe('useLiveMatch', () => {
       socket.message({
         type: 'speech-chunk',
         matchId: initial.id,
+        speechId: 31,
         playerId: 'player-1',
         text: '第二段',
       }),
     )
     expect(result.current.match?.activeSpeech?.text).toBe('第一段第二段')
+    expect(result.current.match?.activeSpeech?.speechId).toBe(31)
     act(() =>
       socket.message({
         type: 'speech-chunk',
         matchId: initial.id,
+        speechId: 32,
         playerId: 'player-2',
         text: '切换玩家',
       }),

@@ -15,6 +15,7 @@ import {
   type MatchId,
   type MatchView,
   type PlayerId,
+  type SpeechId,
   type SpeechPlaybackState,
   type SpectatorView,
 } from '@agentwolf/contracts'
@@ -23,6 +24,7 @@ import { api, ApiError } from '../api.js'
 export type { LiveConnectionState }
 
 interface SpeechChunk {
+  readonly speechId: SpeechId
   readonly playerId: PlayerId
   readonly text: string
 }
@@ -134,7 +136,11 @@ function createTransport(
             case 'speech-chunk':
               handlers.event({
                 type: 'transient',
-                value: { playerId: message.playerId, text: message.text },
+                value: {
+                  speechId: message.speechId,
+                  playerId: message.playerId,
+                  text: message.text,
+                },
               })
               return
             case 'speech-playback.state':
@@ -205,9 +211,10 @@ function applySpeechChunk(match: MatchView, message: SpeechChunk): MatchView {
   return {
     ...match,
     activeSpeech: {
+      speechId: message.speechId,
       playerId: message.playerId,
       text:
-        match.activeSpeech?.playerId === message.playerId
+        match.activeSpeech?.speechId === message.speechId
           ? `${match.activeSpeech.text}${message.text}`
           : message.text,
       final: false,

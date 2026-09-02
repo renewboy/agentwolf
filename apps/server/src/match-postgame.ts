@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { PostgamePromptAssets } from '@agentwolf/assets/prompts'
-import type { PlayerId } from '@agentwolf/contracts'
+import type { PlayerId, SpeechId } from '@agentwolf/contracts'
 import type { BoardManifest, GameEngine, RulesetRuntime } from '@agentwolf/game-engine'
 import type { ServerConfig } from './config.js'
 import type { MatchRecord, SqliteRepository } from './repository.js'
@@ -49,7 +49,7 @@ export function createMatchPostgameCoordinator(options: {
   readonly playerRuntime: (playerId: PlayerId) => PlayerRuntime | null
   readonly ensurePlayerSessions: () => Promise<void>
   readonly onChanged: () => void
-  readonly onSpeechChunk: (playerId: PlayerId, text: string) => void
+  readonly onSpeechChunk: (speechId: SpeechId, playerId: PlayerId, text: string) => void
   readonly waitForFinalSpeech: (item: CommittedSpeechPlaybackItem) => Promise<unknown>
   readonly onTerminal: () => Promise<void>
 }): PostgameReviewCoordinator {

@@ -6,6 +6,8 @@ import {
   type PlayerId,
   type PostgameReflection,
   type RoleId,
+  SpeechIdSchema,
+  type SpeechId,
 } from '@agentwolf/contracts'
 import { PostgamePromptAssets, postgameResultFor } from '@agentwolf/assets/prompts'
 import { sanitizeSpeech, type GameState } from '@agentwolf/game-engine'
@@ -42,7 +44,7 @@ export interface PostgameReviewCoordinatorOptions {
   readonly playerRuntime: (playerId: PlayerId) => PlayerRuntime | null
   readonly ensurePlayerSessions: () => Promise<void>
   readonly onChanged: () => void
-  readonly onSpeechChunk: (playerId: PlayerId, text: string) => void
+  readonly onSpeechChunk: (speechId: SpeechId, playerId: PlayerId, text: string) => void
   readonly waitForFinalSpeech: (item: CommittedSpeechPlaybackItem) => Promise<unknown>
   readonly onTerminal: () => Promise<void>
 }
@@ -212,8 +214,9 @@ export class PostgameReviewCoordinator {
     if (runtime.status === 'failed') await runtime.recoverAuxiliaryForRetry()
     const player = this.#options.state.players.get(playerId)
     if (!player) throw new Error(`Unknown postgame reflection player ${playerId}`)
+    const speechId = SpeechIdSchema.parse(reflectionSequence(record, player.seat))
     this.#options.repository.setCurrentSpeaker(this.#options.matchId, playerId)
-    this.#activeSpeech = { playerId, text: '', final: false }
+    this.#activeSpeech = { speechId, playerId, text: '', final: false }
     this.#options.onChanged()
     for (;;) {
       const previous = this.#options.repository.turn(this.#options.matchId, playerId, 'reflection')
@@ -222,12 +225,13 @@ export class PostgameReviewCoordinator {
         onTextChunk: (text) => {
           if (this.#activeSpeech?.playerId === playerId) {
             this.#activeSpeech = {
+              speechId,
               playerId,
               text: `${this.#activeSpeech.text}${text}`,
               final: false,
             }
           }
-          this.#options.onSpeechChunk(playerId, text)
+          this.#options.onSpeechChunk(speechId, playerId, text)
         },
       }
       try {
@@ -243,7 +247,7 @@ export class PostgameReviewCoordinator {
           matchId: this.#options.matchId,
           playerId,
           seat: player.seat,
-          speechSequence: reflectionSequence(record, player.seat),
+          speechSequence: speechId,
           text: sanitized.text,
           occurredAt: new Date().toISOString(),
         }
@@ -264,7 +268,7 @@ export class PostgameReviewCoordinator {
           uncertain,
         )
         if (!uncertain || turn.uncertainFailures >= 2) throw error
-        this.#activeSpeech = { playerId, text: '', final: false }
+        this.#activeSpeech = { speechId, playerId, text: '', final: false }
         this.#options.onChanged()
         await runtime.recoverAuxiliaryForRetry()
       }

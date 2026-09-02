@@ -1,5 +1,11 @@
 import { AcpDeliveryUncertainError } from '@agentwolf/acp'
-import type { GameEvent, PlayerAction, PlayerId } from '@agentwolf/contracts'
+import {
+  SpeechIdSchema,
+  type GameEvent,
+  type PlayerAction,
+  type PlayerId,
+  type SpeechId,
+} from '@agentwolf/contracts'
 import {
   type GameEngine,
   type GameState,
@@ -16,6 +22,24 @@ export function findCommittedSpeech(events: readonly GameEvent[]): SpeechCommitt
         candidate.payload.type === 'speech.committed',
     ) ?? null
   )
+}
+
+export function currentSpeechId(
+  events: readonly GameEvent[],
+  playerId: PlayerId,
+  kind: string,
+): SpeechId {
+  const boundary = events.findLast(
+    (event) => event.payload.type === 'speech.started' || event.payload.type === 'speech.committed',
+  )
+  if (
+    boundary?.payload.type !== 'speech.started' ||
+    boundary.payload.playerId !== playerId ||
+    boundary.payload.kind !== kind
+  ) {
+    throw new Error(`Missing active speech boundary for ${playerId}`)
+  }
+  return SpeechIdSchema.parse(boundary.sequence)
 }
 
 export function describeError(error: unknown): string {

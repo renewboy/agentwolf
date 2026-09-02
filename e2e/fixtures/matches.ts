@@ -35,6 +35,7 @@ export function thinkingMatchFixture(): MatchView {
       kind: 'speech.committed',
       title: `这是第 ${index + 1} 条用于验证独立滚动区域的测试发言。`,
       playerIds: [`player-${(index % 6) + 1}`],
+      speechId: index + 2,
       occurredAt,
     })),
     {

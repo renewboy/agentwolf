@@ -15,6 +15,87 @@ import {
 import { describe, expect, it } from 'vitest'
 import { projectMatch, projectRoleEffectCues, projectTimeline } from '../src/projector.js'
 
+describe('speech projection', () => {
+  it('keeps the started event sequence as the committed timeline speech ID', () => {
+    const matchId = MatchIdSchema.parse('match-speech-id-projection')
+    const playerId = PlayerIdSchema.parse('player-1')
+    const catalog: NarrationCatalog = {
+      players: new Map([[playerId, { playerId, seat: 1, name: '发言玩家' }]]),
+      roleName: (roleId) => roleId,
+    }
+    const events = [
+      GameEventSchema.parse({
+        matchId,
+        sequence: 7,
+        occurredAt: '2026-08-23T00:00:00.000Z',
+        visibility: { kind: 'public' },
+        payload: { type: 'speech.started', playerId, kind: 'day' },
+      }),
+      GameEventSchema.parse({
+        matchId,
+        sequence: 8,
+        occurredAt: '2026-08-23T00:00:01.000Z',
+        visibility: { kind: 'public' },
+        payload: {
+          type: 'speech.committed',
+          playerId,
+          kind: 'day',
+          text: '稳定标识发言。',
+          sanitized: false,
+        },
+      }),
+    ]
+
+    expect(projectTimeline(events, catalog)).toContainEqual(
+      expect.objectContaining({ sequence: 8, speechId: 7, title: '稳定标识发言。' }),
+    )
+  })
+
+  it('projects the same stable ID on an active speech snapshot', () => {
+    const matchId = MatchIdSchema.parse('match-active-speech-projection')
+    const roles = createV1RoleRegistry()
+    const roleIds = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const engine = GameEngine.create({
+      matchId,
+      board: sixPlayerBoard,
+      roleAssignment: 'manual',
+      seed: 8,
+      roles,
+      players: roleIds.map((roleId, index) => ({
+        id: PlayerIdSchema.parse(`player-${index + 1}`),
+        seat: index + 1,
+        name: `Speech player ${index + 1}`,
+        profileId: AgentProfileIdSchema.parse(`profile-speech-${index + 1}`),
+        roleId,
+      })),
+    })
+    const sequence = engine.state.lastSequence + 1
+    const started = GameEventSchema.parse({
+      matchId,
+      sequence,
+      occurredAt: '2026-08-23T00:00:00.000Z',
+      visibility: { kind: 'public' },
+      payload: {
+        type: 'speech.started',
+        playerId: PlayerIdSchema.parse('player-1'),
+        kind: 'day',
+      },
+    })
+    const projected = projectMatch({
+      matchId,
+      board: sixPlayerBoard,
+      boardName: 'Speech projection board',
+      state: { ...engine.state, lastSequence: sequence },
+      events: [...engine.events, started],
+      view: { kind: 'god' },
+      roles,
+    })
+    expect(projected.activeSpeech).toMatchObject({ speechId: sequence, final: false })
+  })
+})
+
 describe('vote timeline projection', () => {
   it('projects a raised-hand state only while a standing candidate is in the election', () => {
     const matchId = MatchIdSchema.parse('match-sheriff-candidate-projection')

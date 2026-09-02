@@ -22,6 +22,8 @@
 - Components 组合 Core 无样式交互与 AgentWolf renderer、class names、icons 和 copy。
 - Hooks 将产品 adapters 接入 Core live、presentation、follow-latest 与 cue controllers，并持有 motion
   偏好、Profile 排序等产品副作用。
+- Match 资源级 provider 持有实时连接、观战视角、语音偏好与 playback controller；对局页和同场轨迹
+  页消费同一 session，离开该 Match 时统一释放。
 - `src/motion/gsap.ts` 是唯一的 GSAP import 边界。
 
 游戏规则、持久化、Prompt 渲染、隐藏字段过滤与 Match 编排留在 server。浏览器从不将本地隐藏

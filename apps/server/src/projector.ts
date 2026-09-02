@@ -2,6 +2,7 @@ import {
   MatchViewSchema,
   RoleEffectCueSchema,
   CharacterSummarySchema,
+  SpeechIdSchema,
   type AgentConfigurationSummary,
   type CharacterCardSnapshot,
   type GameEvent,
@@ -11,6 +12,7 @@ import {
   type PostgameReviewView,
   type TimelineItem,
   type PlayerId,
+  type SpeechId,
   type RoleEffectCue,
   type SpectatorView,
 } from '@agentwolf/contracts'
@@ -92,10 +94,23 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
   const projectedActiveSpeech = projectedEvents.reduce<MatchView['activeSpeech']>(
     (active, event) => {
       if (event.payload.type === 'speech.started') {
-        return { playerId: event.payload.playerId, text: '', final: false }
+        return {
+          speechId: SpeechIdSchema.parse(event.sequence),
+          playerId: event.payload.playerId,
+          text: '',
+          final: false,
+        }
       }
       if (event.payload.type === 'speech.committed') {
-        return { playerId: event.payload.playerId, text: event.payload.text, final: true }
+        return {
+          speechId:
+            active?.playerId === event.payload.playerId
+              ? active.speechId
+              : SpeechIdSchema.parse(event.sequence),
+          playerId: event.payload.playerId,
+          text: event.payload.text,
+          final: true,
+        }
       }
       return active
     },
@@ -165,6 +180,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
         kind: 'speech.committed',
         title: reflection.text,
         playerIds: [reflection.playerId],
+        speechId: SpeechIdSchema.parse(reflection.speechSequence),
         occurredAt: reflection.occurredAt,
         postgame: true,
       })) ?? []),
@@ -307,8 +323,12 @@ export function projectTimeline(
 ): TimelineItem[] {
   const items: TimelineItem[] = []
   const ballots = new Map<string, Extract<GameEvent['payload'], { type: 'vote.cast' }>[]>()
+  let activeSpeechId: SpeechId | null = null
   for (const event of events) {
     const payload = event.payload
+    if (payload.type === 'speech.started') {
+      activeSpeechId = SpeechIdSchema.parse(event.sequence)
+    }
     if (payload.type === 'vote.cast') {
       const group = ballots.get(payload.kind) ?? []
       group.push(payload)
@@ -416,9 +436,13 @@ export function projectTimeline(
       kind: payload.type,
       title: text,
       playerIds: playerIdsForEvent(event),
+      ...(payload.type === 'speech.committed'
+        ? { speechId: activeSpeechId ?? SpeechIdSchema.parse(event.sequence) }
+        : {}),
       occurredAt: event.occurredAt,
       postgame: false,
     })
+    if (payload.type === 'speech.committed') activeSpeechId = null
   }
   return items
 }

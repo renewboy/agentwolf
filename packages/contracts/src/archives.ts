@@ -3,9 +3,35 @@ import { MatchViewSchema } from './game.js'
 import { MatchIdSchema, PlayerIdSchema } from './ids.js'
 import { TrajectoryAuditReportSchema } from './trajectory.js'
 
-const ArchivedProjectionSchema = MatchViewSchema.refine((view) => view.status === 'ended', {
-  message: 'Archived Match projections must be ended',
-})
+const ArchivedProjectionSchema = z
+  .preprocess(normalizeArchivedProjection, MatchViewSchema)
+  .refine((view) => view.status === 'ended', {
+    message: 'Archived Match projections must be ended',
+  })
+
+function normalizeArchivedProjection(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value['activeSpeech'])) return value
+  const activeSpeech = value['activeSpeech']
+  if (activeSpeech['speechId'] !== undefined) return value
+  const timeline = Array.isArray(value['timeline']) ? value['timeline'] : []
+  const matchingSpeech = [...timeline].reverse().find((item) => {
+    if (!isRecord(item) || item['kind'] !== 'speech.committed') return false
+    const playerIds = Array.isArray(item['playerIds']) ? item['playerIds'] : []
+    return playerIds.includes(activeSpeech['playerId']) && item['title'] === activeSpeech['text']
+  })
+  const speechId =
+    isRecord(matchingSpeech) && typeof matchingSpeech['speechId'] === 'number'
+      ? matchingSpeech['speechId']
+      : isRecord(matchingSpeech) && typeof matchingSpeech['sequence'] === 'number'
+        ? matchingSpeech['sequence']
+        : value['lastSequence']
+  if (typeof speechId !== 'number' || !Number.isInteger(speechId) || speechId <= 0) return value
+  return { ...value, activeSpeech: { ...activeSpeech, speechId } }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
 
 export const MatchArchiveSchema = z
   .object({

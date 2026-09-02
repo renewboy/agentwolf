@@ -25,6 +25,7 @@ function item(sequence: number, text = `发言 ${sequence}`, playerId = 'player-
     kind: 'speech.committed',
     title: text,
     playerIds: [playerId as never],
+    speechId: sequence as never,
     occurredAt: '2026-08-28T00:00:00.000Z',
     postgame: false,
   }
@@ -74,6 +75,20 @@ function renderPlayback(initial: Partial<HookProps> = {}) {
 }
 
 describe('useSpeechPlayback committed speech', () => {
+  it('normalizes archived speech that predates stable speech IDs', async () => {
+    const legacy = { ...item(9, '归档发言。'), speechId: undefined }
+    const { result, rerender } = renderPlayback()
+    rerender({
+      timeline: [legacy],
+      activeSpeech: null,
+      playbackState: state({ pendingSequence: 9 }),
+      projectionKey: 'god',
+      viewPending: false,
+    })
+    await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledOnce())
+    expect(result.current.activeSpeechId).toBe(9)
+  })
+
   it('plays new committed speech once and resolves its pending barrier', async () => {
     const speech = item(10, '完整发言。')
     const { result, rerender, resolveAutomatic } = renderPlayback()
@@ -91,7 +106,7 @@ describe('useSpeechPlayback committed speech', () => {
     const utterance = speechSynthesis.speak.mock.calls[0]![0] as unknown as FakeUtterance
     expect(utterance.text).toBe('完整发言。')
     expect(utterance.lang).toBe('zh-CN')
-    expect(utterance.rate).toBe(1)
+    expect(utterance.rate).toBe(2)
     void act(() => utterance.dispatchEvent(new Event('end')))
     await waitFor(() => expect(result.current.automaticBusy).toBe(false))
     expect(resolveAutomatic).toHaveBeenCalledWith(10, 'completed')
@@ -117,7 +132,7 @@ describe('useSpeechPlayback committed speech', () => {
       viewPending: false,
     })
     await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledOnce())
-    act(() => result.current.skipAutomatic())
+    act(() => result.current.skipAutomatic(11 as never))
     await waitFor(() => expect(result.current.automaticSequence).toBeNull())
     rerender({
       timeline: [first],
@@ -127,7 +142,7 @@ describe('useSpeechPlayback committed speech', () => {
       viewPending: false,
     })
     await waitFor(() => expect(resolveAutomatic).toHaveBeenCalledWith(11, 'skipped'))
-    act(() => result.current.skipAutomatic())
+    act(() => result.current.skipAutomatic(11 as never))
   })
 
   it('skips unsupported, errored, and throwing synthesis without blocking barriers', async () => {
@@ -188,7 +203,12 @@ describe('useSpeechPlayback streaming speech', () => {
     const { result, rerender, resolveAutomatic } = renderPlayback()
     rerender({
       timeline: [],
-      activeSpeech: { playerId: 'player-1' as never, text: '第一句。尾', final: false },
+      activeSpeech: {
+        speechId: 20 as never,
+        playerId: 'player-1' as never,
+        text: '第一句。尾',
+        final: false,
+      },
       playbackState: state(),
       projectionKey: 'god',
       viewPending: false,
@@ -204,7 +224,12 @@ describe('useSpeechPlayback streaming speech', () => {
 
     rerender({
       timeline: [],
-      activeSpeech: { playerId: 'player-1' as never, text: '第一句。尾第二句！尾巴', final: false },
+      activeSpeech: {
+        speechId: 20 as never,
+        playerId: 'player-1' as never,
+        text: '第一句。尾第二句！尾巴',
+        final: false,
+      },
       playbackState: state(),
       projectionKey: 'god',
       viewPending: false,
@@ -239,16 +264,22 @@ describe('useSpeechPlayback streaming speech', () => {
     const { result, rerender, resolveAutomatic } = renderPlayback()
     rerender({
       timeline: [],
-      activeSpeech: { playerId: 'player-1' as never, text: '准备跳过。', final: false },
+      activeSpeech: {
+        speechId: 21 as never,
+        playerId: 'player-1' as never,
+        text: '准备跳过。',
+        final: false,
+      },
       playbackState: state(),
       projectionKey: 'god',
       viewPending: false,
     })
     await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledOnce())
-    act(() => result.current.skipAutomatic())
+    act(() => result.current.skipAutomatic(21 as never))
     rerender({
       timeline: [],
       activeSpeech: {
+        speechId: 21 as never,
         playerId: 'player-1' as never,
         text: '准备跳过。后续不会播。',
         final: false,
@@ -269,11 +300,16 @@ describe('useSpeechPlayback streaming speech', () => {
     expect(speechSynthesis.speak).toHaveBeenCalledOnce()
   })
 
-  it('starts a new stream when the speaker or observed prefix changes', async () => {
+  it('starts a new stream by speech ID and restarts an authoritative rewritten prefix', async () => {
     const { rerender } = renderPlayback()
     rerender({
       timeline: [],
-      activeSpeech: { playerId: 'player-1' as never, text: '一号。', final: false },
+      activeSpeech: {
+        speechId: 100 as never,
+        playerId: 'player-1' as never,
+        text: '一号。',
+        final: false,
+      },
       playbackState: state(),
       projectionKey: 'god',
       viewPending: false,
@@ -286,7 +322,12 @@ describe('useSpeechPlayback streaming speech', () => {
     )
     rerender({
       timeline: [],
-      activeSpeech: { playerId: 'player-2' as never, text: '二号。', final: false },
+      activeSpeech: {
+        speechId: 101 as never,
+        playerId: 'player-2' as never,
+        text: '二号。',
+        final: false,
+      },
       playbackState: state(),
       projectionKey: 'god',
       viewPending: false,
@@ -299,16 +340,64 @@ describe('useSpeechPlayback streaming speech', () => {
     )
     rerender({
       timeline: [],
-      activeSpeech: { playerId: 'player-2' as never, text: '重写。', final: false },
+      activeSpeech: {
+        speechId: 101 as never,
+        playerId: 'player-2' as never,
+        text: '重写。',
+        final: false,
+      },
       playbackState: state(),
       projectionKey: 'god',
       viewPending: false,
     })
     await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledTimes(3))
+    expect((speechSynthesis.speak.mock.calls[2]![0] as unknown as FakeUtterance).text).toBe(
+      '重写。',
+    )
   })
 })
 
 describe('useSpeechPlayback controls and projection changes', () => {
+  it('lets one message preempt live speech and protects it from newer speech', async () => {
+    const { result, rerender, resolveAutomatic } = renderPlayback({
+      activeSpeech: {
+        speechId: 50 as never,
+        playerId: 'player-1' as never,
+        text: '现场发言。',
+        final: false,
+      },
+    })
+    await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledOnce())
+    const staleLive = speechSynthesis.speak.mock.calls[0]![0] as unknown as FakeUtterance
+    act(() => result.current.playManual(item(30, '单条消息。', 'player-2')))
+    expect(result.current).toMatchObject({ mode: 'manual', activeSpeechId: 30, manualSequence: 30 })
+    expect(speechSynthesis.speak).toHaveBeenCalledTimes(2)
+    void act(() => staleLive.dispatchEvent(new Event('end')))
+
+    rerender({
+      timeline: [item(50, '现场发言。')],
+      activeSpeech: {
+        speechId: 51 as never,
+        playerId: 'player-1' as never,
+        text: '新的现场发言。',
+        final: false,
+      },
+      playbackState: state({ pendingSequence: 50 }),
+      projectionKey: 'god',
+      viewPending: false,
+    })
+    await waitFor(() => expect(resolveAutomatic).toHaveBeenCalledWith(50, 'skipped'))
+    expect(speechSynthesis.speak).toHaveBeenCalledTimes(2)
+    expect(result.current).toMatchObject({ mode: 'manual', activeSpeechId: 30 })
+
+    act(() => result.current.stopManual())
+    await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledTimes(3))
+    expect((speechSynthesis.speak.mock.calls[2]![0] as unknown as FakeUtterance).text).toBe(
+      '新的现场发言。',
+    )
+    expect(result.current).toMatchObject({ mode: 'automatic', activeSpeechId: 51 })
+  })
+
   it('plays, stops, errors, and catches failures for manual speech', async () => {
     const speech = item(30, '手动发言')
     const { result } = renderPlayback({ playbackState: state({ controlledByThisClient: false }) })
@@ -367,6 +456,6 @@ describe('useSpeechPlayback controls and projection changes', () => {
       viewPending: false,
     })
     expect(result.current.automaticBusy).toBe(false)
-    act(() => result.current.skipAutomatic())
+    act(() => result.current.skipAutomatic(40 as never))
   })
 })

@@ -56,6 +56,40 @@ function archiveInput() {
 }
 
 describe('MatchArchiveSchema', () => {
+  it('normalizes frozen projections written before speech IDs were introduced', () => {
+    const legacyView = {
+      ...endedView,
+      timeline: [
+        {
+          sequence: 9,
+          kind: 'speech.committed',
+          title: '归档发言',
+          playerIds: ['player-1'],
+          occurredAt: '2026-08-29T23:59:00.000Z',
+          postgame: false,
+        },
+      ],
+      activeSpeech: {
+        playerId: 'player-1',
+        text: '归档发言',
+        final: true,
+      },
+    }
+    const input = archiveInput()
+    const parsed = MatchArchiveSchema.parse({
+      ...input,
+      projections: {
+        god: legacyView,
+        closedEye: legacyView,
+        players: [{ playerId: 'player-1', view: legacyView }],
+      },
+    })
+
+    expect(parsed.projections.god.activeSpeech?.speechId).toBe(9)
+    expect(parsed.projections.closedEye.activeSpeech?.speechId).toBe(9)
+    expect(parsed.projections.players[0]?.view.activeSpeech?.speechId).toBe(9)
+  })
+
   it('accepts one immutable ended projection per spectator identity', () => {
     expect(MatchArchiveSchema.parse(archiveInput())).toMatchObject({
       matchId: 'match-archive-test',

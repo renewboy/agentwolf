@@ -13,8 +13,15 @@ export async function installSpeechSynthesisStub(page: Page): Promise<void> {
         this.text = text
       }
     }
-    const state: { active: StubUtterance | null; spoken: string[] } = {
+    const state: {
+      active: StubUtterance | null
+      cancelCount: number
+      rates: number[]
+      spoken: string[]
+    } = {
       active: null,
+      cancelCount: 0,
+      rates: [],
       spoken: [],
     }
     Object.defineProperty(window, 'SpeechSynthesisUtterance', {
@@ -25,11 +32,13 @@ export async function installSpeechSynthesisStub(page: Page): Promise<void> {
       configurable: true,
       value: {
         cancel: () => {
+          state.cancelCount += 1
           state.active = null
         },
         speak: (utterance: StubUtterance) => {
           state.active = utterance
           state.spoken.push(utterance.text)
+          state.rates.push(utterance.rate)
         },
       },
     })
@@ -37,6 +46,10 @@ export async function installSpeechSynthesisStub(page: Page): Promise<void> {
       configurable: true,
       value: {
         spoken: state.spoken,
+        rates: state.rates,
+        get cancelCount() {
+          return state.cancelCount
+        },
         finish: () => {
           const active = state.active
           state.active = null
@@ -50,6 +63,18 @@ export async function installSpeechSynthesisStub(page: Page): Promise<void> {
       },
     })
   })
+}
+
+export async function speechStubRates(page: Page): Promise<number[]> {
+  return page.evaluate(() => [
+    ...(window as unknown as { speechTest: { rates: number[] } }).speechTest.rates,
+  ])
+}
+
+export async function speechStubCancelCount(page: Page): Promise<number> {
+  return page.evaluate(
+    () => (window as unknown as { speechTest: { cancelCount: number } }).speechTest.cancelCount,
+  )
 }
 
 export async function speechStubState(page: Page, _key: 'spoken' = 'spoken'): Promise<string[]> {
@@ -80,6 +105,7 @@ export function speechTimelineItem(
     kind: 'speech.committed',
     title: text,
     playerIds: [playerId],
+    speechId: sequence,
     occurredAt: '2026-08-23T00:00:00.000Z',
   } as MatchView['timeline'][number]
 }

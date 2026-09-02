@@ -166,7 +166,7 @@ describe('PostgameReviewCoordinator', () => {
     expect(run.prompts.reviewContinuation).toHaveBeenCalled()
     expect(run.prompts.reflection).toHaveBeenCalled()
     expect(run.prompts.reflectionContinuation).toHaveBeenCalled()
-    expect(run.onSpeechChunk).toHaveBeenCalled()
+    expect(run.onSpeechChunk).toHaveBeenCalledWith(11, run.players[0]!.id, '片段')
     expect(run.waitForFinalSpeech).toHaveBeenCalledWith(
       expect.objectContaining({ sequence: 16, playerId: run.players[5]!.id }),
     )

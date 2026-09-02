@@ -5,6 +5,7 @@ import {
   failSpeech,
   finishSpeech,
   installSpeechSynthesisStub,
+  speechStubRates,
   speechStubState,
   speechTimelineItem,
 } from './fixtures/speech.js'
@@ -50,6 +51,7 @@ test('starts narration at sentence boundaries and only appends the committed tai
   sendLive({
     type: 'speech-chunk',
     matchId: initial.id,
+    speechId: 31,
     playerId: 'player-1',
     text: '第一句',
   })
@@ -58,16 +60,23 @@ test('starts narration at sentence boundaries and only appends the committed tai
   sendLive({
     type: 'speech-chunk',
     matchId: initial.id,
+    speechId: 31,
     playerId: 'player-1',
     text: '。第二句',
   })
   await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一句。'])
+  expect(await speechStubRates(page)).toEqual([2])
   await finishSpeech(page)
 
   current = {
     ...current,
-    activeSpeech: { playerId: 'player-1' as never, text: '第一句。第二句', final: true },
-    timeline: [...current.timeline, speechTimelineItem(31, 'player-1', '第一句。第二句')],
+    activeSpeech: {
+      speechId: 31 as never,
+      playerId: 'player-1' as never,
+      text: '规范后的第一句。第二句',
+      final: true,
+    },
+    timeline: [...current.timeline, speechTimelineItem(31, 'player-1', '规范后的第一句。第二句')],
   }
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   sendLive({
@@ -75,6 +84,7 @@ test('starts narration at sentence boundaries and only appends the committed tai
     state: { enabled: true, controlledByThisClient: true, pendingSequence: 31 },
   })
   await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一句。', '第二句'])
+  expect(await speechStubRates(page)).toEqual([2, 2])
   await finishSpeech(page)
   await expect
     .poll(() =>
@@ -86,7 +96,7 @@ test('starts narration at sentence boundaries and only appends the committed tai
       ),
     )
     .toBe(true)
-  expect(await speechStubState(page, 'spoken')).not.toContain('第一句。第二句')
+  expect(await speechStubState(page, 'spoken')).not.toContain('规范后的第一句。第二句')
 })
 
 test('keeps skip available across speaker handoff and suppresses later chunks after skip', async ({
@@ -129,6 +139,7 @@ test('keeps skip available across speaker handoff and suppresses later chunks af
   sendLive({
     type: 'speech-chunk',
     matchId: initial.id,
+    speechId: 31,
     playerId: 'player-1',
     text: '第一位已经开始播报。',
   })
@@ -141,13 +152,19 @@ test('keeps skip available across speaker handoff and suppresses later chunks af
   current = {
     ...current,
     lastSequence: 31,
-    activeSpeech: { playerId: 'player-2' as never, text: '', final: false },
+    activeSpeech: {
+      speechId: 32 as never,
+      playerId: 'player-2' as never,
+      text: '',
+      final: false,
+    },
     timeline: [...current.timeline, speechTimelineItem(31, 'player-1', '第一位已经开始播报。')],
   }
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   sendLive({
     type: 'speech-chunk',
     matchId: initial.id,
+    speechId: 32,
     playerId: 'player-2',
     text: '第二位正在生成。',
   })
@@ -166,6 +183,7 @@ test('keeps skip available across speaker handoff and suppresses later chunks af
   sendLive({
     type: 'speech-chunk',
     matchId: initial.id,
+    speechId: 32,
     playerId: 'player-2',
     text: '后续句子。',
   })
@@ -179,6 +197,7 @@ test('keeps skip available across speaker handoff and suppresses later chunks af
     ...current,
     lastSequence: 32,
     activeSpeech: {
+      speechId: 32 as never,
       playerId: 'player-2' as never,
       text: '第二位正在生成。后续句子。',
       final: true,
@@ -286,7 +305,7 @@ test('plays every speech by sequence and keeps manual controls independent from 
 
   const skip = page.getByRole('button', { name: /跳过自动播报/ })
   await expect(skip).toBeVisible()
-  await expect(page.getByRole('button', { name: /播放这段发言/ }).first()).toBeDisabled()
+  await expect(page.getByRole('button', { name: /播放这段发言/ }).first()).toBeEnabled()
   await skip.click()
   await expect.poll(async () => (await speechStubState(page, 'spoken')).length).toBe(3)
   expect((await speechStubState(page, 'spoken')).slice(-2)).toEqual([
@@ -335,4 +354,91 @@ test('plays every speech by sequence and keeps manual controls independent from 
       ),
     )
     .toBe(true)
+})
+
+test('lets one message preempt live speech without queuing speech that arrives meanwhile', async ({
+  page,
+  resources: _resources,
+}) => {
+  await installSpeechSynthesisStub(page)
+  const initial = {
+    ...thinkingMatchFixture(),
+    id: 'match-manual-speech-focus-test',
+    activeSpeech: null,
+  } as MatchView
+  let current = initial
+  let sendLive: (message: unknown) => void = ignoreLiveMessage
+  const clientMessages: Array<Record<string, unknown>> = []
+  await page.route(`**/api/matches/${initial.id}?*`, async (route) =>
+    route.fulfill({ json: current }),
+  )
+  await page.routeWebSocket(`**/api/matches/${initial.id}/live?*`, (socket) => {
+    sendLive = (message) => socket.send(JSON.stringify(message))
+    sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+    sendLive({
+      type: 'speech-playback.state',
+      state: { enabled: false, controlledByThisClient: false, pendingSequence: null },
+    })
+    socket.onMessage((value) => {
+      const message = JSON.parse(String(value)) as Record<string, unknown>
+      clientMessages.push(message)
+      if (message['type'] === 'speech-playback.set' && message['enabled'] === true) {
+        sendLive({
+          type: 'speech-playback.state',
+          state: { enabled: true, controlledByThisClient: true, pendingSequence: null },
+        })
+      }
+    })
+  })
+
+  await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '语音播报已关闭' }).click()
+  sendLive({
+    type: 'speech-chunk',
+    matchId: initial.id,
+    speechId: 31,
+    playerId: 'player-1',
+    text: '正在播报的现场发言。',
+  })
+  await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['正在播报的现场发言。'])
+
+  await page
+    .getByRole('button', { name: /播放这段发言/ })
+    .first()
+    .click()
+  const selectedStop = page.getByRole('button', { name: /停止播放/ })
+  await expect(selectedStop).toBeVisible()
+  expect(await speechStubState(page, 'spoken')).toHaveLength(2)
+
+  current = {
+    ...current,
+    activeSpeech: {
+      speechId: 32 as never,
+      playerId: 'player-2' as never,
+      text: '手动播放期间出现的新发言。',
+      final: false,
+    },
+    timeline: [...current.timeline, speechTimelineItem(31, 'player-1', '正在播报的现场发言。')],
+  }
+  sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
+  sendLive({
+    type: 'speech-playback.state',
+    state: { enabled: true, controlledByThisClient: true, pendingSequence: 31 },
+  })
+  await expect(selectedStop).toBeVisible()
+  expect(await speechStubState(page, 'spoken')).toHaveLength(2)
+  await expect
+    .poll(() =>
+      clientMessages.some(
+        (message) =>
+          message['type'] === 'speech-playback.resolve' &&
+          message['sequence'] === 31 &&
+          message['outcome'] === 'skipped',
+      ),
+    )
+    .toBe(true)
+
+  await selectedStop.click()
+  await expect.poll(async () => speechStubState(page, 'spoken')).toHaveLength(3)
+  expect((await speechStubState(page, 'spoken')).at(-1)).toBe('手动播放期间出现的新发言。')
 })

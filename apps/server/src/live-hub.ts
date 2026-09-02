@@ -2,6 +2,7 @@ import {
   LiveMessageSchema,
   type LiveMessage,
   type PlayerId,
+  type SpeechId,
   type SpeechPlaybackState,
   type SpectatorView,
 } from '@agentwolf/contracts'
@@ -50,6 +51,7 @@ export class LiveHub {
 
   public broadcastSpeechChunk(
     state: GameState,
+    speechId: SpeechId,
     actorId: PlayerId,
     kind: StreamedSpeechKind,
     text: string,
@@ -59,6 +61,7 @@ export class LiveHub {
       return LiveMessageSchema.parse({
         type: 'speech-chunk',
         matchId: state.matchId,
+        speechId,
         playerId: actorId,
         text,
       })

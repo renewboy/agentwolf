@@ -6,11 +6,21 @@ import type { MatchView } from '@agentwolf/contracts'
 
 const live = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
-  useLiveMatch: vi.fn(),
 }))
 const speech = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
-  useSpeechPlayback: vi.fn(),
+}))
+const session = vi.hoisted(() => ({
+  viewKind: 'god',
+  playerId: 'player-1',
+  voiceEnabled: true,
+  setViewKind: vi.fn((kind: string) => {
+    session.viewKind = kind
+  }),
+  setPlayerId: vi.fn((playerId: string) => {
+    session.playerId = playerId
+  }),
+  toggleVoice: vi.fn(),
 }))
 const presence = vi.hoisted(() => ({ current: 'awaiting-actions' }))
 const apiMocks = vi.hoisted(() => ({
@@ -23,11 +33,18 @@ const apiMocks = vi.hoisted(() => ({
 const effect = vi.hoisted(() => ({ mode: 'full', setMode: vi.fn() }))
 
 vi.mock('../src/api.js', () => ({ api: apiMocks }))
-vi.mock('../src/hooks/useLiveMatch.js', () => ({
-  useLiveMatch: (...args: unknown[]) => live.useLiveMatch(...args),
-}))
-vi.mock('../src/hooks/useSpeechPlayback.js', () => ({
-  useSpeechPlayback: (...args: unknown[]) => speech.useSpeechPlayback(...args),
+vi.mock('../src/hooks/useMatchSession.js', () => ({
+  useMatchSession: () => ({
+    ...live.current,
+    speechPlayback: speech.current,
+    voiceEnabled: session.voiceEnabled,
+    viewKind: session.viewKind,
+    playerId: session.playerId,
+    projectionKey: session.viewKind === 'player' ? `player:${session.playerId}` : session.viewKind,
+    setViewKind: session.setViewKind,
+    setPlayerId: session.setPlayerId,
+    toggleVoice: session.toggleVoice,
+  }),
 }))
 vi.mock('../src/hooks/useRoleEffectMode.js', () => ({
   useRoleEffectMode: () => [effect.mode, effect.setMode],
@@ -163,6 +180,8 @@ function setLive(match: MatchView | null, overrides: Record<string, unknown> = {
 function setSpeech(overrides: Record<string, unknown> = {}): void {
   speech.current = {
     supported: true,
+    mode: 'idle',
+    activeSpeechId: null,
     automaticSequence: null,
     automaticPlayerId: null,
     automaticBusy: false,
@@ -198,8 +217,9 @@ beforeEach(() => {
     skipAutomatic,
     effect.setMode,
     ...Object.values(apiMocks),
-    live.useLiveMatch,
-    speech.useSpeechPlayback,
+    session.setViewKind,
+    session.setPlayerId,
+    session.toggleVoice,
   ]) {
     mock.mockReset()
   }
@@ -207,8 +227,9 @@ beforeEach(() => {
   setSpeechPlaybackEnabled.mockReturnValue(true)
   resolveSpeechPlayback.mockReturnValue(true)
   for (const mock of Object.values(apiMocks)) mock.mockResolvedValue(matchView())
-  live.useLiveMatch.mockImplementation(() => live.current)
-  speech.useSpeechPlayback.mockImplementation(() => speech.current)
+  session.viewKind = 'god'
+  session.playerId = 'player-1'
+  session.voiceEnabled = true
   setLive(matchView())
   setSpeech()
   presence.current = 'awaiting-actions'
@@ -255,8 +276,7 @@ describe('MatchPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'effect off' }))
     await userEvent.click(screen.getByRole('button', { name: 'toggle audio' }))
     expect(effect.setMode).toHaveBeenCalledWith('off')
-    expect(cancelAll).toHaveBeenCalled()
-    expect(setSpeechPlaybackEnabled).toHaveBeenCalledWith(true)
+    expect(session.toggleVoice).toHaveBeenCalled()
     rerender(
       <MemoryRouter initialEntries={['/matches/match-test-abcdef']}>
         <Routes>
@@ -264,10 +284,8 @@ describe('MatchPage', () => {
         </Routes>
       </MemoryRouter>,
     )
-    expect(live.useLiveMatch).toHaveBeenLastCalledWith('match-test-abcdef', {
-      kind: 'player',
-      playerId: 'player-2',
-    })
+    expect(session.setViewKind).toHaveBeenCalledWith('player')
+    expect(session.setPlayerId).toHaveBeenCalledWith('player-2')
     expect(screen.getByTestId('effects')).toHaveTextContent('player:player-2')
     await userEvent.click(screen.getByText('feed play'))
     await userEvent.click(screen.getByText('feed stop'))
@@ -315,7 +333,7 @@ describe('MatchPage', () => {
         state: 'streaming',
         match: {
           ...base,
-          activeSpeech: { playerId: 'player-1', text: 'stream', final: false },
+          activeSpeech: { speechId: 31, playerId: 'player-1', text: 'stream', final: false },
         } as MatchView,
       },
       { state: 'narrating', match: base },

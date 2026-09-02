@@ -100,9 +100,10 @@ Web 客户端不维护一份平行 GameState。主要状态归属如下：
 | Match status、phase、Seat、timeline、winner、postgame | server `MatchView`           | HTTP 或 WebSocket snapshot 整体替换                            |
 | 流式 `activeSpeech`                                   | `useLiveMatch`               | speech-chunk 追加，后续 snapshot 规范化为 committed 状态       |
 | `connecting/live/reconnecting/settled/unavailable`    | Core live controller         | typed channel、HTTP port、404 和完整终局驱动                   |
-| 当前 SpectatorView                                    | MatchPage                    | header 选择；server 返回对应 projection 后生效                 |
+| 当前 SpectatorView                                    | Match 资源级 session         | header 选择；server 返回对应 projection 后生效                 |
 | `viewPending`                                         | `useLiveMatch`               | 请求 view key 与 loaded snapshot view key 不同                 |
 | 自动/手动 speech queue                                | Core presentation controller | projection、speech events、browser port 与 server barrier 驱动 |
+| 浏览器语音开关偏好                                    | Match 资源级 session         | localStorage、跨标签 storage event 与用户选择驱动              |
 | Role effect baseline/queue                            | `RoleEffectController`       | projection key、lastSequence、mode 与 cleanup 驱动             |
 | presence/motion                                       | 纯派生 + GSAP controllers    | MatchView、连接和 speech 状态变化时重算                        |
 | feed 展开、following-latest、scrollTop                | `MatchFeed`                  | 用户输入和新增 timeline/stream 驱动                            |
@@ -115,14 +116,14 @@ Web 客户端不维护一份平行 GameState。主要状态归属如下：
 
 ```mermaid
 sequenceDiagram
-    participant Page as MatchPage
+    participant Session as Match 资源级 Session
     participant Hook as useLiveMatch
     participant HTTP as REST API
     participant WS as Match WebSocket
     participant UI as React Components
     participant Effects as Speech / Motion Hooks
 
-    Page->>Hook: matchId + SpectatorView
+    Session->>Hook: matchId + SpectatorView
     Hook->>HTTP: getMatch(view)
     HTTP-->>Hook: parsed MatchView
     Hook->>WS: connect(view)
@@ -139,6 +140,11 @@ sequenceDiagram
     end
 ```
 
+Match 资源级 session 覆盖 `/matches/:matchId` 与同场 `trajectory` 子路由,持有观战视角、
+`useLiveMatch` 和 speech controller。两个页面之间导航不会关闭 Match WebSocket 或 browser speech；
+离开该 Match 路由后统一 dispose。轨迹页保留自己的 god-view 诊断 data source,不创建第二个 Match
+语音连接。
+
 `useLiveMatch` adapter 解析 URL Match ID，并把 HTTP loader、WebSocket channel、view key、transient
 reducer 与终局判断注入 Core live controller。controller 并发启动初始加载和 channel；channel 已产生
 新 snapshot 时，迟到的旧 load 不会覆盖它。speech-chunk 只对 `activeSpeech` 做临时追加，最终
@@ -151,7 +157,7 @@ socket error 统一触发 close。close 后 hook 保留 MatchView，HTTP 追平�
 
 ### View 切换
 
-MatchPage 保存 `god/player/closed-eye` 和 player ID。view 改变时：
+Match 资源级 session 保存 `god/player/closed-eye` 和 player ID。view 改变时：
 
 1. hook 发送 `view.set`，并保持旧 snapshot 仅用于避免页面闪空；
 2. `loadedViewKey` 与请求 key 不同，`viewPending=true`；
@@ -195,22 +201,29 @@ MatchFeed 与 trajectory ledger 共享 Core follow-latest controller，并分别
 
 ## Speech playback
 
-`useSpeechPlayback` 将 AgentWolf TimelineItem、中文断句和 copy 映射到 Core presentation controller；
+`useSpeechPlayback` 将 AgentWolf TimelineItem、稳定 `SpeechId`、中文断句和 copy 映射到 Core
+presentation controller；
 显式 browser speech port 是 SpeechSynthesis 的唯一 owner。controller 接收 server playback state、
 timeline、activeSpeech、projection key 和 viewPending，并维护：
 
 - committed speech queue；
-- 当前 stream job、已消费字符和完整句 units；
+- 当前 speech job、已消费字符和完整句 units；
 - sequence outcome 与已回执 barrier 集；
-- 自动与手动播放互斥状态。
+- 自动与单条消息播放焦点。
 
-流式 speech 只在完整句子形成时入队，commit 后补齐剩余尾部，并把最终 sequence 绑定到整个 stream。
-合成 end 回执 completed；error、unsupported、显式 skip、view pending 或控制权丢失回执 skipped。每个
-pending sequence 只发送一次 `speech-playback.resolve`。手动播放不连接 server barrier。
+流式 speech 只在完整句子形成时入队,commit 后补齐剩余尾部,并通过同一 `SpeechId` 绑定整个 job。
+skip 清除该 job 的当前句、待播句和后续增量；按钮提交原 `SpeechId`,因此重复点击不会跳过已经切换的
+下一段。合成 end 回执 completed；error、unsupported、显式 skip、view pending 或控制权丢失回执
+skipped。每个 pending sequence 只发送一次 `speech-playback.resolve`。
 
-projection 切换先取消 browser engine 和队列，记录被中断 sequence；新 view snapshot 到达后，只在
-该 sequence 仍可见或仍为 server pending 时重播。组件卸载、控制关闭和 Match 终局都会 cancel 当前
-utterance。
+用户选择已提交消息时,controller 跳过自动队列并让该消息取得音频焦点。新 speech 在单条消息播放
+期间不抢占且不补播,但 pending barrier 立即以 skipped 释放；结束后只恢复仍在生成的 active speech。
+语音开关偏好以 `agentwolf.voice-enabled` 保存在浏览器,缺失或非法值默认为关闭。连接与重连时 session
+协调本地偏好和 server owner；关闭实时语音不会取消用户主动播放的单条消息。
+
+projection 切换立即取消当前声音并清空旧视角队列；新 view snapshot 到达后只接入新视角可见的
+active speech 或后续发言。同场 Match 与轨迹路由共享 controller 生命周期；离开 Match、资源不可用
+或 session dispose 时取消当前 utterance。
 
 ## Motion 与 Role effects
 

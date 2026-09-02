@@ -50,6 +50,7 @@ test('keeps the speech feed reading position during streamed generation', async 
   sendLive({
     type: 'speech-chunk',
     matchId: match.id,
+    speechId: 42,
     playerId: 'player-1',
     text: '这是正在生成的发言。'.repeat(36),
   })
@@ -206,6 +207,7 @@ function matchFixture(id: string): MatchView {
         kind: 'speech.committed' as const,
         title: `第 ${index + 1} 条用于验证阅读位置的历史发言。`,
         playerIds: [`player-${(index % 6) + 1}`],
+        speechId: index + 2,
         occurredAt,
       })),
     ],

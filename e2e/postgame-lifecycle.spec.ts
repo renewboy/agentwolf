@@ -250,6 +250,7 @@ test('shows completed player ratings immediately and streams reflections through
   sendLive({
     type: 'speech-chunk',
     matchId,
+    speechId: 32,
     playerId: 'player-2',
     text: '这是一段逐字出现的复盘感言。',
   })

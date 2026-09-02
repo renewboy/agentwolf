@@ -249,10 +249,15 @@ speech 对 owner 不可见或浏览器未启用播放，`waitFor` 立即返回 `
 不可见 view、关闭播放、合成失败或显式 skip 都以 skipped 释放当前边界，Match 不会因浏览器能力
 永久阻塞。
 
-Web adapter 将 TimelineItem、中文断句和 copy 注入 Core presentation playback controller。controller
-把流式文本切为完整句子，边生成边播放；`speech.committed` 到达时只补播尚未消费的尾部，并把最终
-sequence 绑定到整个 stream job。每个 barrier sequence 只回执一次。手动播放只读取已提交 timeline，
-不拥有 server barrier，也不影响 phase。
+server 从 `speech.started` sequence 为可见发言派生稳定 `SpeechId`,并把它同时投影到 active speech、
+增量 chunk 与 committed timeline。Web adapter 将该 ID、TimelineItem、中文断句和 copy 注入 Core
+presentation playback controller。controller 以 `SpeechId` 管理整段 stream job,把流式文本切为完整
+句子,并在 `speech.committed` 到达时只补播尚未消费的尾部。skip 终结整个 job,同 ID 的后续 chunk 与
+过期 callback 不会重新出声。
+
+每个 barrier sequence 只回执一次。用户单独播放一条已提交消息时,当前自动 job 以 skipped 释放,
+所选消息获得音频焦点；期间到达的现场发言只更新可见投影并按 skipped 释放 barrier,不进入补播
+队列。单条消息结束后只接入仍在生成的当前发言或后续新发言,因此单条播放不影响 phase。
 
 ## WebSocket、视图切换与重连
 

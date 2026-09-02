@@ -20,6 +20,7 @@ import type { ActionExpectation } from './action-mailbox.js'
 import { ContextRenderer } from './context-renderer.js'
 import { LiveHub, type LiveConnection, type LiveSubscriber } from './live-hub.js'
 import {
+  currentSpeechId,
   describeError,
   hasUncertainDelivery,
   interruptAbilityExpectation,
@@ -322,7 +323,7 @@ export class MatchRuntime {
         if (this.#options.postgameReviewEnabled === false) {
           this.#broadcastSnapshot()
           await this.close()
-          await this.#archiveMatch()
+          await this.#options.archiveMatch?.((view) => this.project(view))
           return
         }
         this.#createPostgameCountdown()
@@ -409,13 +410,18 @@ export class MatchRuntime {
     turn: TurnDescriptor,
     onSpeechChunk?: (text: string) => void,
   ): Promise<PlayerAction> {
-    const callbacks: AcpPromptCallbacks =
+    const speechId =
       turn.actionType === 'speech' && turn.speechKind
+        ? currentSpeechId(this.engine.events, actor.playerId, turn.speechKind)
+        : null
+    const callbacks: AcpPromptCallbacks =
+      speechId !== null && turn.speechKind
         ? {
             onTextChunk: (text) => {
               onSpeechChunk?.(text)
               this.#hub.broadcastSpeechChunk(
                 this.engine.state,
+                speechId,
                 actor.playerId,
                 turn.speechKind!,
                 text,
@@ -576,24 +582,18 @@ export class MatchRuntime {
       playerRuntime: (playerId) => this.#players.get(playerId) ?? null,
       ensurePlayerSessions: async () => this.#startPlayerSessions(this.engine.events),
       onChanged: () => this.#scheduleSnapshot(),
-      onSpeechChunk: (playerId, text) =>
-        this.#hub.broadcastSpeechChunk(this.engine.state, playerId, 'postgame', text),
+      onSpeechChunk: (speechId, playerId, text) =>
+        this.#hub.broadcastSpeechChunk(this.engine.state, speechId, playerId, 'postgame', text),
       waitForFinalSpeech: async (item) => this.#playback.waitFor(item),
       onTerminal: async () => {
         await this.#closePlayerSessions()
-        await this.#archiveMatch()
+        await this.#options.archiveMatch?.((view) => this.project(view))
       },
     })
   }
 
-  async #archiveMatch(): Promise<void> {
-    await this.#options.archiveMatch?.((view) => this.project(view))
-  }
-
   #requirePostgame(): PostgameReviewCoordinator {
-    if (!this.#postgame) {
-      throw new Error(`Match ${this.engine.state.matchId} has no postgame review`)
-    }
+    if (!this.#postgame) throw new Error('Match has no postgame review')
     return this.#postgame
   }
 }
