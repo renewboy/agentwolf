@@ -877,7 +877,15 @@ describe('match orchestration', () => {
       .listTrajectoryTurns(created.id)
       .filter((turn) => turn.ownerId !== 'system')
     expect(new Set(playerTurns.map((turn) => turn.sessionGeneration))).toEqual(new Set([1]))
-    expect(playerTurns.filter((turn) => turn.kind === 'bootstrap')).toHaveLength(6)
+    const bootstrapTurns = playerTurns.filter((turn) => turn.kind === 'bootstrap')
+    expect(bootstrapTurns).toHaveLength(6)
+    const records = server.repository.listTrajectoryRecords(created.id)
+    for (const turn of bootstrapTurns) {
+      const instructions = records.filter(
+        (record) => record.turnId === turn.turnId && record.kind === 'instructions',
+      )
+      expect(instructions).toHaveLength(1)
+    }
     expect(server.repository.playerSessions.list(created.id)).toHaveLength(6)
     expect(await auditTrajectory(server.repository, server.boards, created.id)).toMatchObject({
       ok: true,
@@ -1232,7 +1240,7 @@ describe('match orchestration', () => {
     expect(recoveryPrompt).toContain('请选择今晚要查验的其他存活玩家')
     expect(recoveryPrompt).not.toMatch(/abilityId|targetPlayerIds|option:/u)
     expect(recoveryPrompt).not.toContain('# 任务目标')
-    expect(recoveryPrompt).not.toContain('好人阵营需要让所有狼人出局')
+    expect(recoveryPrompt).not.toContain('胜负规则：')
     expect(sessionStarts).toHaveLength(12)
     expect(sessionStarts.slice(0, 6).every((start) => start.resumeSessionId === null)).toBe(true)
     expect(

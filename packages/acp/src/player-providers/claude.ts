@@ -15,11 +15,11 @@ export const claudePlayerProvider = definePlayerProvider({
     mcpTransport: 'session',
     resume: 'advertised',
     permissions: 'declared',
-    metadata: (playerContract) => ({
+    metadata: (modelInstructions) => ({
       claudeCode: {
         options: {
-          settingSources: [],
-          systemPrompt: playerContract,
+          settingSources: ['project'],
+          systemPrompt: modelInstructions,
           tools: [...playerKnowledgeToolNames],
           allowedTools: [...playerKnowledgeToolNames],
           skills: ['agentwolf-player', 'werewolf-strategy'],

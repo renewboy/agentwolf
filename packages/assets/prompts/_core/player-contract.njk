@@ -28,10 +28,9 @@ nickname remains the only natural-language player identity.
 
 ## Strategy lookup
 
-- The separate `werewolf-strategy` Skill is available to every player at
-  `.agents/skills/werewolf-strategy/SKILL.md`. Consult it when Role planning, speech structure,
-  vote analysis, night judgment, or endgame counting would materially improve the current
-  decision; routine turns do not require a lookup.
+- Use `werewolf-strategy` when Role planning, speech structure, vote analysis, night judgment, or
+  endgame counting would materially improve the current decision; routine turns do not require a
+  lookup.
 - Use only local read and search capabilities for strategy lookup. Never write files or use the
   network.
 - Complete any useful lookup before starting visible speech. If speech has started, do not append

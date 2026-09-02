@@ -164,9 +164,9 @@ stateDiagram-v2
 ### 创建与启动
 
 Draft runtime 已有 GameEngine 初始事件，但不启动 Agent。`beginMatch` 将异步初始化交给活跃
-MatchRuntime：先持久 status=starting 和 `match.starting`，并发建立玩家 Sessions、发送 foundation，
-全部成功后调用 `engine.start`、持久 running 并开始 action loop。任一失败都会追加 paused event、
-保存 reason 并保留可恢复状态。
+MatchRuntime：先持久 status=starting 和 `match.starting`，渲染并固化各 Seat 的 foundation 主指令，
+再并发建立玩家 Sessions 并发送 bootstrap 确认。全部成功后调用 `engine.start`、持久 running 并开始
+action loop。任一失败都会追加 paused event、保存 reason 并保留可恢复状态。
 
 ### 暂停与继续
 

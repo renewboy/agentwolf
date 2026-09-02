@@ -33,12 +33,12 @@ import { createMatchPostgameCoordinator, ensurePostgameCountdown } from './match
 import { PlayerRuntime } from './player-runtime.js'
 import { PostgameReviewCoordinator } from './postgame-review-coordinator.js'
 import { playerAbilityToolContracts } from './player-ability-tool-contracts.js'
+import { bootstrapPendingPlayers, playerCharacters } from './player-bootstrap.js'
 import { preparePlayerWorkspace } from './player-workspace.js'
 import { projectMatch } from './projector.js'
 import { SpeechPlaybackCoordinator } from './speech-playback-coordinator.js'
 import { RollingSpeechInterruptCoordinator } from './rolling-speech-interrupt.js'
 export type { MatchRuntimeOptions } from './match-runtime-types.js'
-
 export class MatchRuntime {
   readonly #options: MatchRuntimeOptions
   readonly #roles: RoleRegistry
@@ -55,7 +55,6 @@ export class MatchRuntime {
   #playerClosePromise: Promise<void> | null = null
   #snapshotScheduled = false
   #disposed = false
-
   public constructor(options: MatchRuntimeOptions) {
     this.#options = options
     this.#roles = options.ruleset.roles
@@ -77,9 +76,8 @@ export class MatchRuntime {
             speechCharacterLimit: options.record.setup.speechCharacterLimit,
           })
         : null
-    if (options.repository.postgameReviews.get(options.record.id)) {
+    if (options.repository.postgameReviews.get(options.record.id))
       this.#postgame = this.#createPostgameCoordinator()
-    }
   }
   public get engine(): GameEngine {
     return this.#options.engine
@@ -166,7 +164,17 @@ export class MatchRuntime {
       this.#options.sessionConcurrency ?? 4,
       async (runtime) => runtime.recoverForRetry(),
     )
-    await this.#bootstrapPendingPlayerSessions(this.engine.events)
+    const pendingIds = [...this.#players.entries()]
+      .filter(([, runtime]) => runtime.needsBootstrap)
+      .map(([playerId]) => playerId)
+    const pendingFoundations = await this.#renderer.foundations(
+      this.engine.state,
+      this.#options.board,
+      this.engine.events,
+      pendingIds,
+      playerCharacters([...this.engine.state.players.values()], this.#options.record.setup.seats),
+    )
+    await this.#bootstrapPendingPlayerSessions(pendingFoundations)
     await mapWithConcurrency(
       [...this.#players.values()].filter((runtime) => runtime.bootstrapState === 'dispatched'),
       this.#options.sessionConcurrency ?? 4,
@@ -202,6 +210,13 @@ export class MatchRuntime {
     const entries = [...this.engine.state.players.values()]
       .filter((player) => !this.#players.has(player.id))
       .sort((left, right) => left.seat - right.seat)
+    const foundations = await this.#renderer.foundations(
+      this.engine.state,
+      this.#options.board,
+      historyEvents,
+      entries.map((player) => player.id),
+      playerCharacters(entries, this.#options.record.setup.seats),
+    )
     await mapWithConcurrency(entries, this.#options.sessionConcurrency ?? 4, async (player) => {
       this.#assertOpen()
       reconcileCommittedPendingAction(this.#options.repository, this.engine, player.id)
@@ -220,6 +235,8 @@ export class MatchRuntime {
         this.engine.state.matchId,
         player.id,
       )
+      const foundation = foundations.get(player.id)
+      if (!foundation) throw new Error(`Player ${player.id} has no rendered foundation`)
       const token = this.#options.mailbox.issueToken(
         this.engine.state.matchId,
         player.id,
@@ -232,6 +249,7 @@ export class MatchRuntime {
         profile,
         tool,
         workspace,
+        modelInstructions: foundation.prompt,
         token,
         mcpUrl: `${this.#options.config.publicBaseUrl}/mcp`,
         mailbox: this.#options.mailbox,
@@ -262,38 +280,22 @@ export class MatchRuntime {
         this.#assertOpen()
       }
     })
-    await this.#bootstrapPendingPlayerSessions(historyEvents)
+    await this.#bootstrapPendingPlayerSessions(foundations)
   }
 
-  async #bootstrapPendingPlayerSessions(historyEvents: readonly GameEvent[]): Promise<void> {
-    const setupBySeat = new Map(this.#options.record.setup.seats.map((seat) => [seat.seat, seat]))
-    const players = [...this.engine.state.players.values()].sort(
-      (left, right) => left.seat - right.seat,
-    )
-    const foundations = await Promise.all(
-      players
-        .filter((player) => this.#players.get(player.id)?.needsBootstrap)
-        .map(async (player) => ({
-          playerId: player.id,
-          envelope: await this.#renderer.foundation(
-            this.engine.state,
-            this.#options.board,
-            player.id,
-            historyEvents,
-            setupBySeat.get(player.seat)?.character ?? null,
-          ),
-        })),
-    )
-    await mapWithConcurrency(
+  async #bootstrapPendingPlayerSessions(
+    foundations: Awaited<ReturnType<ContextRenderer['foundations']>>,
+  ): Promise<void> {
+    await bootstrapPendingPlayers({
       foundations,
-      this.#options.sessionConcurrency ?? 4,
-      async ({ playerId, envelope }) => {
-        this.#assertOpen()
-        const runtime = this.#players.get(playerId)
-        if (!runtime) throw new Error(`Player runtime ${playerId} was not created`)
-        await runtime.bootstrap(envelope)
-      },
-    )
+      playerIds: [...this.engine.state.players.values()]
+        .sort((left, right) => left.seat - right.seat)
+        .map((player) => player.id),
+      players: this.#players,
+      renderer: this.#renderer,
+      concurrency: this.#options.sessionConcurrency ?? 4,
+      assertOpen: () => this.#assertOpen(),
+    })
   }
 
   async #run(): Promise<void> {

@@ -10,16 +10,19 @@ Status: implemented
 ## Decision
 
 每个已安装的 RulePlugin 拥有一份同 ID 的配套非本地化 Nunjucks bundle。`_core` bundle 只拥有
-Session 框架、通用布局、Character 框架、引用与工具契约。功能与 Role bundle 拥有各自完整的
-Role、Ability、Phase、event、公告与 interrupt 呈现。
+foundation、bootstrap、continuation、Character 框架、通用布局、引用与玩家契约。功能与 Role
+bundle 拥有各自完整的 Role、Ability、Phase、event、公告与 interrupt 呈现。
 
 server 将冻结的 Ruleset 贡献记录适配为一份由 assets 持有的简单语义清单。bundle registry 在渲染
 之前校验精确覆盖、归属、import、受众方向、路径包含与 event-matcher 歧义。`ContextRenderer`
 传入公开与 actor 自有的可见事实,而非引擎状态。
 
-Trajectory 存储精确渲染的 Prompt 文本。运行时与 fixture 不携带 Prompt 版本选择器。当前契约
-定义于
+foundation 渲染结果在首次 Session 建立前固化为该 Seat 的不可变主指令,并作为 bootstrap Turn 的
+instructions Record 写入 Trajectory。bootstrap、action 与 postgame Trajectory 分别存储其实际发送的
+Prompt 文本;历史 Turn 不使用当前模板回算。运行时与 fixture 不携带 Prompt 版本选择器。当前契约定义于
 [Prompt 与玩家上下文](../../../../docs/architecture/prompt-and-context.md)。
+主指令注入与 Skill 发现定义于
+[玩家 Provider 隔离与 Skill 发现](2026-09-01-player-provider-isolation-and-skill-discovery.md)。
 
 ## Alternatives considered
 
@@ -31,10 +34,11 @@ Trajectory 存储精确渲染的 Prompt 文本。运行时与 fixture 不携带 
 
 **引擎定义中的 Prompt 元数据。** 这会把确定性规则耦合到 assets,并反转 package 依赖方向。
 
-**可选择版本的 Prompt 渲染。** 精确发送的文本本身就是持久证据;运行时选择器会无限期保留
-过时的呈现分支。
+**可选择版本的 Prompt 渲染。** 已发送 Turn 与生效的 foundation 都由 Trajectory 中的实际文本保留,
+运行时选择器会无限期保留过时的呈现分支。
 
 ## Consequences
 
-新的游戏语义通过同一个 plugin 归属边界扩展 Prompt 呈现。缺失、重复、歧义、跨受众或路径逃逸
+新的游戏语义通过同一个 plugin 归属边界扩展 Prompt 呈现。foundation 主指令与后续 Prompt Turn
+共享相同的 bundle 语义所有权,但通过各自的生命周期送达。缺失、重复、歧义、跨受众或路径逃逸
 的呈现会在第一次渲染之前失败。通用运行时代码与公开模板保持不含具体的私有游戏分支。

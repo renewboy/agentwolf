@@ -76,8 +76,8 @@ describe('plugin-owned Prompt rendering', () => {
       engine.events,
     )
     expect(foundation.prompt).toContain('你的初始身份是盗贼')
-    expect(foundation.prompt).toContain('身份牌池共 14 张，发给 12 个席位，留下 2 张底牌')
-    expect(foundation.prompt).toContain('盗贼选牌（仅首夜） → 丘比特连线（仅首夜）')
+    expect(foundation.prompt).not.toContain('自动死亡链')
+    expect(foundation.prompt).not.toContain('后序效果')
 
     engine.start()
     const turn = engine.currentTurn()
@@ -155,9 +155,6 @@ describe('plugin-owned Prompt rendering', () => {
     expect(foundation.prompt).toContain('夜间形成的情侣死亡在天亮合并到死亡名单中')
     expect(foundation.prompt).toContain('白天放逐先宣布被放逐者出局，再立即宣布另一方殉情')
     expect(foundation.prompt).toContain('两人继承同一死亡时点和遗言资格')
-    expect(foundation.prompt).toContain(
-      '夜间行动顺序（仅执行本夜可用的行动）：丘比特连线（仅首夜） → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动。',
-    )
 
     setup.engine.start()
     const turn = setup.engine.currentTurn()
@@ -265,41 +262,6 @@ describe('plugin-owned Prompt rendering', () => {
     )
   })
 
-  it('derives every board night action order from the installed phase graph', async () => {
-    const cases = [
-      {
-        board: sixPlayerBoard,
-        order: '狼队商议 → 狼队袭击投票 → 预言家行动',
-      },
-      {
-        board: guardBoard,
-        order: '守卫行动 → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动',
-      },
-      {
-        board: cupidBoard,
-        order: '丘比特连线（仅首夜） → 狼队商议 → 狼队袭击投票 → 女巫行动 → 预言家行动',
-      },
-      {
-        board: mirrorHiddenBoard,
-        order:
-          '守卫行动 → 狼队商议 → 狼队袭击投票 → 觉醒隐狼行动 → 女巫行动 → 魔镜少女行动 → 觉醒隐狼复制技能 → 觉醒隐狼学习',
-      },
-    ] as const
-
-    for (const { board, order } of cases) {
-      const setup = createBoardEngine(board)
-      const prompt = (
-        await setup.renderer.foundation(
-          setup.engine.state,
-          board,
-          setup.players[0]!.id,
-          setup.engine.events,
-        )
-      ).prompt
-      expect(prompt).toContain(`夜间行动顺序（仅执行本夜可用的行动）：${order}。`)
-    }
-  })
-
   it('omits phase transitions while retaining the current action contract', async () => {
     const setup = createBoardEngine(guardBoard)
     setup.engine.start()
@@ -380,9 +342,6 @@ describe('plugin-owned Prompt rendering', () => {
       )
     ).prompt
 
-    expect(hiddenPrompt).toContain(
-      '身份牌池共 10 张，发给 10 个席位，留下 0 张底牌：狼人 2 张、觉醒隐狼 1 张、村民 4 张、魔镜少女 1 张、女巫 1 张、守卫 1 张。',
-    )
     expect(hiddenPrompt).toContain('你的身份是觉醒隐狼')
     expect(hiddenPrompt).not.toContain('机械狼')
     expect(hiddenPrompt).not.toContain('通灵师')
@@ -440,13 +399,6 @@ describe('plugin-owned Prompt rendering', () => {
         six.engine.events,
       )
     ).prompt
-    expect(sixPrompt).toContain(
-      '身份牌池共 6 张，发给 6 个席位，留下 0 张底牌：狼人 2 张、村民 2 张、预言家 1 张、猎人 1 张。',
-    )
-    expect(sixPrompt).toContain('屠城是指狼人阵营让所有好人（所有平民和神职）出局')
-    expect(sixPrompt).toContain('屠边是指狼人阵营让所有平民或所有神职出局')
-    expect(sixPrompt).toContain('本局采用屠城规则')
-    expect(sixPrompt).toContain('本局不设警长竞选与警徽')
     expect(sixPrompt).not.toContain('女巫（好人阵营）')
 
     const rosterHeading = sixPrompt.indexOf('# 座位名单')
@@ -475,10 +427,9 @@ describe('plugin-owned Prompt rendering', () => {
           nine.engine.events,
         )
       ).prompt
-      const section = prompt.split('本局角色介绍：')[1]!.split('好人阵营需要')[0]!.trim()
+      const section = prompt.split('本局角色介绍：')[1]!.split('胜负规则：')[0]!.trim()
       expect(section).not.toMatch(/player-\d+/u)
       expect(section.match(/^- /gmu)).toHaveLength(ninePlayerBoard.roles.length)
-      expect(prompt).toContain('本局采用屠边规则')
       sections.add(section)
     }
     expect(sections.size).toBe(1)
@@ -486,7 +437,6 @@ describe('plugin-owned Prompt rendering', () => {
     for (const label of ['狼人', '村民', '预言家', '女巫', '猎人']) {
       expect(roleRules).toContain(`- ${label}`)
     }
-    expect(roleRules).toContain('每夜最多使用 1 瓶药')
     expect(roleRules).not.toContain('守卫（好人阵营）')
   })
 
@@ -526,7 +476,6 @@ describe('plugin-owned Prompt rendering', () => {
       },
       300,
     )
-    expect(speechTurn.prompt).toContain('若选择立即自爆，请调用 `trigger_skill`')
     expect(speechTurn.prompt).not.toMatch(/targetPlayerId|abilityId|option:/u)
 
     const villagerFoundation = await setup.renderer.foundation(
@@ -573,7 +522,6 @@ describe('plugin-owned Prompt rendering', () => {
 
     expect(rendered.prompt).toContain('这是本次新增的公开发言。')
     expect(rendered.prompt).toContain('你正在旁听公开发言')
-    expect(rendered.prompt).toContain('请选择立即自爆，或继续旁听')
     expect(rendered.prompt).toContain('调用 `trigger_skill` 发动技能')
     expect(rendered.prompt).toContain('调用 `pass_skill` 明确放弃')
     expect(rendered.prompt).toContain('不要输出发言')

@@ -5,7 +5,6 @@ import {
   defaultPlayerProviderRegistry,
   playerActionToolNames,
   playerBootstrapContextBudget,
-  playerIsolationWorkspace,
   playerKnowledgeToolNames,
   resolvePlayerLaunchSpec,
 } from '../src/index.js'
@@ -27,6 +26,7 @@ describe('game-only player process policy', () => {
       'Read',
       'Grep',
       'Glob',
+      'Skill',
     ])
     expect(providers.get('codex')?.session.permissions).toBe('opaque-mcp')
     expect(providers.get('codebuddy')?.session.mcpTransport).toBe('launch')
@@ -70,7 +70,11 @@ describe('game-only player process policy', () => {
       'WebSearch',
       'WebFetch',
     ])
-    expect(launch.args).toContain('skills.include_instructions=false')
+    expect(launch.args).toContain('skills.include_instructions=true')
+    expect(launch.args).toContain('skills.bundled.enabled=false')
+    expect(launch.args.find((arg) => arg.startsWith('skills.config=['))).toMatch(
+      /^skills\.config=\[/,
+    )
     expect(launch.args).toContain('include_collaboration_mode_instructions=false')
     expect(launch.args).toContain('include_apply_patch_tool=false')
     expect(launch.args).toContain('developer_instructions=""')
@@ -80,11 +84,12 @@ describe('game-only player process policy', () => {
       'tools.enabled_tools=["Read","Grep","Glob","Bash","Skill","mcp__agentwolf_player_actions__submit_speech","mcp__agentwolf_player_actions__submit_vote","mcp__agentwolf_player_actions__submit_night_action","mcp__agentwolf_player_actions__submit_sheriff_action","mcp__agentwolf_player_actions__trigger_skill","mcp__agentwolf_player_actions__pass_skill","mcp__agentwolf_player_actions__submit_postgame_review"]',
     )
     expect(optionValues(launch.args, '--ask-for-approval')).toEqual(['never'])
+    expect(launch.env['TRAE_HOME']).toBe('/runtime/player-1/.provider-homes/trae')
     expect(launch.args).toContain('project_doc_max_bytes=0')
     expect(launch.args).toContain(
-      'model_instructions_file="/runtime/player-1/.agents/skills/agentwolf-player/SKILL.md"',
+      'model_instructions_file="/runtime/player-1/.agentwolf/foundation.md"',
     )
-    expect(launch.args.indexOf('skills.include_instructions=false')).toBeLessThan(
+    expect(launch.args.indexOf('skills.include_instructions=true')).toBeLessThan(
       launch.args.indexOf('acp'),
     )
 
@@ -123,13 +128,15 @@ describe('game-only player process policy', () => {
       personality: string
       features: Record<string, boolean>
       memories: { use_memories: boolean; generate_memories: boolean }
-      skills: { include_instructions: boolean }
+      skills: {
+        include_instructions: boolean
+        bundled: { enabled: boolean }
+        config: Array<{ path: string; enabled: boolean }>
+      }
       tools: { enabled_tools: string[] }
     }
     expect(config.model).toBe('preserved-model')
-    expect(config.model_instructions_file).toBe(
-      '/runtime/player-2/.agents/skills/agentwolf-player/SKILL.md',
-    )
+    expect(config.model_instructions_file).toBe('/runtime/player-2/.agentwolf/foundation.md')
     expect(config.project_doc_max_bytes).toBe(0)
     expect(config.project_doc_fallback_filenames).toEqual([])
     expect(config.include_collaboration_mode_instructions).toBe(false)
@@ -150,7 +157,11 @@ describe('game-only player process policy', () => {
       unified_exec: false,
     })
     expect(config.memories).toEqual({ generate_memories: false, use_memories: false })
-    expect(config.skills).toEqual({ include_instructions: false })
+    expect(config.skills).toMatchObject({
+      include_instructions: true,
+      bundled: { enabled: false },
+    })
+    expect(config.skills.config.every((entry) => !entry.enabled)).toBe(true)
     expect(config.tools.enabled_tools).toEqual(
       playerActionToolNames.map((name) => `mcp__agentwolf_player_actions__${name}`),
     )
@@ -174,12 +185,13 @@ describe('game-only player process policy', () => {
 
     expect(launch.command).toBe('codebuddy')
     expect(launch.args).toContain('--acp')
-    expect(launch.args[settingsSourceIndex + 1]).toBe('none')
+    expect(launch.args[settingsSourceIndex + 1]).toBe('project')
     expect(optionValues(launch.args, '--tools')).toEqual([
       [
         'Read',
         'Grep',
         'Glob',
+        'Skill',
         ...playerActionToolNames.map((name) => `NoDefer(mcp__agentwolf-player-actions__${name})`),
       ].join(','),
     ])
@@ -188,7 +200,7 @@ describe('game-only player process policy', () => {
     ])
     expect(optionValues(launch.args, '--permission-mode')).toEqual(['dontAsk'])
     expect(optionValues(launch.args, '--system-prompt-file')).toEqual([
-      `${playerIsolationWorkspace('/runtime/player-3')}/.agents/skills/agentwolf-player/SKILL.md`,
+      '/runtime/player-3/.agentwolf/foundation.md',
     ])
     expect(launch.args).toContain('--strict-mcp-config')
     expect(mcpConfig.mcpServers['agentwolf-player-actions']).toEqual({
@@ -241,16 +253,16 @@ describe('game-only player process policy', () => {
     )
   })
 
-  it('gives Claude only sandboxed local strategy tools and no ambient settings source', () => {
+  it('gives Claude the rendered foundation and project-scoped named Skills', () => {
     const tools = builtInAgentTools()
     const claude = defaultPlayerProviderRegistry.resolve(
       tools.find((tool) => tool.kind === 'claude')!,
     )
-    expect(claude.session.metadata('PLAYER CONTRACT')).toEqual({
+    expect(claude.session.metadata('PLAYER FOUNDATION')).toEqual({
       claudeCode: {
         options: {
-          settingSources: [],
-          systemPrompt: 'PLAYER CONTRACT',
+          settingSources: ['project'],
+          systemPrompt: 'PLAYER FOUNDATION',
           tools: ['Read', 'Grep', 'Glob', 'Bash', 'Skill'],
           allowedTools: ['Read', 'Grep', 'Glob', 'Bash', 'Skill'],
           skills: ['agentwolf-player', 'werewolf-strategy'],

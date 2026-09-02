@@ -69,6 +69,7 @@ export const TrajectoryTurnSchema = z.object({
 export type TrajectoryTurn = z.infer<typeof TrajectoryTurnSchema>
 
 export const TrajectoryRecordKindSchema = z.enum([
+  'instructions',
   'prompt',
   'reasoning',
   'message',

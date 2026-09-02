@@ -14,6 +14,7 @@ const promptCore = loadPromptCore()
 export interface PlayerSession {
   readonly sessionId: string
   readonly connected: boolean
+  readonly modelInstructions?: string
   finishAfterAcceptedAction(): void
   cancelActivePrompt?(): Promise<boolean>
   prompt(
@@ -28,6 +29,7 @@ export type PlayerSessionFactory = (options: {
   readonly cwd: string
   readonly tool: AgentTool
   readonly profile: AgentProfile
+  readonly modelInstructions: string
   readonly mcpServer: McpServer
   readonly matchId: MatchId
   readonly playerId: PlayerId
@@ -43,10 +45,10 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
     tool: options.tool,
     workspace: options.cwd,
     mcpServers,
-    playerContract: promptCore.playerContract(),
+    modelInstructions: options.modelInstructions,
   })
   // ACP processes may report provider defaults after resume; the Profile remains authoritative.
-  return AcpPlayerSession.start({
+  const session = await AcpPlayerSession.start({
     cwd: prepared.cwd,
     clientInfo: { name: 'agentwolf', version: '0.1.0' },
     launch: prepared.launch,
@@ -74,4 +76,5 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
     ...(options.onStderr ? { onStderr: options.onStderr } : {}),
     ...(options.onPermissionDecision ? { onPermissionDecision: options.onPermissionDecision } : {}),
   })
+  return Object.assign(session, { modelInstructions: prepared.modelInstructions })
 }

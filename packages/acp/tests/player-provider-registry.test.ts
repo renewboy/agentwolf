@@ -24,6 +24,7 @@ const customTool = AgentToolSchema.parse({
 
 describe('PlayerProviderRegistry', () => {
   it('lets an exact Tool adapter extend player isolation without changing the coordinator', async () => {
+    const workspace = await mkdtemp(resolve(tmpdir(), 'agentwolf-custom-provider-'))
     const kindAdapter = adapter('custom-kind', { type: 'kind', kind: 'custom' }, 'kind')
     const cleaned: string[] = []
     const exactAdapter = {
@@ -47,21 +48,25 @@ describe('PlayerProviderRegistry', () => {
       canonicalPlayerWorkspace.lifecycle,
       exactAdapter.workspace.lifecycle,
     ])
-    await expect(
-      preparePlayerProviderSession({
-        tool: customTool,
-        workspace: '/runtime/custom-player',
-        playerContract: 'PLAYER CONTRACT',
-        registry,
-      }),
-    ).resolves.toMatchObject({
-      providerId: 'custom-exact',
-      cwd: '/runtime/custom-player',
-      launch: { args: ['--player-adapter', 'exact'] },
-      sessionMeta: { adapter: 'exact', playerContract: 'PLAYER CONTRACT' },
-    })
-    await cleanupPlayerProviderWorkspaces('/runtime/custom-player', { registry })
-    expect(cleaned).toEqual(['/runtime/custom-player'])
+    try {
+      await expect(
+        preparePlayerProviderSession({
+          tool: customTool,
+          workspace,
+          modelInstructions: 'PLAYER FOUNDATION',
+          registry,
+        }),
+      ).resolves.toMatchObject({
+        providerId: 'custom-exact',
+        cwd: workspace,
+        launch: { args: ['--player-adapter', 'exact'] },
+        sessionMeta: { adapter: 'exact', modelInstructions: 'PLAYER FOUNDATION' },
+      })
+      await cleanupPlayerProviderWorkspaces(workspace, { registry })
+      expect(cleaned).toEqual([workspace])
+    } finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
   })
 
   it('rejects duplicate adapter identities and selectors', () => {
@@ -117,7 +122,7 @@ function adapter(
       mcpTransport: 'session',
       resume: 'advertised',
       permissions: 'declared',
-      metadata: (playerContract) => ({ adapter: marker, playerContract }),
+      metadata: (modelInstructions) => ({ adapter: marker, modelInstructions }),
     },
     launch: (context) => ({
       ...context.launch,
@@ -125,3 +130,6 @@ function adapter(
     }),
   })
 }
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'

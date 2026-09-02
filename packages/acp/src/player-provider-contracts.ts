@@ -21,11 +21,17 @@ export interface PlayerProviderIsolationOptions {
   readonly hostHomes?: Readonly<Record<string, string | undefined>>
 }
 
+export interface PlayerModelInstructions {
+  readonly path: string
+  readonly text: string
+}
+
 export interface PlayerProviderPreparationContext {
   readonly tool: AgentTool
   readonly canonicalWorkspace: string
   readonly baseLaunch: ProcessLaunchSpec
   readonly isolation: PlayerProviderIsolationOptions
+  readonly modelInstructions: PlayerModelInstructions
 }
 
 export interface PlayerProviderCleanupContext {
@@ -66,7 +72,7 @@ export interface PlayerProviderSessionPolicy {
   readonly mcpTransport: PlayerProviderMcpTransport
   readonly resume: PlayerProviderResumePolicy
   readonly permissions: PlayerProviderPermissionPolicy
-  metadata(playerContract: string): Readonly<Record<string, unknown>>
+  metadata(modelInstructions: string): Readonly<Record<string, unknown>>
 }
 
 export type PlayerProviderSelector =

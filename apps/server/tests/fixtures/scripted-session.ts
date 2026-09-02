@@ -52,9 +52,15 @@ export function scriptedSessionFactory(options: ScriptedSessionOptions): PlayerS
     if (session.resumeSessionId && options.failResumeFor === session.playerId) {
       throw new Error(`simulated resume failure for ${session.playerId}`)
     }
+    if (!session.resumeSessionId) {
+      const history = options.prompts.get(session.playerId) ?? []
+      history.push(session.modelInstructions)
+      options.prompts.set(session.playerId, history)
+    }
     return new ScriptedSession(
       session.playerId,
       extractToken(session.mcpServer),
+      session.modelInstructions,
       options.mailbox,
       options.prompts,
       options.seerFault,
@@ -100,6 +106,7 @@ export class ScriptedSession implements PlayerSession {
   public constructor(
     playerId: PlayerId,
     token: string,
+    modelInstructions: string,
     mailbox: () => ActionMailbox,
     prompts: Map<PlayerId, string[]>,
     seerFault?: ScriptedSeerFault,
@@ -119,6 +126,7 @@ export class ScriptedSession implements PlayerSession {
     this.#sheriffSelfDestructOnce = sheriffSelfDestructOnce
     this.#postgameReviewContexts = postgameReviewContexts
     this.#postgameReviewGate = postgameReviewGate
+    this.#observeContext(modelInstructions)
     this.sessionId = `scripted-${playerId}`
     this.#closedPromise = new Promise<void>((resolvePromise) => {
       this.#signalClosed = resolvePromise
@@ -133,14 +141,7 @@ export class ScriptedSession implements PlayerSession {
     const history = this.#prompts.get(this.#playerId) ?? []
     history.push(prompt)
     this.#prompts.set(this.#playerId, history)
-    this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
-    if (prompt.includes('丘比特是第三方阵营角色')) {
-      this.#cupidGame = true
-    }
-    this.#playerCount = Math.max(
-      this.#playerCount,
-      ...[...prompt.matchAll(/player-(\d+)/g)].map((match) => Number(match[1])),
-    )
+    this.#observeContext(prompt)
     if (
       prompt.includes('只回复“准备就绪”') &&
       this.#uncertainBootstrapOnce?.value &&
@@ -300,6 +301,15 @@ export class ScriptedSession implements PlayerSession {
     }
     if (phase) return { text: '', stopReason: 'end_turn', updates: [] }
     throw new Error(`Unhandled scripted prompt for ${this.#playerId}: ${prompt}`)
+  }
+
+  #observeContext(prompt: string): void {
+    this.#night = lastNumber(prompt, /第 (\d+) 夜/g) ?? this.#night
+    if (prompt.includes('丘比特是第三方阵营角色')) this.#cupidGame = true
+    this.#playerCount = Math.max(
+      this.#playerCount,
+      ...[...prompt.matchAll(/player-(\d+)/g)].map((match) => Number(match[1])),
+    )
   }
 
   public close(): Promise<void> {

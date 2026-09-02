@@ -1,4 +1,4 @@
-import { lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { AgentToolSchema } from '@agentwolf/contracts'
@@ -26,7 +26,7 @@ describe('player provider isolation', () => {
     const prepared = await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
       isolation: { isolationRoot },
     })
 
@@ -37,6 +37,56 @@ describe('player provider isolation', () => {
     expect(await realpath(resolve(prepared.cwd, '.claude'))).toBe(
       await realpath(resolve(workspace, '.claude')),
     )
+    expect(prepared.sessionMeta).toMatchObject({
+      claudeCode: {
+        options: {
+          settingSources: ['project'],
+          systemPrompt: 'PLAYER FOUNDATION',
+          skills: ['agentwolf-player', 'werewolf-strategy'],
+        },
+      },
+    })
+  })
+
+  it('starts Trae with the rendered foundation file and native Skill instructions', async () => {
+    const root = await temporaryRoot('agentwolf-trae-foundation-')
+    const workspace = await playerWorkspace(root)
+    const ambientSkill = resolve(root, '.agents', 'skills', 'coding-agent', 'SKILL.md')
+    await mkdir(resolve(root, '.agents', 'skills', 'coding-agent'), { recursive: true })
+    await writeFile(ambientSkill, 'CODING SKILL\n', 'utf8')
+    const hostHome = resolve(root, 'host-trae')
+    await mkdir(resolve(hostHome, 'cli'), { recursive: true })
+    await writeFile(resolve(hostHome, 'cli', 'auth.json'), '{"credential":"fixture"}\n', 'utf8')
+    await writeFile(resolve(hostHome, 'traecli.toml'), 'coding = true\n', 'utf8')
+    const tool = builtInAgentTools().find((entry) => entry.kind === 'trae-cli')!
+
+    const prepared = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      modelInstructions: 'PLAYER FOUNDATION',
+      isolation: { hostHomes: { 'trae-cli': hostHome } },
+    })
+
+    const isolatedHome = resolve(workspace, '.provider-homes', 'trae')
+    expect(prepared.launch.env['TRAE_HOME']).toBe(isolatedHome)
+    expect(await realpath(resolve(isolatedHome, 'cli', 'auth.json'))).toBe(
+      await realpath(resolve(hostHome, 'cli', 'auth.json')),
+    )
+    await expect(readFile(resolve(isolatedHome, 'traecli.toml'), 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    expect(prepared.launch.args).toContain('skills.include_instructions=true')
+    const skillConfig = prepared.launch.args.find((arg) => arg.startsWith('skills.config=['))!
+    expect(skillConfig).toContain(ambientSkill)
+    expect(skillConfig).not.toContain(
+      resolve(workspace, '.agents', 'skills', 'agentwolf-player', 'SKILL.md'),
+    )
+    expect(prepared.launch.args).toContain(
+      `model_instructions_file=${JSON.stringify(resolve(workspace, '.agentwolf', 'foundation.md'))}`,
+    )
+    expect(await readFile(resolve(workspace, '.agentwolf', 'foundation.md'), 'utf8')).toBe(
+      'PLAYER FOUNDATION',
+    )
   })
 
   it('gives Codex a Match-owned home with only the host login credential', async () => {
@@ -46,18 +96,36 @@ describe('player provider isolation', () => {
     await mkdir(hostHome, { recursive: true })
     await writeFile(resolve(hostHome, 'auth.json'), '{"credential":"fixture"}\n', 'utf8')
     await writeFile(resolve(hostHome, 'AGENTS.md'), 'CODING INSTRUCTIONS\n', 'utf8')
+    const ambientSkill = resolve(root, '.agents', 'skills', 'coding-agent', 'SKILL.md')
+    await mkdir(resolve(root, '.agents', 'skills', 'coding-agent'), { recursive: true })
+    await writeFile(ambientSkill, 'CODING SKILL\n', 'utf8')
     const tool = builtInAgentTools().find((entry) => entry.kind === 'codex')!
 
     const prepared = await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
       isolation: { hostHomes: { codex: hostHome } },
     })
 
     const isolatedHome = resolve(workspace, '.provider-homes', 'codex')
     expect(prepared.cwd).toBe(workspace)
     expect(prepared.launch.env['CODEX_HOME']).toBe(isolatedHome)
+    expect(await readFile(resolve(workspace, '.agentwolf', 'foundation.md'), 'utf8')).toBe(
+      'PLAYER FOUNDATION',
+    )
+    const codexConfig = JSON.parse(prepared.launch.env['CODEX_CONFIG']!) as {
+      model_instructions_file: string
+      skills: {
+        include_instructions: boolean
+        config: Array<{ path: string; enabled: boolean }>
+      }
+    }
+    expect(codexConfig).toMatchObject({
+      model_instructions_file: resolve(workspace, '.agentwolf', 'foundation.md'),
+      skills: { include_instructions: true },
+    })
+    expect(codexConfig.skills.config).toContainEqual({ path: ambientSkill, enabled: false })
     expect(await realpath(resolve(isolatedHome, 'auth.json'))).toBe(
       await realpath(resolve(hostHome, 'auth.json')),
     )
@@ -76,7 +144,7 @@ describe('player provider isolation', () => {
     await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
       isolation: { hostHomes: { codex: hostHome } },
     })
 
@@ -105,7 +173,7 @@ describe('player provider isolation', () => {
     await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
     })
 
     expect(await realpath(resolve(workspace, '.provider-homes', 'codex', 'auth.json'))).toBe(
@@ -127,7 +195,7 @@ describe('player provider isolation', () => {
     const prepared = await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
       isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
     })
 
@@ -137,7 +205,16 @@ describe('player provider isolation', () => {
     expect(await realpath(resolve(prepared.cwd, '.agents'))).toBe(
       await realpath(resolve(workspace, '.agents')),
     )
+    expect(await realpath(resolve(prepared.cwd, '.codebuddy'))).toBe(
+      await realpath(resolve(workspace, '.codebuddy')),
+    )
     expect(prepared.launch.env['CODEBUDDY_CONFIG_DIR']).toBe(isolatedHome)
+    expect(prepared.launch.args[prepared.launch.args.indexOf('--setting-sources') + 1]).toBe(
+      'project',
+    )
+    expect(prepared.launch.args[prepared.launch.args.indexOf('--system-prompt-file') + 1]).toBe(
+      resolve(workspace, '.agentwolf', 'foundation.md'),
+    )
     expect(prepared.launch.env['CODEBUDDY_DISABLE_IDE']).toBe('1')
     expect(await realpath(resolve(isolatedHome, 'local_storage'))).toBe(await realpath(hostStorage))
     await expect(readFile(resolve(isolatedHome, 'CODEBUDDY.md'), 'utf8')).rejects.toMatchObject({
@@ -147,10 +224,14 @@ describe('player provider isolation', () => {
     const repeated = await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'CURRENT STATE MUST NOT REPLACE FOUNDATION',
       isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
     })
     expect(repeated.cwd).toBe(prepared.cwd)
+    expect(repeated.modelInstructions).toBe('PLAYER FOUNDATION')
+    expect(await readFile(resolve(workspace, '.agentwolf', 'foundation.md'), 'utf8')).toBe(
+      'PLAYER FOUNDATION',
+    )
     expect(await realpath(resolve(repeated.cwd, '.agents'))).toBe(
       await realpath(resolve(workspace, '.agents')),
     )
@@ -160,7 +241,7 @@ describe('player provider isolation', () => {
     const repaired = await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
       isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
     })
     expect((await lstat(resolve(repaired.cwd, '.agents'))).isSymbolicLink()).toBe(true)
@@ -180,7 +261,7 @@ describe('player provider isolation', () => {
     const prepared = await preparePlayerProviderSession({
       tool,
       workspace,
-      playerContract: 'PLAYER CONTRACT',
+      modelInstructions: 'PLAYER FOUNDATION',
     })
 
     expect(prepared.cwd).toBe(playerIsolationWorkspace(workspace))
@@ -200,10 +281,28 @@ describe('player provider isolation', () => {
       preparePlayerProviderSession({
         tool,
         workspace,
-        playerContract: 'PLAYER CONTRACT',
+        modelInstructions: 'PLAYER FOUNDATION',
         isolation: { isolationRoot },
       }),
     ).rejects.toThrow(/inherits model instructions/)
+  })
+
+  it('rejects empty or symlinked primary model instructions', async () => {
+    const root = await temporaryRoot('agentwolf-primary-instructions-')
+    const workspace = await playerWorkspace(root)
+    const tool = builtInAgentTools().find((entry) => entry.kind === 'trae-cli')!
+
+    await expect(
+      preparePlayerProviderSession({ tool, workspace, modelInstructions: '   ' }),
+    ).rejects.toThrow(/must not be empty/)
+
+    const external = resolve(root, 'external-foundation.md')
+    await writeFile(external, 'EXTERNAL', 'utf8')
+    await mkdir(resolve(workspace, '.agentwolf'), { recursive: true })
+    await symlink(external, resolve(workspace, '.agentwolf', 'foundation.md'))
+    await expect(
+      preparePlayerProviderSession({ tool, workspace, modelInstructions: 'PLAYER FOUNDATION' }),
+    ).rejects.toThrow(/must be a regular file/)
   })
 })
 
@@ -217,6 +316,7 @@ async function playerWorkspace(root: string): Promise<string> {
   const workspace = resolve(root, 'canonical-player-workspace')
   await mkdir(resolve(workspace, '.agents', 'skills', 'agentwolf-player'), { recursive: true })
   await mkdir(resolve(workspace, '.claude', 'skills'), { recursive: true })
+  await mkdir(resolve(workspace, '.codebuddy', 'skills'), { recursive: true })
   await writeFile(
     resolve(workspace, '.agents', 'skills', 'agentwolf-player', 'SKILL.md'),
     'PLAYER CONTRACT\n',

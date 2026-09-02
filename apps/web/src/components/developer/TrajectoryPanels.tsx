@@ -362,7 +362,16 @@ export function TrajectoryInspector({
               value={`${record.usage.used} / ${record.usage.size}`}
             />
           ) : null}
-          {record.text ? <Block label={getCopy('trajectory.text')} value={record.text} /> : null}
+          {record.text ? (
+            <Block
+              label={getCopy(
+                record.kind === 'instructions'
+                  ? 'trajectory.systemInstructions'
+                  : 'trajectory.text',
+              )}
+              value={record.text}
+            />
+          ) : null}
           {record.input ? <Block label={getCopy('trajectory.input')} value={record.input} /> : null}
           {record.output ? (
             <Block label={getCopy('trajectory.output')} value={record.output} />
@@ -534,6 +543,7 @@ function actionLabel(actionType: string): string {
 
 function minimapLane(kind: TrajectoryRecordKind): MinimapLane {
   switch (kind) {
+    case 'instructions':
     case 'prompt':
       return 'context'
     case 'reasoning':

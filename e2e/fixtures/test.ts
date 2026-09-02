@@ -33,7 +33,7 @@ export const test = base.extend<Record<never, never>, E2eWorkerFixtures>({
         const toolResponse = await request.post('/api/agent-tools', {
           data: {
             name: sharedToolName,
-            kind: 'custom',
+            kind: 'codex',
             command: process.execPath,
             args: [resolve('packages/acp/tests/fixtures/mock-agent.mjs')],
             environment: {},

@@ -135,7 +135,7 @@ test('guides simulation review and approval from the Match row', async ({
   await expect(trigger).toBeFocused()
 })
 
-test('streams a normalized developer trajectory with prompt, reasoning, tool, and usage details', async ({
+test('streams a normalized developer trajectory with system instructions, prompt, reasoning, tool, and usage details', async ({
   page,
   request,
   resources,
@@ -335,7 +335,8 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   await expect(recordTab).toHaveAttribute('aria-selected', 'true')
   await recordTab.press('ArrowLeft')
   await expect(playerTab).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('button', { name: /提示词/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /系统提示词/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /用户提示词/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /思考/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /工具调用/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /上下文用量/ }).first()).toBeVisible()
@@ -376,11 +377,23 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
     'background-color',
     'rgb(121, 169, 220)',
   )
+  await expect(page.locator('.aw-trajectory-kind-tag[data-kind="instructions"]').first()).toHaveCSS(
+    'background-color',
+    'rgb(121, 169, 220)',
+  )
+  const firstInstructionsNode = page
+    .locator('.aw-trajectory-minimap__node[data-kind="instructions"]')
+    .first()
+  await firstInstructionsNode.click()
+  await expect(page.locator('.aw-trajectory-record[data-selected="true"]')).toContainText(
+    '系统提示词',
+  )
+  await expect(page.getByRole('tabpanel', { name: '记录详情' })).toContainText('# 任务目标')
   const firstPromptNode = page.locator('.aw-trajectory-minimap__node[data-kind="prompt"]').first()
   await firstPromptNode.click()
   await expect(recordTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.aw-trajectory-record[data-selected="true"]')).toContainText(
-    '注入提示词',
+    '用户提示词',
   )
   await expect(page.getByRole('tabpanel', { name: '记录详情' })).toContainText('时间')
   await page.getByRole('button', { name: '折叠全部阶段' }).click()
@@ -427,7 +440,7 @@ test('streams a normalized developer trajectory with prompt, reasoning, tool, an
   await setupGroup.click()
   await page.getByRole('textbox', { name: '搜索当前轨迹' }).fill('Player ID')
   await page
-    .getByRole('button', { name: /提示词/ })
+    .getByRole('button', { name: /系统提示词/ })
     .first()
     .click()
   await expect(page.locator('.aw-trajectory-detail-block pre')).toContainText('当前身份')

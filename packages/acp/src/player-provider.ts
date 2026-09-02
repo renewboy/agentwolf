@@ -2,10 +2,12 @@ import { resolve } from 'node:path'
 import type { McpServer } from '@agentclientprotocol/sdk'
 import type { AgentTool } from '@agentwolf/contracts'
 import {
+  type PlayerModelInstructions,
   type PlayerProviderAdapter,
   type PlayerProviderIsolationOptions,
   PlayerProviderRegistry,
 } from './player-provider-contracts.js'
+import { playerModelInstructionsPath, preparePlayerModelInstructions } from './player-isolation.js'
 import { defaultPlayerProviderRegistry } from './player-providers/registry.js'
 import { resolveLaunchSpec, type ProcessLaunchSpec } from './tool-catalog.js'
 
@@ -20,11 +22,12 @@ export interface PreparePlayerProviderSessionOptions extends PlayerProviderResol
   readonly tool: AgentTool
   readonly workspace: string
   readonly mcpServers?: readonly McpServer[]
-  readonly playerContract: string
+  readonly modelInstructions: string
 }
 
 export interface PreparedPlayerProviderSession {
   readonly providerId: string
+  readonly modelInstructions: string
   readonly cwd: string
   readonly launch: ProcessLaunchSpec
   readonly mcpServers: readonly McpServer[]
@@ -37,7 +40,12 @@ export interface PreparedPlayerProviderSession {
 export async function preparePlayerProviderSession(
   options: PreparePlayerProviderSessionOptions,
 ): Promise<PreparedPlayerProviderSession> {
-  const resolution = resolveProvider(options.tool, options.workspace, options)
+  const canonicalWorkspace = resolve(options.workspace)
+  const modelInstructions = await preparePlayerModelInstructions(
+    canonicalWorkspace,
+    options.modelInstructions,
+  )
+  const resolution = resolveProvider(options.tool, canonicalWorkspace, options, modelInstructions)
   await resolution.adapter.workspace.prepare({
     ...resolution.context,
     runtimeWorkspace: resolution.runtimeWorkspace,
@@ -46,10 +54,11 @@ export async function preparePlayerProviderSession(
   const mcpServers = options.mcpServers ?? []
   return {
     providerId: resolution.adapter.id,
+    modelInstructions: modelInstructions.text,
     cwd: resolution.runtimeWorkspace,
     launch: buildPlayerLaunch(resolution, mcpServers),
     mcpServers: resolution.adapter.session.mcpTransport === 'session' ? mcpServers : [],
-    sessionMeta: resolution.adapter.session.metadata(options.playerContract),
+    sessionMeta: resolution.adapter.session.metadata(modelInstructions.text),
     approvedToolNames: resolution.adapter.session.approvedToolNames,
     verifyUnadvertisedSessionResume: resolution.adapter.session.resume === 'verify',
     allowOpaqueMcpPermissions: resolution.adapter.session.permissions === 'opaque-mcp',
@@ -74,7 +83,14 @@ export function resolvePlayerLaunchSpec(
   mcpServers: readonly McpServer[] = [],
   options: PlayerProviderResolutionOptions = {},
 ): ProcessLaunchSpec {
-  return buildPlayerLaunch(resolveProvider(tool, workspace, options), mcpServers)
+  const canonicalWorkspace = resolve(workspace)
+  return buildPlayerLaunch(
+    resolveProvider(tool, canonicalWorkspace, options, {
+      path: playerModelInstructionsPath(canonicalWorkspace),
+      text: '',
+    }),
+    mcpServers,
+  )
 }
 
 interface ResolvedProvider {
@@ -84,22 +100,25 @@ interface ResolvedProvider {
     readonly canonicalWorkspace: string
     readonly baseLaunch: ProcessLaunchSpec
     readonly isolation: PlayerProviderIsolationOptions
+    readonly modelInstructions: PlayerModelInstructions
   }
   readonly runtimeWorkspace: string
 }
 
 function resolveProvider(
   tool: AgentTool,
-  workspace: string,
+  canonicalWorkspace: string,
   options: PlayerProviderResolutionOptions,
+  modelInstructions: { readonly path: string; readonly text: string },
 ): ResolvedProvider {
   const registry = options.registry ?? defaultPlayerProviderRegistry
   const adapter = registry.resolve(tool)
   const context = {
     tool,
-    canonicalWorkspace: resolve(workspace),
+    canonicalWorkspace,
     baseLaunch: resolveLaunchSpec(tool),
     isolation: options.isolation ?? {},
+    modelInstructions,
   }
   return {
     adapter,

@@ -40,8 +40,9 @@ describe('server project root', () => {
     await access(resolve(workspace, '.agents/skills/agentwolf-player/SKILL.md'))
     await access(resolve(workspace, '.claude/skills/agentwolf-player/SKILL.md'))
     await access(resolve(workspace, '.trae/skills/werewolf-strategy/SKILL.md'))
+    await access(resolve(workspace, '.codebuddy/skills/werewolf-strategy/SKILL.md'))
     const builtSkillsRealPath = await realpath(builtSkills)
-    for (const directory of ['.agents', '.claude', '.trae']) {
+    for (const directory of ['.agents', '.claude', '.trae', '.codebuddy']) {
       const linkPath = resolve(workspace, directory, 'skills')
       expect((await lstat(linkPath)).isSymbolicLink()).toBe(true)
       expect((await readlink(linkPath)).startsWith('/')).toBe(false)

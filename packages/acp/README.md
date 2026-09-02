@@ -24,8 +24,12 @@ Core runtime 拥有 ACP 协议、进程与 delivery 原语。本包拥有 Agent 
 
 Provider 适配器必须保持同一个逻辑行为:创建一次,恢复给定的 Session ID,按序流式传输 updates,并报告最终完成或传输失败。它们只可以在该 provider 所声明的启动/配置机制上存在差异。
 
-玩家启动必须同时替换模型指令、关闭宿主 settings/记忆/项目规则/IDE/协作上下文、收窄模型可见
-工具并隔离 Provider 状态目录。无法机械建立这些边界的 Provider 在创建 ACP Session 前失败。
+玩家启动必须把 server 渲染的 foundation 固化为该 Seat 的主指令，关闭宿主记忆、项目规则、
+IDE 与协作上下文，收窄模型可见工具并隔离 Provider 状态目录。玩家 Skills 由各
+Provider 的原生 discovery 机制按名称暴露，Skill 入口不作为主指令文件。无法机械建立这些边界的
+Provider 在创建 ACP Session 前失败。
+默认 adapters 通过精确名称白名单、project-only source 或 bundled/ambient 禁用规则，使宿主和
+workspace 祖先目录中的非玩家 Skills 不进入玩家上下文。
 
 主动取消只发送 ACP cancel notification,不创建并发 Prompt。server 在原 Prompt 结束前不会发送后继
 Prompt,并自行决定该完成属于 supersede、已接受动作还是不确定传输。
@@ -43,8 +47,9 @@ Prompt,并自行决定该完成属于 supersede、已接受动作还是不确定
 | launch    | 从原始 Tool command/args/environment 生成仅游戏进程配置          |
 | Session   | 声明 MCP 传输方式、可见工具、resume 验证、permission 与 metadata |
 
-`preparePlayerProviderSession` 是唯一编排入口。它只执行 registry 解析和四类
-policy，返回 server 可直接传给 `AcpPlayerSession.start` 的完整 Session spec。
+`preparePlayerProviderSession` 是唯一编排入口。它固化 foundation 主指令，执行 registry 解析和
+四类 policy，返回 server 可直接传给 `AcpPlayerSession.start` 的完整 Session spec 与实际生效的
+foundation 文本。server 使用该文本记录 bootstrap trajectory。
 
 ## 失败行为
 

@@ -333,8 +333,9 @@ async function promptFixture() {
       core: {
         layouts: {
           foundation: 'foundation.njk',
+          bootstrap: 'bootstrap.njk',
           continuation: 'continuation.njk',
-          bootstrapContinuation: 'bootstrap.njk',
+          bootstrapContinuation: 'bootstrap-continuation.njk',
           character: 'character.njk',
           playerContract: 'player-contract.njk',
         },
@@ -347,6 +348,7 @@ async function promptFixture() {
   await writeFile(join(root, '_core', 'foundation.njk'), '{{ ownerRoleContext }}')
   await writeFile(join(root, '_core', 'continuation.njk'), '{{ currentTurn }}')
   await writeFile(join(root, '_core', 'bootstrap.njk'), '继续准备')
+  await writeFile(join(root, '_core', 'bootstrap-continuation.njk'), '恢复准备')
   await writeFile(join(root, '_core', 'character.njk'), '{{ character.name }}')
   await writeFile(join(root, '_core', 'player-contract.njk'), '合成玩家契约')
   await writeFile(

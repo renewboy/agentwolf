@@ -879,6 +879,7 @@
   transform: scaleY(1.25);
 }
 
+.aw-trajectory-minimap__node[data-kind='instructions'],
 .aw-trajectory-minimap__node[data-kind='prompt'] {
   background: var(--aw-trace-prompt);
 }
@@ -1180,6 +1181,7 @@
   white-space: nowrap;
 }
 
+.aw-trajectory-kind-tag[data-kind='instructions'],
 .aw-trajectory-kind-tag[data-kind='prompt'] {
   background: var(--aw-trace-prompt);
 }

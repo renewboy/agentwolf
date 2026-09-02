@@ -64,6 +64,7 @@
   "core": {
     "layouts": {
       "foundation": "foundation.njk",
+      "bootstrap": "bootstrap.njk",
       "continuation": "continuation.njk",
       "bootstrapContinuation": "bootstrap-continuation.njk",
       "character": "character.njk",

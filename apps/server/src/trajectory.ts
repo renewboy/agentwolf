@@ -17,12 +17,11 @@ import { TrajectoryTurnRecorder } from './trajectory-turn-recorder.js'
 
 export { TrajectoryTurnRecorder } from './trajectory-turn-recorder.js'
 
-export interface TrajectoryTurnStart {
+interface TrajectoryTurnStartBase {
   readonly turnId: string
   readonly ownerId: PlayerId
   readonly sessionId: string
   readonly sessionGeneration: number
-  readonly kind: 'bootstrap' | 'action' | 'postgame'
   readonly phaseId: PhaseId | null
   readonly actionType: string
   readonly fromSequence: number
@@ -33,6 +32,12 @@ export interface TrajectoryTurnStart {
   readonly pausedReasonAtRender: string | null
   readonly continuation?: boolean
 }
+
+export type TrajectoryTurnStart = TrajectoryTurnStartBase &
+  (
+    | { readonly kind: 'bootstrap'; readonly systemInstructions: string }
+    | { readonly kind: 'action' | 'postgame'; readonly systemInstructions?: never }
+  )
 
 export class MatchTrajectoryRecorder {
   readonly #repository: SqliteRepository
@@ -98,6 +103,7 @@ export class MatchTrajectoryRecorder {
       (nextTurn) => this.#saveTurn(nextTurn),
       (record) => this.#saveRecord(record),
     )
+    if (input.kind === 'bootstrap') recorder.instructions(input.systemInstructions)
     recorder.prompt(input.prompt)
     return recorder
   }

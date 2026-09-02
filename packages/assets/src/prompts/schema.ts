@@ -117,6 +117,7 @@ const CorePromptSchema = z
     layouts: z
       .object({
         foundation: TemplateRefSchema,
+        bootstrap: TemplateRefSchema,
         continuation: TemplateRefSchema,
         bootstrapContinuation: TemplateRefSchema,
         character: TemplateRefSchema,

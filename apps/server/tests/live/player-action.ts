@@ -1,4 +1,4 @@
-import { access, appendFile, mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
@@ -77,17 +77,10 @@ const permissionRequests: unknown[] = []
 const stderrChunks: string[] = []
 try {
   const address = await server.app.listen({ host: '127.0.0.1', port: 0 })
-  const builtSkills = await copyPlayerSkills({
+  await copyPlayerSkills({
     dataDirectory: root,
     sourceRoot: resolve(process.cwd(), 'packages/assets/player-skills'),
   })
-  if (probeSandbox) {
-    await appendFile(
-      resolve(builtSkills, 'agentwolf-player/SKILL.md'),
-      sandboxAcceptanceInstruction,
-      'utf8',
-    )
-  }
   const workspace = await preparePlayerWorkspace(root, matchId, playerId)
   const token = server.matches.mailbox.issueToken(matchId, playerId)
   const expectSubmission = (): void => {
@@ -154,16 +147,24 @@ try {
     url: `${address}/mcp`,
     headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
   }
-  const playerContract = probeSandbox
-    ? `${promptCore.playerContract()}${sandboxAcceptanceInstruction}`
-    : promptCore.playerContract()
+  const modelInstructions = `# 任务目标
+
+你是一局狼人杀中的真人玩家，只依据裁判在当前 Session 中提供的信息行动。
+
+# 可用 Skill
+
+- 可以使用当前工作区提供的 \`agentwolf-player\` 和 \`werewolf-strategy\` 两个 Skill。
+- 在做出任何行动前，你都可以阅读\`werewolf-strategy\`的内容来获取建议和战术攻略，不要在发言提及你读取的过程。
+- \`.agents/skills\` 是指向工作区外共享 Skill 目录的软链接。查找 Skill 文件时，使用只读 Bash 命令 \`find -L .agents/skills ...\` 跟随软链接，不使用内置文件搜索工具。
+- 除经 \`.agents/skills\` 软链接访问上述两个 Skill 外，不得读取当前工作区之外的其他文件。
+${probeSandbox ? sandboxAcceptanceInstruction : ''}`
   const provider = defaultPlayerProviderRegistry.resolve(tool)
   const prepared = isolated
     ? await preparePlayerProviderSession({
         tool,
         workspace,
         mcpServers: [playerMcpServer],
-        playerContract,
+        modelInstructions,
       })
     : {
         cwd: workspace,
@@ -320,17 +321,18 @@ try {
   }
   const strategyProbe = probeStrategy
     ? await session.prompt(
-        toolKind === 'codebuddy'
-          ? "Use Grep to find '统一战线' in .agents/skills/werewolf-strategy/references/articles/2023080801.md. Do not call a game action. Reply only 统一战线 after the search succeeds."
-          : "Use Bash to run exactly: rg -n '统一战线' .agents/skills/werewolf-strategy/references/articles/2023080801.md . Do not call a game action. Reply only 统一战线 after the command succeeds.",
+        'Use the `werewolf-strategy` Skill to find the phrase 统一战线 in its strategy guidance. Do not call a game action. Reply only 统一战线 after the Skill lookup succeeds.',
         120_000,
       )
     : null
   if (strategyProbe) {
     const strategyCalls = toolUpdates(strategyProbe.updates)
-    if (!strategyProbe.text.includes('统一战线') || strategyCalls.length === 0) {
+    const namedSkillUsed = strategyCalls.some((call) =>
+      JSON.stringify(call).includes('werewolf-strategy'),
+    )
+    if (!strategyProbe.text.includes('统一战线') || !namedSkillUsed) {
       throw new Error(
-        `Strategy probe was not grounded in a local tool call: ${JSON.stringify({ text: strategyProbe.text, calls: strategyCalls }).slice(0, 8_000)}`,
+        `Strategy probe did not use the named Skill: ${JSON.stringify({ text: strategyProbe.text, calls: strategyCalls }).slice(0, 8_000)}`,
       )
     }
   }

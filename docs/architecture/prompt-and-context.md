@@ -11,7 +11,8 @@ Prompt 管线同时满足以下约束：
 
 - 具体 Role、Ability、Phase 和 plugin event 的模型呈现由其 RulePlugin 对应 bundle 拥有；
 - 模板只接收 server 已经按玩家身份过滤的 plain facts，不能提升事实可见性；
-- foundation、增量 turn 和恢复续篇各有明确送达边界，长驻 Session 不反复接收完整历史；
+- foundation 在 Session 建立前成为不可变主指令，bootstrap、增量 turn 和恢复续篇各有
+  明确送达边界；
 - 玩家发言保持原始语义，裁判呈现只格式化权威事件和身份引用；
 - Prompt 源非本地化、严格渲染并在首次使用前完成 bundle 图与语义覆盖校验；
 - 玩家进程只获得游戏所需的 Skills、知识工具和动作工具，宿主开发上下文不进入模型环境；
@@ -49,7 +50,8 @@ flowchart LR
         Templates["strict Nunjucks templates"]
     end
 
-    Envelope["ContextEnvelope<br/>Prompt + sequence range"]
+    Foundation["Foundation 主指令"]
+    Envelope["Bootstrap / Turn envelope<br/>Prompt + sequence range"]
     Player["PlayerRuntime"]
     Session["持久 ACP Session"]
 
@@ -57,24 +59,26 @@ flowchart LR
     Loader --> Registry
     Templates --> Loader
     State --> Visibility --> Renderer --> FactSchemas --> Registry
+    Registry --> Foundation --> Player
     Registry --> Envelope --> Player --> Session
 ```
 
-| 组件                           | 拥有的职责                                                                      | 关键产出                          |
-| ------------------------------ | ------------------------------------------------------------------------------- | --------------------------------- |
-| semantic ownership recorder    | 记录每个 plugin 实际注册的 Role、Ability、Phase、event、query 与 trigger        | `PluginSemanticContribution[]`    |
-| `promptInventory`              | 将 Ruleset plugin 顺序、贡献、交互 phase 与 core event 类型转换为 assets 侧清单 | `PromptSemanticInventory`         |
-| Core bundle runtime            | 读取模板，验证路径、imports、audience、matcher 与循环，预编译模板               | `LoadedPromptBundle[]`            |
-| `PromptBundleRegistry`         | 冻结 Role/Ability/Phase/event 的呈现所有权，匹配事件并渲染 Prompt               | foundation、turn、event narration |
-| `ContextRenderer`              | 选择玩家可见事件和 Role，构造 actor/roster/board/game/turn facts                | `ContextEnvelope`                 |
-| `PlayerRuntime`                | 把 envelope 与 delivery ledger、Session、trajectory 关联                        | 一次可确认的 ACP Prompt 送达      |
-| player Skill builder/workspace | 构建共享游戏 Skills 并链接到每个 Seat workspace                                 | 隔离的 Agent 工作目录             |
+| 组件                           | 拥有的职责                                                                      | 关键产出                              |
+| ------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------- |
+| semantic ownership recorder    | 记录每个 plugin 实际注册的 Role、Ability、Phase、event、query 与 trigger        | `PluginSemanticContribution[]`        |
+| `promptInventory`              | 将 Ruleset plugin 顺序、贡献、交互 phase 与 core event 类型转换为 assets 侧清单 | `PromptSemanticInventory`             |
+| Core bundle runtime            | 读取模板，验证路径、imports、audience、matcher 与循环，预编译模板               | `LoadedPromptBundle[]`                |
+| `PromptBundleRegistry`         | 冻结 Role/Ability/Phase/event 的呈现所有权，匹配事件并渲染 Prompt               | foundation、turn、event narration     |
+| `ContextRenderer`              | 选择玩家可见事件和 Role，构造 actor/roster/board/game/turn facts                | foundation 主指令与 `ContextEnvelope` |
+| `PlayerRuntime`                | 把 envelope 与 delivery ledger、Session、trajectory 关联                        | 一次可确认的 ACP Prompt 送达          |
+| player Skill builder/workspace | 构建共享游戏 Skills 并链接到每个 Seat workspace                                 | 隔离的 Agent 工作目录                 |
 
 ## Bundle 所有权与装载
 
 Prompt 根由 `_core` 和与已安装 RulePlugin 一一对应的 bundle 构成：
 
-- `_core` 拥有 foundation、continuation、bootstrap continuation、Character、player contract 布局，
+- `_core` 拥有 foundation、bootstrap、continuation、bootstrap continuation、Character、player contract
+  布局，
   通用 faction 标签、MCP tool schema 文案和 MCP 回执；
 - plugin bundle 拥有该 plugin 注册的 Roles、Abilities、Phases、plugin events 与公告呈现；
 - manifest 只允许声明自身语义、显式 imports 和带 audience 的 shared templates；
@@ -139,7 +143,8 @@ GameEngine 或 repository。
 
 ## Prompt 生命周期与送达边界
 
-下图说明 foundation、普通 turn 与恢复续篇如何共享同一 Session，同时只发送新事实。
+下图说明 foundation 主指令、bootstrap 确认、普通 turn 与恢复续篇如何共享同一
+Session。
 
 ```mermaid
 sequenceDiagram
@@ -151,10 +156,13 @@ sequenceDiagram
     participant Trace as Trajectory
 
     Match->>Renderer: foundation(state, full history, character)
-    Renderer-->>Match: Prompt + toSequence
-    Match->>Player: bootstrap(envelope)
+    Renderer-->>Match: 渲染后主指令 + toSequence
+    Match->>Player: start(modelInstructions)
+    Player->>ACP: session/new + 主指令
+    Match->>Player: bootstrap(确认 envelope)
+    Player->>Trace: 保存 foundation 系统提示词 + bootstrap Prompt
     Player->>Ledger: begin(1..toSequence)
-    Player->>ACP: session/prompt foundation
+    Player->>ACP: session/prompt 准备确认
     ACP-->>Player: final response + usage
     Player->>Ledger: acknowledge(toSequence)
 
@@ -176,12 +184,14 @@ sequenceDiagram
 ### Foundation
 
 foundation 要求输入历史的最后 sequence 与 GameState `lastSequence` 完全相同。它一次性呈现公开 board
-牌池/底牌规则、夜间行动顺序、公开 Role 说明、actor 自身 Role/Abilities、可见阵营知识、初始可见事件、完整
-初始 roster 和 Character。公开 Role 说明描述 board 中存在的语义，不建立 Seat 到隐藏 Role 的映射。
+牌池/底牌规则、警长与放逐平票规则、狼刀在先规则、夜间行动顺序、公开 Role 说明、actor 自身
+Role/Abilities、可见阵营知识、初始可见事件、完整初始 roster 和 Character。结算语义由
+[游戏结算与终局](game-settlement.md)拥有。渲染结果在首次 `session/new` 前固化为该 Seat 的主指令，进程恢复继续
+使用同一份内容。公开 Role 说明描述 board 中存在的语义，不建立 Seat 到隐藏 Role 的映射。
 
-player-session binding 在 foundation 前处于 `bootstrapState=pending`。派发前改为 `dispatched`，
-delivery 确认后改为 `acknowledged`。若进程在派发后中断，恢复同一 Session 并发送紧凑 bootstrap
-continuation，不重发 foundation。
+player-session binding 在 bootstrap 确认前处于 `bootstrapState=pending`。派发前改为
+`dispatched`，delivery 确认后改为 `acknowledged`。若进程在派发后中断，恢复同一
+Session 并发送紧凑 bootstrap continuation，不重复主指令。
 
 ### 增量 turn
 
@@ -215,7 +225,8 @@ terminal snapshot、候选集合和评分目标；重试使用专用 continuatio
 ## 玩家环境与工具边界
 
 构建阶段把 `packages/assets/player-skills` 生成到 `.agentwolf/skills`。每个 Match/Player workspace
-只创建相对 symlink，使 `.agents/skills`、`.claude/skills` 和 `.trae/skills` 指向同一共享构建输出。
+只创建相对 symlink，使 `.agents/skills`、`.claude/skills`、`.trae/skills` 和 `.codebuddy/skills`
+指向同一共享构建输出。
 Match workspace 同时拥有该 Seat 的 Provider home。Provider home 只引用宿主登录凭据并保存该玩家的
 Session 状态，不继承宿主 settings、记忆或全局指令。Claude 与 CodeBuddy 从不含仓库祖先指令的
 临时 launch workspace 运行；该目录只链接玩家游戏 Skill 入口，并在删除 Match workspace 时一同
@@ -245,40 +256,46 @@ launch 目录的 resolve、prepare 和 cleanup 生命周期；state policy 拥�
 
 Provider 启动策略统一执行以下环境契约：
 
-- 载入 `agentwolf-player` 与 `werewolf-strategy` 游戏 Skills；
+- 只暴露 `agentwolf-player` 与 `werewolf-strategy` 游戏 Skills，宿主、祖先目录与 bundled Skills 不进入
+  玩家上下文；
 - 暴露本地只读知识工具和七个声明的 MCP 动作工具；
 - MCP endpoint 使用只绑定当前 Match/Player 的 bearer token；
 - 移除环境记忆、仓库项目指令、Web、插件、hooks、子代理、写入与无关开发能力；
-- Trae 与 Codex 使用替换式模型指令，并关闭 collaboration、developer、personality、项目文档、
-  Skill、Web 与无关工具上下文；Codex 使用 Match-owned `CODEX_HOME`；
-- Claude 使用替换式 system prompt、空 settings source、严格无网络和禁止文件写入的 sandbox；
-- CodeBuddy 使用替换式 system prompt、`none` settings source、Match-owned 配置目录、禁用 IDE、
-  严格 MCP 与只读工具白名单；
+- Trae 与 Codex 使用固化的 foundation 主指令，并启用工作区 Skill 发现；两者分别使用
+  Match-owned `TRAE_HOME` 和 `CODEX_HOME`；
+- Claude 使用 foundation system prompt、project-scoped Skill source、严格无网络和禁止文件写入的
+  sandbox；
+- CodeBuddy 使用 foundation system prompt、project settings source、Match-owned 配置目录、禁用
+  IDE、严格 MCP 与只读工具白名单；
 - 自定义 Agent Tool 没有内置隔离适配器，不能启动玩家 Session；
 - 玩家 bearer token 只进入进程环境绑定，不进入启动参数中的 MCP 配置文本。
 
-foundation Prompt 是当前对局事实，turn Prompt 提供 Role 化的行动目标、正式工具名与提交边界，player contract/Skills 是稳定玩法与行为边界，MCP schema 是包含 Ability 语义、字段与参数结构的具体调用契约。
+foundation 是当前 Seat 的主指令，turn Prompt 提供 Role 化的行动目标、正式工具名与提交边界，
+`agentwolf-player` 与 `werewolf-strategy` 作为独立 Skill 按名称发现并按需加载，MCP schema 承载
+Ability 语义、字段和参数结构。
 每个 bootstrap trajectory 对 Provider 报告的 context usage 执行 12,000 token 预算审计。
 
 ## 状态、故障与可观测性
 
-| 状态                  | 所有者                       | 生命周期                                   |
-| --------------------- | ---------------------------- | ------------------------------------------ |
-| Prompt 源与 manifests | assets 源目录                | 随代码版本发布，非本地化                   |
-| bundle registry       | `PromptBundleRegistry`       | 按冻结 Ruleset runtime 构建并缓存          |
-| facts/envelope        | `ContextRenderer`            | 单次渲染快照，携带精确 sequence 范围       |
-| delivery cursor       | `PlayerRuntime` / repository | ACP 最终确认或恢复对账后推进               |
-| 实际 Prompt 与 usage  | trajectory                   | 发送时持久，历史记录不回算                 |
-| 玩家 Skills           | assets builder / 数据目录    | 构建一次，多个 workspace 只链接            |
-| Provider home         | Match/Player workspace       | 随 Seat Session 创建，随 Match 删除        |
-| detached launch 目录  | ACP player isolation         | Claude/CodeBuddy 启动前创建，随 Match 删除 |
+| 状态                             | 所有者                       | 生命周期                                   |
+| -------------------------------- | ---------------------------- | ------------------------------------------ |
+| Prompt 源与 manifests            | assets 源目录                | 随代码版本发布，非本地化                   |
+| bundle registry                  | `PromptBundleRegistry`       | 按冻结 Ruleset runtime 构建并缓存          |
+| facts/envelope                   | `ContextRenderer`            | 单次渲染快照，携带精确 sequence 范围       |
+| delivery cursor                  | `PlayerRuntime` / repository | ACP 最终确认或恢复对账后推进               |
+| 系统提示词、实际 Prompt 与 usage | trajectory                   | 生效或发送时持久，历史记录不回算           |
+| 玩家 Skills                      | assets builder / 数据目录    | 构建一次，多个 workspace 只链接            |
+| foundation 主指令                | Match/Player workspace       | 首次 Session 前固化，随 Match 删除         |
+| Provider home                    | Match/Player workspace       | 随 Seat Session 创建，随 Match 删除        |
+| detached launch 目录             | ACP player isolation         | Claude/CodeBuddy 启动前创建，随 Match 删除 |
 
 - bundle 缺失、语义覆盖不全、非法 import、audience 越权、模板未定义值或事件呈现歧义会在 registry
   建立或渲染时失败；MatchRuntime 在应用边界暂停 Match。
 - foundation 历史与 state sequence 不一致会拒绝渲染，避免遗漏或重复初始事实。
 - roster 玩家缺少最终 Role/Faction、公开历史 cursor 越界或 postgame terminal sequence 不匹配会
   明确失败。
-- trajectory 保存 Prompt、可见 event sequences、usage、reasoning/message/tool updates 和错误；
+- trajectory 在 bootstrap Turn 保存完整 foundation 系统提示词,并保存各 Turn 的 Prompt、可见 event
+  sequences、usage、reasoning/message/tool updates 和错误；
   审计重建渲染时状态并验证可见范围与 context budget，不把历史文本和当前模板逐字比较。
 
 ## 扩展边界与不变量

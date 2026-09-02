@@ -6,6 +6,7 @@ import {
   codexPlayerMcpFunctionNames,
   disabledCodexFeatures,
   isolatedCodexContextConfig,
+  isolatedSkillConfig,
 } from './codex-family.js'
 
 const codexPlayerConfig = {
@@ -18,7 +19,6 @@ const codexPlayerConfig = {
     ),
     shell_tool: true,
   },
-  skills: { include_instructions: false },
   tools: { enabled_tools: codexPlayerMcpFunctionNames },
   view_image: false,
   web_search: 'disabled',
@@ -43,19 +43,16 @@ export const codexPlayerProvider = definePlayerProvider({
     metadata: () => ({}),
   },
   launch: (context) => {
-    const modelInstructions = resolve(
-      context.runtimeWorkspace,
-      '.agents',
-      'skills',
-      'agentwolf-player',
-      'SKILL.md',
-    )
     return {
       ...context.launch,
       env: {
         ...context.launch.env,
         CODEX_CONFIG: JSON.stringify(
-          mergeCodexConfig(context.launch.env['CODEX_CONFIG'], modelInstructions),
+          mergeCodexConfig(
+            context.launch.env['CODEX_CONFIG'],
+            context.modelInstructions.path,
+            context.canonicalWorkspace,
+          ),
         ),
       },
     }
@@ -65,6 +62,7 @@ export const codexPlayerProvider = definePlayerProvider({
 function mergeCodexConfig(
   value: string | undefined,
   modelInstructions: string,
+  workspace: string,
 ): Readonly<Record<string, unknown>> {
   const current = value ? parseJsonObject(value, 'CODEX_CONFIG') : {}
   return {
@@ -81,7 +79,7 @@ function mergeCodexConfig(
     },
     skills: {
       ...recordProperty(current, 'skills'),
-      ...codexPlayerConfig.skills,
+      ...isolatedSkillConfig([], workspace),
     },
     tools: {
       ...recordProperty(current, 'tools'),

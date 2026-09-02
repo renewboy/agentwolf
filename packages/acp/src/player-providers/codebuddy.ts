@@ -4,7 +4,7 @@ import type { McpServer } from '@agentclientprotocol/sdk'
 import { detachedPlayerWorkspace, playerProviderHome } from '../player-isolation.js'
 import { definePlayerProvider, playerActionToolNames } from '../player-provider-contracts.js'
 
-const knowledgeToolNames = ['Read', 'Grep', 'Glob'] as const
+const knowledgeToolNames = ['Read', 'Grep', 'Glob', 'Skill'] as const
 const mcpFunctionNames = playerActionToolNames.map(
   (tool) => `mcp__agentwolf-player-actions__${tool}`,
 )
@@ -12,7 +12,7 @@ const playerArgs = [
   '--agent',
   'cli',
   '--setting-sources',
-  'none',
+  'project',
   '--tools',
   [...knowledgeToolNames, ...mcpFunctionNames.map((tool) => `NoDefer(${tool})`)].join(','),
   '--allowedTools',
@@ -37,7 +37,7 @@ const playerEnvironment = {
 export const codebuddyPlayerProvider = definePlayerProvider({
   id: 'codebuddy',
   selector: { type: 'kind', kind: 'codebuddy' },
-  workspace: detachedPlayerWorkspace(['.agents']),
+  workspace: detachedPlayerWorkspace(['.agents', '.codebuddy']),
   state: playerProviderHome({
     id: 'codebuddy',
     directoryName: 'codebuddy',
@@ -54,20 +54,13 @@ export const codebuddyPlayerProvider = definePlayerProvider({
   },
   launch: (context) => {
     const mcp = codebuddyMcpLaunchConfig(context.mcpServers)
-    const modelInstructions = resolve(
-      context.runtimeWorkspace,
-      '.agents',
-      'skills',
-      'agentwolf-player',
-      'SKILL.md',
-    )
     return {
       ...context.launch,
       args: [
         ...context.launch.args,
         ...playerArgs,
         '--system-prompt-file',
-        modelInstructions,
+        context.modelInstructions.path,
         ...mcp.args,
       ],
       env: {

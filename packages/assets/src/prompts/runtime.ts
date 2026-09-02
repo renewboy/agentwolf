@@ -300,6 +300,9 @@ export class PromptBundleRegistry {
   public renderBootstrapContinuation(): string {
     return this.#render('_core', this.#core.manifest.core!.layouts.bootstrapContinuation, {})
   }
+  public renderBootstrap(): string {
+    return this.#render('_core', this.#core.manifest.core!.layouts.bootstrap, {})
+  }
   #context(
     actor: PromptActorFact,
     roster: readonly PromptPlayerFact[],
@@ -566,7 +569,6 @@ function roleContext(role: PromptRolePresentation, faction: Faction) {
     abilities: role.abilities.map(abilityContext),
   }
 }
-
 function abilityContext(ability: PromptAbilityPresentation) {
   return {
     id: ability.id,
@@ -575,7 +577,6 @@ function abilityContext(ability: PromptAbilityPresentation) {
     foundation: ability.foundation,
   }
 }
-
 function renderAtomic(environment: nunjucks.Environment, text: string, context: object): string {
   return environment.renderString(text, context).trim()
 }

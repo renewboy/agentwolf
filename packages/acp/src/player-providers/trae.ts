@@ -1,11 +1,16 @@
+import { homedir } from 'node:os'
 import { resolve } from 'node:path'
-import { canonicalPlayerWorkspace, noPlayerProviderState } from '../player-isolation.js'
+import { canonicalPlayerWorkspace, playerProviderHome } from '../player-isolation.js'
 import {
   definePlayerProvider,
   playerActionToolNames,
   playerKnowledgeToolNames,
 } from '../player-provider-contracts.js'
-import { codexPlayerMcpFunctionNames, disabledCodexFeatures } from './codex-family.js'
+import {
+  codexPlayerMcpFunctionNames,
+  disabledCodexFeatures,
+  isolatedSkillConfigToml,
+} from './codex-family.js'
 
 const codingToolNames = [
   'Read',
@@ -68,7 +73,9 @@ const contextArgs = [
   '-c',
   'project_doc_max_bytes=0',
   '-c',
-  'skills.include_instructions=false',
+  'skills.include_instructions=true',
+  '-c',
+  'skills.bundled.enabled=false',
   '-c',
   modelToolSelection,
 ] as const
@@ -83,7 +90,13 @@ export const traePlayerProvider = definePlayerProvider({
   id: 'trae-cli',
   selector: { type: 'kind', kind: 'trae-cli' },
   workspace: canonicalPlayerWorkspace,
-  state: noPlayerProviderState,
+  state: playerProviderHome({
+    id: 'trae-cli',
+    directoryName: 'trae',
+    environmentVariable: 'TRAE_HOME',
+    defaultHostHome: () => resolve(homedir(), '.trae'),
+    credentialEntries: ['cli/auth.json'],
+  }),
   session: {
     approvedToolNames: [...playerActionToolNames, ...playerKnowledgeToolNames],
     mcpTransport: 'session',
@@ -94,20 +107,18 @@ export const traePlayerProvider = definePlayerProvider({
   launch: (context) => {
     const commandIndex = context.launch.args.indexOf('acp')
     const insertionIndex = commandIndex < 0 ? context.launch.args.length : commandIndex
-    const modelInstructions = resolve(
-      context.runtimeWorkspace,
-      '.agents',
-      'skills',
-      'agentwolf-player',
-      'SKILL.md',
-    )
     return {
       ...context.launch,
       args: [
         ...context.launch.args.slice(0, insertionIndex),
         ...contextArgs,
         '-c',
-        `model_instructions_file=${JSON.stringify(modelInstructions)}`,
+        isolatedSkillConfigToml(
+          [resolve(homedir(), '.trae', 'skills')],
+          context.canonicalWorkspace,
+        ),
+        '-c',
+        `model_instructions_file=${JSON.stringify(context.modelInstructions.path)}`,
         '--ask-for-approval',
         'never',
         ...context.launch.args.slice(insertionIndex),

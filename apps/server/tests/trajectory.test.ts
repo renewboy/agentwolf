@@ -62,6 +62,54 @@ describe('trajectory capture', () => {
     ).toBeNull()
   })
 
+  it('stores system instructions before the bootstrap Prompt', async () => {
+    const server = await createServer()
+    const profile = server.catalog.createProfile({
+      name: 'Instructions fixture',
+      toolId: builtInAgentTools()[0]!.id,
+      model: 'fixture-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const match = server.matches.createMatch({
+      boardId: BoardIdSchema.parse('board-quick-6'),
+      roleAssignment: 'random',
+      seats: Array.from({ length: 6 }, (_, index) => ({
+        seat: index + 1,
+        name: `Instructions player ${index + 1}`,
+        profileId: profile.id,
+      })),
+    })
+    const ownerId = PlayerIdSchema.parse('player-1')
+    const recorder = server.trajectories.recorder(match.id)
+    const turn = recorder.beginTurn({
+      turnId: 'delivery-instructions-1',
+      ownerId,
+      sessionId: 'session-instructions-1',
+      sessionGeneration: 1,
+      kind: 'bootstrap',
+      systemInstructions: '# 系统提示词\n\n当前身份与完整规则。',
+      phaseId: null,
+      actionType: 'bootstrap',
+      fromSequence: 0,
+      toSequence: server.repository.listMatchEvents(match.id).at(-1)?.sequence ?? 0,
+      prompt: '请只回复准备就绪。',
+      visibleEventSequences: [],
+      gameStatus: 'starting',
+      pausedReasonAtRender: null,
+    })
+    turn.complete('end_turn')
+
+    expect(server.trajectories.page(match.id, ownerId, null).records).toMatchObject([
+      {
+        kind: 'instructions',
+        title: 'instructions',
+        text: '# 系统提示词\n\n当前身份与完整规则。',
+      },
+      { kind: 'prompt', title: 'prompt', text: '请只回复准备就绪。' },
+    ])
+  })
+
   it('returns secret-safe player launch and Session diagnostics', async () => {
     const server = await createServer()
     const tool = server.catalog.createTool({
@@ -426,12 +474,11 @@ describe('trajectory capture', () => {
       actionType: string,
       toSequence: number,
     ) => {
-      const turn = recorder.beginTurn({
+      const input = {
         turnId,
         ownerId: playerId,
         sessionId: `session-${turnId}`,
         sessionGeneration: 1,
-        kind,
         phaseId: phaseId ? PhaseIdSchema.parse(phaseId) : null,
         actionType,
         fromSequence: 0,
@@ -440,7 +487,12 @@ describe('trajectory capture', () => {
         visibleEventSequences: [],
         gameStatus: 'running',
         pausedReasonAtRender: null,
-      })
+      } as const
+      const turn = recorder.beginTurn(
+        kind === 'bootstrap'
+          ? { ...input, kind, systemInstructions: `Instructions ${turnId}` }
+          : { ...input, kind },
+      )
       turn.complete('end_turn')
       return turn
     }

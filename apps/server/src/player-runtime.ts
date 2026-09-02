@@ -26,18 +26,17 @@ import {
   type PlayerSession,
   type PlayerSessionFactory,
 } from './player-session-factory.js'
-import type { PlayerRuntimeOptions, PlayerRuntimeStatus } from './player-runtime-types.js'
+import type {
+  PlayerRuntimeOptions,
+  PlayerRuntimeStatus,
+  PlayerTrajectoryContext,
+} from './player-runtime-types.js'
 import { adoptLegacyPlayerSession, terminalToolUpdate } from './player-runtime-recovery.js'
 import type { TrajectoryTurnRecorder } from './trajectory.js'
 import { PlayerTurnSupersededError } from './player-turn-superseded.js'
-
-export {
-  defaultPlayerSessionFactory,
-  type PlayerSession,
-  type PlayerSessionFactory,
-} from './player-session-factory.js'
+export { defaultPlayerSessionFactory } from './player-session-factory.js'
+export type { PlayerSession, PlayerSessionFactory } from './player-session-factory.js'
 export type { PlayerRuntimeOptions, PlayerRuntimeStatus } from './player-runtime-types.js'
-
 export class PlayerRuntime {
   readonly #options: PlayerRuntimeOptions
   readonly #ledger: DeliveryLedger
@@ -149,7 +148,12 @@ export class PlayerRuntime {
     await this.#deliver(
       envelope,
       undefined,
-      { kind: 'bootstrap', phaseId: null, actionType: 'bootstrap' },
+      {
+        kind: 'bootstrap',
+        phaseId: null,
+        actionType: 'bootstrap',
+        systemInstructions: this.#session?.modelInstructions ?? this.#options.modelInstructions,
+      },
       'syncing',
     )
     this.#options.repository.playerSessions.markBootstrap(
@@ -363,11 +367,7 @@ export class PlayerRuntime {
   async #deliver(
     envelope: ContextEnvelope,
     callbacks: AcpPromptCallbacks | undefined,
-    traceContext: {
-      readonly kind: 'bootstrap' | 'action'
-      readonly phaseId: PhaseId | null
-      readonly actionType: string
-    },
+    traceContext: PlayerTrajectoryContext,
     workingStatus: 'syncing' | 'thinking' = 'thinking',
   ): Promise<{
     result: AcpPromptResult
@@ -391,13 +391,11 @@ export class PlayerRuntime {
     this.#persistLedger()
     this.#setStatus(workingStatus)
     const trajectory = this.#options.trajectory.beginTurn({
+      ...traceContext,
       turnId: deliveryId,
       ownerId: this.#options.playerId,
       sessionId: this.#session.sessionId,
       sessionGeneration: this.#sessionGeneration,
-      kind: traceContext.kind,
-      phaseId: traceContext.phaseId,
-      actionType: traceContext.actionType,
       fromSequence: attempt.fromSequence,
       toSequence: attempt.toSequence,
       prompt: envelope.prompt,
@@ -558,6 +556,7 @@ export class PlayerRuntime {
       cwd: this.#options.workspace,
       tool: this.#options.tool,
       profile: this.#options.profile,
+      modelInstructions: this.#options.modelInstructions,
       matchId: this.#options.matchId,
       playerId: this.#options.playerId,
       mcpServer: {

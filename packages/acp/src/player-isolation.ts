@@ -1,8 +1,19 @@
 import { createHash } from 'node:crypto'
-import { access, lstat, mkdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
+import {
+  access,
+  lstat,
+  mkdir,
+  readFile,
+  readlink,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, parse, relative, resolve } from 'node:path'
 import type {
+  PlayerModelInstructions,
   PlayerProviderStatePolicy,
   PlayerProviderWorkspaceLifecycle,
   PlayerProviderWorkspacePolicy,
@@ -103,6 +114,31 @@ export function playerProviderHome(options: PlayerProviderHomeOptions): PlayerPr
   }
 }
 
+export async function preparePlayerModelInstructions(
+  workspace: string,
+  candidate: string,
+): Promise<PlayerModelInstructions> {
+  if (!candidate.trim()) throw new Error('Player model instructions must not be empty')
+  const path = playerModelInstructionsPath(workspace)
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 })
+  try {
+    await writeFile(path, candidate, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
+  } catch (error) {
+    if (!hasErrorCode(error, 'EEXIST')) throw error
+  }
+  const status = await lstat(path)
+  if (!status.isFile() || status.isSymbolicLink()) {
+    throw new Error(`Player model instructions must be a regular file at ${path}`)
+  }
+  const text = await readFile(path, 'utf8')
+  if (!text.trim()) throw new Error(`Player model instructions are empty at ${path}`)
+  return { path, text }
+}
+
+export function playerModelInstructionsPath(workspace: string): string {
+  return resolve(workspace, '.agentwolf', 'foundation.md')
+}
+
 export async function removePlayerIsolationWorkspace(
   workspace: string,
   isolationRoot?: string,
@@ -191,10 +227,14 @@ function requireDirectChild(root: string, path: string): void {
 }
 
 function isMissingPath(error: unknown): boolean {
+  return hasErrorCode(error, 'ENOENT')
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    (error as { code?: unknown }).code === 'ENOENT'
+    (error as { code?: unknown }).code === code
   )
 }

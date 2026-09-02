@@ -327,6 +327,7 @@
     "error": "错误",
     "kind": "记录类型",
     "usage": "上下文占用",
+    "systemInstructions": "系统提示词",
     "text": "正文",
     "input": "输入",
     "output": "输出",
@@ -363,7 +364,8 @@
       "cancelled": "已取消"
     },
     "kinds": {
-      "prompt": "注入提示词",
+      "instructions": "系统提示词",
+      "prompt": "用户提示词",
       "reasoning": "思考",
       "message": "发言",
       "tool": "工具调用",

@@ -90,30 +90,32 @@ stateDiagram-v2
 
 已有 active binding 时，PlayerRuntime 只用持久 Session ID 调用 `session/resume`。返回 ID 必须逐字
 一致。Provider 通过 initialize capabilities 声明 resume；内置 CodeBuddy 适配在首次 `session/new`
-后以同一 ID 立即执行一次 `session/resume` 验证，验证成功后才允许 foundation。`session/new` 的唯一
+后以同一 ID 立即执行一次 `session/resume` 验证，验证成功后才允许 bootstrap。`session/new` 的唯一
 通用调用点位于 Core ACP runtime，server 只能通过 factory 请求“创建”或“恢复给定 ID”。
 
 `AcpPlayerSession.start` 的装配顺序为：
 
-1. Provider registry 根据精确 Tool ID 或 kind 解析 adapter，依次执行
+1. ContextRenderer 渲染该 Seat 的 foundation，workspace 在首次 Session 前固化这份主指令；
+2. Provider registry 根据精确 Tool ID 或 kind 解析 adapter，依次执行
    workspace/state/launch/Session policy，生成 command、args、environment、workspace 与 ACP
    能力 spec；CodeBuddy 的单玩家 MCP endpoint 进入严格的启动配置，header 值只通过
    进程环境绑定；
-2. 通过 guardian 启动 stdio 进程，建立 NDJSON ACP connection；
-3. 协商精确协议版本并检查或验证 `session.resume` 能力；
-4. 调用 `session/new` 或 `session/resume` 并连接玩家绑定 MCP server；CodeBuddy 使用进程启动时预载的
+3. 通过 guardian 启动 stdio 进程，建立 NDJSON ACP connection；
+4. 协商精确协议版本并检查或验证 `session.resume` 能力；
+5. 调用 `session/new` 或 `session/resume` 并连接玩家绑定 MCP server；CodeBuddy 使用进程启动时预载的
    endpoint，其他 Provider 通过 ACP Session request 接收 endpoint；
-5. 从 Agent 宣告的 config options 中设置 Profile model、可选 reasoning effort 和 mode；
-6. 只允许声明的知识工具与 AgentWolf action tools 通过 permission request。
+6. 从 Agent 宣告的 config options 中设置 Profile model、可选 reasoning effort 和 mode；
+7. 只允许声明的知识工具与 AgentWolf action tools 通过 permission request。
 
 省略 reasoning 时保留 Provider 默认；显式 model/reasoning/mode 必须出现在 Provider 宣告的选项中，
-无法兑现配置的 Session 在接收 foundation 前失败。
+无法兑现配置的 Session 在接收 bootstrap 确认前失败。
 
 ## Bootstrap 与普通回合
 
-Session 建立后，PlayerRuntime 根据 binding `bootstrapState` 决定是否发送 foundation：
+Session 建立后，foundation 已作为主指令生效。PlayerRuntime 根据 binding `bootstrapState`
+决定是否发送准备确认：
 
-- `pending`：渲染 foundation，将状态写为 `dispatched` 后发送；
+- `pending`：将状态写为 `dispatched` 后发送紧凑 bootstrap 确认；
 - `dispatched`：恢复同一 Session，发送紧凑 bootstrap continuation；
 - `acknowledged`：直接从当前 delivery cursor 继续普通回合。
 
@@ -271,7 +273,7 @@ Prompt timeout 或 cancel 未确认都会以显式 lifecycle/delivery error 上�
 - 新 Provider 通过 registry 注册 adapter，adapter 完整定义 workspace/state/launch/Session policy；
   Session factory 不按 Provider kind 分支。新 adapter 必须保持相同 Session、Prompt、permission、
   stream 和 close 契约。
-- Provider 必须声明 `session.resume`，或由内置适配在 foundation 前以新建的同一 Session ID 完成
+- Provider 必须声明 `session.resume`，或由内置适配在 bootstrap 前以新建的同一 Session ID 完成
   一次标准 `session/resume` 验证；恢复路径不使用 `session/load`。
 - Match 级重试、pending action、cursor 与 pause 策略留在 server，不能下沉到 Provider adapter。
 - `session/new` 只服务没有 binding 的首次创建；任何恢复都使用持久 Session ID。

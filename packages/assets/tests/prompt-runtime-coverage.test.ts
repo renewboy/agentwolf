@@ -93,7 +93,8 @@ describe('Prompt runtime behavior matrix', () => {
     const turn = turnFacts(events, false)
     expect(registry.renderTurn(turn)).toContain('current turn')
     expect(registry.renderTurn({ ...turn, continuation: true })).toContain('continue current turn')
-    expect(registry.renderBootstrapContinuation()).toBe('bootstrap')
+    expect(registry.renderBootstrap()).toBe('bootstrap')
+    expect(registry.renderBootstrapContinuation()).toBe('bootstrap continuation')
   })
 
   it('fails closed for unknown semantic lookups and unpresented events', () => {
@@ -321,8 +322,9 @@ function runtimeFixture(): {
     core: {
       layouts: {
         foundation: 'foundation.njk',
+        bootstrap: 'bootstrap.njk',
         continuation: 'continuation.njk',
-        bootstrapContinuation: 'bootstrap.njk',
+        bootstrapContinuation: 'bootstrap-continuation.njk',
         character: 'character.njk',
         playerContract: 'player-contract.njk',
       },
@@ -354,6 +356,7 @@ function runtimeFixture(): {
     ].join('\n'),
     'continuation.njk': 'continue {{ currentTurn }}',
     'bootstrap.njk': 'bootstrap',
+    'bootstrap-continuation.njk': 'bootstrap continuation',
     'character.njk': '{{ character.name }}',
     'player-contract.njk': 'player contract',
   })

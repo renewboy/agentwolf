@@ -83,7 +83,12 @@ function record(
     status: kind === 'permission' ? 'allowed' : 'completed',
     startedAt: '2026-08-28T12:34:56.789Z',
     durationMs: ordinal % 3 === 0 ? null : ordinal % 2 === 0 ? 1_500 : 250,
-    text: kind === 'message' ? 'message text' : null,
+    text:
+      kind === 'instructions'
+        ? '# 系统提示词\n\n当前身份与 Player ID。'
+        : kind === 'message'
+          ? 'message text'
+          : null,
     input: kind === 'action' ? '{"action":{"type":"vote"}}' : null,
     output: kind === 'diagnostic' ? 'diagnostic output' : null,
     usage: kind === 'usage' ? { used: 20, size: 100, cost: null } : null,
@@ -93,6 +98,7 @@ function record(
 }
 
 const allKinds: readonly TrajectoryRecordKind[] = [
+  'instructions',
   'prompt',
   'reasoning',
   'message',
@@ -126,11 +132,11 @@ beforeEach(() => {
 describe('Trajectory panels', () => {
   it('maps every record kind into minimap lanes and selects nodes', async () => {
     const onSelect = vi.fn()
-    render(<TrajectoryMinimap onSelect={onSelect} page={page()} selectedId="record-3" />)
+    render(<TrajectoryMinimap onSelect={onSelect} page={page()} selectedId="record-4" />)
     expect(document.querySelectorAll('.aw-trajectory-minimap__lane')).toHaveLength(4)
     expect(document.querySelectorAll('.aw-trajectory-minimap__node')).toHaveLength(allKinds.length)
     expect(document.querySelector('[data-selected="true"]')).toHaveAttribute('data-kind', 'message')
-    await userEvent.click(screen.getByRole('button', { name: /^#1 注入/u }))
+    await userEvent.click(screen.getByRole('button', { name: /^#1 系统提示词/u }))
     expect(onSelect).toHaveBeenCalledWith('record-1')
   })
 
@@ -151,7 +157,7 @@ describe('Trajectory panels', () => {
         selectedId={null}
       />,
     )
-    expect(document.querySelector('.aw-trajectory-virtual')).toHaveStyle({ height: '480px' })
+    expect(document.querySelector('.aw-trajectory-virtual')).toHaveStyle({ height: '520px' })
     expect(screen.getByRole('button', { name: '加载更早回合' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: '加载更早回合' }))
     expect(onLoadOlder).toHaveBeenCalledOnce()
@@ -190,7 +196,7 @@ describe('Trajectory panels', () => {
         onSelect={onSelect}
         page={{ ...first, ownerId: 'system', nextBeforeTurn: null }}
         query="message"
-        selectedId="record-3"
+        selectedId="record-4"
       />,
     )
     expect(document.querySelector('.aw-trajectory-ledger')).toHaveAttribute('aria-busy', 'true')
@@ -292,6 +298,9 @@ describe('Trajectory panels', () => {
     expect(screen.getByText(/1.5s/)).toBeVisible()
     rerender(<TrajectoryInspector record={record(1, 'prompt')} turn={null} />)
     expect(screen.getByText(/当前记录已明确截断/u)).toBeVisible()
+    rerender(<TrajectoryInspector record={record(1, 'instructions')} turn={null} />)
+    expect(screen.getByRole('heading', { name: '系统提示词' })).toBeVisible()
+    expect(screen.getByText(/当前身份与 Player ID/u)).toBeVisible()
     rerender(
       <TrajectoryInspector
         record={record(4, 'usage', {

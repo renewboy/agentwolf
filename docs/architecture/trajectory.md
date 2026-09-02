@@ -8,14 +8,14 @@ audit 的研发人员。轨迹属于诊断状态，不参与 GameEngine 规则�
 
 轨迹模块需要保证：
 
-- 每次 Prompt 送达、ACP update、工具调用、动作、错误和 usage 能关联到明确的
+- 每次生效的系统提示词、Prompt 送达、ACP update、工具调用、动作、错误和 usage 能关联到明确的
   Match、Player、Session 与事件范围；
 - 结构化 ACP 元数据中的 secret、凭据和 `_meta` 在持久化前移除，流式内容按字段上限截断；
-- Prompt、可见 event sequences 和 usage 以实际发送时内容保存；
+- 系统提示词、Prompt、可见 event sequences 和 usage 以实际发送时内容保存；
 - Turn 与 Record 支持增量 upsert、按 owner 分页和 WebSocket revision 追平；
 - audit 能在 Turn 的 `toSequence` 处重建 GameState，并检查送达、可见性和 action boundary；
 - 开发者诊断不解析 secret value，也不把完整大文本装入概览接口；
-- recorder 在普通与 developer 模式中保持相同采集语义，读取接口只在 loopback developer mode 暴露。
+- recorder 在普通与 developer 模式中保持相同采集语义，读取接口只在显式 developer mode 暴露。
 
 `MatchTrajectoryRecorder` 接收 MatchRuntime 的 system events 与 runtime controls，并为玩家 Turn 建立
 AgentWolf schema/repository adapter。Core `TrajectoryTurnRecorder` 处理单次 ACP Turn 的流式合并、
@@ -28,7 +28,7 @@ tool upsert、usage、permission、脱敏与截断。SQLite repository 持有轨
 ```mermaid
 flowchart LR
     Match["MatchRuntime<br/>领域事件与播放控制"]
-    Player["PlayerRuntime<br/>Prompt、动作、delivery"]
+    Player["PlayerRuntime<br/>系统提示词、Prompt、动作、delivery"]
     ACP["ACP Session<br/>message、tool、usage、permission"]
 
     Recorder["MatchTrajectoryRecorder<br/>Turn / Record"]
@@ -36,7 +36,7 @@ flowchart LR
     Store["SQLite trajectory<br/>turns、records、revision"]
     Service["TrajectoryService<br/>summary、page、delta、debug"]
     Audit["TrajectoryAudit<br/>按 sequence 重建"]
-    API["loopback developer API"]
+    API["developer API"]
     UI["Developer UI"]
 
     Match --> Recorder
@@ -64,11 +64,13 @@ flowchart LR
 - **Turn** 表示一次可归因的送达或系统动作，保存 owner、Session ID/generation、ordinal、attempt、
   kind、phase/action、event range、visible sequences、渲染时 Match status、continuation、状态、时序、
   error 和 usage。Session generation 表示 durable binding 的逻辑代次，与 Turn attempt 分开。
-- **Record** 表示 Turn 内一个稳定步骤，包括 prompt、reasoning、message、tool、permission、action、
-  usage、diagnostic、lifecycle 或 error；它保存 step/ordinal、可选 input/output/text、状态和时序。
+- **Record** 表示 Turn 内一个稳定步骤，包括 instructions、prompt、reasoning、message、tool、
+  permission、action、usage、diagnostic、lifecycle 或 error；它保存 step/ordinal、可选
+  input/output/text、状态和时序。
 
 | 生产信号                            | 记录方式                                     | 合并或完成语义                                      |
 | ----------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| Seat foundation                     | bootstrap Turn 的 instructions Record        | 保存该逻辑 Session 实际生效的完整系统提示词         |
 | ContextEnvelope                     | Turn + 单个 prompt Record                    | 保存实际文本、from/to sequence 与 visible sequences |
 | ACP message/thought chunks          | message/reasoning Record                     | 按 channel、message ID 和 tool boundary 追加 delta  |
 | tool call/update                    | tool Record                                  | 按 tool-call ID upsert，terminal status 完成时序    |
@@ -79,9 +81,10 @@ flowchart LR
 | GameEngine events                   | system Turn + lifecycle/action/error Records | 按事件 sequence 和发生时间记录                      |
 | playback control                    | system Turn/Record                           | 保存 enable、resolve 与 disconnect                  |
 
-`beginTurn` 在 Prompt 发送前创建 running Turn，并立即保存 prompt Record。Turn 结束时进入 completed、
-failed、uncertain 或 cancelled。相同 owner/kind/phase/action/toSequence 的后续尝试增加 attempt；
-Record step 在 tool boundary 后推进，使 reasoning、tool 和 message 的时序关系保持可见。
+`beginTurn` 在 Prompt 发送前创建 running Turn。bootstrap Turn 先保存 instructions Record,再保存
+prompt Record；其他 Turn 直接保存 prompt Record。Turn 结束时进入 completed、failed、uncertain 或
+cancelled。相同 owner/kind/phase/action/toSequence 的后续尝试增加 attempt；Record step 在 tool
+boundary 后推进，使 reasoning、tool 和 message 的时序关系保持可见。
 
 AgentWolf adapter 向 Core recorder 提供 `TrajectoryTurnSchema`、`TrajectoryRecordSchema`、record ordinal
 store 与保存 callbacks。repository 分配 revision 并由 Match recorder 发布 delta；Core recorder 不读取
@@ -103,8 +106,8 @@ tool update 按 tool-call ID 合并为一条 Record，只有 terminal tool statu
 - player debug 只展示 environment binding 来源与 connection key 名；
 - launch args 对 bearer、OpenAI key、private key 和敏感参数执行展示侧脱敏。
 
-Prompt 以实际发送文本原样保存，并由 Record schema 施加总长度边界；其上游 facts 不携带
-credentials。脱敏后的 input/output 只用于诊断和审计，不用于重新执行 ACP 命令。
+系统提示词与 Prompt 以实际生效或发送的文本原样保存，并由 Record schema 施加总长度边界；其上游
+facts 不携带 credentials。脱敏后的 input/output 只用于诊断和审计，不用于重新执行 ACP 命令。
 
 ## 存储、查询与实时增量
 
@@ -176,6 +179,7 @@ postgame Turn 使用 closed-eye 公共历史检查可见性，game-only bootstra
 ## 架构不变量
 
 - 轨迹只观察生产链路，GameEngine 与 Match 恢复不读取 trajectory 作为游戏事实。
+- 每个 bootstrap Turn 先保存该 Seat 的完整系统提示词,再保存本次用户 Prompt。
 - 每个 Prompt Turn 保存实际文本、精确 event range 与 visible sequences。
 - 结构化 ACP 元数据的 secret 与 `_meta` 在持久化前过滤，截断必须显式标记。
 - message delta 按协议顺序追加，tool 状态按 tool-call ID 合并。

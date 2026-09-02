@@ -1,3 +1,6 @@
+import { existsSync, readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, parse, resolve } from 'node:path'
 import { playerActionToolNames } from '../player-provider-contracts.js'
 
 export const codexPlayerMcpFunctionNames = playerActionToolNames.map(
@@ -50,3 +53,61 @@ export const isolatedCodexContextConfig = {
     use_memories: false,
   },
 } as const
+
+export function isolatedSkillConfig(
+  additionalRoots: readonly string[] = [],
+  workspace?: string,
+): Readonly<Record<string, unknown>> {
+  return {
+    include_instructions: true,
+    bundled: { enabled: false },
+    config: ambientSkillPaths(additionalRoots, workspace).map((path) => ({ path, enabled: false })),
+  }
+}
+
+export function isolatedSkillConfigToml(
+  additionalRoots: readonly string[] = [],
+  workspace?: string,
+): string {
+  const entries = ambientSkillPaths(additionalRoots, workspace)
+    .map((path) => `{ path=${JSON.stringify(path)}, enabled=false }`)
+    .join(',')
+  return `skills.config=[${entries}]`
+}
+
+function ambientSkillPaths(additionalRoots: readonly string[], workspace?: string): string[] {
+  const roots = new Set([
+    resolve(homedir(), '.agents', 'skills'),
+    '/etc/codex/skills',
+    ...additionalRoots,
+    ...ancestorSkillRoots(workspace),
+  ])
+  const paths: string[] = []
+  for (const root of roots) {
+    let entries
+    try {
+      entries = readdirSync(root, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      const skill = resolve(root, entry.name, 'SKILL.md')
+      if ((entry.isDirectory() || entry.isSymbolicLink()) && existsSync(skill)) paths.push(skill)
+    }
+  }
+  return [...new Set(paths)].sort()
+}
+
+function ancestorSkillRoots(workspace: string | undefined): string[] {
+  if (!workspace) return []
+  const roots: string[] = []
+  let current = dirname(resolve(workspace))
+  const filesystemRoot = parse(current).root
+  while (true) {
+    for (const container of ['.agents/skills', '.trae/skills', '.codex/skills']) {
+      roots.push(resolve(current, container))
+    }
+    if (current === filesystemRoot) return roots
+    current = dirname(current)
+  }
+}

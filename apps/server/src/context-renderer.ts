@@ -90,6 +90,32 @@ export class ContextRenderer {
     }
   }
 
+  public async foundations(
+    state: GameState,
+    board: BoardManifest,
+    historyEvents: readonly GameEvent[],
+    playerIds: readonly PlayerId[],
+    characters: ReadonlyMap<PlayerId, CharacterCardSnapshot | null>,
+  ): Promise<ReadonlyMap<PlayerId, ContextEnvelope>> {
+    return new Map(
+      await Promise.all(
+        playerIds.map(
+          async (playerId) =>
+            [
+              playerId,
+              await this.foundation(
+                state,
+                board,
+                playerId,
+                historyEvents,
+                characters.get(playerId) ?? null,
+              ),
+            ] as const,
+        ),
+      ),
+    )
+  }
+
   public async turn(
     state: GameState,
     board: BoardManifest,
@@ -191,6 +217,10 @@ export class ContextRenderer {
       pausedReason: state.pausedReason,
       continuation: true,
     }
+  }
+
+  public bootstrap(envelope: ContextEnvelope): ContextEnvelope {
+    return { ...envelope, prompt: this.#prompts.renderBootstrap() }
   }
 
   public publicHistorySince(

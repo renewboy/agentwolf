@@ -11,7 +11,6 @@ import {
 const mocks = vi.hoisted(() => ({
   start: vi.fn(),
   prepareSession: vi.fn(),
-  playerContract: vi.fn(() => 'contract'),
   tool: vi.fn((name: string) => ({ title: `Title ${name}` })),
 }))
 
@@ -23,7 +22,7 @@ vi.mock('@agentwolf/acp', async (importOriginal) => ({
 }))
 
 vi.mock('@agentwolf/assets/prompts', () => ({
-  loadPromptCore: () => ({ playerContract: mocks.playerContract, tool: mocks.tool }),
+  loadPromptCore: () => ({ tool: mocks.tool }),
 }))
 
 import { defaultPlayerSessionFactory } from '../src/player-session-factory.js'
@@ -55,10 +54,10 @@ const profile = {
 beforeEach(() => {
   mocks.start.mockReset()
   mocks.prepareSession.mockReset()
-  mocks.playerContract.mockClear()
   mocks.tool.mockClear()
   mocks.prepareSession.mockResolvedValue({
     providerId: 'fixture',
+    modelInstructions: 'EFFECTIVE PLAYER FOUNDATION',
     cwd: '/isolated/player',
     launch: { command: 'agent', args: [], env: {} },
     mcpServers: [],
@@ -77,6 +76,7 @@ describe('defaultPlayerSessionFactory', () => {
     const mcpServer = { name: 'mcp' } as never
     mocks.prepareSession.mockResolvedValueOnce({
       providerId: 'fixture',
+      modelInstructions: 'EFFECTIVE PLAYER FOUNDATION',
       cwd: '/isolated/player',
       launch: { command: 'agent', args: [], env: {} },
       mcpServers: [mcpServer],
@@ -90,6 +90,7 @@ describe('defaultPlayerSessionFactory', () => {
         cwd: '/tmp/player',
         tool,
         profile,
+        modelInstructions: 'PLAYER FOUNDATION',
         mcpServer,
         matchId: MatchIdSchema.parse('match-session-factory'),
         playerId: PlayerIdSchema.parse('player-1'),
@@ -97,12 +98,15 @@ describe('defaultPlayerSessionFactory', () => {
         onStderr,
         onPermissionDecision,
       }),
-    ).resolves.toMatchObject({ sessionId: 'session-1' })
+    ).resolves.toMatchObject({
+      sessionId: 'session-1',
+      modelInstructions: 'EFFECTIVE PLAYER FOUNDATION',
+    })
     expect(mocks.prepareSession).toHaveBeenCalledWith({
       tool,
       workspace: '/tmp/player',
       mcpServers: [mcpServer],
-      playerContract: 'contract',
+      modelInstructions: 'PLAYER FOUNDATION',
     })
     expect(mocks.start).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -148,6 +152,7 @@ describe('defaultPlayerSessionFactory', () => {
     } as AgentProfile
     mocks.prepareSession.mockResolvedValueOnce({
       providerId: 'codex',
+      modelInstructions: 'EFFECTIVE PLAYER FOUNDATION',
       cwd: '/isolated/player',
       launch: { command: 'agent', args: [], env: {} },
       mcpServers: [],
@@ -160,6 +165,7 @@ describe('defaultPlayerSessionFactory', () => {
       cwd: '/tmp/codex',
       tool: codexTool,
       profile: minimalProfile,
+      modelInstructions: 'PLAYER FOUNDATION',
       mcpServer: {} as never,
       matchId: MatchIdSchema.parse('match-session-codex'),
       playerId: PlayerIdSchema.parse('player-2'),
@@ -181,6 +187,7 @@ describe('defaultPlayerSessionFactory', () => {
     const codebuddyTool = { ...tool, kind: 'codebuddy' } as AgentTool
     mocks.prepareSession.mockResolvedValueOnce({
       providerId: 'codebuddy',
+      modelInstructions: 'EFFECTIVE PLAYER FOUNDATION',
       cwd: '/isolated/player',
       launch: { command: 'agent', args: [], env: {} },
       mcpServers: [],
@@ -193,6 +200,7 @@ describe('defaultPlayerSessionFactory', () => {
       cwd: '/tmp/codebuddy',
       tool: codebuddyTool,
       profile,
+      modelInstructions: 'PLAYER FOUNDATION',
       mcpServer,
       matchId: MatchIdSchema.parse('match-session-codebuddy'),
       playerId: PlayerIdSchema.parse('player-4'),
@@ -207,7 +215,7 @@ describe('defaultPlayerSessionFactory', () => {
       tool: codebuddyTool,
       workspace: '/tmp/codebuddy',
       mcpServers: [mcpServer],
-      playerContract: 'contract',
+      modelInstructions: 'PLAYER FOUNDATION',
     })
   })
 
@@ -218,6 +226,7 @@ describe('defaultPlayerSessionFactory', () => {
         cwd: '/tmp/none',
         tool: { ...tool, initialMode: undefined } as AgentTool,
         profile: { ...profile, mode: undefined, reasoningEffort: undefined } as AgentProfile,
+        modelInstructions: 'PLAYER FOUNDATION',
         mcpServer: {} as never,
         matchId: MatchIdSchema.parse('match-session-none'),
         playerId: PlayerIdSchema.parse('player-3'),

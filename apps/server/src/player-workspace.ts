@@ -14,7 +14,7 @@ export async function preparePlayerWorkspace(
   const workspace = resolve(dataDirectory, 'matches', matchId, 'players', playerId, 'workspace')
   await mkdir(workspace, { recursive: true })
   await Promise.all(
-    ['.agents', '.claude', '.trae'].map((directory) =>
+    ['.agents', '.claude', '.trae', '.codebuddy'].map((directory) =>
       ensureRelativeDirectoryLink(resolve(workspace, directory, 'skills'), sharedSkills),
     ),
   )
