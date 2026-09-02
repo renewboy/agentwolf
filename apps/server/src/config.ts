@@ -23,9 +23,6 @@ export function loadServerConfig(
 ): ServerConfig {
   const host = environment['AGENTWOLF_HOST'] ?? '127.0.0.1'
   const developerMode = parseBoolean(environment['AGENTWOLF_DEVELOPER_MODE'] ?? 'false')
-  if (developerMode && !['127.0.0.1', '::1', 'localhost'].includes(host)) {
-    throw new Error('Developer mode requires a loopback AGENTWOLF_HOST')
-  }
   const port = Number(environment['AGENTWOLF_PORT'] ?? '4310')
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error('AGENTWOLF_PORT must be an integer between 1 and 65535')

@@ -16,7 +16,7 @@ Web 客户端同时满足以下约束：
 - view 切换期间旧投影不可交互，直到新 view snapshot 完成替换；
 - speech synthesis 与 motion 可以失败或降级，但不能改变游戏规则或阻塞 Match 永久推进；
 - 用户离开 feed 最新位置后，实时更新保留其自由滚动位置并显式提示新活动；
-- developer UI 只在 server 宣告的 loopback developer mode 中出现。
+- developer UI 只在 server 宣告的 developer mode 中出现。
 
 [`apps/web`](../../apps/web/README.md) 在 AgentWolf packages 中只依赖 contracts 与 assets 的浏览器安全
 入口。Prompt runtime、玩家 Skill builder、GameEngine、SQLite 和 ACP 不进入 Web bundle。跨游戏
@@ -89,7 +89,7 @@ Profile/Character defaults 随席位数调整。新建 Match 的手动模式把 
 
 启动时 `RuntimeConfigProvider` 读取 `/api/runtime-config`。developer route 只有在
 `developerMode=true` 时可达；该值只决定客户端导航，真正的 developer API 注册与访问控制仍由
-server loopback 配置拥有。
+server 启动配置拥有。
 
 ## 远端状态与本地状态
 

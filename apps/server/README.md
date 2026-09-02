@@ -43,7 +43,7 @@ contracts,模型/UI 呈现留在 assets。
 ## 外部边界
 
 每条路由都从 contracts 解析请求与响应 schema。SQLite JSON 在 repository 边界解析。浏览器 DTO
-不含隐藏字段。开发者 HTTP/WebSocket 路由仅在 loopback 开发者模式下注册。
+不含隐藏字段。开发者 HTTP/WebSocket 路由仅在显式开发者模式下可用。
 
 数据库变更包含前向迁移与迁移覆盖。当前 revision 的运行时恢复从 events 重建引擎并恢复已持久化的
 Session ID；终局 archive 直接返回冻结 DTO，不解释事件或启动 Session。
@@ -52,6 +52,9 @@ Simulation capture 可以只读消费 paused/ended Match 保留的 snapshot、�
 的终局 Match；它不恢复生产 Session、不修改 archive，并要求 snapshot Ruleset 仍能由当前 catalog 执行。
 
 ## 启动配置
+
+`AGENTWOLF_HOST` 控制 HTTP 服务监听地址,默认 `127.0.0.1`。开发者模式可以绑定非回环地址;
+开发者路由不提供独立身份验证,因此只应暴露给可信网络。
 
 `AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE` 接受 `legacy` 或 `rolling`,默认 `legacy`。该值只作为
 新 Match 默认值并写入 setup snapshot;恢复使用冻结值。A/B 实例使用相同代码时分别配置该变量,

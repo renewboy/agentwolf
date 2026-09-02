@@ -1,7 +1,7 @@
 # AgentWolf Web 客户端
 
 `@agentwolf/web` 是 React/Vite 呈现应用,覆盖 setup、settings、lobby、实时 Match、赛后复盘与
-loopback 开发者工作流。
+开发者工作流。
 
 ## 职责
 

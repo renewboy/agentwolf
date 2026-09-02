@@ -70,12 +70,12 @@ describe('server project root', () => {
     )
   })
 
-  it('enables developer mode only through an explicit loopback startup setting', () => {
+  it('enables developer mode only through an explicit startup setting', () => {
     expect(loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: 'true' }).developerMode).toBe(true)
     expect(loadServerConfig({}).developerMode).toBe(false)
-    expect(() =>
+    expect(
       loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: 'true', AGENTWOLF_HOST: '0.0.0.0' }),
-    ).toThrow(/loopback/)
+    ).toMatchObject({ developerMode: true, host: '0.0.0.0' })
     expect(() => loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: '1' })).toThrow(/true or false/)
   })
 

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 
 const apiOrigin = process.env['AGENTWOLF_API_ORIGIN'] ?? 'http://127.0.0.1:4310'
+const webHost = process.env['AGENTWOLF_HOST'] ?? '127.0.0.1'
 const webPort = Number(process.env['AGENTWOLF_WEB_PORT'] ?? '5173')
 
 export default defineConfig({
@@ -24,6 +25,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: webHost,
     port: webPort,
     proxy: {
       '/api': {
