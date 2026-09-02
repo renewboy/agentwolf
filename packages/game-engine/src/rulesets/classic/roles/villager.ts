@@ -6,5 +6,6 @@ export class VillagerRole extends Role {
   public readonly displayNameKey = 'roles.villager'
   public readonly faction = 'village' as const
   public readonly kind = 'villager' as const
+  public readonly endgameModel = 'inert' as const
   public readonly abilities = []
 }

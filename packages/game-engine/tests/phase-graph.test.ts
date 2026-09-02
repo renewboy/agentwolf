@@ -63,6 +63,14 @@ describe('phase action semantics', () => {
     }
   })
 
+  it('places Awakened Hidden Wolf learning before Magic Mirror inspection', () => {
+    expect(
+      phaseNode('phase-night-awakened-hidden-wolf-learn').edges.some(
+        (edge) => edge.to === 'phase-night-magic-mirror',
+      ),
+    ).toBe(true)
+  })
+
   it('keeps speech and vote kinds stable when a phase ID changes', () => {
     const runoffSpeech = phaseNode('phase-sheriff-runoff-speech')
     const wolfVote = phaseNode('phase-night-wolf-vote')

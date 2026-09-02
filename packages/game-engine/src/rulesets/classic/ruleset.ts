@@ -1,7 +1,6 @@
 import { RulesetIdSchema } from '@agentwolf/contracts'
 import type { RulePlugin } from '../../plugins/loader.js'
 import { RulesetBuilder, type RulesetRuntime } from '../../plugins/ruleset.js'
-import { evaluateVictory } from './victory.js'
 import { registerClassicResolution } from './resolution-registry.js'
 import { classicIdentityQueryPlugin } from './identity-queries.js'
 import { classicDayPlugin } from './plugins/day-plugin.js'
@@ -13,6 +12,7 @@ import { classicPhasePlugin } from './plugins/phase-plugin.js'
 import { classicRolePlugins } from './plugins/role-plugins.js'
 import { classicSheriffPlugin } from './plugins/sheriff-plugin.js'
 import { classicTerminalPlugin } from './plugins/terminal-plugin.js'
+import { classicVictoryPlugin } from './plugins/victory-plugin.js'
 import { classicWolfTeamPlugin } from './plugins/wolf-team-plugin.js'
 
 function plugins(
@@ -35,16 +35,7 @@ function plugins(
       version: 1,
       register: ({ resolution }) => registerClassicResolution(resolution),
     },
-    {
-      id: classicPluginIds.victory,
-      version: 1,
-      register: ({ victories }) => {
-        victories.register({
-          id: 'classic-victory',
-          evaluate: ({ state, board, roles }) => evaluateVictory(state, board, roles),
-        })
-      },
-    },
+    classicVictoryPlugin,
     wolfTeamPlugin,
     flowPlugins.night,
     classicSheriffPlugin,
@@ -64,7 +55,7 @@ const flowPlugins = {
 export function createClassicRuleset(): RulesetRuntime {
   return new RulesetBuilder({
     id: RulesetIdSchema.parse('ruleset-classic'),
-    revision: 7,
+    revision: 9,
     plugins: plugins(classicRolePlugins, classicWolfTeamPlugin, flowPlugins),
   }).build()
 }

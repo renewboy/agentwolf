@@ -54,8 +54,27 @@ export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
     { id: classicPluginIds.night, version: 3 },
     { id: classicPluginIds.death, version: 3 },
   ],
-  register: ({ events, phases, queries, roles, rules }) => {
-    roles.register(new AwakenedHiddenWolfRole())
+  register: ({ endgames, events, phases, queries, roles, rules }) => {
+    const role = new AwakenedHiddenWolfRole()
+    roles.register(role)
+    endgames.registerRole({
+      roleId: role.id,
+      wolfControl: 'isolated',
+      materialAbilityIds: [
+        awakenedHiddenWolfAbilityIds.learn,
+        awakenedHiddenWolfAbilityIds.poison,
+        awakenedHiddenWolfAbilityIds.shield,
+        awakenedHiddenWolfAbilityIds.kill,
+        awakenedHiddenWolfAbilityIds.doubleKill,
+      ],
+      traits: { witchPotions: true, nightProtection: 'single-use' },
+      canControlWerewolfProof: (context, playerId) => {
+        const player = context.state.players.get(playerId)
+        return Boolean(
+          player && context.roles.hasCapability(player, classicCapabilities.awakenedHiddenWolfKill),
+        )
+      },
+    })
     registerEvents(events)
     registerSelectors(rules)
     registerPhases(phases)
@@ -156,8 +175,11 @@ function registerSelectors(rules: RulesetBuilder['rules']): void {
   rules.registerActorSelector(copySelector, (runtime) =>
     rules.selectActors(aliveSelector, runtime).filter((playerId) => {
       const player = runtime.state.players.get(playerId)
+      const learning = awakenedHiddenWolfLearning(runtime.state, playerId)
       return Boolean(
         player &&
+        learning &&
+        learning.night < runtime.state.night &&
         [
           classicCapabilities.awakenedHiddenWolfInspect,
           classicCapabilities.awakenedHiddenWolfPoison,
@@ -253,8 +275,8 @@ function registerPhases(phases: RulesetBuilder['phases']): void {
       activeWhen: learnPredicate,
       edges: [],
     },
-    after: phase('phase-night-awakened-hidden-wolf-copy'),
-    before: phase('phase-night-resolve'),
+    after: phase('phase-night-seer'),
+    before: phase('phase-night-magic-mirror'),
   })
 }
 

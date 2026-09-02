@@ -16,7 +16,7 @@
         {
           "id": "ability-werewolf-self-destruct",
           "label": "狼人自爆",
-          "description": "在允许的公开回合立即自爆出局，中断当前白天流程；该技能没有目标。",
+          "description": "自爆会向全桌公开确认你就是狼人，并使你立即出局；即时收益是中断当前白天流程。该技能没有目标。",
           "foundation": true,
           "interruptTemplate": "self-destruct.njk"
         }
@@ -27,7 +27,7 @@
     {
       "code": "werewolf-self-destruct",
       "audience": "public",
-      "text": "{{ helpers.player(payload.playerIds[0]) }}发动自爆。"
+      "text": "{{ helpers.player(payload.playerIds[0]) }}公开翻开狼人身份并自爆出局。"
     }
   ]
 }

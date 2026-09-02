@@ -7,6 +7,7 @@ export class IdiotRole extends Role {
   public readonly displayNameKey = 'roles.idiot'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly capabilities = [classicCapabilities.idiotExilePrevention] as const
   public readonly abilities = []
 

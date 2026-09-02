@@ -23,6 +23,7 @@ export const classicTerminalPlugin: RulePlugin<RulesetBuilder> = {
           state: runtime.state,
           board: runtime.board,
           roles: runtime.roles,
+          events: runtime.events,
         }),
       ),
     )
@@ -34,6 +35,7 @@ export const classicTerminalPlugin: RulePlugin<RulesetBuilder> = {
           state: runtime.state,
           board: runtime.board,
           roles: runtime.roles,
+          events: runtime.events,
         })
         assertRule(victory, 'Match ended phase requires a winner')
         runtime.append(

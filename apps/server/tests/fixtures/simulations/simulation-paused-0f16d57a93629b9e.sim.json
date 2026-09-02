@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "simulationId": "simulation-paused-97b8fcd754157cb7",
-  "title": "board-simulation-6-plain paused",
+  "simulationId": "simulation-paused-0f16d57a93629b9e",
+  "title": "六人局暂停恢复边界",
   "setup": {
     "matchId": "match-simulation-replay",
     "board": {
@@ -9,7 +9,7 @@
       "rulesetId": "classic",
       "ruleset": {
         "id": "ruleset-classic",
-        "revision": 7,
+        "revision": 9,
         "plugins": [
           {
             "id": "plugin-classic-phases",
@@ -96,6 +96,12 @@
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           },
           {
+            "id": "plugin-classic-victory",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
             "id": "plugin-classic-night",
             "version": 3,
             "config": {},
@@ -110,12 +116,6 @@
           {
             "id": "plugin-role-awakened-hidden-wolf",
             "version": 3,
-            "config": {},
-            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
-          },
-          {
-            "id": "plugin-classic-victory",
-            "version": 1,
             "config": {},
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           },
@@ -150,7 +150,7 @@
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           }
         ],
-        "fingerprint": "27fe89fe310087d529e04c206c9854eba75d63d74bb7624c35e453b3e024fddb"
+        "fingerprint": "72ee44901ac0f4dc754545f8c535f06c61fe4469d90b73d505b0df4419515a13"
       },
       "policies": {
         "witchSelfSave": "never",
@@ -534,8 +534,8 @@
   "stage": "approved",
   "source": {
     "status": "paused",
-    "cutoffSequence": 56,
-    "fingerprint": "97b8fcd754157cb7f8b6e2d29ca31a46990de6e1e927583025d8b20236c30397"
+    "cutoffSequence": 34,
+    "fingerprint": "0f16d57a93629b9e2c35a43dddf23f194792790e25dd3236556e869e2595d2b3"
   },
   "expected": {
     "eventCount": 34,

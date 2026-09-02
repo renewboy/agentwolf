@@ -13,6 +13,7 @@ export class WerewolfRole extends Role {
   public readonly displayNameKey = 'roles.werewolf'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly sharesFactionKnowledge = true
   public override readonly capabilities = [
     classicCapabilities.wolfCouncil,
@@ -22,6 +23,8 @@ export class WerewolfRole extends Role {
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: killAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.wolfKill,
       nightAttack: true,
       actionTypes: ['vote', 'night-action'],
@@ -54,6 +57,7 @@ export class WerewolfRole extends Role {
     },
     {
       id: selfDestructAbilityId,
+      endgameImpact: 'material',
       requiredCapability: classicCapabilities.wolfSelfDestruct,
       actionTypes: ['skill-trigger'],
       validate: (context) => {

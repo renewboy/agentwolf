@@ -60,11 +60,14 @@ export class CupidRole extends Role {
   public readonly displayNameKey = 'roles.cupid'
   public readonly faction = 'independent' as const
   public readonly kind = 'independent' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly maximumCount = 1
   public override readonly capabilities = [classicCapabilities.cupidLink] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: linkAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.cupidLink,
       actionTypes: ['night-action'],
       validate: (context) => {

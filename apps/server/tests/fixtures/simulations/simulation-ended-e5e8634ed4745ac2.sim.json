@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "simulationId": "simulation-ended-19382be825e29ab5",
-  "title": "board-simulation-12-sheriff ended",
+  "simulationId": "simulation-ended-e5e8634ed4745ac2",
+  "title": "十二人警长局终局",
   "setup": {
     "matchId": "match-simulation-replay",
     "board": {
@@ -9,7 +9,7 @@
       "rulesetId": "classic",
       "ruleset": {
         "id": "ruleset-classic",
-        "revision": 7,
+        "revision": 9,
         "plugins": [
           {
             "id": "plugin-classic-phases",
@@ -96,6 +96,12 @@
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           },
           {
+            "id": "plugin-classic-victory",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
             "id": "plugin-classic-night",
             "version": 3,
             "config": {},
@@ -110,12 +116,6 @@
           {
             "id": "plugin-role-awakened-hidden-wolf",
             "version": 3,
-            "config": {},
-            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
-          },
-          {
-            "id": "plugin-classic-victory",
-            "version": 1,
             "config": {},
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           },
@@ -150,7 +150,7 @@
             "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
           }
         ],
-        "fingerprint": "27fe89fe310087d529e04c206c9854eba75d63d74bb7624c35e453b3e024fddb"
+        "fingerprint": "72ee44901ac0f4dc754545f8c535f06c61fe4469d90b73d505b0df4419515a13"
       },
       "policies": {
         "witchSelfSave": "never",
@@ -4909,12 +4909,12 @@
   "stage": "approved",
   "source": {
     "status": "ended",
-    "cutoffSequence": 970,
-    "fingerprint": "19382be825e29ab506dcd3b049a819250137eaa85bc9e375e41c7727c144a19c"
+    "cutoffSequence": 674,
+    "fingerprint": "e5e8634ed4745ac20410899ee0472ca6d0e5174a73edee3350b4602e18337c0c"
   },
   "expected": {
-    "eventCount": 674,
-    "eventDigest": "a4b05b5505439aac70119188d098dfb2d2962d3233cdbcdce587037771f54863",
+    "eventCount": 675,
+    "eventDigest": "9e23306643ee2668a26018718bd95e6e3d1fc2e6ac317e8b11888261cfcc4bf8",
     "eventTypes": [
       "match.created",
       "role.cards-reserved",
@@ -5569,6 +5569,7 @@
       "phase.actor-completed",
       "phase.changed",
       "death.pending",
+      "plugin.event",
       "day.started",
       "phase.changed",
       "player.died",
@@ -5601,7 +5602,7 @@
       "sheriffId": null,
       "alivePlayerIds": ["player-2", "player-3", "player-9", "player-10", "player-11"],
       "votingPlayerIds": ["player-2", "player-3", "player-9", "player-10", "player-11"],
-      "lastSequence": 674
+      "lastSequence": 675
     }
   },
   "variants": [

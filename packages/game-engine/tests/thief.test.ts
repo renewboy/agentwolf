@@ -10,6 +10,7 @@ import {
 import {
   GameEngine,
   createClassicRuleset,
+  standardBoard,
   thiefAbilityIds,
   thiefCupidBoard,
   thiefState,
@@ -45,6 +46,39 @@ describe('Thief Role plugin', () => {
     )
     engine.start()
     const thiefId = playerWithRole(engine, thief)
+    const ruleset = createClassicRuleset()
+    const endgame = ruleset.endgames.model(thief)
+    if (!endgame?.prepareWerewolfProof) throw new Error('Missing Thief endgame model')
+    const initialPreparation = {
+      activeRoleIds: thiefCupidBoard.roles.flatMap(({ roleId, count }) =>
+        Array.from({ length: count }, () => roleId),
+      ),
+      hunterShotWolfLoss: 1,
+    }
+    expect(
+      endgame.prepareWerewolfProof(
+        {
+          state: engine.state,
+          board: standardBoard,
+          roles: ruleset.roles,
+          events: engine.events,
+        },
+        new Set(),
+        initialPreparation,
+      ),
+    ).toBe(initialPreparation)
+    expect(
+      endgame.prepareWerewolfProof(
+        {
+          state: engine.state,
+          board: thiefCupidBoard,
+          roles: ruleset.roles,
+          events: engine.events,
+        },
+        new Set(),
+        initialPreparation,
+      ),
+    ).toBeNull()
     expect(engine.state.phaseId).toBe('phase-night-thief')
     expect(engine.roleCardChoicesFor(thiefId)).toEqual([
       {
@@ -85,6 +119,27 @@ describe('Thief Role plugin', () => {
       selectedCard: { roleId: werewolf },
       buriedCard: { roleId: villager },
     })
+    const selectedEvent = engine.events.find(
+      (event) =>
+        event.payload.type === 'plugin.event' && event.payload.eventType === 'event-thief-selected',
+    )
+    const selectedPayload = selectedEvent?.payload
+    if (!selectedPayload || selectedPayload.type !== 'plugin.event') {
+      throw new Error('Missing Thief selection event')
+    }
+    const selection = thiefState(engine.state).selection!
+    expect(() =>
+      ruleset.events.apply(engine.state.pluginState, {
+        pluginId: selectedPayload.pluginId,
+        eventType: selectedPayload.eventType,
+        schemaVersion: selectedPayload.schemaVersion,
+        data: {
+          ...selection,
+          selectedCard: selection.buriedCard,
+          buriedCard: selection.selectedCard,
+        },
+      }),
+    ).toThrow('Thief selection cannot be replaced')
     const wolfRoster = [...engine.events]
       .reverse()
       .find((event) => event.payload.type === 'faction.members')
@@ -92,13 +147,33 @@ describe('Thief Role plugin', () => {
     if (wolfRoster?.payload.type !== 'faction.members') throw new Error('Missing wolf roster')
     expect(wolfRoster.payload.playerIds).toContain(thiefId)
 
+    const context = {
+      state: engine.state,
+      board: thiefCupidBoard,
+      roles: ruleset.roles,
+      events: engine.events,
+    }
+    const prepared = endgame.prepareWerewolfProof(
+      context,
+      new Set(wolfRoster.payload.playerIds),
+      initialPreparation,
+    )
+    expect(prepared?.activeRoleIds).toHaveLength(thiefCupidBoard.playerCount)
+    expect(prepared?.activeRoleIds).not.toContain(thief)
+    expect(
+      endgame.prepareWerewolfProof(
+        { ...context, events: [] },
+        new Set(wolfRoster.payload.playerIds),
+        initialPreparation,
+      ),
+    ).toBeNull()
     const restored = GameEngine.restore({
       matchId: engine.state.matchId,
       board: thiefCupidBoard,
       events: engine.events,
       status: engine.state.status,
       pausedReason: null,
-      ruleset: createClassicRuleset(),
+      ruleset,
     })
     expect(restored.state.players.get(thiefId)).toMatchObject({
       roleId: werewolf,

@@ -22,6 +22,15 @@ describe('plugin role settlement', () => {
     const hiddenWolfId = actorsWithRole(engine, 'role-awakened-hidden-wolf')[0]!
     engine.start()
     playNight(engine, { wolfTargetId: null })
+    expect(engine.state.phaseId).toBe('phase-night-awakened-hidden-wolf-learn')
+    engine.submit({
+      type: 'night-action',
+      matchId: engine.state.matchId,
+      actorId: hiddenWolfId,
+      abilityId: awakenedHiddenWolfAbilityIds.learn,
+      targetIds: [],
+      option: 'pass',
+    })
     expect(engine.state.phaseId).toBe('phase-night-magic-mirror')
 
     engine.submit({
@@ -31,15 +40,6 @@ describe('plugin role settlement', () => {
       abilityId: magicMirrorAbilityIds.inspect,
       targetIds: [targetId],
     })
-    engine.submit({
-      type: 'night-action',
-      matchId: engine.state.matchId,
-      actorId: hiddenWolfId,
-      abilityId: awakenedHiddenWolfAbilityIds.learn,
-      targetIds: [],
-      option: 'pass',
-    })
-
     const result = engine.events.find(
       (event) =>
         event.payload.type === 'plugin.event' &&

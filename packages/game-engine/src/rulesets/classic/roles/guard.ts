@@ -12,10 +12,13 @@ export class GuardRole extends Role {
   public readonly displayNameKey = 'roles.guard'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly capabilities = [classicCapabilities.guardProtect] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: protectAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.guardProtect,
       actionTypes: ['night-action'],
       validate: (context) => {

@@ -9,6 +9,7 @@
 游戏运行时需要同时保证：
 
 - 相同冻结配置、稳定 seed/clock 和动作顺序得到相同事件语义、状态和胜负；
+- 提前终局只使用候选阵营实际可见的事实,隐藏身份不能成为其策略输入；
 - 具体 Role 与规则变体通过插件组合，通用内核保持语义中立；
 - 每次状态变化都能由事件解释并重建；
 - 动作在改变状态前完成 actor、phase、能力、目标和次数校验；
@@ -36,7 +37,7 @@ flowchart LR
         Roles["Role / Ability / Capability"]
         Phases["Phase graph 与 RuleRegistry"]
         Resolution["Effect / Query / Finalizer"]
-        Signals["Event / Trigger / Interrupt / Victory"]
+        Signals["Event / Trigger / Interrupt / Victory / Endgame"]
     end
 
     Engine["GameEngine<br/>action boundary 与事件追加"]
@@ -68,6 +69,7 @@ flowchart LR
 | `ResolutionRegistry`  | effect lane、同 lane 顺序、动态入队与 finalizer 合并                                                                                 | abilities 产生的 effects → `ResolutionResult`             |
 | plugin event registry | typed plugin state 的 schema 与 reducer                                                                                              | `plugin.event` → plugin state 分片                        |
 | victory registry      | 基础 evaluator 的一致性、有序 modifier 与明确获胜 Player IDs                                                                         | 终局上下文 → 唯一 victory candidate                       |
+| endgame registry      | Role 物质语义完整性、狼队 belief states 与确定性必胜证明                                                                             | 可见事件 + board + Role 模型 → 可选狼人终局候选           |
 | event reducer         | 从领域事件重建所有核心与 plugin 状态                                                                                                 | 旧 GameState + GameEvent → 新 GameState                   |
 
 ## Ruleset 组合与锁定
@@ -231,12 +233,13 @@ flowchart LR
 Ability outcomes 再把结算结果转换为带 visibility 的领域事件。自动死亡 trigger 在一个有界批次中
 展开并去重连锁死亡，继承原死亡的昼夜时点，并可以声明使用通用淘汰公告或仅使用其事件呈现。夜间
 批次由统一死亡名单公开，自动反应的公开细节降为 god 可见；逐人结算可以用无旁白的公开淘汰事实
-更新外部生存状态，并由 plugin event 承担专属旁白。完整批次落定后才开放交互式死亡 trigger/interrupt。
+更新外部生存状态，并由 plugin event 承担专属旁白。夜间 Ability 的声明阶段决定它参与狼刀正式
+胜负检查还是仅在检查未结束 Match 时执行；交互式死亡 trigger 只在没有狼刀胜负锁时开放。
 
-基础胜负 evaluator 产生候选，有序 modifier 可以依据 plugin state 补充、阻断或替换候选，最终返回
-明确获胜 Player IDs。死亡技能完成后，如果死亡批次同时满足胜利条件和遗言资格，phase 图先进入
-遗言边界；全部有资格的玩家完成遗言后才进入终局。终局 phase 同样执行有序 handlers，使 Role
-plugin 可以在通用终局事实与身份公开完成后追加自身拥有的公开揭晓事件。
+正式胜负、狼人必胜证明、死亡技能、终局遗言、Sheriff 与 `match.ended` 的完整优先级由
+[游戏结算与终局](game-settlement.md)拥有。普通路径在交互式反应稳定后接受胜负候选；狼刀路径在
+前置保护、狼刀死亡与自动死亡链稳定后允许锁定狼人正式候选。两条路径都在有资格的终局遗言完成后
+进入 terminal phase。
 
 ## 事件、状态与 replay
 
@@ -261,6 +264,10 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 - 新 Role 通过 Role plugin 注册 Role、abilities、capabilities、专属 phases、events、effects、queries、
   action validators、triggers、interrupts 或 victory modifier；跨层实现使用
   [Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md)。
+- 每个 Role 显式声明 `endgameModel`;每个 ability 声明 `endgameImpact`。material ability 由同一
+  Role plugin 注册完整 endgame 模型,信息型或被动行为也必须显式分类。
+- 加入夜间 batch 的 ability 声明 `nightResolutionStage`;所有 `nightAttack` 必须属于
+  `wolf-priority`,后序能力属于 `post-wolf-priority`。
 - 新共享机制进入最窄 registry；只在多个插件需要同一契约时扩展通用类型。
 - 新牌池约束通过 deal registry 注册；board/server 不按具体 Role ID 选择发牌算法。
 - 新 phase 行为通过节点声明、selector、predicate 和 handler 表达，server 与 action validator 不添加
@@ -272,6 +279,8 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 ## 故障与验证边界
 
 - plugin 版本、依赖、配置、语义所有权或 phase 图非法时，Ruleset 构建失败。
+- Role 缺少 endgame 声明、material ability 未被模型覆盖、夜间阶段缺失或模型引用未知 Role 时,
+  Ruleset 构建失败。
 - snapshot revision 不是当前值或 fingerprint 不匹配时，server 拒绝执行该 Match。
 - 输入 schema、actor、phase、ability 或目标非法时，动作在任何事件产生前失败。
 - 未知 effect、effect 顺序环、队列超限、phase drive 超限或冲突 victory candidates 作为规则错误上抛，
@@ -285,7 +294,8 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 - Seat assignments、底牌与 Role 转换都由事件固定,restore 不重新发牌或推断最终身份。
 - 通用内核不包含具体 Role、Ability、Phase 或 Plugin ID 分支。
 - PhaseNode 是 actor、action、visibility、interrupt 和控制流的语义来源。
-- 自动死亡反应先形成完整死亡批次，交互式死亡技能与胜负只读取该稳定结果。
+- 自动死亡反应先形成稳定死亡批次；狼刀胜负锁关闭该批次后的交互式死亡技能窗口。
+- 正式胜负优先于狼人必胜证明;第三方和 Village 不产生提前终局候选。
 - Ability 产生 effects，ResolutionRegistry 结算共享交互，Role plugin 产生其 outcomes。
 - 只有 Catalog 表中的当前 Ruleset revision 具有执行能力；终局历史由只读 archive 承载。
 - 引擎只声明 visibility；server projection 才是外部消费者的保密边界。
@@ -297,6 +307,7 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 - [Prompt 与玩家上下文](prompt-and-context.md)：plugin semantic contribution 如何约束 Prompt bundle。
 - [信息同步](information-synchronization.md)：event/phase visibility、barrier 与外部投影。
 - [Match 生命周期](match-lifecycle.md)：Ruleset snapshot、事件持久化和恢复。
+- [游戏结算与终局](game-settlement.md):正式胜负、狼人必胜证明与终局事件顺序。
 - [游戏规则基线](../reference/game-rules.md)：当前 board 政策与规则定义。
 - [游戏目录](../generated/game-catalog.md)：由源码生成的 Roles、boards 与 Prompt 清单。
 - [Agent Arena Core 架构](../../vendor/agent-arena-core/docs/architecture.md)：Ruleset、decision、event 与

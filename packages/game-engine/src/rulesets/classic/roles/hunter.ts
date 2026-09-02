@@ -27,10 +27,12 @@ export class HunterRole extends Role {
   public readonly displayNameKey = 'roles.hunter'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly capabilities = [classicCapabilities.hunterShot] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: shotAbilityId,
+      endgameImpact: 'material',
       requiredCapability: classicCapabilities.hunterShot,
       actionTypes: ['skill-trigger'],
       validate: (context) => {

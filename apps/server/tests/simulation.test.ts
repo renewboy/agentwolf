@@ -77,7 +77,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-e5e8634ed4745ac2.sim.json',
           ),
           'utf8',
         ),
@@ -110,7 +110,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-e5e8634ed4745ac2.sim.json',
           ),
           'utf8',
         ),
@@ -180,7 +180,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-e5e8634ed4745ac2.sim.json',
           ),
           'utf8',
         ),
@@ -536,7 +536,7 @@ describe('simulation capture and engine replay', () => {
     ).toBe(capture.simulationId)
   }, 30_000)
 
-  it('gates export routes and writes candidates only in loopback developer mode', async () => {
+  it('gates export routes and writes candidates only in developer mode', async () => {
     const normalSource = await createPausedSource(false)
     repositories.splice(repositories.indexOf(normalSource.repository), 1)
     const normal = await buildServer({
@@ -612,7 +612,7 @@ describe('simulation capture and engine replay', () => {
       JSON.parse(
         await readFile(
           resolve(
-            'apps/server/tests/fixtures/simulations/simulation-ended-19382be825e29ab5.sim.json',
+            'apps/server/tests/fixtures/simulations/simulation-ended-e5e8634ed4745ac2.sim.json',
           ),
           'utf8',
         ),

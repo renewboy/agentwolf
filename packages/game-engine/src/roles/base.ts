@@ -19,6 +19,8 @@ export interface AbilityOutcome {
 
 export interface AbilityDefinition {
   readonly id: AbilityId
+  readonly endgameImpact: 'none' | 'information' | 'material'
+  readonly nightResolutionStage?: 'wolf-priority' | 'post-wolf-priority'
   readonly requiredCapability?: CapabilityId
   readonly nightAttack?: boolean
   readonly resolutionTiming?: 'night-batch' | 'phase'
@@ -51,6 +53,7 @@ export abstract class Role {
   public abstract readonly displayNameKey: string
   public abstract readonly faction: Faction
   public abstract readonly kind: 'villager' | 'god' | 'werewolf' | 'independent'
+  public abstract readonly endgameModel: 'inert' | 'plugin'
   public readonly sharesFactionKnowledge: boolean = false
   public readonly maximumCount?: number
   public readonly requiredReserveCount?: number

@@ -32,10 +32,13 @@ export class MagicMirrorGirlRole extends Role {
   public readonly displayNameKey = 'roles.magicMirrorGirl'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public readonly endgameModel = 'inert' as const
   public override readonly capabilities = [classicCapabilities.exactRoleInspect] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: inspectAbilityId,
+      endgameImpact: 'information',
+      nightResolutionStage: 'post-wolf-priority',
       requiredCapability: classicCapabilities.exactRoleInspect,
       actionTypes: ['night-action'],
       validate: (context) => {

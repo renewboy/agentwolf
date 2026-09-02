@@ -10,7 +10,7 @@
         {
           "id": "ability-white-wolf-detonate",
           "label": "白狼王自爆带人",
-          "description": "在允许的公开回合自爆出局，并带走一名其他存活玩家。",
+          "description": "自爆会向全桌公开确认你是白狼王、属于狼人阵营，并使你立即出局；即时收益是带走一名其他存活玩家并中断当前白天流程。",
           "foundation": true,
           "interruptTemplate": "detonate.njk"
         }
@@ -32,7 +32,7 @@
     {
       "code": "white-wolf-detonation",
       "audience": "public",
-      "text": "{{ helpers.player(payload.playerIds[0]) }}发动白狼王自爆，并带走{{ helpers.player(payload.playerIds[1]) }}。"
+      "text": "{{ helpers.player(payload.playerIds[0]) }}公开翻开白狼王身份并自爆出局，同时带走{{ helpers.player(payload.playerIds[1]) }}。"
     }
   ]
 }

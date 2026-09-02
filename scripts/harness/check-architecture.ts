@@ -263,7 +263,7 @@ for (const path of files.filter((candidate) =>
 const matchPostgame = await text(
   files.find((path) => localPath(path) === 'apps/server/src/match-postgame.ts')!,
 )
-if (!matchPostgame.includes('victory.winningPlayerIds')) {
+if (!matchPostgame.includes('endedEvent.payload.winningPlayerIds')) {
   errors.push('match-postgame.ts must freeze explicit winning Player IDs for postgame review')
 }
 const sessionNewLocations: string[] = []

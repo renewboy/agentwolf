@@ -400,7 +400,7 @@ describe('awakened hidden wolf plugin behavior', () => {
     })
     expect(
       harness.ruleset.rules.selectActors('awakened-hidden-wolf-copy-active', harness.runtime),
-    ).toEqual([actorId])
+    ).toEqual([])
 
     expect(
       harness.ruleset.queries.resolve(
@@ -411,6 +411,7 @@ describe('awakened hidden wolf plugin behavior', () => {
     ).toBe('role-awakened-hidden-wolf')
     harness.setState({
       ...harness.runtime.state,
+      night: 2,
       pluginState: new Map(harness.runtime.state.pluginState).set(
         classicPluginIds.awakenedHiddenWolf,
         {
@@ -427,6 +428,9 @@ describe('awakened hidden wolf plugin behavior', () => {
         },
       ),
     })
+    expect(
+      harness.ruleset.rules.selectActors('awakened-hidden-wolf-copy-active', harness.runtime),
+    ).toEqual([actorId])
     expect(
       harness.ruleset.queries.resolve(
         classicIdentityQueries.exactRole,
@@ -569,6 +573,7 @@ function ruleHarness(board: typeof standardBoard, initialState: GameState) {
     roles: ruleset.roles,
     resolution: ruleset.resolution,
     victories: ruleset.victories,
+    pluginEvents: ruleset.events,
     queries: ruleset.queries,
     triggers: ruleset.triggers,
     append(payload: GameEventPayload, visibility: EventVisibility): GameEvent {

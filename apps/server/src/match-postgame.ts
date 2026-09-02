@@ -16,23 +16,18 @@ export function ensurePostgameCountdown(options: {
   readonly ruleset: RulesetRuntime
   readonly repository: SqliteRepository
 }): void {
-  const victory = options.ruleset.victories.evaluate({
-    state: options.engine.state,
-    board: options.board,
-    roles: options.ruleset.roles,
-  })
-  if (!victory) throw new Error('Ended Match has no victory outcome')
+  const endedEvent = options.engine.events.findLast((event) => event.payload.type === 'match.ended')
+  if (!endedEvent || endedEvent.payload.type !== 'match.ended') {
+    throw new Error('Ended Match has no match.ended event')
+  }
   const playerIds = [...options.engine.state.players.keys()]
-  const winningPlayerIds = [...victory.winningPlayerIds]
+  const winningPlayerIds = [...endedEvent.payload.winningPlayerIds]
   if (winningPlayerIds.some((playerId) => !playerIds.includes(playerId))) {
     throw new Error('Victory outcome contains a Player outside the Match')
   }
   const losingPlayerIds = playerIds.filter((playerId) => !winningPlayerIds.includes(playerId))
   if (winningPlayerIds.length === 0 || losingPlayerIds.length === 0) {
     throw new Error('Postgame review requires winning and losing players')
-  }
-  if (!options.engine.events.some((event) => event.payload.type === 'match.ended')) {
-    throw new Error('Ended Match has no match.ended event')
   }
   options.repository.postgameReviews.createCountdown({
     matchId: options.engine.state.matchId,

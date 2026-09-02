@@ -23,6 +23,8 @@ AgentWolf 是一个 TypeScript workspace,用于在长驻的 ACP Agent Session �
   [架构文档开发 Skill](.agents/skills/agentwolf-architecture-documentation/SKILL.md)。
 - 游戏内核、Rulesets、Roles、阶段、效果与胜负:
   [游戏运行时](docs/architecture/game-runtime.md)。
+- 死亡反应、正式胜负、狼人必胜证明与终局顺序:
+  [游戏结算与终局](docs/architecture/game-settlement.md)。
 - Prompt bundles、可见模型事实与玩家上下文:
   [Prompt 与上下文](docs/architecture/prompt-and-context.md)。
 - ACP 进程、持久 Session、动作与恢复:

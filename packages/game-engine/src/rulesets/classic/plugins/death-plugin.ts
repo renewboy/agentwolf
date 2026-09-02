@@ -6,11 +6,15 @@ import { appendAbilityOutcomes, effectsForActions } from '../../../resolution.js
 import { visibility, type RuleRuntime } from '../../../rule-registry.js'
 import { classicPluginIds } from './ids.js'
 import { afterDeathBatchEdges, appendFinalDeath, bySeat, phase } from './shared.js'
+import { hasWolfKnifeVictoryLock } from './victory-plugin.js'
 
 export const classicDeathPlugin: RulePlugin<RulesetBuilder> = {
   id: classicPluginIds.death,
   version: 3,
-  requires: [{ id: classicPluginIds.resolution, version: 1 }],
+  requires: [
+    { id: classicPluginIds.resolution, version: 1 },
+    { id: classicPluginIds.victory, version: 1 },
+  ],
   register: ({ phases, rules }) => {
     phases.registerAll([
       {
@@ -84,7 +88,9 @@ export const classicDeathPlugin: RulePlugin<RulesetBuilder> = {
     })
     rules.registerPredicate(
       'has-death-trigger',
-      (runtime) => rules.selectActors('pending-death-trigger-owners', runtime).length > 0,
+      (runtime) =>
+        !hasWolfKnifeVictoryLock(runtime.state) &&
+        rules.selectActors('pending-death-trigger-owners', runtime).length > 0,
     )
     rules.registerPredicate(
       'has-last-words',

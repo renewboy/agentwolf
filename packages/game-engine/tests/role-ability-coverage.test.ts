@@ -563,6 +563,7 @@ describe('final role reveals', () => {
       roles: createClassicRuleset().roles,
       resolution: createClassicRuleset().resolution,
       victories: createClassicRuleset().victories,
+      pluginEvents: createClassicRuleset().events,
       queries: createClassicRuleset().queries,
       triggers: createClassicRuleset().triggers,
       append: (payload, visibility) => {
@@ -592,6 +593,7 @@ describe('final role reveals', () => {
         roles: createClassicRuleset().roles,
         resolution: createClassicRuleset().resolution,
         victories: createClassicRuleset().victories,
+        pluginEvents: createClassicRuleset().events,
         queries: createClassicRuleset().queries,
         triggers: createClassicRuleset().triggers,
         append: () => {

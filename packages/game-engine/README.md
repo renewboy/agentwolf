@@ -5,7 +5,8 @@
 ## 职责
 
 - 版本化的 Ruleset 与 RulePlugin 安装。
-- Role、Ability、capability、phase、action validator、query、trigger、interrupt、event、resolution 与胜负 registries。
+- Role、Ability、capability、phase、action validator、query、trigger、interrupt、event、resolution、
+  胜负与 endgame registries。
 - 内置与自定义 board manifests。
 - 确定性身份牌池发牌、底牌校验与事件化 Role 转换。
 - 纯函数的动作校验、状态归约、可见性过滤、发言规范化与 replay。
@@ -29,6 +30,15 @@ RulePlugin 通过 `RulesetBuilder` 在安装作用域下注册语义。Core plug
 记录依赖、配置和归属;AgentWolf registrar 持有 Role、Ability、Phase、event、query、trigger、
 interrupt 与 victory registries。关系型规则通过纯 action validator、有界自动死亡反应与有序 victory
 modifier 组合;终局候选携带明确获胜 Player IDs。
+
+`EndgameRegistry` 要求每个已安装 Role 显式分类其动作对终局的影响,并为 material ability 注册
+有限 Role 模型。经典 Ruleset 在正式胜负尚未成立时,可以依据狼队可见事实、冻结 board 牌池与
+对手全部合法反制证明狼人阵营已经锁定正式胜利。无法证明、隐藏事实存在分歧或求解达到确定性
+节点上限时,对局继续运行。完整结算契约见[游戏结算与终局](../../docs/architecture/game-settlement.md)。
+
+加入夜间 batch 的 Ability 必须声明 `nightResolutionStage`。`wolf-priority` effects 先完成保护、狼刀
+及自动死亡链的正式胜负检查;只有该检查没有锁定狼人胜利时才执行 `post-wolf-priority` effects。
+Ruleset 构建拒绝漏声明阶段或未处于 `wolf-priority` 的 `nightAttack`。
 
 Deal registry 让 Role plugin 贡献牌池与底牌约束;通用发牌器只拥有稳定卡牌 ID、确定性选择和
 Seat assignment。Role 转换以核心事件进入同一 reducer,后续 phase、capability 与 victory 读取转换后的

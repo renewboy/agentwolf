@@ -15,6 +15,7 @@ import {
 } from '@agentwolf/contracts'
 import {
   InterruptRegistry,
+  EndgameRegistry,
   PhaseGraphRegistry,
   PluginEventRegistry,
   QueryRegistry,
@@ -48,6 +49,7 @@ const pluginId = PluginIdSchema.parse('plugin-test-registry')
 const eventType = PluginEventTypeSchema.parse('event-test-registry')
 const queryType = QueryTypeSchema.parse('query-test-registry')
 const roleId = RoleIdSchema.parse('role-test-registry')
+const inertRoleId = RoleIdSchema.parse('role-test-inert')
 const abilityId = AbilityIdSchema.parse('ability-test-registry')
 const capabilityId = CapabilityIdSchema.parse('capability-test-registry')
 const phaseA = PhaseIdSchema.parse('phase-test-a')
@@ -59,14 +61,22 @@ class TestRole extends Role {
   public readonly displayNameKey = 'roles.test'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly capabilities = [capabilityId]
   public readonly abilities: readonly AbilityDefinition[]
 
-  public constructor(required = true) {
+  public constructor(
+    required = true,
+    nightResolutionStage: AbilityDefinition['nightResolutionStage'] | null = 'post-wolf-priority',
+    nightAttack = false,
+  ) {
     super()
     this.abilities = [
       {
         id: abilityId,
+        endgameImpact: 'material' as const,
+        ...(nightResolutionStage ? { nightResolutionStage } : {}),
+        ...(nightAttack ? { nightAttack: true } : {}),
         ...(required ? { requiredCapability: capabilityId } : {}),
         actionTypes: ['night-action'],
         validate: () => undefined,
@@ -74,6 +84,23 @@ class TestRole extends Role {
       },
     ]
   }
+}
+
+class InertMaterialRole extends Role {
+  public readonly id = inertRoleId
+  public readonly displayNameKey = 'roles.test'
+  public readonly faction = 'village' as const
+  public readonly kind = 'god' as const
+  public readonly endgameModel = 'inert' as const
+  public readonly abilities: readonly AbilityDefinition[] = [
+    {
+      id: AbilityIdSchema.parse('ability-test-inert-material'),
+      endgameImpact: 'material',
+      actionTypes: ['night-action'],
+      validate: () => undefined,
+      effects: () => [],
+    },
+  ]
 }
 
 function engineRuntime() {
@@ -86,6 +113,7 @@ function engineRuntime() {
     roles: ruleset.roles,
     resolution: ruleset.resolution,
     victories: ruleset.victories,
+    pluginEvents: ruleset.events,
     queries: ruleset.queries,
     triggers: ruleset.triggers,
     append: vi.fn((payload, eventVisibility) => ({
@@ -99,6 +127,51 @@ function engineRuntime() {
 }
 
 describe('small registries', () => {
+  it('requires complete endgame coverage for every material Role', () => {
+    const roles = new RoleRegistry()
+    const role = new TestRole()
+    roles.register(role)
+    const endgames = new EndgameRegistry()
+    expect(() => endgames.validate(roles)).toThrow(/requires an endgame model/)
+    endgames.registerRole({
+      roleId,
+      wolfControl: 'none',
+      materialAbilityIds: [abilityId],
+    })
+    expect(() => endgames.validate(roles)).not.toThrow()
+    expect(() =>
+      endgames.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [abilityId] }),
+    ).toThrow(/Duplicate endgame model/)
+
+    const incomplete = new EndgameRegistry()
+    incomplete.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [] })
+    expect(() => incomplete.validate(roles)).toThrow(/coverage is incomplete/)
+
+    const inertRoles = new RoleRegistry()
+    inertRoles.register(new InertMaterialRole())
+    expect(() => new EndgameRegistry().validate(inertRoles)).toThrow(/material endgame abilities/)
+
+    const missingStageRoles = new RoleRegistry()
+    missingStageRoles.register(new TestRole(true, null))
+    const missingStage = new EndgameRegistry()
+    missingStage.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [abilityId] })
+    expect(() => missingStage.validate(missingStageRoles)).toThrow(/requires a resolution stage/)
+
+    const lateAttackRoles = new RoleRegistry()
+    lateAttackRoles.register(new TestRole(true, 'post-wolf-priority', true))
+    const lateAttack = new EndgameRegistry()
+    lateAttack.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [abilityId] })
+    expect(() => lateAttack.validate(lateAttackRoles)).toThrow(/must resolve in the wolf-priority/)
+
+    const unknown = new EndgameRegistry()
+    unknown.registerRole({
+      roleId: RoleIdSchema.parse('role-test-unknown-model'),
+      wolfControl: 'none',
+      materialAbilityIds: [],
+    })
+    expect(() => unknown.validate(new RoleRegistry())).toThrow(/unknown role/)
+  })
+
   it('registers and resolves interrupt handlers with duplicate/unknown protection', () => {
     const registry = new InterruptRegistry()
     const handler = { id: 'interrupt', nextPhase: () => phaseA }
@@ -258,6 +331,20 @@ describe('small registries', () => {
     expect(() =>
       registry.registerModifier({ id: 'first', transform: (_context, current) => current }),
     ).toThrow(/Duplicate victory modifier/)
+
+    const forced = new VictoryRegistry()
+    forced.register({ id: 'formal-none', evaluate: () => null })
+    forced.registerForced({
+      id: 'forced-wolf',
+      evaluate: (_context, evaluateFormal) => {
+        expect(evaluateFormal(context)).toBeNull()
+        return { winner: 'werewolf', winningPlayerIds: [player1()], reason: 'forced' }
+      },
+    })
+    expect(forced.evaluate(context)?.reason).toBe('forced')
+    expect(() => forced.registerForced({ id: 'forced-wolf', evaluate: () => null })).toThrow(
+      /Duplicate forced victory evaluator/,
+    )
 
     const created = new VictoryRegistry()
     created.registerModifier({

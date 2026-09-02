@@ -239,7 +239,7 @@ mailbox 和 Session binding 中，直到全部有资格回合落定，随后按 
 - WebSocket 断线时，浏览器保留最后有效投影，通过 HTTP 追平并有界退避重连；404 和完整终局会
   收敛为不可用或 settled 状态。
 - 领域事件、Match/Session status、delivery ledger 和 trajectory 提供分层观测。开发者 API 只
-  在显式 loopback developer mode 注册，轨迹内容在持久化和展示前脱敏。
+  在显式 developer mode 可用，轨迹内容在持久化和展示前脱敏。
 
 ## 扩展边界
 
@@ -273,6 +273,7 @@ mailbox 和 Session binding 中，直到全部有资格回合落定，随后按 
 ## 深入阅读
 
 - [游戏运行时](architecture/game-runtime.md)：Ruleset、phase、动作、效果、事件与 replay。
+- [游戏结算与终局](architecture/game-settlement.md):死亡反应、正式胜负、狼人必胜证明与终局顺序。
 - [Prompt 与玩家上下文](architecture/prompt-and-context.md)：bundle 所有权、可见事实和模型环境。
 - [ACP Session 运行时](architecture/acp-session-runtime.md)：进程、逻辑 Session、delivery 与恢复。
 - [信息同步](architecture/information-synchronization.md)：visibility、barrier、发言、播报与重连。

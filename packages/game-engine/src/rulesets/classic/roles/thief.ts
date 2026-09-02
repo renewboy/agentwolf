@@ -43,12 +43,14 @@ export class ThiefRole extends Role {
   public readonly displayNameKey = 'roles.thief'
   public readonly faction = 'independent' as const
   public readonly kind = 'independent' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly maximumCount = 1
   public override readonly requiredReserveCount = 2
   public override readonly capabilities = [classicCapabilities.thiefChooseCard] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: chooseCardAbilityId,
+      endgameImpact: 'material',
       requiredCapability: classicCapabilities.thiefChooseCard,
       resolutionTiming: 'phase',
       actionTypes: ['night-action'],

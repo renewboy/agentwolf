@@ -30,8 +30,15 @@ export const thiefPlugin: RulePlugin<RulesetBuilder> = {
     { id: classicPluginIds.cupid, version: 3 },
     { id: classicPluginIds.terminal, version: 3 },
   ],
-  register: ({ deals, events, phases, roles, rules }) => {
-    roles.register(new ThiefRole())
+  register: ({ deals, endgames, events, phases, roles, rules }) => {
+    const role = new ThiefRole()
+    roles.register(role)
+    endgames.registerRole({
+      roleId: role.id,
+      wolfControl: 'none',
+      materialAbilityIds: [thiefAbilityIds.chooseCard],
+      prepareWerewolfProof: prepareThiefWerewolfProof,
+    })
     events.register({
       pluginId: classicPluginIds.thief,
       eventType: thiefEventTypes.selected,
@@ -120,6 +127,40 @@ export const thiefPlugin: RulePlugin<RulesetBuilder> = {
       order: 90,
     })
   },
+}
+
+function prepareThiefWerewolfProof(
+  context: import('../../../plugins/victory-registry.js').VictoryContext,
+  controlledPlayerIds: ReadonlySet<import('@agentwolf/contracts').PlayerId>,
+  current: import('../../../plugins/endgame-registry.js').WerewolfProofPreparation,
+): import('../../../plugins/endgame-registry.js').WerewolfProofPreparation | null {
+  if (!context.board.roles.some((slot) => slot.roleId === thiefRoleId)) return current
+  const selection = thiefState(context.state).selection
+  if (!selection) return null
+  const selectionVisible = (context.events ?? []).some(
+    (event) =>
+      event.payload.type === 'plugin.event' &&
+      event.payload.pluginId === classicPluginIds.thief &&
+      event.payload.eventType === thiefEventTypes.selected &&
+      event.visibility.kind === 'players' &&
+      event.visibility.playerIds.some((playerId) => controlledPlayerIds.has(playerId)),
+  )
+  if (!selectionVisible) return null
+  const pool = context.board.roles.flatMap(({ roleId, count }) =>
+    Array.from({ length: count }, () => roleId),
+  )
+  if (!removeOne(pool, thiefRoleId) || !removeOne(pool, selection.buriedCard.roleId)) return null
+  return { ...current, activeRoleIds: pool }
+}
+
+function removeOne(
+  values: import('@agentwolf/contracts').RoleId[],
+  value: import('@agentwolf/contracts').RoleId,
+): boolean {
+  const index = values.indexOf(value)
+  if (index < 0) return false
+  values.splice(index, 1)
+  return true
 }
 
 function settleThiefChoice(runtime: RuleRuntime): void {

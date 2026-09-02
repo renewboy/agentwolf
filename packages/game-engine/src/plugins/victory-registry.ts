@@ -1,4 +1,4 @@
-import type { Faction, PlayerId } from '@agentwolf/contracts'
+import type { Faction, GameEvent, PlayerId } from '@agentwolf/contracts'
 import type { BoardManifest, GameState } from '../types.js'
 import type { RoleRegistry } from '../roles/registry.js'
 
@@ -12,6 +12,7 @@ export interface VictoryContext {
   readonly state: GameState
   readonly board: BoardManifest
   readonly roles: RoleRegistry
+  readonly events: readonly GameEvent[]
 }
 
 export interface VictoryEvaluator {
@@ -25,8 +26,17 @@ export interface VictoryModifier {
   transform(context: VictoryContext, current: VictoryCandidate | null): VictoryCandidate | null
 }
 
+export interface ForcedVictoryEvaluator {
+  readonly id: string
+  evaluate(
+    context: VictoryContext,
+    evaluateFormal: (context: VictoryContext) => VictoryCandidate | null,
+  ): VictoryCandidate | null
+}
+
 export class VictoryRegistry {
   readonly #evaluators: VictoryEvaluator[] = []
+  readonly #forcedEvaluators: ForcedVictoryEvaluator[] = []
   readonly #modifiers: Array<VictoryModifier & { sequence: number }> = []
   #modifierSequence = 0
 
@@ -44,34 +54,27 @@ export class VictoryRegistry {
     this.#modifiers.push({ ...modifier, sequence: ++this.#modifierSequence })
   }
 
+  public registerForced(evaluator: ForcedVictoryEvaluator): void {
+    if (this.#forcedEvaluators.some((entry) => entry.id === evaluator.id)) {
+      throw new Error(`Duplicate forced victory evaluator ${evaluator.id}`)
+    }
+    this.#forcedEvaluators.push(evaluator)
+  }
+
   public evaluate(context: VictoryContext): VictoryCandidate | null {
+    const formal = this.evaluateFormal(context)
+    if (formal) return formal
+    const candidates = this.#forcedEvaluators
+      .map((evaluator) => evaluator.evaluate(context, (next) => this.evaluateFormal(next)))
+      .filter((candidate): candidate is VictoryCandidate => candidate !== null)
+    return canonicalCandidate(candidates)
+  }
+
+  public evaluateFormal(context: VictoryContext): VictoryCandidate | null {
     const candidates = this.#evaluators
       .map((evaluator) => evaluator.evaluate(context))
       .filter((candidate): candidate is VictoryCandidate => candidate !== null)
-    let current: VictoryCandidate | null = null
-    if (candidates.length > 0) {
-      const first = candidates[0]!
-      const firstWinners = canonicalPlayerIds(first.winningPlayerIds)
-      if (firstWinners.length === 0) throw new Error('Victory candidate has no winning players')
-      if (
-        candidates.some(
-          (candidate) =>
-            candidate.winner !== first.winner ||
-            candidate.reason !== first.reason ||
-            canonicalPlayerIds(candidate.winningPlayerIds).join(',') !== firstWinners.join(','),
-        )
-      ) {
-        throw new Error(
-          `Conflicting victory candidates: ${candidates
-            .map(
-              (candidate) =>
-                `${candidate.winner}:${canonicalPlayerIds(candidate.winningPlayerIds).join('+')}:${candidate.reason}`,
-            )
-            .join(', ')}`,
-        )
-      }
-      current = { ...first, winningPlayerIds: firstWinners }
-    }
+    let current = canonicalCandidate(candidates)
     for (const modifier of [...this.#modifiers].sort(
       (left, right) => (left.order ?? 0) - (right.order ?? 0) || left.sequence - right.sequence,
     )) {
@@ -82,6 +85,31 @@ export class VictoryRegistry {
     if (winningPlayerIds.length === 0) throw new Error('Victory candidate has no winning players')
     return { ...current, winningPlayerIds }
   }
+}
+
+function canonicalCandidate(candidates: readonly VictoryCandidate[]): VictoryCandidate | null {
+  if (candidates.length === 0) return null
+  const first = candidates[0]!
+  const firstWinners = canonicalPlayerIds(first.winningPlayerIds)
+  if (firstWinners.length === 0) throw new Error('Victory candidate has no winning players')
+  if (
+    candidates.some(
+      (candidate) =>
+        candidate.winner !== first.winner ||
+        candidate.reason !== first.reason ||
+        canonicalPlayerIds(candidate.winningPlayerIds).join(',') !== firstWinners.join(','),
+    )
+  ) {
+    throw new Error(
+      `Conflicting victory candidates: ${candidates
+        .map(
+          (candidate) =>
+            `${candidate.winner}:${canonicalPlayerIds(candidate.winningPlayerIds).join('+')}:${candidate.reason}`,
+        )
+        .join(', ')}`,
+    )
+  }
+  return { ...first, winningPlayerIds: firstWinners }
 }
 
 function canonicalPlayerIds(playerIds: readonly PlayerId[]): PlayerId[] {

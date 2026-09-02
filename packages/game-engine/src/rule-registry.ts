@@ -14,6 +14,7 @@ import type { ResolutionRegistry } from './plugins/resolution-registry.js'
 import type { VictoryRegistry } from './plugins/victory-registry.js'
 import type { QueryRegistry } from './plugins/query-registry.js'
 import type { TriggerRegistry } from './plugins/trigger-registry.js'
+import type { PluginEventRegistry } from './plugins/event-registry.js'
 import type { DeterministicIndexResolver } from './deterministic.js'
 
 export interface RuleRuntime {
@@ -23,6 +24,7 @@ export interface RuleRuntime {
   readonly roles: RoleRegistry
   readonly resolution: ResolutionRegistry
   readonly victories: VictoryRegistry
+  readonly pluginEvents: PluginEventRegistry
   readonly queries: QueryRegistry
   readonly triggers: TriggerRegistry
   readonly deterministicIndex?: DeterministicIndexResolver

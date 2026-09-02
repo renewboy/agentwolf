@@ -16,6 +16,7 @@ import { PhaseGraphRegistry } from './phase-registry.js'
 import { QueryRegistry } from './query-registry.js'
 import { TriggerRegistry } from './trigger-registry.js'
 import { DealRegistry } from './deal-registry.js'
+import { EndgameRegistry } from './endgame-registry.js'
 import { SemanticOwnershipRecorder, type PluginSemanticContribution } from './semantic-ownership.js'
 
 export class RulesetRuntime {
@@ -27,6 +28,7 @@ export class RulesetRuntime {
     public readonly rules: RuleRegistry,
     public readonly resolution: ResolutionRegistry,
     public readonly victories: VictoryRegistry,
+    public readonly endgames: EndgameRegistry,
     public readonly interrupts: InterruptRegistry,
     public readonly events: PluginEventRegistry,
     public readonly phases: import('../types.js').PhaseGraph,
@@ -43,6 +45,7 @@ export class RulesetBuilder implements PluginInstallScope {
   public readonly rules = new RuleRegistry()
   public readonly resolution = new ResolutionRegistry()
   public readonly victories = new VictoryRegistry()
+  public readonly endgames = new EndgameRegistry()
   public readonly interrupts = new InterruptRegistry()
   public readonly events = new PluginEventRegistry(this.#ownership)
   public readonly phases = new PhaseGraphRegistry(this.#ownership)
@@ -66,6 +69,7 @@ export class RulesetBuilder implements PluginInstallScope {
 
   public build(): RulesetRuntime {
     const installed = installRulePlugins(this, this.#plugins)
+    this.endgames.validate(this.roles)
     const contributions = this.#ownership.contributions(installed.map((plugin) => plugin.id))
     return new RulesetRuntime(
       this.#id,
@@ -75,6 +79,7 @@ export class RulesetBuilder implements PluginInstallScope {
       this.rules,
       this.resolution,
       this.victories,
+      this.endgames,
       this.interrupts,
       this.events,
       this.phases.build(),

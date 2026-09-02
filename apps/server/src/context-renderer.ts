@@ -409,6 +409,7 @@ function promptRuleRuntime(
     roles: ruleset.roles,
     resolution: ruleset.resolution,
     victories: ruleset.victories,
+    pluginEvents: ruleset.events,
     queries: ruleset.queries,
     triggers: ruleset.triggers,
     append: () => {

@@ -147,7 +147,7 @@ describe('match orchestration', () => {
     )
     const archive = await waitForArchive(server, created.id)
     expect(archive).toMatchObject({
-      sourceRuleset: { familyId: 'classic', revision: 7 },
+      sourceRuleset: { familyId: 'classic', revision: 9 },
       trajectoryAudit: { ok: true, issues: [] },
     })
   }, 20_000)
@@ -283,7 +283,7 @@ describe('match orchestration', () => {
     )
     const archive = await waitForArchive(server, created.id)
     expect(archive).toMatchObject({
-      sourceRuleset: { familyId: 'classic', revision: 7 },
+      sourceRuleset: { familyId: 'classic', revision: 9 },
       trajectoryAudit: { ok: true, issues: [] },
     })
     const archivedClosedEye = server.matches.getMatch(created.id, { kind: 'closed-eye' })
@@ -1453,6 +1453,9 @@ describe('match orchestration', () => {
     const terminalEvents = server.repository
       .listMatchEvents(created.id)
       .filter((event) => event.sequence <= terminal.lastSequence)
+    expect(
+      terminalEvents.findLast((event) => event.payload.type === 'match.ended')?.payload,
+    ).toMatchObject({ winner: 'werewolf', reason: 'werewolf-forced-win' })
     const cursorBeforeReview = new Map(
       terminal.seats.map((seat) => {
         const ledger = server.repository.getDeliveryLedger(created.id, seat.playerId)
@@ -1515,7 +1518,6 @@ describe('match orchestration', () => {
       const reviewPrompt = prompts
         .get(seat.playerId)
         ?.find((prompt) => prompt.includes('请完成本轮赛后评审'))
-      expect(reviewPrompt).toContain('你上次行动后发生的公开对局记录')
       expect(reviewPrompt).toContain('最终胜负：')
       expect(reviewPrompt).toContain('获胜玩家：')
       expect(reviewPrompt).not.toContain('此前感言')
@@ -1530,6 +1532,13 @@ describe('match orchestration', () => {
       const expectedPublicEvents = terminalEvents.filter(
         (event) => event.sequence > cursor && event.visibility.kind === 'public',
       )
+      const missedPublicSpeech = expectedPublicEvents.some(
+        (event) =>
+          event.payload.type === 'speech.committed' && event.payload.playerId !== seat.playerId,
+      )
+      if (missedPublicSpeech) {
+        expect(reviewPrompt).toContain('你上次行动后发生的公开对局记录')
+      }
       const reviewTurn = server.repository
         .listTrajectoryTurns(created.id, seat.playerId)
         .find(

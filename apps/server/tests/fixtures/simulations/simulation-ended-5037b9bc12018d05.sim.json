@@ -1,0 +1,1004 @@
+{
+  "schemaVersion": 1,
+  "simulationId": "simulation-ended-5037b9bc12018d05",
+  "title": "board-simulation-6-plain ended",
+  "setup": {
+    "matchId": "match-simulation-replay",
+    "board": {
+      "schemaVersion": 4,
+      "rulesetId": "classic",
+      "ruleset": {
+        "id": "ruleset-classic",
+        "revision": 9,
+        "plugins": [
+          {
+            "id": "plugin-classic-phases",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-legacy-events",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-identity-queries",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-villager",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-werewolf",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-seer",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-witch",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-hunter",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-idiot",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-guard",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-magic-mirror-girl",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-white-wolf-king",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-resolution",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-wolf-team",
+            "version": 2,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-victory",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-night",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-death",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-awakened-hidden-wolf",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-day",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-terminal",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-cupid",
+            "version": 3,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-role-thief",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          },
+          {
+            "id": "plugin-classic-sheriff",
+            "version": 1,
+            "config": {},
+            "configHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+          }
+        ],
+        "fingerprint": "72ee44901ac0f4dc754545f8c535f06c61fe4469d90b73d505b0df4419515a13"
+      },
+      "policies": {
+        "witchSelfSave": "never",
+        "witchPotionsPerNight": 1,
+        "guardAntidoteCollision": "death",
+        "guardCanSelfProtect": true,
+        "sheriffExplosion": "single-explosion-loses-badge",
+        "nightLastWords": "first-night-only",
+        "victory": "slaughter-all"
+      },
+      "id": "board-simulation-6-plain",
+      "name": "Simulation board 6",
+      "description": "",
+      "roles": [
+        {
+          "roleId": "role-werewolf",
+          "count": 2
+        },
+        {
+          "roleId": "role-villager",
+          "count": 2
+        },
+        {
+          "roleId": "role-seer",
+          "count": 1
+        },
+        {
+          "roleId": "role-hunter",
+          "count": 1
+        }
+      ],
+      "characters": [
+        {
+          "seat": 1,
+          "characterId": null
+        },
+        {
+          "seat": 2,
+          "characterId": null
+        },
+        {
+          "seat": 3,
+          "characterId": null
+        },
+        {
+          "seat": 4,
+          "characterId": null
+        },
+        {
+          "seat": 5,
+          "characterId": null
+        },
+        {
+          "seat": 6,
+          "characterId": null
+        }
+      ],
+      "agentProfiles": [
+        {
+          "seat": 1,
+          "profileId": null
+        },
+        {
+          "seat": 2,
+          "profileId": null
+        },
+        {
+          "seat": 3,
+          "profileId": null
+        },
+        {
+          "seat": 4,
+          "profileId": null
+        },
+        {
+          "seat": 5,
+          "profileId": null
+        },
+        {
+          "seat": 6,
+          "profileId": null
+        }
+      ],
+      "playerCount": 6,
+      "reserveCount": 0,
+      "sheriff": false,
+      "victory": "slaughter-all",
+      "source": "custom",
+      "revision": 1
+    },
+    "players": [
+      {
+        "playerId": "player-1",
+        "seat": 1,
+        "name": "Simulation seat 1",
+        "profileId": "profile-simulation-1",
+        "roleId": "role-werewolf",
+        "character": null
+      },
+      {
+        "playerId": "player-2",
+        "seat": 2,
+        "name": "Simulation seat 2",
+        "profileId": "profile-simulation-2",
+        "roleId": "role-villager",
+        "character": null
+      },
+      {
+        "playerId": "player-3",
+        "seat": 3,
+        "name": "Simulation seat 3",
+        "profileId": "profile-simulation-3",
+        "roleId": "role-seer",
+        "character": null
+      },
+      {
+        "playerId": "player-4",
+        "seat": 4,
+        "name": "Simulation seat 4",
+        "profileId": "profile-simulation-4",
+        "roleId": "role-villager",
+        "character": null
+      },
+      {
+        "playerId": "player-5",
+        "seat": 5,
+        "name": "Simulation seat 5",
+        "profileId": "profile-simulation-5",
+        "roleId": "role-werewolf",
+        "character": null
+      },
+      {
+        "playerId": "player-6",
+        "seat": 6,
+        "name": "Simulation seat 6",
+        "profileId": "profile-simulation-6",
+        "roleId": "role-hunter",
+        "character": null
+      }
+    ],
+    "reserveRoleIds": [],
+    "speechCharacterLimit": 600,
+    "publicSpeechInterruptMode": "legacy"
+  },
+  "turns": [
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-1",
+      "phaseId": null,
+      "day": 0,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 1,
+      "toSequence": 9,
+      "visibleEventSequences": [1, 2, 8, 9],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 2,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-night-wolf-council",
+      "day": 0,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-1", "player-5"],
+      "fromSequence": 10,
+      "toSequence": 26,
+      "visibleEventSequences": [22, 23, 24, 26],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 7,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-1",
+        "type": "speech",
+        "text": "5号，我建议首夜优先刀3或4这类中置位，明天我来悍跳预言家，给你发首夜金水，先把绑定关系做出来；你白天以好人视角站边即可。若被真预言家对跳，我们再看发言决定是否冲票或由我自爆。你若更想悍跳也可以，我可以潜水倒钩。",
+        "kind": "wolf-council"
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-night-wolf-vote",
+      "day": 0,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-5"],
+      "fromSequence": 27,
+      "toSequence": 39,
+      "visibleEventSequences": [29, 30, 32, 35, 36, 38],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 10,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-1",
+        "type": "vote",
+        "targetId": "player-4",
+        "kind": "wolf-kill"
+      }
+    },
+    {
+      "ordinal": 4,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-day-speech",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-1", "player-6", "player-5"],
+      "fromSequence": 40,
+      "toSequence": 92,
+      "visibleEventSequences": [
+        44, 46, 48, 49, 50, 51, 52, 58, 62, 63, 65, 66, 68, 71, 72, 74, 76, 78, 80, 83, 84, 86, 89,
+        90, 92
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 15,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-1",
+        "type": "speech",
+        "text": "我才是预言家，首夜验2号，好人。首验2纯位置选择，没有额外信息。\n\n3号是狼在悍跳。4号昨夜被刀、遗言又直接表民，3号给一张死亡位好人验，表面上最不容易被当场质疑；狼队既然知道4号会死，完全可以拿这张结果包装自己。3号没有第二层有效信息，却直接要求大家围绕他归票，我不认。\n\n今天就是1、3对跳，必须出3号。2号是我验过的好人，2号请看清：3号出局后，剩下一狼再从5、6里找；猎人不用为此暴露。我的票定在3号。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 5,
+      "kind": "action",
+      "playerId": "player-1",
+      "phaseId": "phase-day-vote",
+      "day": 1,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-2", "player-3", "player-5", "player-6"],
+      "fromSequence": 93,
+      "toSequence": 111,
+      "visibleEventSequences": [95, 96, 98, 101, 102, 104, 107, 108, 110],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 19,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-1",
+        "type": "vote",
+        "targetId": "player-3",
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-2",
+      "phaseId": null,
+      "day": 0,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 1,
+      "toSequence": 9,
+      "visibleEventSequences": [1, 3, 9],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 5,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-2",
+      "phaseId": "phase-day-speech",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-2", "player-1", "player-6", "player-5"],
+      "fromSequence": 10,
+      "toSequence": 86,
+      "visibleEventSequences": [
+        22, 23, 24, 38, 52, 58, 62, 63, 65, 66, 68, 71, 72, 74, 76, 78, 80, 83, 84, 86
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 14,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-2",
+        "type": "speech",
+        "text": "我是 2 号Simulation seat 2。3 号跳预言家，报 4 号验人结果是好人，和 4 号遗言自称村民一致，信息面目前对得上。但我现在才第二个发言，后面还有 1、5、6 三个人没说话，如果有人要对跳预言家，我建议今天就在对跳里出，真预言家已经明牌，没有退路。\n\n先交身份：我是村民，和 4 号一样。如果 3 号是真预言家，那已知 4 号村民出局、我是村民，剩下 1、5、6 里就是两狼加一猎人，猎人请务必藏好别暴露。\n\n后面没人对跳的话，3 号预言家暂时坐实，今天就围绕 3 号的归票来打。重点听 1、5、6 的发言态度，看谁在躲、谁在划水、谁不敢给明确站边。这局没有警徽，狼人悍跳成本比平时低，所以 3 号跳预言家这件事本身我也要根据后面发言再判断，不能现在就无脑认死。\n\n如果 1、5、6 里有人起跳预言家，我会仔细对比双方的查验逻辑、心路历程和首验选择，不只看结果。我的票会跟着我认为更真的那个预言家走。\n\n先听后面的发言，过。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "action",
+      "playerId": "player-2",
+      "phaseId": "phase-day-vote",
+      "day": 1,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-2", "player-3", "player-5", "player-6"],
+      "fromSequence": 87,
+      "toSequence": 111,
+      "visibleEventSequences": [89, 90, 92, 95, 96, 98, 101, 102, 104, 107, 108, 110],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 22,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-2",
+        "type": "vote",
+        "targetId": "player-3",
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-3",
+      "phaseId": null,
+      "day": 0,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 1,
+      "toSequence": 9,
+      "visibleEventSequences": [1, 4, 9],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 1,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-night-seer",
+      "day": 0,
+      "actionType": "night-action",
+      "mode": "parallel",
+      "expectedActors": ["player-3"],
+      "fromSequence": 10,
+      "toSequence": 53,
+      "visibleEventSequences": [22, 23, 24, 38, 52],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 11,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "night-action",
+        "abilityId": "ability-seer-inspect",
+        "targetIds": ["player-4"]
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-day-speech",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-3", "player-2", "player-1", "player-6", "player-5"],
+      "fromSequence": 54,
+      "toSequence": 80,
+      "visibleEventSequences": [56, 58, 59, 60, 62, 63, 65, 66, 68, 71, 72, 74, 76, 78, 80],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 13,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "speech",
+        "text": "我是预言家，首夜验了4号，结果好人。验4就是首夜位置选择，没想到正好被刀，所以这张信息无法直接缩狼坑，但4号遗言自称村民与我的结果一致。\n\n今天场上剩五人两狼，不能靠划水过。若有人对跳预言家，我建议今天直接在对跳里出；真预言家已经明牌，猎人继续藏好。没有对跳的话，2、1、6、5依次把自己的身份视角、怀疑对象和具体狼坑讲清楚，尤其别只给模糊排序。我的初步重点听谁敢明确落票、谁在给狼人留退路，最后我会结合发言定票。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 4,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-day-vote",
+      "day": 1,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-2", "player-3", "player-5", "player-6"],
+      "fromSequence": 81,
+      "toSequence": 111,
+      "visibleEventSequences": [83, 84, 86, 89, 90, 92, 95, 96, 98, 101, 102, 104, 107, 108, 110],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 20,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "vote",
+        "targetId": "player-1",
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 5,
+      "kind": "action",
+      "playerId": "player-3",
+      "phaseId": "phase-last-words",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-3"],
+      "fromSequence": 112,
+      "toSequence": 144,
+      "visibleEventSequences": [126, 132, 133, 134, 135, 136, 137, 138, 141, 142, 144],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 23,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-3",
+        "type": "speech",
+        "text": "我是预言家，首夜验4号好人，4号遗言表民与此一致。1号是悍跳狼，拿2号“金水”包装自己；2号绝不因这张假验人自动做好。\n\n今天票型是狼队借“验死人容易伪造”这个话术强推真预言家。好人明天先出1号，不要再被他带偏。剩下一狼重点看5、6：6号率先完整搭建1真3假的逻辑，5号几乎全盘复述并锁票，二者至少要重点审视。猎人若今晚倒牌且能开枪，优先带1号。",
+        "kind": "last-words"
+      }
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-4",
+      "phaseId": null,
+      "day": 0,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 1,
+      "toSequence": 9,
+      "visibleEventSequences": [1, 5, 9],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 3,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-4",
+      "phaseId": "phase-last-words",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-4"],
+      "fromSequence": 10,
+      "toSequence": 68,
+      "visibleEventSequences": [22, 23, 24, 38, 52, 58, 62, 63, 65, 66, 68],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 12,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-4",
+        "type": "speech",
+        "text": "大家好，我是 4 号玩家Simulation seat 4。很遗憾，第一晚就被刀了，我先表个水：我是村民，没有任何查验信息，死得干干净净，狼人刀我大概是随机落刀或者想压缩好人数量。\n\n虽然我走得早，但我想给场上留下几点建议：\n\n第一，我死了意味着狼人没有动神职或者民里的关键位，预言家请务必在第一天站出来报查验，把警徽流…哦对，这局没有警徽，那就把查验信息和心路历程讲清楚。好人不要互相猜疑神职的身份，让真预言家安心报信息。\n\n第二，村民兄弟姐妹们，你们的票很重要。第一天信息最少，狼人最可能浑水摸鱼。请重点关注那些发言模糊、只复述别人观点、不敢给具体站边的玩家。狼人第一天往往会抱团取暖或者刻意切割，留意发言之间的呼应关系。\n\n第三，猎人朋友请藏好，不要过早暴露。你活着就是对狼人的威慑，等局势明朗了再考虑带队。\n\n关于我自己的判断：我没有任何夜间信息，生前也没有特别的交互，所以没法给大家指认狼坑，这一点很抱歉。但正因为我是纯村民出局，场上剩下的五位里是两狼、两民加一神或者两民加预言家猎人的组合，狼坑比例很高，好人千万不能松懈。\n\n请存活的好人们珍惜每一票，认真听发言的逻辑而不是情绪。希望我的死能换来好人的警觉。加油，把狼找出来，替我赢下这局！",
+        "kind": "last-words"
+      }
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-5",
+      "phaseId": null,
+      "day": 0,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 1,
+      "toSequence": 9,
+      "visibleEventSequences": [1, 6, 8, 9],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 4,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-5",
+      "phaseId": "phase-night-wolf-council",
+      "day": 0,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-5"],
+      "fromSequence": 10,
+      "toSequence": 32,
+      "visibleEventSequences": [22, 23, 24, 26, 29, 30, 32],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 8,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-5",
+        "type": "speech",
+        "text": "我同意你悍跳、首夜给我金水，我白天按正常好人视角站边，先不硬保，重点听对跳和外置位发言。首刀倾向4号，留3号在场多给一轮发言和票型信息；若真预言家对跳，再根据其验人决定冲或倒钩。",
+        "kind": "wolf-council"
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "action",
+      "playerId": "player-5",
+      "phaseId": "phase-night-wolf-vote",
+      "day": 0,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-5"],
+      "fromSequence": 33,
+      "toSequence": 39,
+      "visibleEventSequences": [35, 36, 38],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 9,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-5",
+        "type": "vote",
+        "targetId": "player-4",
+        "kind": "wolf-kill"
+      }
+    },
+    {
+      "ordinal": 4,
+      "kind": "action",
+      "playerId": "player-5",
+      "phaseId": "phase-day-speech",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-5"],
+      "fromSequence": 40,
+      "toSequence": 104,
+      "visibleEventSequences": [
+        44, 46, 48, 49, 50, 51, 52, 58, 62, 63, 65, 66, 68, 71, 72, 74, 76, 78, 80, 83, 84, 86, 89,
+        90, 92, 95, 96, 98, 101, 102, 104
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 17,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-5",
+        "type": "speech",
+        "text": "我站1号，今天投3号。\n\n3号这张验4号好人的信息与4号死亡完全重合，无法提供任何存活位判断；但狼人夜里明确知道4号会死，拿死亡位做首验是最容易包装的一种悍跳方式。反过来，1号验2号是活人信息，2号的表水也能接上。\n\n我不认3号开口就让全场围绕他归票的姿态，尤其在他没有给出有效存活验人时。6号的分析我基本认同。2号也别因为自己是1号金水就只看身份，比较两张验人本身，1号明显更经得起推敲。\n\n票定3号。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 5,
+      "kind": "action",
+      "playerId": "player-5",
+      "phaseId": "phase-day-vote",
+      "day": 1,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-2", "player-3", "player-5", "player-6"],
+      "fromSequence": 105,
+      "toSequence": 111,
+      "visibleEventSequences": [107, 108, 110],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 18,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-5",
+        "type": "vote",
+        "targetId": "player-3",
+        "kind": "exile"
+      }
+    },
+    {
+      "ordinal": 1,
+      "kind": "bootstrap",
+      "playerId": "player-6",
+      "phaseId": null,
+      "day": 0,
+      "actionType": "bootstrap",
+      "mode": null,
+      "expectedActors": [],
+      "fromSequence": 1,
+      "toSequence": 9,
+      "visibleEventSequences": [1, 7, 9],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 6,
+      "status": "completed",
+      "fault": null,
+      "action": null
+    },
+    {
+      "ordinal": 2,
+      "kind": "action",
+      "playerId": "player-6",
+      "phaseId": "phase-day-speech",
+      "day": 1,
+      "actionType": "speech",
+      "mode": "sequential",
+      "expectedActors": ["player-6", "player-5"],
+      "fromSequence": 10,
+      "toSequence": 98,
+      "visibleEventSequences": [
+        22, 23, 24, 38, 52, 58, 62, 63, 65, 66, 68, 71, 72, 74, 76, 78, 80, 83, 84, 86, 89, 90, 92,
+        95, 96, 98
+      ],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 16,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-6",
+        "type": "speech",
+        "text": "我是 6 号Simulation seat 6，先亮出我的判断。\n\n当前场上 1 号和 3 号形成对跳预言家，这是今天最核心的矛盾。我仔细梳理一下：\n\n3 号说首夜验了 4 号，结果好人，这张结果和 4 号遗言自称村民完全吻合。但问题是——4 号昨夜被刀，是全场都知道的死亡信息，狼队完全可以事先预知并利用这个构建说辞，1 号也正是这么怀疑的。\n\n1 号说首夜验了 2 号，结果好人，后验活人，信息相对干净，也没有被动挡刀的包装成分。\n\n我的判断倾向：**1 号更像真预言家**。理由如下：\n\n第一，3 号验死人，结果在夜里就已知，构造成本极低；1 号验活人 2 号，且 2 号目前也表民，两张村民出局加预言家，这和板子吻合，逻辑链闭合。\n\n第二，3 号跳完之后直接要求全场围绕他归票，语气非常强势，但信息量实际上只有一张验死人。真预言家需要的是被人信而不是强迫归票。\n\n第三，1 号的怀疑有具体依据——指出 3 号利用死亡位包装，这是有实质内容的质疑，不是情绪化攻击。\n\n目前我的票指向 **3 号玩家**。\n\n还有一点想对 5 号说：你是最后一个发言，请不要打哑谜，今天信息这么少，每个人的立场都要明确。表态到底站 1 号还是 3 号，别模糊带过。\n\n我暂时维持这个判断，等 5 号发言后根据全局再做最终确认。",
+        "kind": "day"
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "action",
+      "playerId": "player-6",
+      "phaseId": "phase-day-vote",
+      "day": 1,
+      "actionType": "vote",
+      "mode": "parallel",
+      "expectedActors": ["player-1", "player-2", "player-3", "player-5", "player-6"],
+      "fromSequence": 99,
+      "toSequence": 111,
+      "visibleEventSequences": [101, 102, 104, 107, 108, 110],
+      "sessionGeneration": 1,
+      "attempt": 1,
+      "completionOrder": 21,
+      "status": "completed",
+      "fault": null,
+      "action": {
+        "matchId": "match-simulation-replay",
+        "actorId": "player-6",
+        "type": "vote",
+        "targetId": "player-3",
+        "kind": "exile"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "type": "deterministic.index",
+      "key": "match-simulation-replay:day:1:living:player-1,player-2,player-3,player-5,player-6:deaths:player-4:direction",
+      "length": 2,
+      "index": 1
+    }
+  ],
+  "stage": "approved",
+  "source": {
+    "status": "ended",
+    "cutoffSequence": 157,
+    "fingerprint": "5037b9bc12018d05cb79cd8c09a879ad5f68fe440a34b5b6ef4b779d00b8c0f9"
+  },
+  "expected": {
+    "eventCount": 111,
+    "eventDigest": "be0ce0c7aa006b126139098a616595de485addc319289102f395c911845b714f",
+    "eventTypes": [
+      "match.created",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "role.assigned",
+      "faction.members",
+      "match.starting",
+      "match.started",
+      "night.started",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
+      "night.attack-selected",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "phase.changed",
+      "ability.used",
+      "seer.inspected",
+      "death.pending",
+      "day.started",
+      "phase.changed",
+      "player.died",
+      "public.announcement",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.order-set",
+      "death.window-closed",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "phase.changed",
+      "phase.actors-set",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "action.submitted",
+      "phase.actor-completed",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.cast",
+      "vote.resolved",
+      "phase.changed",
+      "day.completed",
+      "player.died",
+      "public.announcement",
+      "phase.changed",
+      "phase.actors-set",
+      "speech.started",
+      "action.submitted",
+      "speech.committed",
+      "phase.actor-completed",
+      "phase.changed",
+      "match.ended",
+      "role.revealed",
+      "role.revealed",
+      "role.revealed",
+      "role.revealed",
+      "role.revealed",
+      "role.revealed"
+    ],
+    "checkpoint": {
+      "status": "ended",
+      "day": 1,
+      "night": 1,
+      "phaseId": "phase-match-ended",
+      "winner": "werewolf",
+      "winningPlayerIds": ["player-1", "player-5"],
+      "sheriffId": null,
+      "alivePlayerIds": ["player-1", "player-2", "player-5", "player-6"],
+      "votingPlayerIds": ["player-1", "player-2", "player-5", "player-6"],
+      "lastSequence": 111
+    }
+  },
+  "variants": [
+    "recorded",
+    "parallel-seat-order",
+    "parallel-reverse-order",
+    "transient-delivery",
+    "restart-boundary",
+    "playback-completed",
+    "playback-skipped",
+    "playback-disconnected"
+  ],
+  "browser": false
+}

@@ -1,1 +1,16 @@
-{ "pluginId": "plugin-classic-victory", "imports": [] }
+{
+  "pluginId": "plugin-classic-victory",
+  "imports": [],
+  "events": [
+    {
+      "eventType": "plugin.event",
+      "where": {
+        "pluginId": "plugin-classic-victory",
+        "eventType": "event-wolf-knife-victory-locked"
+      },
+      "audience": "god",
+      "omit": true
+    }
+  ],
+  "announcements": []
+}

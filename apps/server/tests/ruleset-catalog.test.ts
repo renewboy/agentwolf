@@ -12,12 +12,12 @@ describe('RulesetCatalog', () => {
     const catalog = new RulesetCatalog()
     const lock = catalog.lock()
     expect(rulesetReleaseDefinitions).toEqual([
-      expect.objectContaining({ familyId: 'classic', revision: 7, default: true }),
+      expect.objectContaining({ familyId: 'classic', revision: 9, default: true }),
     ])
-    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic', revision: 7 })
-    expect(lock).toMatchObject({ id: 'ruleset-classic', revision: 7 })
+    expect(catalog.current()).toMatchObject({ id: 'ruleset-classic', revision: 9 })
+    expect(lock).toMatchObject({ id: 'ruleset-classic', revision: 9 })
     expect(lock.fingerprint).toBe(
-      '27fe89fe310087d529e04c206c9854eba75d63d74bb7624c35e453b3e024fddb',
+      '72ee44901ac0f4dc754545f8c535f06c61fe4469d90b73d505b0df4419515a13',
     )
     const snapshot = snapshotFor(lock)
     expect(catalog.forExecution(snapshot)).toBe(catalog.current())
@@ -50,7 +50,7 @@ describe('RulesetCatalog', () => {
       default: true,
       create: createClassicRuleset,
     }
-    expect(() => new RulesetCatalog([mismatched])).toThrow(/runtime is 7/)
+    expect(() => new RulesetCatalog([mismatched])).toThrow(/runtime is 9/)
   })
 })
 

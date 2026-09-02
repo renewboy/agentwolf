@@ -1,5 +1,6 @@
 import { TriggerIdSchema } from '@agentwolf/contracts'
 import type { RulePlugin } from '../../../plugins/loader.js'
+import type { EndgameRoleModel } from '../../../plugins/endgame-registry.js'
 import type { RulesetBuilder } from '../../../plugins/ruleset.js'
 import { visibility } from '../../../rule-registry.js'
 import { GuardRole } from '../roles/guard.js'
@@ -31,48 +32,57 @@ import { phase } from './shared.js'
 
 const classicBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   rolePlugin(classicPluginIds.villager, () => new VillagerRole()),
-  rolePlugin(classicPluginIds.werewolf, () => new WerewolfRole()),
+  rolePlugin(classicPluginIds.werewolf, () => new WerewolfRole(), {
+    endgame: { wolfControl: 'shared-faction' },
+  }),
   rolePlugin(classicPluginIds.seer, () => new SeerRole(), {
-    node: {
-      id: phase('phase-night-seer'),
-      labelKey: 'phases.nightSeer',
-      mode: 'parallel',
-      action: {
-        type: 'night-action',
-        abilityIds: [],
-        capabilityIds: [classicCapabilities.seerInspect],
-        visibility: 'actor',
+    insertion: {
+      node: {
+        id: phase('phase-night-seer'),
+        labelKey: 'phases.nightSeer',
+        mode: 'parallel',
+        action: {
+          type: 'night-action',
+          abilityIds: [],
+          capabilityIds: [classicCapabilities.seerInspect],
+          visibility: 'actor',
+        },
+        actorSelector: `capability-alive:${classicCapabilities.seerInspect}`,
+        activeWhen: `capability-active:${classicCapabilities.seerInspect}`,
+        edges: [],
       },
-      actorSelector: `capability-alive:${classicCapabilities.seerInspect}`,
-      activeWhen: `capability-active:${classicCapabilities.seerInspect}`,
-      edges: [],
+      after: phase('phase-night-witch'),
+      before: phase('phase-night-resolve'),
     },
-    after: phase('phase-night-witch'),
-    before: phase('phase-night-resolve'),
   }),
   rolePlugin(classicPluginIds.witch, () => new WitchRole(), {
-    node: {
-      id: phase('phase-night-witch'),
-      labelKey: 'phases.nightWitch',
-      mode: 'parallel',
-      action: {
-        type: 'night-action',
-        abilityIds: [],
-        capabilityIds: [classicCapabilities.witchAntidote, classicCapabilities.witchPoison],
-        visibility: 'actor',
+    endgame: { wolfControl: 'none', traits: { witchPotions: true } },
+    insertion: {
+      node: {
+        id: phase('phase-night-witch'),
+        labelKey: 'phases.nightWitch',
+        mode: 'parallel',
+        action: {
+          type: 'night-action',
+          abilityIds: [],
+          capabilityIds: [classicCapabilities.witchAntidote, classicCapabilities.witchPoison],
+          visibility: 'actor',
+        },
+        actorSelector: `capability-alive:${classicCapabilities.witchAntidote}`,
+        activeWhen: `capability-active:${classicCapabilities.witchAntidote}`,
+        edges: [],
       },
-      actorSelector: `capability-alive:${classicCapabilities.witchAntidote}`,
-      activeWhen: `capability-active:${classicCapabilities.witchAntidote}`,
-      edges: [],
+      after: phase('phase-night-wolf-vote'),
+      before: phase('phase-night-resolve'),
     },
-    after: phase('phase-night-wolf-vote'),
-    before: phase('phase-night-resolve'),
   }),
   {
     id: classicPluginIds.hunter,
     version: 1,
-    register: ({ roles, triggers }) => {
-      roles.register(new HunterRole())
+    register: ({ endgames, roles, triggers }) => {
+      const role = new HunterRole()
+      roles.register(role)
+      endgames.registerRole(endgameModel(role, { traits: { hunterShot: true } }))
       triggers.registerDecision({
         id: TriggerIdSchema.parse('trigger-hunter-shot'),
         signal: 'player-death',
@@ -84,8 +94,10 @@ const classicBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   {
     id: classicPluginIds.idiot,
     version: 1,
-    register: ({ roles, rules }) => {
-      roles.register(new IdiotRole())
+    register: ({ endgames, roles, rules }) => {
+      const role = new IdiotRole()
+      roles.register(role)
+      endgames.registerRole(endgameModel(role, { traits: { exilePrevention: true } }))
       rules.registerPhaseHandler(
         phase('phase-day-resolve'),
         (runtime) => {
@@ -119,22 +131,28 @@ const classicBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
     },
   },
   rolePlugin(classicPluginIds.guard, () => new GuardRole(), {
-    node: {
-      id: phase('phase-night-guard'),
-      labelKey: 'phases.nightGuard',
-      mode: 'parallel',
-      action: {
-        type: 'night-action',
-        abilityIds: [],
-        capabilityIds: [classicCapabilities.guardProtect],
-        visibility: 'actor',
-      },
-      actorSelector: `capability-alive:${classicCapabilities.guardProtect}`,
-      activeWhen: `capability-active:${classicCapabilities.guardProtect}`,
-      edges: [],
+    endgame: {
+      wolfControl: 'none',
+      traits: { nightProtection: 'no-consecutive-target' },
     },
-    after: null,
-    before: phase('phase-night-wolf-council'),
+    insertion: {
+      node: {
+        id: phase('phase-night-guard'),
+        labelKey: 'phases.nightGuard',
+        mode: 'parallel',
+        action: {
+          type: 'night-action',
+          abilityIds: [],
+          capabilityIds: [classicCapabilities.guardProtect],
+          visibility: 'actor',
+        },
+        actorSelector: `capability-alive:${classicCapabilities.guardProtect}`,
+        activeWhen: `capability-active:${classicCapabilities.guardProtect}`,
+        edges: [],
+      },
+      after: null,
+      before: phase('phase-night-wolf-council'),
+    },
   }),
   {
     id: classicPluginIds.magicMirrorGirl,
@@ -173,8 +191,10 @@ const classicBaseRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
   {
     id: classicPluginIds.whiteWolfKing,
     version: 1,
-    register: ({ events, roles }) => {
-      roles.register(new WhiteWolfKingRole())
+    register: ({ endgames, events, roles }) => {
+      const role = new WhiteWolfKingRole()
+      roles.register(role)
+      endgames.registerRole(endgameModel(role, { wolfControl: 'shared-faction' }))
       events.register({
         pluginId: classicPluginIds.whiteWolfKing,
         eventType: whiteWolfDetonatedEventType,
@@ -198,14 +218,37 @@ export const classicRolePlugins: readonly RulePlugin<RulesetBuilder>[] = [
 function rolePlugin(
   id: (typeof classicPluginIds)[keyof typeof classicPluginIds],
   create: () => import('../../../roles/base.js').Role,
-  insertion?: import('../../../plugins/phase-registry.js').PhaseInsertion,
+  options: {
+    readonly insertion?: import('../../../plugins/phase-registry.js').PhaseInsertion
+    readonly endgame?: EndgameModelInput
+  } = {},
 ): RulePlugin<RulesetBuilder> {
   return {
     id,
     version: 1,
-    register: ({ phases, roles }) => {
-      roles.register(create())
-      if (insertion) phases.insert(insertion)
+    register: ({ endgames, phases, roles }) => {
+      const role = create()
+      roles.register(role)
+      if (options.endgame) endgames.registerRole(endgameModel(role, options.endgame))
+      if (options.insertion) phases.insert(options.insertion)
     },
   }
+}
+
+function endgameModel(
+  role: import('../../../roles/base.js').Role,
+  model: EndgameModelInput,
+): EndgameRoleModel {
+  return {
+    roleId: role.id,
+    materialAbilityIds: role.abilities
+      .filter((ability) => ability.endgameImpact === 'material')
+      .map((ability) => ability.id),
+    wolfControl: 'none',
+    ...model,
+  }
+}
+
+type EndgameModelInput = Omit<EndgameRoleModel, 'roleId' | 'materialAbilityIds' | 'wolfControl'> & {
+  readonly wolfControl?: EndgameRoleModel['wolfControl']
 }

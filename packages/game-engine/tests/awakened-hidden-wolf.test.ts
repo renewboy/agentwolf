@@ -77,15 +77,14 @@ describe('Awakened Hidden Wolf', () => {
       kind: 'wolf-kill',
     }))
     passWitch(engine)
-    expect(engine.state.phaseId).toBe('phase-night-magic-mirror')
+    expect(engine.state.phaseId).toBe('phase-night-awakened-hidden-wolf-learn')
     engine.submit({
       type: 'night-action',
       matchId: engine.state.matchId,
-      actorId: mirrorId,
-      abilityId: magicMirrorAbilityIds.inspect,
-      targetIds: [hiddenWolfId],
+      actorId: hiddenWolfId,
+      abilityId: awakenedHiddenWolfAbilityIds.learn,
+      targetIds: [guardId],
     })
-    expect(engine.state.phaseId).toBe('phase-night-awakened-hidden-wolf-learn')
     expect(
       engine.events.findLast(
         (event) =>
@@ -93,12 +92,13 @@ describe('Awakened Hidden Wolf', () => {
           event.payload.phaseId === 'phase-night-awakened-hidden-wolf-learn',
       )?.visibility,
     ).toEqual({ kind: 'god' })
+    expect(engine.state.phaseId).toBe('phase-night-magic-mirror')
     engine.submit({
       type: 'night-action',
       matchId: engine.state.matchId,
-      actorId: hiddenWolfId,
-      abilityId: awakenedHiddenWolfAbilityIds.learn,
-      targetIds: [guardId],
+      actorId: mirrorId,
+      abilityId: magicMirrorAbilityIds.inspect,
+      targetIds: [hiddenWolfId],
     })
 
     const learned = pluginEvent(engine.events, awakenedHiddenWolfEventTypes.learned)
@@ -173,6 +173,15 @@ describe('Awakened Hidden Wolf', () => {
       kind: 'wolf-kill',
     }))
     passWitch(engine)
+    expect(engine.state.phaseId).toBe('phase-night-awakened-hidden-wolf-learn')
+    engine.submit({
+      type: 'night-action',
+      matchId: engine.state.matchId,
+      actorId: hiddenWolfId,
+      abilityId: awakenedHiddenWolfAbilityIds.learn,
+      targetIds: [hunterId],
+    })
+    expect(engine.state.phaseId).toBe('phase-night-magic-mirror')
     engine.submit({
       type: 'night-action',
       matchId: engine.state.matchId,
@@ -180,13 +189,6 @@ describe('Awakened Hidden Wolf', () => {
       abilityId: magicMirrorAbilityIds.inspect,
       targetIds: [],
       option: 'pass',
-    })
-    engine.submit({
-      type: 'night-action',
-      matchId: engine.state.matchId,
-      actorId: hiddenWolfId,
-      abilityId: awakenedHiddenWolfAbilityIds.learn,
-      targetIds: [hunterId],
     })
     expect(engine.state.phaseId).toBe('phase-sheriff-signup')
     submitExpected(engine, (actorId) => ({

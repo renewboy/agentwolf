@@ -27,6 +27,7 @@ export class WhiteWolfKingRole extends Role {
   public readonly displayNameKey = 'roles.whiteWolfKing'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly sharesFactionKnowledge = true
   public override readonly capabilities = [
     classicCapabilities.wolfCouncil,
@@ -36,6 +37,7 @@ export class WhiteWolfKingRole extends Role {
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: detonateAbilityId,
+      endgameImpact: 'material',
       requiredCapability: classicCapabilities.whiteWolfDetonate,
       actionTypes: ['skill-trigger'],
       validate: (context) => {

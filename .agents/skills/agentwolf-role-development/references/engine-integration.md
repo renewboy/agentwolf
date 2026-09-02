@@ -24,10 +24,12 @@ helper。
 Role 类继承 `packages/game-engine/src/roles/base.ts` 并声明:
 
 - `id`、`displayNameKey`、`faction` 与 `kind`;
+- `endgameModel`,明确该 Role 是终局无物质影响还是由 plugin 提供模型;
 - 仅当该阵营的每个成员都应收到阵营名册时声明 `sharesFactionKnowledge`;
 - 静态 `capabilities`;
-- `abilities`,其中每个 ability 声明其 ID、可选的 required capability、接受的 action 类型、纯
-  校验、结算效果与可选的事件结果。
+- `abilities`,其中每个 ability 声明其 ID、`endgameImpact`、可选的 required capability、接受的
+  action 类型、纯校验、结算效果与可选的事件结果;加入夜间 batch 时还声明
+  `nightResolutionStage`。
 
 ability 的 `validate` 函数在不改变状态的前提下拒绝非法动作形状、目标、时机、先前使用与
 board 策略。其 `effects` 函数发出语义结算效果。其 `outcomes` 函数把已结算结果转译为可见或
@@ -53,20 +55,35 @@ plugin 接入目标版本化 Ruleset manifest。把 Role 专属分支保留在 R
 
 只注册该 Role 需要的扩展点:
 
-| 需求               | Registry 或归属者                                  | 当前示例                                 |
-| ------------------ | -------------------------------------------------- | ---------------------------------------- |
-| Role 与 ability    | `roles.register`                                   | 每个 Role plugin                         |
-| 自有动作阶段       | `phases.insert` 或 `phases.register`               | Seer、Guard、Magic Mirror Girl           |
-| 阶段完成行为       | `rules.registerPhaseHandler`                       | Idiot 与功能性阶段 plugin                |
-| 持久 Role 事件状态 | `events.register`                                  | Magic Mirror Girl、White Wolf King       |
-| 新结算操作         | `resolution.registerEffect` 与可选 finalizer       | synthetic plugin runtime test            |
-| 身份或派生结果     | `queries.register` / `registerModifier`            | classic identity queries                 |
-| 交互式反应         | `triggers.registerDecision`                        | Hunter                                   |
-| 公开阶段 interrupt | 阶段 interrupt capability 加 `interrupts.register` | Werewolf、White Wolf King                |
-| 替代胜利条件       | `victories.register`                               | classic victory 与 synthetic plugin test |
+| 需求               | Registry 或归属者                                  | 当前示例                                   |
+| ------------------ | -------------------------------------------------- | ------------------------------------------ |
+| Role 与 ability    | `roles.register`                                   | 每个 Role plugin                           |
+| 自有动作阶段       | `phases.insert` 或 `phases.register`               | Seer、Guard、Magic Mirror Girl             |
+| 阶段完成行为       | `rules.registerPhaseHandler`                       | Idiot 与功能性阶段 plugin                  |
+| 持久 Role 事件状态 | `events.register`                                  | Magic Mirror Girl、White Wolf King         |
+| 新结算操作         | `resolution.registerEffect` 与可选 finalizer       | synthetic plugin runtime test              |
+| 身份或派生结果     | `queries.register` / `registerModifier`            | classic identity queries                   |
+| 交互式反应         | `triggers.registerDecision`                        | Hunter                                     |
+| 公开阶段 interrupt | 阶段 interrupt capability 加 `interrupts.register` | Werewolf、White Wolf King                  |
+| 替代胜利条件       | `victories.register`                               | classic victory 与 synthetic plugin test   |
+| 狼人必胜影响       | `endgames.registerRole`                            | Witch、Hunter、Cupid、Awakened Hidden Wolf |
 
 每个 plugin config 都有严格 Zod schema。当 plugin 需要另一个已注册语义契约时,以 plugin ID 与
 版本声明依赖。安装顺序是确定性的,语义归属会在 plugin install scope 内自动记录。
+
+### Endgame 模型
+
+`none` 与 `information` ability 不直接改变存活、票权、资源、关系或正式赢家。`material` ability
+必须进入 Role plugin 的 endgame 模型。模型描述狼队协作方式、可造成的淘汰、保护、死亡反应、
+放逐免疫、关系约束或 Role 转换,并覆盖该 Role 的全部 material ability IDs。
+
+`wolf-priority` 夜间 ability 参与保护、狼刀死亡、自动死亡链和正式狼人胜负检查。该检查锁定胜利
+后,`post-wolf-priority` ability 不消费资源也不产生 outcome。新增夜间 ability 必须按这一可观察
+时序分类;Ruleset 构建会拒绝漏分类和放入后置阶段的 `nightAttack`。
+
+模型只提供有限、确定性的规则语义。狼人必胜求解器从狼队可见事件构造观察,未知身份从当前 board
+牌池展开;不要在模型中读取 God-only Role 后把它作为狼队策略输入。新增信息只能收窄相应阵营实际
+可见的 belief。若一种行为尚不能安全建模,应让证明返回无候选,不能用乐观默认值继续。
 
 ### Role 专属阶段
 
@@ -140,6 +157,7 @@ facts 与 finalizer。lane 内排序使用声明的依赖与稳定注册顺序;�
 - 效果排序与全部交互策略;
 - 事件载荷、可见性、reducer 状态与恢复;
 - 存在时的 trigger/interrupt/victory 排序;
+- endgame material 覆盖、隐藏身份分歧、对手反制与无证明路径;
 - 相同种子与动作序列下的确定性 replay。
 
 以 `packages/game-engine/tests/plugin-runtime.test.ts` 作为扩展无需内核改动的证明,以

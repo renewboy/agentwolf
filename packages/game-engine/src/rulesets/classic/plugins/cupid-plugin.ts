@@ -13,6 +13,7 @@ import {
   cupidLinkDataSchema,
   cupidLinkedDeathDataSchema,
   cupidPlayerId,
+  cupidRoleId,
   cupidState,
   cupidStateSchema,
   initialCupidState,
@@ -37,8 +38,15 @@ export const cupidPlugin: RulePlugin<RulesetBuilder> = {
     { id: classicPluginIds.day, version: 3 },
     { id: classicPluginIds.terminal, version: 3 },
   ],
-  register: ({ events, phases, roles, rules, triggers, victories }) => {
-    roles.register(new CupidRole())
+  register: ({ endgames, events, phases, roles, rules, triggers, victories }) => {
+    const role = new CupidRole()
+    roles.register(role)
+    endgames.registerRole({
+      roleId: role.id,
+      wolfControl: 'none',
+      materialAbilityIds: [cupidAbilityIds.link],
+      prepareWerewolfProof: prepareCupidWerewolfProof,
+    })
     events.register({
       pluginId: classicPluginIds.cupid,
       eventType: cupidEventTypes.linked,
@@ -149,6 +157,49 @@ export const cupidPlugin: RulePlugin<RulesetBuilder> = {
       transform: (context, current) => modifyVictory(context.state, current),
     })
   },
+}
+
+function prepareCupidWerewolfProof(
+  context: import('../../../plugins/victory-registry.js').VictoryContext,
+  controlledPlayerIds: ReadonlySet<PlayerId>,
+  current: import('../../../plugins/endgame-registry.js').WerewolfProofPreparation,
+): import('../../../plugins/endgame-registry.js').WerewolfProofPreparation | null {
+  if (!context.board.roles.some((slot) => slot.roleId === cupidRoleId)) return current
+  const loverIds = cupidState(context.state).loverIds
+  if (!loverIds) return null
+  const relationshipVisible = (context.events ?? []).some((event) => {
+    if (
+      event.payload.type !== 'plugin.event' ||
+      event.payload.pluginId !== classicPluginIds.cupid ||
+      (event.payload.eventType !== cupidEventTypes.linked &&
+        event.payload.eventType !== cupidEventTypes.linkedDeath)
+    ) {
+      return false
+    }
+    if (event.visibility.kind === 'public') return true
+    return (
+      event.visibility.kind === 'players' &&
+      event.visibility.playerIds.some((playerId) => controlledPlayerIds.has(playerId))
+    )
+  })
+  if (!relationshipVisible) return null
+
+  const isolatedWolfPossible = current.activeRoleIds.some((roleId) => {
+    const model = context.roles.role(roleId)
+    return model.faction === 'werewolf' && !model.sharesFactionKnowledge
+  })
+  if (isolatedWolfPossible && loverIds.some((playerId) => !controlledPlayerIds.has(playerId))) {
+    return null
+  }
+  const controlledLovers = loverIds.filter((playerId) => controlledPlayerIds.has(playerId)).length
+  const cupidId = cupidPlayerId(context.state)
+  const cupidAlive = cupidId ? context.state.players.get(cupidId)?.alive === true : false
+  const loversAlive = loverIds.every(
+    (playerId) => context.state.players.get(playerId)?.alive === true,
+  )
+  if (controlledLovers === 1 && (cupidAlive || loversAlive)) return null
+  if (controlledLovers === 2) return null
+  return current
 }
 
 function revealLovers(runtime: RuleRuntime): void {

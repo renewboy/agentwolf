@@ -13,6 +13,7 @@ export class WitchRole extends Role {
   public readonly displayNameKey = 'roles.witch'
   public readonly faction = 'village' as const
   public readonly kind = 'god' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly capabilities = [
     classicCapabilities.witchAntidote,
     classicCapabilities.witchPoison,
@@ -20,6 +21,8 @@ export class WitchRole extends Role {
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: antidoteAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.witchAntidote,
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -80,6 +83,8 @@ export class WitchRole extends Role {
     },
     {
       id: poisonAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'post-wolf-priority',
       requiredCapability: classicCapabilities.witchPoison,
       actionTypes: ['night-action'],
       validate: (context) => {

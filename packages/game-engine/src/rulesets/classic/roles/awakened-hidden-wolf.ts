@@ -86,11 +86,14 @@ export class AwakenedHiddenWolfRole extends Role {
   public readonly displayNameKey = 'roles.awakenedHiddenWolf'
   public readonly faction = 'werewolf' as const
   public readonly kind = 'werewolf' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly maximumCount = 1
   public override readonly capabilities = [classicCapabilities.awakenedHiddenWolfLearn] as const
   public readonly abilities: readonly AbilityDefinition[] = [
     {
       id: learnAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.awakenedHiddenWolfLearn,
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -109,6 +112,8 @@ export class AwakenedHiddenWolfRole extends Role {
     },
     {
       id: inspectAbilityId,
+      endgameImpact: 'information',
+      nightResolutionStage: 'post-wolf-priority',
       requiredCapability: classicCapabilities.awakenedHiddenWolfInspect,
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -138,6 +143,8 @@ export class AwakenedHiddenWolfRole extends Role {
     },
     {
       id: poisonAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'post-wolf-priority',
       requiredCapability: classicCapabilities.awakenedHiddenWolfPoison,
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -174,6 +181,8 @@ export class AwakenedHiddenWolfRole extends Role {
     },
     {
       id: shieldAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.awakenedHiddenWolfShield,
       actionTypes: ['night-action'],
       validate: (context) => {
@@ -211,6 +220,8 @@ export class AwakenedHiddenWolfRole extends Role {
     },
     {
       id: killAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.awakenedHiddenWolfKill,
       nightAttack: true,
       actionTypes: ['night-action'],
@@ -235,6 +246,8 @@ export class AwakenedHiddenWolfRole extends Role {
     },
     {
       id: doubleKillAbilityId,
+      endgameImpact: 'material',
+      nightResolutionStage: 'wolf-priority',
       requiredCapability: classicCapabilities.awakenedHiddenWolfDoubleKill,
       nightAttack: true,
       actionTypes: ['night-action'],

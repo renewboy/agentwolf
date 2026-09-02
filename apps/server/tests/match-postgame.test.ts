@@ -20,30 +20,47 @@ describe('match postgame guards', () => {
           ]),
           lastSequence: 10,
         },
-        events: [{ payload: { type: 'match.ended' } }],
+        events: [
+          {
+            payload: {
+              type: 'match.ended',
+              winner: 'village',
+              winningPlayerIds: [first],
+              reason: 'test',
+            },
+          },
+        ],
       },
       board: {},
       repository: { postgameReviews: { createCountdown } },
     }
-    const run = (victory: unknown, events = base.engine.events) =>
+    const run = (winningPlayerIds: readonly string[], events = base.engine.events) =>
       ensurePostgameCountdown({
         ...base,
-        engine: { ...base.engine, events },
-        ruleset: { victories: { evaluate: () => victory }, roles: {} },
+        engine: {
+          ...base.engine,
+          events:
+            events === base.engine.events
+              ? [
+                  {
+                    payload: {
+                      type: 'match.ended',
+                      winner: 'village',
+                      winningPlayerIds,
+                      reason: 'test',
+                    },
+                  },
+                ]
+              : events,
+        },
+        ruleset: { roles: {} },
       } as never)
 
-    expect(() => run(null)).toThrow(/no victory outcome/)
-    expect(() =>
-      run({ winner: 'village', winningPlayerIds: [PlayerIdSchema.parse('player-99')] }),
-    ).toThrow(/outside the Match/)
-    expect(() => run({ winner: 'village', winningPlayerIds: [] })).toThrow(/winning and losing/)
-    expect(() => run({ winner: 'village', winningPlayerIds: [first, second] })).toThrow(
-      /winning and losing/,
-    )
-    expect(() => run({ winner: 'village', winningPlayerIds: [first] }, [])).toThrow(
-      /no match.ended event/,
-    )
-    run({ winner: 'village', winningPlayerIds: [first] })
+    expect(() => run([PlayerIdSchema.parse('player-99')])).toThrow(/outside the Match/)
+    expect(() => run([])).toThrow(/winning and losing/)
+    expect(() => run([first, second])).toThrow(/winning and losing/)
+    expect(() => run([first], [])).toThrow(/no match.ended event/)
+    run([first])
     expect(createCountdown).toHaveBeenCalledWith(
       expect.objectContaining({ winningPlayerIds: [first], losingPlayerIds: [second] }),
     )

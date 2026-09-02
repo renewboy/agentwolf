@@ -45,6 +45,15 @@ export function addAbilityEffects(
   roles: RoleRegistry,
   action: Extract<PlayerAction, { type: 'night-action' | 'skill-trigger' }>,
 ): void {
+  agenda.addAll(abilityEffectsForAction(state, board, roles, action))
+}
+
+export function abilityEffectsForAction(
+  state: GameState,
+  board: BoardManifest,
+  roles: RoleRegistry,
+  action: Extract<PlayerAction, { type: 'night-action' | 'skill-trigger' }>,
+): readonly ResolutionEffect[] {
   const actor = state.players.get(action.actorId)
   assertRule(actor?.roleId, `Action actor ${action.actorId} has no role`)
   const { ability } = roles.ability(action.abilityId)
@@ -58,7 +67,7 @@ export function addAbilityEffects(
   )
   const context = { state, board, roles, action, actor }
   ability.validate(context)
-  agenda.addAll(ability.effects(context))
+  return ability.effects(context)
 }
 
 export function appendAbilityOutcomes(

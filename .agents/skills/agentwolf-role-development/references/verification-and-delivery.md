@@ -14,6 +14,7 @@
 | 结算                            | lane 顺序、交互、链式效果、胜负之前的死亡反应              |
 | Plugin state                    | 严格载荷、reducer 结果、事件可见性、从事件日志恢复         |
 | Query/trigger/interrupt/victory | 资格、否定用例、确定性排序、终局优先级                     |
+| Endgame                         | Role/ability 完整性、可见 belief、合法反制、差分与安全失败 |
 | Prompt                          | 语义归属覆盖、公开/owner 文本、回合契约、私有事实缺席      |
 | Projection                      | 叙述、玩家 ID、cue 映射、未授权视图缺席                    |
 | Effects                         | artifact 契约合规,外加 catalog 或被动覆盖                  |

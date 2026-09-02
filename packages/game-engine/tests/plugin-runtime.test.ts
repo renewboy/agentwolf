@@ -44,10 +44,13 @@ class SyntheticRole extends Role {
   public readonly displayNameKey = 'roles.villager'
   public readonly faction = 'independent' as const
   public readonly kind = 'independent' as const
+  public readonly endgameModel = 'plugin' as const
   public override readonly capabilities = [capabilityId] as const
   public readonly abilities = [
     {
       id: abilityId,
+      endgameImpact: 'material' as const,
+      nightResolutionStage: 'post-wolf-priority' as const,
       requiredCapability: capabilityId,
       actionTypes: ['night-action' as const],
       validate: () => undefined,
@@ -63,6 +66,7 @@ class SyntheticReceiverRole extends Role {
   public readonly displayNameKey = 'roles.villager'
   public readonly faction = 'village' as const
   public readonly kind = 'villager' as const
+  public readonly endgameModel = 'inert' as const
   public readonly abilities = []
 }
 
@@ -87,9 +91,14 @@ describe('ruleset plugin runtime', () => {
       id: pluginId,
       version: 1,
       requires: [{ id: basePlugin.id, version: 1 }],
-      register: ({ events, phases, queries, resolution, roles, triggers, victories }) => {
+      register: ({ endgames, events, phases, queries, resolution, roles, triggers, victories }) => {
         roles.register(new SyntheticRole())
         roles.register(new SyntheticReceiverRole())
+        endgames.registerRole({
+          roleId,
+          wolfControl: 'none',
+          materialAbilityIds: [abilityId],
+        })
         phases.insert({
           node: {
             id: insertedPhaseId,
@@ -259,7 +268,12 @@ describe('ruleset plugin runtime', () => {
       ),
     ).toBe(6)
     expect(
-      runtime.victories.evaluate({ state, board: sixPlayerBoard, roles: runtime.roles }),
+      runtime.victories.evaluate({
+        state,
+        board: sixPlayerBoard,
+        roles: runtime.roles,
+        events: [],
+      }),
     ).toEqual({
       winner: 'independent',
       winningPlayerIds: ['player-1'],

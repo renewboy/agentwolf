@@ -19,7 +19,8 @@ description: 在版本化 Ruleset plugin、Prompt、projection、效果、board�
 2. 检查工作树并保留无关改动。将既有 Match 与 `.agentwolf/` 运行时数据视为只读,除非用户
    显式授权变更。
 3. 写下该 Role 的阵营与种类;时机;合法 actor 与目标;pass 规则;使用次数上限;意图、结果
-   与身份的可见性;与保护、转移、死亡、Sheriff 与胜负的交互;以及是否进入内置 board。
+   与身份的可见性;与保护、转移、死亡、Sheriff、正式胜负和狼人必胜证明的交互;以及是否进入
+   内置 board。
 4. 当上述任一规则变体未指定、且不同选择会改变可观察结果时,在实现前询问用户。不要悄悄
    选择一个民间流变体。
 5. 仅当该 Role 改变难以逆转的架构、隐私、持久数据或共享扩展契约时,才创建 proposed Agent
@@ -52,6 +53,11 @@ board。
   capability、registry、声明的阶段动作与 plugin 持有的语义。
 - 一个 Role plugin 拥有它的 Role、ability、Role 专属阶段、plugin event 与相关语义注册。保持
   版本化 Ruleset manifest 为声明式。
+- 每个 Role 声明 `endgameModel`,每个 ability 声明 `endgameImpact`;material ability 必须由同一
+  Role plugin 注册可组合的 endgame 模型。缺少模型的 Role 不能通过 Ruleset 构建。
+- 加入夜间 batch 的 ability 必须声明 `nightResolutionStage`;狼刀及影响狼刀结果的保护属于
+  `wolf-priority`,毒药、查验等只在狼刀胜负检查未结束 Match 时执行的能力属于
+  `post-wolf-priority`。`nightAttack` 只能声明为 `wolf-priority`。
 - 校验是纯函数。游戏改动以 append-only 事件进入;持久 Role 状态必须能从事件与确定性
   Ruleset 配置重建。
 - Ruleset 使用稳定 family 与整数 revision。已安装 manifest 的语义变更必须递增当前 revision；
@@ -62,5 +68,5 @@ board。
 ## 完成标准
 
 只有当该 Role 可以通过预期的 board 路径被选中、通过真实 action gateway 完成其合法与非法动作、
-能从事件日志恢复、不向未授权视图暴露私有事实、渲染其精确 Prompt 与公开呈现,并通过与其范围
-相称的聚焦、仓库、仿真与浏览器验收时,才算完成。
+能从事件日志恢复、不向未授权视图暴露私有事实、不会让狼人必胜证明使用未授权身份、渲染其精确
+Prompt 与公开呈现,并通过与其范围相称的聚焦、仓库、仿真与浏览器验收时,才算完成。

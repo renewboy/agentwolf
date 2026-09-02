@@ -630,12 +630,14 @@ describe('Cupid victory modifier', () => {
         state: villageState,
         board: noSheriffCupidBoard,
         roles: ruleset.roles,
+        events: goodEngine.events,
       })?.winningPlayerIds,
     ).toContain(goodCupid)
     const wolvesBeatGoodLink = ruleset.victories.evaluate({
       state: withDeadIds(goodEngine.state, actorsWithRole(goodEngine, 'role-villager')),
       board: noSheriffCupidBoard,
       roles: ruleset.roles,
+      events: goodEngine.events,
     })
     expect(wolvesBeatGoodLink?.winner).toBe('werewolf')
     expect(wolvesBeatGoodLink?.winningPlayerIds).not.toContain(goodCupid)
@@ -647,6 +649,7 @@ describe('Cupid victory modifier', () => {
       state: withDeadIds(wolfEngine.state, villagers),
       board: noSheriffCupidBoard,
       roles: ruleset.roles,
+      events: wolfEngine.events,
     })
     expect(wolfVictory?.winner).toBe('werewolf')
     expect(wolfVictory?.winningPlayerIds).toContain(wolfCupid)
@@ -654,6 +657,7 @@ describe('Cupid victory modifier', () => {
       state: withDeadIds(wolfEngine.state, actorsWithRole(wolfEngine, 'role-werewolf')),
       board: noSheriffCupidBoard,
       roles: ruleset.roles,
+      events: wolfEngine.events,
     })
     expect(villageBeatsWolfLink?.winner).toBe('village')
     expect(villageBeatsWolfLink?.winningPlayerIds).not.toContain(wolfCupid)
@@ -675,6 +679,7 @@ describe('Cupid victory modifier', () => {
         state: loversDead,
         board: noSheriffCupidBoard,
         roles: ruleset.roles,
+        events: engine.events,
       }),
     ).toEqual({
       winner: 'independent',
@@ -688,6 +693,7 @@ describe('Cupid victory modifier', () => {
         state: pairAlive,
         board: noSheriffCupidBoard,
         roles: ruleset.roles,
+        events: engine.events,
       })?.winningPlayerIds,
     ).toEqual([...cohort].sort())
 
@@ -697,6 +703,7 @@ describe('Cupid victory modifier', () => {
         state: ordinaryThreshold,
         board: noSheriffCupidBoard,
         roles: ruleset.roles,
+        events: engine.events,
       }),
     ).toBeNull()
 
@@ -708,6 +715,7 @@ describe('Cupid victory modifier', () => {
       state: cohortDead,
       board: noSheriffCupidBoard,
       roles: ruleset.roles,
+      events: engine.events,
     })
     expect(normal?.winner).toBe('village')
     expect(normal?.winningPlayerIds.some((playerId) => cohort.has(playerId))).toBe(false)
@@ -716,6 +724,7 @@ describe('Cupid victory modifier', () => {
       state: withDeadIds(engine.state, [...engine.state.players.keys()]),
       board: noSheriffCupidBoard,
       roles: ruleset.roles,
+      events: engine.events,
     })
     expect(everyoneDead?.winner).toBe('village')
     expect(everyoneDead?.winningPlayerIds.some((playerId) => cohort.has(playerId))).toBe(false)
@@ -736,6 +745,7 @@ describe('Cupid victory modifier', () => {
         state: withDeadIds(engine.state, outsiders),
         board: noSheriffCupidBoard,
         roles: ruleset.roles,
+        events: engine.events,
       }),
     ).toEqual({
       winner: 'independent',
@@ -848,6 +858,7 @@ function completeTerminal(
     roles: ruleset.roles,
     resolution: ruleset.resolution,
     victories: ruleset.victories,
+    pluginEvents: ruleset.events,
     queries: ruleset.queries,
     triggers: ruleset.triggers,
     append: (payload: GameEventPayload, eventVisibility: EventVisibility) => {
