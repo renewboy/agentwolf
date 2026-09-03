@@ -98,6 +98,7 @@ describe('ruleset plugin runtime', () => {
           roleId,
           wolfControl: 'none',
           materialAbilityIds: [abilityId],
+          knowledgeAbilityIds: [],
         })
         phases.insert({
           node: {

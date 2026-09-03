@@ -54,7 +54,9 @@ board。
 - 一个 Role plugin 拥有它的 Role、ability、Role 专属阶段、plugin event 与相关语义注册。保持
   版本化 Ruleset manifest 为声明式。
 - 每个 Role 声明 `endgameModel`,每个 ability 声明 `endgameImpact`;material ability 必须由同一
-  Role plugin 注册可组合的 endgame 模型。缺少模型的 Role 不能通过 Ruleset 构建。
+  Role plugin 注册可组合的 endgame 模型。plugin 模型必须声明 `knowledgeAbilityIds`;狼人 Role 的
+  information ability 必须提供从获授权事件生成的控制组观察。缺少覆盖的 Role 不能通过 Ruleset
+  构建。
 - 加入夜间 batch 的 ability 必须声明 `nightResolutionStage`;狼刀及影响狼刀结果的保护属于
   `wolf-priority`,毒药、查验等只在狼刀胜负检查未结束 Match 时执行的能力属于
   `post-wolf-priority`。`nightAttack` 只能声明为 `wolf-priority`。
@@ -68,5 +70,5 @@ board。
 ## 完成标准
 
 只有当该 Role 可以通过预期的 board 路径被选中、通过真实 action gateway 完成其合法与非法动作、
-能从事件日志恢复、不向未授权视图暴露私有事实、不会让狼人必胜证明使用未授权身份、渲染其精确
-Prompt 与公开呈现,并通过与其范围相称的聚焦、仓库、仿真与浏览器验收时,才算完成。
+能从事件日志恢复、不向未授权视图暴露私有事实、不会让狼人必胜证明跨控制组使用身份知识、渲染
+其精确 Prompt 与公开呈现,并通过与其范围相称的聚焦、仓库、仿真与浏览器验收时,才算完成。

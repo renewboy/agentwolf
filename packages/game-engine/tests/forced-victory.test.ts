@@ -1,8 +1,19 @@
-import { GameEventSchema, PhaseIdSchema, type GameEvent, type PlayerId } from '@agentwolf/contracts'
+import {
+  BoardIdSchema,
+  GameEventSchema,
+  PhaseIdSchema,
+  PluginIdSchema,
+  RoleIdSchema,
+  type GameEvent,
+  type PlayerId,
+} from '@agentwolf/contracts'
 import { describe, expect, it } from 'vitest'
 import {
   createClassicRuleset,
+  awakenedHiddenWolfEventTypes,
   classicCapabilities,
+  classicBoardPolicyDefaults,
+  classicPhaseGraph,
   cupidAbilityIds,
   cupidBoard,
   guardBoard,
@@ -12,7 +23,7 @@ import {
   whiteWolfKingBoard,
   type GameState,
 } from '../src/index.js'
-import { actorsWithRole, createManualEngine } from './helpers.js'
+import { actorsWithRole, createManualEngine, playNight, submitExpected } from './helpers.js'
 
 describe('Werewolf forced victory', () => {
   it('ends before another day when a wolf Sheriff controls every hidden-role continuation', () => {
@@ -284,7 +295,210 @@ describe('Werewolf forced victory', () => {
     ]
     expect(evaluate(state, mirrorHiddenBoard, events)?.reason).toBe('werewolf-forced-win')
   })
+
+  it('uses an Awakened Hidden Wolf learning only inside its isolated control group', () => {
+    const fixture = armedHiddenKnowledgeFixture()
+    expect(evaluate(fixture.state, mirrorHiddenBoard, fixture.events)).toBeNull()
+
+    const learning = hiddenRoleObservation(
+      fixture.state,
+      fixture.hiddenId,
+      fixture.witchId,
+      'role-witch',
+      awakenedHiddenWolfEventTypes.learned,
+      fixture.nextSequence,
+      { night: 2 },
+    )
+    const invisibleLearning: GameEvent = {
+      ...learning,
+      visibility: { kind: 'players', playerIds: [fixture.ordinaryWolfId] },
+    }
+    expect(
+      evaluate(fixture.state, mirrorHiddenBoard, [...fixture.events, invisibleLearning]),
+    ).toBeNull()
+    expect(evaluate(fixture.state, mirrorHiddenBoard, [...fixture.events, learning])).toMatchObject(
+      {
+        winner: 'werewolf',
+        reason: 'werewolf-forced-win',
+      },
+    )
+
+    const ruleset = createClassicRuleset()
+    const context = {
+      state: fixture.state,
+      board: mirrorHiddenBoard,
+      roles: ruleset.roles,
+      events: [...fixture.events, learning],
+    }
+    expect(
+      ruleset.endgames.observeWerewolfKnowledge(context, new Set([fixture.hiddenId])),
+    ).toMatchObject([
+      {
+        observerId: fixture.hiddenId,
+        targetId: fixture.witchId,
+        roleId: 'role-witch',
+      },
+    ])
+    expect(
+      ruleset.endgames.observeWerewolfKnowledge(context, new Set([fixture.ordinaryWolfId])),
+    ).toEqual([])
+  })
+
+  it('uses only the copied Magic Mirror inspection performed by the Awakened Hidden Wolf', () => {
+    const fixture = armedHiddenKnowledgeFixture()
+    const learnedMirror = hiddenRoleObservation(
+      fixture.state,
+      fixture.hiddenId,
+      fixture.mirrorId,
+      'role-magic-mirror-girl',
+      awakenedHiddenWolfEventTypes.learned,
+      fixture.nextSequence,
+      { night: 1 },
+    )
+    expect(
+      evaluate(fixture.state, mirrorHiddenBoard, [...fixture.events, learnedMirror]),
+    ).toBeNull()
+
+    const inspectedWitch = hiddenRoleObservation(
+      fixture.state,
+      fixture.hiddenId,
+      fixture.witchId,
+      'role-witch',
+      awakenedHiddenWolfEventTypes.inspected,
+      fixture.nextSequence + 1,
+    )
+    expect(
+      evaluate(fixture.state, mirrorHiddenBoard, [
+        ...fixture.events,
+        learnedMirror,
+        inspectedWitch,
+      ]),
+    ).toMatchObject({ winner: 'werewolf', reason: 'werewolf-forced-win' })
+  })
+
+  it('ends after exile last words when a slaughter-edge trio has no compatible defense', () => {
+    const board = {
+      id: BoardIdSchema.parse('board-forced-edge-after-exile'),
+      playerCount: 4,
+      reserveCount: 0,
+      roles: [
+        { roleId: RoleIdSchema.parse('role-werewolf'), count: 1 },
+        { roleId: RoleIdSchema.parse('role-villager'), count: 2 },
+        { roleId: RoleIdSchema.parse('role-seer'), count: 1 },
+      ],
+      sheriff: false,
+      policies: { ...classicBoardPolicyDefaults, victory: 'slaughter-edge' as const },
+      phases: classicPhaseGraph,
+    }
+    const engine = createManualEngine(board)
+    engine.start()
+    playNight(engine, { wolfTargetId: null })
+    const exiledId = actorsWithRole(engine, 'role-villager')[0]!
+    while (engine.state.phaseId === 'phase-day-speech') {
+      const actorId = engine.activeActor()
+      if (!actorId) throw new Error('Expected a day speaker')
+      engine.submit({
+        type: 'speech',
+        matchId: engine.state.matchId,
+        actorId,
+        kind: 'day',
+        text: '结束发言。',
+      })
+    }
+    submitExpected(engine, (actorId) => ({
+      type: 'vote',
+      matchId: engine.state.matchId,
+      actorId,
+      targetId: exiledId,
+      kind: 'exile',
+    }))
+    expect(engine.state.phaseId).toBe('phase-last-words')
+    engine.submit({
+      type: 'speech',
+      matchId: engine.state.matchId,
+      actorId: exiledId,
+      kind: 'last-words',
+      text: '遗言结束。',
+    })
+
+    expect(engine.state.phaseId).toBe('phase-match-ended')
+    expect(
+      engine.events.findLast((event) => event.payload.type === 'match.ended')?.payload,
+    ).toMatchObject({ winner: 'werewolf', reason: 'werewolf-forced-win' })
+    expect(
+      engine.events.flatMap((event) =>
+        event.payload.type === 'night.started' ? [event.payload.night] : [],
+      ),
+    ).toEqual([1])
+  })
 })
+
+function armedHiddenKnowledgeFixture() {
+  const engine = createManualEngine(mirrorHiddenBoard)
+  engine.start()
+  const hiddenId = actorsWithRole(engine, 'role-awakened-hidden-wolf')[0]!
+  const ordinaryWolfId = actorsWithRole(engine, 'role-werewolf')[0]!
+  const villagerId = actorsWithRole(engine, 'role-villager')[0]!
+  const witchId = actorsWithRole(engine, 'role-witch')[0]!
+  const mirrorId = actorsWithRole(engine, 'role-magic-mirror-girl')[0]!
+  const base = materialState(engine.state, new Set([hiddenId, villagerId, witchId]), {
+    phaseId: 'phase-night-awakened-hidden-wolf-attack',
+    sheriffId: null,
+  })
+  const hidden = base.players.get(hiddenId)!
+  const state: GameState = {
+    ...base,
+    players: new Map(base.players).set(hiddenId, {
+      ...hidden,
+      roleState: {
+        ...hidden.roleState,
+        capabilities: new Set([
+          ...hidden.roleState.capabilities,
+          classicCapabilities.awakenedHiddenWolfKill,
+        ]),
+      },
+    }),
+  }
+  let nextSequence = engine.events.at(-1)?.sequence ?? 0
+  const events = [...engine.events]
+  for (const player of state.players.values()) {
+    if (player.alive) continue
+    events.push(publicRoleReveal(state, player.id, player.roleId!, ++nextSequence))
+  }
+  return {
+    state,
+    events,
+    hiddenId,
+    ordinaryWolfId,
+    witchId,
+    mirrorId,
+    nextSequence: nextSequence + 1,
+  }
+}
+
+function hiddenRoleObservation(
+  state: GameState,
+  actorId: PlayerId,
+  targetId: PlayerId,
+  roleId: string,
+  eventType: (typeof awakenedHiddenWolfEventTypes)[keyof typeof awakenedHiddenWolfEventTypes],
+  sequence: number,
+  extra: Record<string, number> = {},
+): GameEvent {
+  return GameEventSchema.parse({
+    matchId: state.matchId,
+    sequence,
+    occurredAt: '2026-09-03T00:00:00.000Z',
+    visibility: { kind: 'players', playerIds: [actorId] },
+    payload: {
+      type: 'plugin.event',
+      pluginId: PluginIdSchema.parse('plugin-role-awakened-hidden-wolf'),
+      eventType,
+      schemaVersion: 1,
+      data: { actorId, targetId, roleId, ...extra },
+    },
+  })
+}
 
 function evaluate(state: GameState, board: typeof standardBoard, events: readonly GameEvent[]) {
   const ruleset = createClassicRuleset()

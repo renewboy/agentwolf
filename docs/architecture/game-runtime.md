@@ -69,7 +69,7 @@ flowchart LR
 | `ResolutionRegistry`  | effect lane、同 lane 顺序、动态入队与 finalizer 合并                                                                                 | abilities 产生的 effects → `ResolutionResult`             |
 | plugin event registry | typed plugin state 的 schema 与 reducer                                                                                              | `plugin.event` → plugin state 分片                        |
 | victory registry      | 基础 evaluator 的一致性、有序 modifier 与明确获胜 Player IDs                                                                         | 终局上下文 → 唯一 victory candidate                       |
-| endgame registry      | Role 物质语义完整性、狼队 belief states 与确定性必胜证明                                                                             | 可见事件 + board + Role 模型 → 可选狼人终局候选           |
+| endgame registry      | Role 物质/信息语义完整性、控制组可见观察、狼队 belief states 与确定性必胜证明                                                        | 可见事件 + board + Role 模型 → 可选狼人终局候选           |
 | event reducer         | 从领域事件重建所有核心与 plugin 状态                                                                                                 | 旧 GameState + GameEvent → 新 GameState                   |
 
 ## Ruleset 组合与锁定
@@ -265,7 +265,8 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
   action validators、triggers、interrupts 或 victory modifier；跨层实现使用
   [Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md)。
 - 每个 Role 显式声明 `endgameModel`;每个 ability 声明 `endgameImpact`。material ability 由同一
-  Role plugin 注册完整 endgame 模型,信息型或被动行为也必须显式分类。
+  Role plugin 注册完整 endgame 模型。plugin 模型声明 `knowledgeAbilityIds`;information ability
+  必须由同一模型覆盖,身份观察必须指向控制组成员实际可见的来源事件。
 - 加入夜间 batch 的 ability 声明 `nightResolutionStage`;所有 `nightAttack` 必须属于
   `wolf-priority`,后序能力属于 `post-wolf-priority`。
 - 新共享机制进入最窄 registry；只在多个插件需要同一契约时扩展通用类型。
@@ -279,8 +280,8 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 ## 故障与验证边界
 
 - plugin 版本、依赖、配置、语义所有权或 phase 图非法时，Ruleset 构建失败。
-- Role 缺少 endgame 声明、material ability 未被模型覆盖、夜间阶段缺失或模型引用未知 Role 时,
-  Ruleset 构建失败。
+- Role 缺少 endgame 声明、material/information ability 未被模型覆盖、知识观察缺失、夜间阶段缺失或
+  模型引用未知 Role 时,Ruleset 构建失败。
 - snapshot revision 不是当前值或 fingerprint 不匹配时，server 拒绝执行该 Match。
 - 输入 schema、actor、phase、ability 或目标非法时，动作在任何事件产生前失败。
 - 未知 effect、effect 顺序环、队列超限、phase drive 超限或冲突 victory candidates 作为规则错误上抛，
@@ -296,6 +297,8 @@ trajectory 或浏览器状态。完成赛后流程的 Match 使用规则无关�
 - PhaseNode 是 actor、action、visibility、interrupt 和控制流的语义来源。
 - 自动死亡反应先形成稳定死亡批次；狼刀胜负锁关闭该批次后的交互式死亡技能窗口。
 - 正式胜负优先于狼人必胜证明;第三方和 Village 不产生提前终局候选。
+- 普通狼队与隔离狼分别构建 belief;私有身份观察只进入观察者所属控制组,统一策略以 Player ID
+  作用于全部不可区分世界。
 - Ability 产生 effects，ResolutionRegistry 结算共享交互，Role plugin 产生其 outcomes。
 - 只有 Catalog 表中的当前 Ruleset revision 具有执行能力；终局历史由只读 archive 承载。
 - 引擎只声明 visibility；server projection 才是外部消费者的保密边界。

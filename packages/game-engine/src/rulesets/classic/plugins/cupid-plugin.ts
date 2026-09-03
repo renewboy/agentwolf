@@ -45,6 +45,7 @@ export const cupidPlugin: RulePlugin<RulesetBuilder> = {
       roleId: role.id,
       wolfControl: 'none',
       materialAbilityIds: [cupidAbilityIds.link],
+      knowledgeAbilityIds: [],
       prepareWerewolfProof: prepareCupidWerewolfProof,
     })
     events.register({

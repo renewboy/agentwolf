@@ -31,7 +31,7 @@ game-engine 拥有纯规则计算和终局顺序。server 负责持久化事件�
 | `TriggerRegistry`               | Ruleset               | 展开自动死亡链，并在稳定死亡后提供交互式死亡技能             |
 | `VictoryRegistry`               | Ruleset               | 先运行正式 evaluators/modifiers，再运行狼人 forced evaluator |
 | 狼刀胜负锁                      | Victory plugin state  | 固定狼刀检查点得到的狼人候选，供后续 phase 与 replay 复用    |
-| `EndgameRegistry`               | Role plugins          | 校验 Role 模型、物质能力覆盖与夜间结算阶段声明               |
+| `EndgameRegistry`               | Role plugins          | 校验 Role 模型、物质/信息能力覆盖与控制组可见观察            |
 | `match.ended`                   | terminal phase        | 固定终局三元组并启动最终身份揭示                             |
 | foundation system prompt        | Prompt runtime        | 向每位玩家注入当前平票与狼刀在先规则                         |
 
@@ -161,11 +161,19 @@ Village、Cupid 第三方及其他阵营只使用正式胜负条件。它们的�
 
 普通狼队从狼阵营名册获得共享成员。只有存活、共享阵营知识且在全部兼容 belief 中保持狼人目标的
 成员属于同一控制组。Awakened Hidden Wolf 不共享普通狼队名册，只在自身已知攻击能力可用时形成
-独立控制组。
+单人控制组。普通狼队与该单人控制组分别求解，任一组都不能使用另一组的身份知识、私密行动或
+协作能力。
 
 求解器只读取 public 事件、控制组成员获授权的 players/faction 事件、自身 Role、公开 Role reveal、
-Idiot 翻牌和控制组可见的 Role 转换。玩家发言中的身份声称不收窄 belief。未知 Role、Potion 余量、
-情侣关系、Thief 底牌和动态能力从冻结牌池展开为全部兼容状态。
+Idiot 翻牌和控制组可见的 Role 转换。Role plugin 可以把获授权的私有事件贡献为带 observer、目标
+Player ID、Role 与事件序号的身份观察；Registry 验证 observer 属于当前控制组，且该成员确实可以
+看到来源事件。玩家发言中的身份声称不收窄 belief。未知 Role、Potion 余量、情侣关系、Thief
+底牌和动态能力从冻结牌池展开为全部兼容状态。
+
+Awakened Hidden Wolf 的一次学习结果只收窄其单人 belief。学习 Magic Mirror Girl 只授予复制能力，
+不会使其看到原 Magic Mirror Girl 的查验；由 Awakened Hidden Wolf 自己执行的复制查验结果才作为
+该单人控制组的新观察。即使观察确认某名玩家是普通 Werewolf，知识仍是单向的，不会把两个控制组
+合并。
 
 Cupid 与 Thief plugin 可以收紧或拒绝 proof preparation。关系不可见、存活人狼恋会改变狼队目标、
 Thief 选择不可见、隔离狼控制关系不确定或最终赢家 IDs 可能不同，都会返回无证明。
@@ -182,14 +190,15 @@ flowchart LR
     Search -->|分歧 / 循环 / 超限| Continue["继续对局"]
 ```
 
-搜索状态保留存活狼数、对手票权、Sheriff 归属、投票轮次、下一物质窗口和 Role 模型声明的资源。
-白天严格执行首轮投票与 PK 复投；夜间先处理狼刀保护，再检查狼刀是否已经达到正式屠边/屠城，
-只有尚未达到时才把毒药和 Hunter 开枪作为反制继续搜索。Guard 的连续目标限制、Witch 每夜用药、
-Idiot 放逐免疫与 Sheriff 票权都进入状态转换。
+每个 belief 由一组兼容世界组成。世界保留每名存活玩家的 Player ID、可能 Role、票权、Sheriff
+归属、下一物质窗口和 Role 模型声明的资源。白天严格执行首轮投票与 PK 复投；夜间先处理狼刀
+保护，再检查狼刀是否已经达到正式屠边/屠城，只有尚未达到时才把毒药和 Hunter 开枪作为反制继续
+搜索。Guard 的连续目标限制、Witch 每夜用药、Idiot 放逐免疫与 Sheriff 票权都进入状态转换。
 
-狼方必须使用一套对不可区分状态都合法的策略，其他玩家的合法选择按最不利联合反制处理。状态
-规范化、memoization 和 50,000 belief-node 上限保证确定性。循环、多个当前模型无法分类的资源、
-未知 material 行为、候选冲突或节点超限都返回无证明，对局继续。
+狼方在一个 belief 中必须选择对全部兼容世界都合法的同一个 Player ID。其他玩家的合法选择按最
+不利联合反制处理；公开死亡、翻牌、票权或 Sheriff 结果把后继世界按控制组可见观察重新分区，后续
+策略只能依据该观察调整。状态规范化、memoization 和 50,000 belief-node 上限保证确定性。循环、
+多个当前模型无法分类的资源、未知 material 行为、候选冲突或节点超限都返回无证明，对局继续。
 
 ## 终局顺序
 
@@ -212,19 +221,24 @@ Role plugin 拥有的终局揭示事件。
 ## Role 扩展门禁
 
 每个 Role 必须声明 `endgameModel: inert | plugin`，每个 Ability 必须声明
-`endgameImpact: none | information | material`。加入夜间 batch 的 Ability 还必须声明
-`nightResolutionStage`。以下情况在 Ruleset 构建时失败：
+`endgameImpact: none | information | material`。每个 plugin endgame model 还必须声明
+`knowledgeAbilityIds`；产生身份知识的 material Ability 同时出现在 material 与 knowledge 集合中。
+加入夜间 batch 的 Ability 还必须声明 `nightResolutionStage`。以下情况在 Ruleset 构建时失败：
 
 - plugin Role 缺少 endgame model；
 - inert Role 声明 material Ability；
 - model 的 material Ability IDs 与 Role 定义不一致；
+- 狼人 Role 以 inert 模型声明 information Ability；
+- plugin Role 的 information Ability 未进入 knowledge 集合；
+- knowledge 集合重复、引用无效 Ability，或缺少观察器；
 - model 引用未安装 Role；
 - 夜间 batch Ability 缺少阶段；
 - `nightAttack` 未处于 `wolf-priority`。
 
-Role 模型只描述狼方证明所需的有限物质语义，例如控制关系、药物、保护、死亡技能与放逐免疫。
-新增 Role 需要用 differential 测试证明模型与真实 effect、trigger、event reducer 和 restore 行为一致。
-具体流程由[Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md)拥有。
+Role 模型只描述狼方证明所需的有限语义，例如控制关系、控制组可见身份观察、药物、保护、死亡
+技能与放逐免疫。观察器必须从事件流产生知识，不能读取 God-only 当前 Role 后直接返回。新增 Role
+需要用 differential 测试证明模型与真实 effect、trigger、event reducer、visibility 和 restore 行为
+一致。具体流程由[Role 开发 Skill](../../.agents/skills/agentwolf-role-development/SKILL.md)拥有。
 
 ## Prompt、恢复与下游消费
 
@@ -252,6 +266,8 @@ cache 不持久化；同一事件前缀再次评估会得到同一候选。postg
 - 狼刀已经形成狼人正式胜利时，毒药与交互式死亡技能不能逆转终局；
 - 正式胜负先于狼人必胜证明，只有狼人阵营产生 forced candidate；
 - 狼方证明不读取其不可见的 Role、Potion、情侣或底牌；
+- 普通狼队与隔离狼分别拥有 belief；私有观察不能跨控制组传播；
+- 同一 belief 中的狼方动作以 Player ID 统一，不能按隐藏 Role 选择不同席位；
 - 无证明等价于继续游戏，不能降级为人数或票数阈值；
 - `winningPlayerIds` 是 postgame 与 archive 的唯一赢家来源；
 - belief 与搜索 cache 不进入事件日志、Prompt、投影或持久化。

@@ -244,11 +244,16 @@ function endgameModel(
     materialAbilityIds: role.abilities
       .filter((ability) => ability.endgameImpact === 'material')
       .map((ability) => ability.id),
+    knowledgeAbilityIds: [],
     wolfControl: 'none',
     ...model,
   }
 }
 
-type EndgameModelInput = Omit<EndgameRoleModel, 'roleId' | 'materialAbilityIds' | 'wolfControl'> & {
+type EndgameModelInput = Omit<
+  EndgameRoleModel,
+  'roleId' | 'materialAbilityIds' | 'knowledgeAbilityIds' | 'wolfControl'
+> & {
   readonly wolfControl?: EndgameRoleModel['wolfControl']
+  readonly knowledgeAbilityIds?: EndgameRoleModel['knowledgeAbilityIds']
 }

@@ -51,6 +51,8 @@ const queryType = QueryTypeSchema.parse('query-test-registry')
 const roleId = RoleIdSchema.parse('role-test-registry')
 const inertRoleId = RoleIdSchema.parse('role-test-inert')
 const abilityId = AbilityIdSchema.parse('ability-test-registry')
+const informationRoleId = RoleIdSchema.parse('role-test-information')
+const informationAbilityId = AbilityIdSchema.parse('ability-test-information')
 const capabilityId = CapabilityIdSchema.parse('capability-test-registry')
 const phaseA = PhaseIdSchema.parse('phase-test-a')
 const phaseB = PhaseIdSchema.parse('phase-test-b')
@@ -103,6 +105,24 @@ class InertMaterialRole extends Role {
   ]
 }
 
+class InformationRole extends Role {
+  public readonly id = informationRoleId
+  public readonly displayNameKey = 'roles.test'
+  public readonly faction = 'werewolf' as const
+  public readonly kind = 'werewolf' as const
+  public readonly endgameModel = 'plugin' as const
+  public readonly abilities: readonly AbilityDefinition[] = [
+    {
+      id: informationAbilityId,
+      endgameImpact: 'information',
+      nightResolutionStage: 'post-wolf-priority',
+      actionTypes: ['night-action'],
+      validate: () => undefined,
+      effects: () => [],
+    },
+  ]
+}
+
 function engineRuntime() {
   const engine = createManualEngine(standardBoard)
   const ruleset = createClassicRuleset()
@@ -137,14 +157,25 @@ describe('small registries', () => {
       roleId,
       wolfControl: 'none',
       materialAbilityIds: [abilityId],
+      knowledgeAbilityIds: [],
     })
     expect(() => endgames.validate(roles)).not.toThrow()
     expect(() =>
-      endgames.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [abilityId] }),
+      endgames.registerRole({
+        roleId,
+        wolfControl: 'none',
+        materialAbilityIds: [abilityId],
+        knowledgeAbilityIds: [],
+      }),
     ).toThrow(/Duplicate endgame model/)
 
     const incomplete = new EndgameRegistry()
-    incomplete.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [] })
+    incomplete.registerRole({
+      roleId,
+      wolfControl: 'none',
+      materialAbilityIds: [],
+      knowledgeAbilityIds: [],
+    })
     expect(() => incomplete.validate(roles)).toThrow(/coverage is incomplete/)
 
     const inertRoles = new RoleRegistry()
@@ -154,13 +185,23 @@ describe('small registries', () => {
     const missingStageRoles = new RoleRegistry()
     missingStageRoles.register(new TestRole(true, null))
     const missingStage = new EndgameRegistry()
-    missingStage.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [abilityId] })
+    missingStage.registerRole({
+      roleId,
+      wolfControl: 'none',
+      materialAbilityIds: [abilityId],
+      knowledgeAbilityIds: [],
+    })
     expect(() => missingStage.validate(missingStageRoles)).toThrow(/requires a resolution stage/)
 
     const lateAttackRoles = new RoleRegistry()
     lateAttackRoles.register(new TestRole(true, 'post-wolf-priority', true))
     const lateAttack = new EndgameRegistry()
-    lateAttack.registerRole({ roleId, wolfControl: 'none', materialAbilityIds: [abilityId] })
+    lateAttack.registerRole({
+      roleId,
+      wolfControl: 'none',
+      materialAbilityIds: [abilityId],
+      knowledgeAbilityIds: [],
+    })
     expect(() => lateAttack.validate(lateAttackRoles)).toThrow(/must resolve in the wolf-priority/)
 
     const unknown = new EndgameRegistry()
@@ -168,8 +209,42 @@ describe('small registries', () => {
       roleId: RoleIdSchema.parse('role-test-unknown-model'),
       wolfControl: 'none',
       materialAbilityIds: [],
+      knowledgeAbilityIds: [],
     })
     expect(() => unknown.validate(new RoleRegistry())).toThrow(/unknown role/)
+  })
+
+  it('requires every modeled information ability to provide a visibility-checked observer', () => {
+    const roles = new RoleRegistry()
+    roles.register(new InformationRole())
+
+    const missingCoverage = new EndgameRegistry()
+    missingCoverage.registerRole({
+      roleId: informationRoleId,
+      wolfControl: 'isolated',
+      materialAbilityIds: [],
+      knowledgeAbilityIds: [],
+    })
+    expect(() => missingCoverage.validate(roles)).toThrow(/information ability coverage/)
+
+    const missingObserver = new EndgameRegistry()
+    missingObserver.registerRole({
+      roleId: informationRoleId,
+      wolfControl: 'isolated',
+      materialAbilityIds: [],
+      knowledgeAbilityIds: [informationAbilityId],
+    })
+    expect(() => missingObserver.validate(roles)).toThrow(/require an observer/)
+
+    const complete = new EndgameRegistry()
+    complete.registerRole({
+      roleId: informationRoleId,
+      wolfControl: 'isolated',
+      materialAbilityIds: [],
+      knowledgeAbilityIds: [informationAbilityId],
+      observeWerewolfKnowledge: () => [],
+    })
+    expect(() => complete.validate(roles)).not.toThrow()
   })
 
   it('registers and resolves interrupt handlers with duplicate/unknown protection', () => {

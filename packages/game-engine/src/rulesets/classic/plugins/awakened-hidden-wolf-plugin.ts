@@ -1,4 +1,9 @@
-import { PlayerIdSchema, RoleIdSchema, type PlayerAction } from '@agentwolf/contracts'
+import {
+  PlayerIdSchema,
+  RoleIdSchema,
+  type PlayerAction,
+  type PlayerId,
+} from '@agentwolf/contracts'
 import { z } from 'zod'
 import type { RulePlugin } from '../../../plugins/loader.js'
 import type { RulesetBuilder } from '../../../plugins/ruleset.js'
@@ -67,6 +72,10 @@ export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
         awakenedHiddenWolfAbilityIds.kill,
         awakenedHiddenWolfAbilityIds.doubleKill,
       ],
+      knowledgeAbilityIds: [
+        awakenedHiddenWolfAbilityIds.learn,
+        awakenedHiddenWolfAbilityIds.inspect,
+      ],
       traits: { witchPotions: true, nightProtection: 'single-use' },
       canControlWerewolfProof: (context, playerId) => {
         const player = context.state.players.get(playerId)
@@ -74,6 +83,7 @@ export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
           player && context.roles.hasCapability(player, classicCapabilities.awakenedHiddenWolfKill),
         )
       },
+      observeWerewolfKnowledge: awakenedHiddenWolfKnowledge,
     })
     registerEvents(events)
     registerSelectors(rules)
@@ -92,6 +102,39 @@ export const awakenedHiddenWolfPlugin: RulePlugin<RulesetBuilder> = {
       },
     })
   },
+}
+
+function awakenedHiddenWolfKnowledge(
+  context: import('../../../plugins/victory-registry.js').VictoryContext,
+  controlledPlayerIds: ReadonlySet<PlayerId>,
+): import('../../../plugins/endgame-registry.js').WerewolfRoleObservation[] | null {
+  const observations: import('../../../plugins/endgame-registry.js').WerewolfRoleObservation[] = []
+  for (const event of context.events) {
+    if (
+      event.payload.type !== 'plugin.event' ||
+      event.payload.pluginId !== classicPluginIds.awakenedHiddenWolf
+    ) {
+      continue
+    }
+    const schema =
+      event.payload.eventType === awakenedHiddenWolfEventTypes.learned
+        ? awakenedHiddenWolfEventDataSchemas.learned
+        : event.payload.eventType === awakenedHiddenWolfEventTypes.inspected
+          ? awakenedHiddenWolfEventDataSchemas.inspected
+          : null
+    if (!schema) continue
+    const parsed = schema.safeParse(event.payload.data)
+    if (!parsed.success) return null
+    const { actorId, targetId, roleId } = parsed.data
+    if (!controlledPlayerIds.has(actorId)) continue
+    observations.push({
+      observerId: actorId,
+      targetId,
+      roleId,
+      eventSequence: event.sequence,
+    })
+  }
+  return observations
 }
 
 function registerEvents(events: RulesetBuilder['events']): void {

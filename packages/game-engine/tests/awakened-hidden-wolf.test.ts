@@ -116,6 +116,16 @@ describe('Awakened Hidden Wolf', () => {
     })
 
     const ruleset = createClassicRuleset()
+    const victoryContext = {
+      state: engine.state,
+      board: mirrorHiddenBoard,
+      roles: ruleset.roles,
+      events: engine.events,
+    }
+    expect(
+      ruleset.endgames.observeWerewolfKnowledge(victoryContext, new Set([hiddenWolfId])),
+    ).toMatchObject([{ observerId: hiddenWolfId, targetId: guardId, roleId: 'role-guard' }])
+    expect(ruleset.endgames.observeWerewolfKnowledge(victoryContext, new Set(wolves))).toEqual([])
     const restored = GameEngine.restore({
       matchId: engine.state.matchId,
       board: mirrorHiddenBoard,

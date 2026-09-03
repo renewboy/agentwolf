@@ -37,6 +37,7 @@ export const thiefPlugin: RulePlugin<RulesetBuilder> = {
       roleId: role.id,
       wolfControl: 'none',
       materialAbilityIds: [thiefAbilityIds.chooseCard],
+      knowledgeAbilityIds: [],
       prepareWerewolfProof: prepareThiefWerewolfProof,
     })
     events.register({

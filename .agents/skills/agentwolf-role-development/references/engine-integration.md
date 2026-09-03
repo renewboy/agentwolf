@@ -77,13 +77,19 @@ plugin 接入目标版本化 Ruleset manifest。把 Role 专属分支保留在 R
 必须进入 Role plugin 的 endgame 模型。模型描述狼队协作方式、可造成的淘汰、保护、死亡反应、
 放逐免疫、关系约束或 Role 转换,并覆盖该 Role 的全部 material ability IDs。
 
+plugin endgame model 必须声明 `knowledgeAbilityIds`。狼人 Role 的 information ability 全部进入该
+集合;同时改变能力并提供身份知识的 material ability 同时进入 material 与 knowledge 集合。模型的
+观察器从获授权事件返回 observer、目标 Player ID、Role 与事件序号,不得读取 God-only 当前 Role
+伪造控制组知识。普通狼队和隔离狼的观察分别贡献,不能跨组共享。
+
 `wolf-priority` 夜间 ability 参与保护、狼刀死亡、自动死亡链和正式狼人胜负检查。该检查锁定胜利
 后,`post-wolf-priority` ability 不消费资源也不产生 outcome。新增夜间 ability 必须按这一可观察
 时序分类;Ruleset 构建会拒绝漏分类和放入后置阶段的 `nightAttack`。
 
-模型只提供有限、确定性的规则语义。狼人必胜求解器从狼队可见事件构造观察,未知身份从当前 board
-牌池展开;不要在模型中读取 God-only Role 后把它作为狼队策略输入。新增信息只能收窄相应阵营实际
-可见的 belief。若一种行为尚不能安全建模,应让证明返回无候选,不能用乐观默认值继续。
+模型只提供有限、确定性的规则语义。狼人必胜求解器为每个控制组从可见事件构造观察,以 Player ID
+为键展开当前 board 牌池中的兼容身份世界;同一 belief 中的行动必须选择所有世界都合法的同一
+Player ID。新增信息只能收窄观察者所属控制组的 belief。若一种行为尚不能安全建模,应让证明返回
+无候选,不能用乐观默认值继续。
 
 ### Role 专属阶段
 
@@ -157,7 +163,8 @@ facts 与 finalizer。lane 内排序使用声明的依赖与稳定注册顺序;�
 - 效果排序与全部交互策略;
 - 事件载荷、可见性、reducer 状态与恢复;
 - 存在时的 trigger/interrupt/victory 排序;
-- endgame material 覆盖、隐藏身份分歧、对手反制与无证明路径;
+- endgame material/information 覆盖、控制组私有观察、隐藏身份分歧、统一 Player ID 策略、对手
+  反制与无证明路径;
 - 相同种子与动作序列下的确定性 replay。
 
 以 `packages/game-engine/tests/plugin-runtime.test.ts` 作为扩展无需内核改动的证明,以
