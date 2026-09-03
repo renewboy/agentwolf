@@ -113,8 +113,8 @@ export function MatchMotionController({
       const signals = select('.aw-presence__signal')
       const waveBars = select('.aw-presence__wave > span')
       const playerRings = select('.aw-player-avatar__ring')
-      const thinkingRings = select(
-        '.aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
+      const workingRings = select(
+        '.aw-player-card[data-session="starting"] .aw-player-avatar__ring, .aw-player-card[data-session="syncing"] .aw-player-avatar__ring, .aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
       )
       const continuousMotionTargets = [...orbs, ...signals, ...waveBars, ...playerRings]
       gsap.killTweensOf(continuousMotionTargets)
@@ -152,8 +152,13 @@ export function MatchMotionController({
           ease: 'sine.inOut',
         })
       }
-      if (presenceState === 'thinking' && thinkingRings.length > 0) {
-        gsap.to(thinkingRings, {
+      if (
+        workingRings.length > 0 &&
+        (presenceState === 'thinking' ||
+          presenceState === 'starting' ||
+          presenceState === 'recovering-agents')
+      ) {
+        gsap.to(workingRings, {
           rotate: 360,
           duration: 2.2,
           repeat: -1,

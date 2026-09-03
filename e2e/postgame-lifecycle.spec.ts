@@ -94,7 +94,11 @@ test('receives the countdown and automatic review start over one live connection
   const matchId = 'match-postgame-live-transition-test'
   const base = thinkingMatchFixture()
   const countdown = postgameMatchFixture(base, matchId, 'countdown')
-  const collecting = postgameMatchFixture(base, matchId, 'collecting')
+  const collectingBase = postgameMatchFixture(base, matchId, 'collecting')
+  const collecting = {
+    ...collectingBase,
+    seats: collectingBase.seats.map((seat) => ({ ...seat, sessionStatus: 'thinking' })),
+  } as MatchView
   let current = { ...base, id: matchId } as unknown as MatchView
   let sendLive: (message: unknown) => void = ignoreLiveMessage
   await page.route(`**/api/matches/${matchId}?*`, async (route) => route.fulfill({ json: current }))
@@ -114,6 +118,17 @@ test('receives the countdown and automatic review start over one live connection
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   await expect(page.getByRole('timer')).toHaveCount(0)
   await expect(page.getByText('已完成 0 / 6')).toBeVisible()
+  const reviewingRings = page.locator(
+    '.aw-stage-grid .aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
+  )
+  await expect(reviewingRings).toHaveCount(6)
+  const initialTransform = await reviewingRings
+    .first()
+    .evaluate((element) => getComputedStyle(element).transform)
+  await page.waitForTimeout(180)
+  expect(
+    await reviewingRings.first().evaluate((element) => getComputedStyle(element).transform),
+  ).not.toBe(initialTransform)
   await expect(page.locator('.aw-connection-indicator')).toContainText('实时连接正常')
 })
 

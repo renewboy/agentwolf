@@ -45,7 +45,6 @@ export function createMatchPostgameCoordinator(options: {
   readonly repository: SqliteRepository
   readonly config: ServerConfig
   readonly record: MatchRecord
-  readonly concurrency: number
   readonly playerRuntime: (playerId: PlayerId) => PlayerRuntime | null
   readonly ensurePlayerSessions: () => Promise<void>
   readonly onChanged: () => void
@@ -84,7 +83,6 @@ export function createMatchPostgameCoordinator(options: {
         afterSequence,
       ),
     speechCharacterLimit: options.record.setup.speechCharacterLimit,
-    concurrency: options.concurrency,
     playerRuntime: options.playerRuntime,
     ensurePlayerSessions: options.ensurePlayerSessions,
     onChanged: options.onChanged,

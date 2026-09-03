@@ -125,7 +125,6 @@ function harness(
         narration: [`history ${playerId}`],
       })),
     speechCharacterLimit: 300,
-    concurrency: 2,
     playerRuntime: (playerId) => (runtimes.get(playerId) as never) ?? null,
     ensurePlayerSessions: options.ensurePlayerSessions ?? (async () => undefined),
     onChanged,
@@ -198,6 +197,29 @@ describe('PostgameReviewCoordinator', () => {
     expect(run.repo.listSubmissions(matchId)).toHaveLength(6)
   })
 
+  it('starts every pending review concurrently', async () => {
+    let releaseReviews: () => void = () => {}
+    const reviewGate = new Promise<void>((resolve) => {
+      releaseReviews = resolve
+    })
+    const started: PlayerId[] = []
+    const run = harness({
+      runtimeFactory: (playerId, players) => ({
+        takePostgameReview: vi.fn(async (_envelope, expectation) => {
+          started.push(playerId)
+          await reviewGate
+          expectation.onAccepted(expectation.validate(reviewInput(playerId, players)))
+        }),
+      }),
+    })
+
+    run.coordinator.start()
+    await vi.waitFor(() => expect(started).toHaveLength(run.players.length))
+
+    releaseReviews()
+    await waitForState(run.repo, 'completed')
+  })
+
   it('pauses on unavailable runtimes, session setup failures, and bad public-history bounds', async () => {
     const missing = harness({ runtimeFactory: () => null })
     missing.coordinator.start()
@@ -263,7 +285,6 @@ describe('PostgameReviewCoordinator', () => {
       winnerLabel: 'winner',
       publicHistory: () => ({ fromSequence: 1, toSequence: 10, events: [], narration: [] }),
       speechCharacterLimit: 300,
-      concurrency: 1,
       playerRuntime: () => null,
       ensurePlayerSessions: async () => {
         throw new Error('timer start failed')

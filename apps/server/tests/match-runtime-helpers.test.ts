@@ -19,7 +19,7 @@ import {
   findCommittedSpeech,
   interruptAbilityIdsFor,
   interruptAbilityExpectation,
-  mapWithConcurrency,
+  mapConcurrently,
   reconcileCommittedPendingAction,
   settleActions,
 } from '../src/match-runtime-helpers.js'
@@ -100,15 +100,15 @@ describe('match runtime helpers', () => {
     await expect(settleActions([Promise.resolve(action)])).resolves.toEqual([action])
 
     const visited: number[] = []
-    await mapWithConcurrency([1, 2, 3], 0, async (value) => {
+    await mapConcurrently([1, 2, 3], async (value) => {
       visited.push(value)
     })
     expect(visited.sort()).toEqual([1, 2, 3])
-    await mapWithConcurrency([], 4, async () => {
+    await mapConcurrently([], async () => {
       throw new Error('unreachable')
     })
     await expect(
-      mapWithConcurrency([1, 2], 2, async (value) => {
+      mapConcurrently([1, 2], async (value) => {
         if (value === 2) throw new Error('worker failed')
       }),
     ).rejects.toThrow(/player sessions failed/)

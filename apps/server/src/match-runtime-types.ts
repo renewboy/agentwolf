@@ -21,7 +21,6 @@ export interface MatchRuntimeOptions {
   readonly trajectory: MatchTrajectoryRecorder
   readonly ruleset: RulesetRuntime
   readonly sessionFactory?: PlayerSessionFactory
-  readonly sessionConcurrency?: number
   readonly restored?: boolean
   readonly postgameReviewEnabled?: boolean
   readonly archiveMatch?: (project: (view: SpectatorView) => MatchView) => Promise<void>

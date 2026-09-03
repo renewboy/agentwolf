@@ -86,41 +86,32 @@ export function interruptAbilityIdsFor(
 export async function settleActions(
   promises: readonly Promise<PlayerAction>[],
 ): Promise<PlayerAction[]> {
-  const settled = await Promise.allSettled(promises)
-  const errors = settled
-    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-    .map((result) => result.reason)
-  if (errors.length > 0) throw new AggregateError(errors, 'One or more player turns failed')
-  return settled
-    .filter(
-      (result): result is PromiseFulfilledResult<PlayerAction> => result.status === 'fulfilled',
-    )
-    .map((result) => result.value)
+  return settleOrThrow(promises, 'One or more player turns failed')
 }
 
-export async function mapWithConcurrency<Value>(
+export async function mapConcurrently<Value>(
   values: readonly Value[],
-  concurrency: number,
   operation: (value: Value) => Promise<void>,
 ): Promise<void> {
-  const errors: unknown[] = []
-  let cursor = 0
-  const workers = Array.from(
-    { length: Math.min(Math.max(1, concurrency), values.length) },
-    async () => {
-      for (;;) {
-        const index = cursor++
-        if (index >= values.length) return
-        try {
-          await operation(values[index]!)
-        } catch (error) {
-          errors.push(error)
-        }
-      }
-    },
+  await settleOrThrow(
+    values.map(async (value) => operation(value)),
+    'One or more player sessions failed',
   )
-  await Promise.all(workers)
-  if (errors.length > 0) throw new AggregateError(errors, 'One or more player sessions failed')
+}
+
+async function settleOrThrow<Value>(
+  promises: readonly Promise<Value>[],
+  errorMessage: string,
+): Promise<Awaited<Value>[]> {
+  const settled = await Promise.allSettled(promises)
+  const errors: unknown[] = []
+  const values: Awaited<Value>[] = []
+  for (const result of settled) {
+    if (result.status === 'rejected') errors.push(result.reason)
+    else values.push(result.value)
+  }
+  if (errors.length > 0) throw new AggregateError(errors, errorMessage)
+  return values
 }
 
 export function reconcileCommittedPendingAction(

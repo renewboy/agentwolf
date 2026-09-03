@@ -24,7 +24,7 @@ import {
   describeError,
   hasUncertainDelivery,
   interruptAbilityExpectation,
-  mapWithConcurrency,
+  mapConcurrently,
   reconcileCommittedPendingAction,
 } from './match-runtime-helpers.js'
 import { runMatchTurn } from './match-turn-loop.js'
@@ -160,11 +160,7 @@ export class MatchRuntime {
     if (this.#players.size < this.engine.state.players.size) {
       await this.#startPlayerSessions(this.engine.events)
     }
-    await mapWithConcurrency(
-      [...this.#players.values()],
-      this.#options.sessionConcurrency ?? 4,
-      async (runtime) => runtime.recoverForRetry(),
-    )
+    await mapConcurrently([...this.#players.values()], async (runtime) => runtime.recoverForRetry())
     const pendingIds = [...this.#players.entries()]
       .filter(([, runtime]) => runtime.needsBootstrap)
       .map(([playerId]) => playerId)
@@ -176,9 +172,8 @@ export class MatchRuntime {
       playerCharacters([...this.engine.state.players.values()], this.#options.record.setup.seats),
     )
     await this.#bootstrapPendingPlayerSessions(pendingFoundations)
-    await mapWithConcurrency(
+    await mapConcurrently(
       [...this.#players.values()].filter((runtime) => runtime.bootstrapState === 'dispatched'),
-      this.#options.sessionConcurrency ?? 4,
       async (runtime) =>
         runtime.continueBootstrap(await this.#renderer.bootstrapContinuation(this.engine.state)),
     )
@@ -218,7 +213,7 @@ export class MatchRuntime {
       entries.map((player) => player.id),
       playerCharacters(entries, this.#options.record.setup.seats),
     )
-    await mapWithConcurrency(entries, this.#options.sessionConcurrency ?? 4, async (player) => {
+    await mapConcurrently(entries, async (player) => {
       this.#assertOpen()
       reconcileCommittedPendingAction(this.#options.repository, this.engine, player.id)
       const setup = setupBySeat.get(player.seat)
@@ -294,7 +289,6 @@ export class MatchRuntime {
         .map((player) => player.id),
       players: this.#players,
       renderer: this.#renderer,
-      concurrency: this.#options.sessionConcurrency ?? 4,
       assertOpen: () => this.#assertOpen(),
     })
   }
@@ -345,9 +339,8 @@ export class MatchRuntime {
       ) {
         for (const key of recoveryKeys) this.#automaticRecoveryKeys.add(key)
         try {
-          await mapWithConcurrency(
+          await mapConcurrently(
             failedPlayers.map(([, runtime]) => runtime),
-            this.#options.sessionConcurrency ?? 4,
             async (runtime) => runtime.recoverForRetry(),
           )
           void this.#run()
@@ -578,7 +571,6 @@ export class MatchRuntime {
       repository: this.#options.repository,
       config: this.#options.config,
       record: this.#options.record,
-      concurrency: this.#options.sessionConcurrency ?? 4,
       playerRuntime: (playerId) => this.#players.get(playerId) ?? null,
       ensurePlayerSessions: async () => this.#startPlayerSessions(this.engine.events),
       onChanged: () => this.#scheduleSnapshot(),

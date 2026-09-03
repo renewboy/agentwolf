@@ -1,6 +1,6 @@
 import type { CharacterCardSnapshot, PlayerId } from '@agentwolf/contracts'
 import type { ContextEnvelope, ContextRenderer } from './context-renderer.js'
-import { mapWithConcurrency } from './match-runtime-helpers.js'
+import { mapConcurrently } from './match-runtime-helpers.js'
 import type { PlayerRuntime } from './player-runtime.js'
 
 export async function bootstrapPendingPlayers(options: {
@@ -8,7 +8,6 @@ export async function bootstrapPendingPlayers(options: {
   readonly playerIds: readonly PlayerId[]
   readonly players: ReadonlyMap<PlayerId, PlayerRuntime>
   readonly renderer: ContextRenderer
-  readonly concurrency: number
   readonly assertOpen: () => void
 }): Promise<void> {
   const pending = options.playerIds
@@ -18,7 +17,7 @@ export async function bootstrapPendingPlayers(options: {
       if (!foundation) throw new Error(`Player ${playerId} has no rendered foundation`)
       return { playerId, envelope: options.renderer.bootstrap(foundation) }
     })
-  await mapWithConcurrency(pending, options.concurrency, async ({ playerId, envelope }) => {
+  await mapConcurrently(pending, async ({ playerId, envelope }) => {
     options.assertOpen()
     const runtime = options.players.get(playerId)!
     await runtime.bootstrap(envelope)

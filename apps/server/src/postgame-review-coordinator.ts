@@ -20,7 +20,7 @@ import {
 } from './postgame-review-aggregate.js'
 import type { PostgameReviewSqliteRepository } from './postgame-review-repository.js'
 import { reflectionSequence, type PostgameReviewRecord } from './postgame-review-record.js'
-import { describeError, hasUncertainDelivery, mapWithConcurrency } from './match-runtime-helpers.js'
+import { describeError, hasUncertainDelivery, mapConcurrently } from './match-runtime-helpers.js'
 import type { PlayerRuntime } from './player-runtime.js'
 import type { CommittedSpeechPlaybackItem } from './speech-playback-coordinator.js'
 
@@ -40,7 +40,6 @@ export interface PostgameReviewCoordinatorOptions {
   readonly winnerLabel: string
   readonly publicHistory: (playerId: PlayerId, afterSequence: number) => PublicHistoryCatchup
   readonly speechCharacterLimit: number
-  readonly concurrency: number
   readonly playerRuntime: (playerId: PlayerId) => PlayerRuntime | null
   readonly ensurePlayerSessions: () => Promise<void>
   readonly onChanged: () => void
@@ -131,7 +130,7 @@ export class PostgameReviewCoordinator {
         .map((submission) => submission.reviewerId),
     )
     const pending = eligibility.playerIds.filter((playerId) => !completed.has(playerId))
-    await mapWithConcurrency(pending, this.#options.concurrency, async (playerId) => {
+    await mapConcurrently(pending, async (playerId) => {
       await this.#collectOneReview(record, eligibility, playerId)
     })
     const submissions = this.#options.repository.listSubmissions(this.#options.matchId)

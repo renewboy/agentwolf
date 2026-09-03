@@ -116,7 +116,6 @@ export async function runOrchestrationSimulation(
       trajectory: new TrajectoryService(repository).recorder(simulation.setup.matchId),
       ruleset,
       sessionFactory,
-      sessionConcurrency: simulation.setup.players.length,
       postgameReviewEnabled: false,
     })
     if (

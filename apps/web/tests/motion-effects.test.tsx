@@ -141,6 +141,12 @@ describe('MatchMotionController', () => {
         <div className="aw-player-card" data-session="thinking">
           <span className="aw-player-avatar__ring" />
         </div>
+        <div className="aw-player-card" data-session="starting">
+          <span className="aw-player-avatar__ring" />
+        </div>
+        <div className="aw-player-card" data-session="syncing">
+          <span className="aw-player-avatar__ring" />
+        </div>
         <h2 className="aw-phase-title">Phase</h2>
         <div className="aw-feed-item" data-sequence={lastSequence} />
         <span className="aw-player-crown" />
@@ -179,6 +185,20 @@ describe('MatchMotionController', () => {
     expect(motion.gsap.killTweensOf).toHaveBeenCalled()
     unmount()
     expect(motion.flipGetState).toHaveBeenCalled()
+  })
+
+  it('spins every working player while sessions are starting', () => {
+    render(<Harness presenceState="starting" />)
+    const workingRings = [
+      ...document.querySelectorAll(
+        '.aw-player-card[data-session="starting"] .aw-player-avatar__ring, .aw-player-card[data-session="syncing"] .aw-player-avatar__ring, .aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
+      ),
+    ]
+    expect(workingRings).toHaveLength(3)
+    expect(motion.gsap.to).toHaveBeenCalledWith(
+      workingRings,
+      expect.objectContaining({ rotate: 360, repeat: -1 }),
+    )
   })
 
   it('skips motion for reduced preference, missing roots, phases, and records', () => {

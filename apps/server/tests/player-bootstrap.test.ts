@@ -37,7 +37,6 @@ describe('player foundation bootstrap', () => {
         [playerTwo, acknowledged],
       ]),
       renderer,
-      concurrency: 2,
       assertOpen,
     })
 
@@ -55,10 +54,47 @@ describe('player foundation bootstrap', () => {
           [playerOne, { needsBootstrap: true, bootstrap: vi.fn() } as unknown as PlayerRuntime],
         ]),
         renderer: { bootstrap: vi.fn() } as unknown as ContextRenderer,
-        concurrency: 1,
         assertOpen: vi.fn(),
       }),
     ).rejects.toThrow(/has no rendered foundation/)
+  })
+
+  it('starts every pending bootstrap concurrently', async () => {
+    let releaseBootstraps: () => void = () => {}
+    const bootstrapGate = new Promise<void>((resolve) => {
+      releaseBootstraps = resolve
+    })
+    const playerIds = Array.from({ length: 6 }, (_, index) =>
+      PlayerIdSchema.parse(`player-${index + 1}`),
+    )
+    const started: string[] = []
+    const players = new Map(
+      playerIds.map((playerId) => [
+        playerId,
+        {
+          needsBootstrap: true,
+          bootstrap: async () => {
+            started.push(playerId)
+            await bootstrapGate
+          },
+        } as unknown as PlayerRuntime,
+      ]),
+    )
+    const renderer = {
+      bootstrap: (envelope: ContextEnvelope) => envelope,
+    } as ContextRenderer
+
+    const bootstrapping = bootstrapPendingPlayers({
+      foundations: new Map(playerIds.map((playerId) => [playerId, foundation])),
+      playerIds,
+      players,
+      renderer,
+      assertOpen: vi.fn(),
+    })
+    await vi.waitFor(() => expect(started).toHaveLength(playerIds.length))
+
+    releaseBootstraps()
+    await bootstrapping
   })
 
   it('maps configured characters by player seat', () => {
