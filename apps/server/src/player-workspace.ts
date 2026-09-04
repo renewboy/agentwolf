@@ -1,6 +1,6 @@
 import { access, lstat, mkdir, readdir, readlink, realpath, rm, symlink } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
-import { cleanupPlayerProviderWorkspaces } from '@agentwolf/acp'
+import { cleanupPlayerProviderResources } from '@agentwolf/acp'
 import type { MatchId, PlayerId } from '@agentwolf/contracts'
 
 const playerSkillNames = ['agentwolf-player', 'werewolf-strategy'] as const
@@ -11,7 +11,7 @@ export async function preparePlayerWorkspace(
   playerId: PlayerId,
 ): Promise<string> {
   const sharedSkills = await requireBuiltPlayerSkills(dataDirectory)
-  const workspace = resolve(dataDirectory, 'matches', matchId, 'players', playerId, 'workspace')
+  const workspace = playerWorkspacePath(dataDirectory, matchId, playerId)
   await mkdir(workspace, { recursive: true })
   await Promise.all(
     ['.agents', '.claude', '.trae', '.codebuddy'].map((directory) =>
@@ -19,6 +19,20 @@ export async function preparePlayerWorkspace(
     ),
   )
   return workspace
+}
+
+export function playerWorkspacePath(
+  dataDirectory: string,
+  matchId: MatchId,
+  playerId: PlayerId,
+): string {
+  const playersRoot = resolve(dataDirectory, 'matches', matchId, 'players')
+  const playerRoot = resolve(playersRoot, playerId)
+  const localPath = relative(playersRoot, playerRoot)
+  if (localPath !== playerId || localPath.startsWith('..')) {
+    throw new Error(`Invalid Player workspace path: ${playerRoot}`)
+  }
+  return resolve(playerRoot, 'workspace')
 }
 
 export async function removeMatchPlayerWorkspaces(
@@ -38,7 +52,7 @@ export async function removeMatchPlayerWorkspaces(
       players
         .filter((entry) => entry.isDirectory())
         .map((entry) =>
-          cleanupPlayerProviderWorkspaces(resolve(playersRoot, entry.name, 'workspace')),
+          cleanupPlayerProviderResources(resolve(playersRoot, entry.name, 'workspace')),
         ),
     )
   } catch (error) {

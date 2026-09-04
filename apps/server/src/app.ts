@@ -37,6 +37,10 @@ import { handleMcpRequest } from './mcp.js'
 import { MatchManager, MatchNotFoundError, MatchReadOnlyError } from './match-manager.js'
 import { PostgameReviewConflictError } from './postgame-review-repository.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
+import {
+  defaultPlayerSessionDeleter,
+  type PlayerSessionDeleter,
+} from './player-session-deletion.js'
 import { SqliteRepository } from './repository.js'
 import { SimulationService } from './simulation-service.js'
 import { TrajectoryService } from './trajectory-service.js'
@@ -46,6 +50,7 @@ import { auditTrajectory } from './trajectory-audit.js'
 export interface BuildServerOptions {
   readonly config: ServerConfig
   readonly repository?: SqliteRepository
+  readonly sessionDeleter?: PlayerSessionDeleter
   readonly sessionFactory?: PlayerSessionFactory
   readonly logger?: boolean
 }
@@ -72,6 +77,8 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   boards.backfillMatchSnapshots()
   const trajectories = new TrajectoryService(repository, catalog, options.config.dataDirectory)
   const simulations = new SimulationService(repository, boards, options.config)
+  const sessionDeleter =
+    options.sessionDeleter ?? (options.sessionFactory ? undefined : defaultPlayerSessionDeleter)
   const matches = new MatchManager({
     repository,
     catalog,
@@ -80,6 +87,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     trajectories,
     rulesets,
     config: options.config,
+    ...(sessionDeleter ? { sessionDeleter } : {}),
     ...(options.sessionFactory ? { sessionFactory: options.sessionFactory } : {}),
   })
   const probe = new AgentProbeService(catalog, options.config)

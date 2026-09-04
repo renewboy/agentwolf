@@ -61,6 +61,7 @@ function readStore() {
       configRequests: [],
       newCount: 0,
       resumeCount: 0,
+      deleteCount: 0,
       lastResumeMcpServers: [],
     }
   }
@@ -107,10 +108,15 @@ const app = agent({ name: 'AgentWolf mock agent' })
       process.env.AGENTWOLF_MOCK_PROTOCOL_MISMATCH === 'true'
         ? PROTOCOL_VERSION + 1
         : PROTOCOL_VERSION,
-    agentCapabilities:
-      process.env['AGENTWOLF_MOCK_DISABLE_RESUME'] === 'true'
-        ? {}
-        : { loadSession: true, sessionCapabilities: { resume: {}, close: {} } },
+    agentCapabilities: {
+      ...(process.env['AGENTWOLF_MOCK_DISABLE_RESUME'] === 'true' ? {} : { loadSession: true }),
+      sessionCapabilities: {
+        ...(process.env['AGENTWOLF_MOCK_DISABLE_RESUME'] === 'true' ? {} : { resume: {} }),
+        close: {},
+        list: {},
+        ...(process.env['AGENTWOLF_MOCK_DISABLE_DELETE'] === 'true' ? {} : { delete: {} }),
+      },
+    },
     agentInfo: { name: 'agentwolf-mock', version: '1.0.0' },
   }))
   .onRequest(methods.agent.session.new, () => {
@@ -136,6 +142,20 @@ const app = agent({ name: 'AgentWolf mock agent' })
         ? { model: 'mock-default', reasoningEffort: 'medium' }
         : store.configs[params.sessionId],
     )
+  })
+  .onRequest(methods.agent.session.list, () => {
+    const store = readStore()
+    return {
+      sessions: store.sessions.map((sessionId) => ({ sessionId, cwd: process.cwd() })),
+    }
+  })
+  .onRequest(methods.agent.session.delete, ({ params }) => {
+    const store = readStore()
+    store.sessions = store.sessions.filter((sessionId) => sessionId !== params.sessionId)
+    delete store.configs[params.sessionId]
+    store.deleteCount += 1
+    writeStore(store)
+    return {}
   })
   .onRequest(methods.agent.session.setConfigOption, ({ params }) => {
     const store = readStore()

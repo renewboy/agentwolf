@@ -14,7 +14,7 @@ Match 生命周期需要保证：
 - 领域事件、Session、delivery、postgame 与 trajectory 各自持久，并由明确 repository 拥有；
 - 活跃 GameEngine 和 Agent 进程可以丢弃并从持久边界恢复；
 - 暂停、继续、终局、赛后和删除拥有单向且可检查的状态转换；
-- 删除只影响目标 Match 及其 workspace，不修改共享目录或其他对局；
+- 删除只影响目标 Match、持久 Player Sessions 及其 workspace，不修改共享目录或其他对局；
 - Character 只控制公开呈现，Profile 只选择 Agent 运行配置，二者都不进入规则求值。
 
 `apps/server` 是生命周期组合根。contracts 定义持久/wire schema，game-engine 解释冻结 board，assets
@@ -247,13 +247,20 @@ completed/skipped 是 archive 的生成边界。复盘结果、评分与感想�
 
 ## 删除与资源回收
 
-删除流程先解析精确 Match ID，再执行：
+删除流程先解析精确 Match ID 并冻结现有 Player Session bindings，再执行：
 
 1. 关闭活跃 MatchRuntime、playback、postgame coordinator 与 Player Sessions；
-2. 撤销该 Match 所有 MCP token，关闭 inactive WebSocket connections；
-3. 删除 Match row，让外键 cascade 清理事件、Session、delivery、trajectory、postgame 与 archive；
-4. 校验数据目录下的精确 Match 路径，只递归移除该 Match 的玩家 workspaces；
-5. 从 MatchManager active/inactive maps 移除引用。
+2. 撤销该 Match 所有 MCP token，关闭 inactive WebSocket connections，并移除 active/inactive map 引用；
+3. 按每份 active binding 的冻结 Tool 与 Session ID 清理 Provider Session：支持标准能力时执行
+   `session/list` 归属校验和 `session/delete`，并删除该 Seat 独占的 Match-owned Provider home；
+4. 按宿主 Agent home 批量清理对应 Session 文件、SQLite 关联行、日志与 UI 索引，再清理 detached
+   launch workspace 和数据目录下经过校验的精确 Match workspace；
+5. 删除 Match row，让外键 cascade 清理事件、binding、delivery、trajectory、postgame 与 archive；
+
+宿主清理只接受 Session ID 与 canonical/runtime workspace 同时匹配的记录；其他 Agent Session、凭据和
+共享配置不受影响。Provider Session、宿主 store 或 workspace 清理失败会终止删除，Match row 与所属
+数据库记录保持可发现，使操作者可以重试。已经成功删除的 Session 按幂等缺失处理；数据库 cascade
+不会先于外部持久资源释放。
 
 Agent Tools/Profiles、自定义 boards、Characters、共享玩家 Skill 输出、头像目录和其他 Match 不属于
 删除目标。未知 Match 返回 404，浏览器据此进入不可用终态。

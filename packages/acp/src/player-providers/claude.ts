@@ -12,6 +12,7 @@ export const claudePlayerProvider = definePlayerProvider({
   state: noPlayerProviderState,
   session: {
     approvedToolNames: playerActionToolNames,
+    deletion: 'protocol',
     mcpTransport: 'session',
     resume: 'advertised',
     permissions: 'declared',

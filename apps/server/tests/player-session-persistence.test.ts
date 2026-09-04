@@ -18,7 +18,11 @@ import {
   withPendingPlayerAction,
   withoutPendingPlayerAction,
 } from '../src/player-session-binding.js'
-import { preparePlayerWorkspace, removeMatchPlayerWorkspaces } from '../src/player-workspace.js'
+import {
+  playerWorkspacePath,
+  preparePlayerWorkspace,
+  removeMatchPlayerWorkspaces,
+} from '../src/player-workspace.js'
 import { PlayerSessionSqliteRepository } from '../src/player-session-repository.js'
 
 const roots: string[] = []
@@ -132,6 +136,7 @@ describe('Player workspace links', () => {
       sourceRoot: resolve(process.cwd(), 'packages/assets/player-skills'),
     })
     const workspace = await preparePlayerWorkspace(root, matchId, playerId)
+    expect(workspace).toBe(playerWorkspacePath(root, matchId, playerId))
     const detachedWorkspace = playerIsolationWorkspace(workspace)
     await mkdir(detachedWorkspace, { recursive: true })
     await preparePlayerWorkspace(root, matchId, playerId)
@@ -147,6 +152,9 @@ describe('Player workspace links', () => {
     await expect(lstat(detachedWorkspace)).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(removeMatchPlayerWorkspaces(root, '../escape' as never)).rejects.toThrow(
       /Invalid Match workspace path/,
+    )
+    expect(() => playerWorkspacePath(root, matchId, '../escape' as never)).toThrow(
+      /Invalid Player workspace path/,
     )
   })
 })

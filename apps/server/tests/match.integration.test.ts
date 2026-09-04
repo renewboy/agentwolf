@@ -1,4 +1,4 @@
-import { access, mkdtemp, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import {
@@ -16,6 +16,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { buildServer, type AgentWolfServer } from '../src/app.js'
 import type { ServerConfig } from '../src/config.js'
 import type { PlayerSession, PlayerSessionFactory } from '../src/player-runtime.js'
+import type { PlayerSessionDeleter } from '../src/player-session-deletion.js'
+import { playerWorkspacePath } from '../src/player-workspace.js'
 import { auditTrajectory } from '../src/trajectory-audit.js'
 import {
   scriptedSessionFactory,
@@ -1279,6 +1281,15 @@ describe('match orchestration', () => {
     })
     const sessionFactory: PlayerSessionFactory = async (options) =>
       new BlockingSession(options.playerId, turnStarted)
+    let server!: AgentWolfServer
+    const deletedSessions: string[] = []
+    const sessionDeleter: PlayerSessionDeleter = (inputs) => {
+      for (const input of inputs) {
+        expect(server.repository.getMatch(input.matchId)).not.toBeNull()
+        deletedSessions.push(input.sessionId)
+      }
+      return Promise.resolve()
+    }
     const config: ServerConfig = {
       host: '127.0.0.1',
       port: 4310,
@@ -1290,7 +1301,7 @@ describe('match orchestration', () => {
       developerMode: false,
       publicSpeechInterruptMode: 'legacy',
     }
-    const server = await buildServer({ config, sessionFactory })
+    server = await buildServer({ config, sessionDeleter, sessionFactory })
     openServers.push(server)
     const tool = server.catalog.createTool({
       name: 'Blocking ACP',
@@ -1369,6 +1380,9 @@ describe('match orchestration', () => {
 
     expect(server.repository.getMatch(created.id)).toBeNull()
     expect(server.repository.playerSessions.list(created.id)).toEqual([])
+    expect(deletedSessions).toEqual(
+      Array.from({ length: 6 }, (_value, index) => `blocking-player-${index + 1}`),
+    )
     await expect(access(matchWorkspace)).rejects.toMatchObject({ code: 'ENOENT' })
     expect(
       liveMessages.some(
@@ -1378,6 +1392,76 @@ describe('match orchestration', () => {
           message.data.pausedReason?.includes('Active session disposed'),
       ),
     ).toBe(false)
+  })
+
+  it('retains Match ownership when physical Session deletion fails', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-delete-session-failure-'))
+    temporaryDirectories.push(root)
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory: root,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(root, 'missing-web-dist'),
+      developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
+    }
+    const sessionDeleter: PlayerSessionDeleter = () =>
+      Promise.reject(new Error('simulated physical Session deletion failure'))
+    const server = await buildServer({ config, sessionDeleter })
+    openServers.push(server)
+    const tool = server.catalog.createTool({
+      name: 'Deletion failure ACP',
+      kind: 'custom',
+      command: 'deletion-failure-acp',
+      args: [],
+      environment: {},
+      modelConfigKey: 'model',
+    })
+    const profile = server.catalog.createProfile({
+      name: 'Deletion failure player',
+      toolId: tool.id,
+      model: 'scripted-model',
+      promptTimeoutMs: 5_000,
+      connection: {},
+    })
+    const roles = sixPlayerBoard.roles.flatMap(({ roleId, count }) =>
+      Array.from({ length: count }, () => roleId),
+    )
+    const created = server.matches.createMatch({
+      boardId: sixPlayerBoard.id,
+      roleAssignment: 'manual',
+      seats: roles.map((roleId, index) => ({
+        seat: index + 1,
+        name: `Failure ${index + 1}`,
+        profileId: profile.id,
+        roleId,
+      })),
+    })
+    const playerId = PlayerIdSchema.parse('player-1')
+    server.repository.playerSessions.adopt({
+      matchId: created.id,
+      playerId,
+      profile,
+      tool,
+      sessionGeneration: 1,
+      sessionId: 'session-delete-failure',
+    })
+    const workspace = playerWorkspacePath(root, created.id, playerId)
+    const marker = resolve(workspace, '.provider-homes', 'custom', 'session.jsonl')
+    await mkdir(resolve(workspace, '.provider-homes', 'custom'), { recursive: true })
+    await writeFile(marker, 'SESSION DATA\n', 'utf8')
+
+    await expect(server.matches.deleteMatch(created.id)).rejects.toThrow(
+      /simulated physical Session deletion failure/,
+    )
+    expect(server.repository.getMatch(created.id)).not.toBeNull()
+    expect(server.repository.playerSessions.get(created.id, playerId)?.sessionId).toBe(
+      'session-delete-failure',
+    )
+    await expect(access(marker)).resolves.toBeUndefined()
   })
 
   it('publishes each accepted review sheet before streaming reflections through the speech feed', async () => {

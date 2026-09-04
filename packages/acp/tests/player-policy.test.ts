@@ -29,6 +29,10 @@ describe('game-only player process policy', () => {
       'Skill',
     ])
     expect(providers.get('codex')?.session.permissions).toBe('opaque-mcp')
+    expect(providers.get('codex')?.session.deletion).toBe('protocol')
+    expect(providers.get('claude')?.session.deletion).toBe('protocol')
+    expect(providers.get('trae-cli')?.session.deletion).toBe('owned-state')
+    expect(providers.get('codebuddy')?.session.deletion).toBe('owned-state')
     expect(providers.get('codebuddy')?.session.mcpTransport).toBe('launch')
     expect(providers.get('codebuddy')?.session.resume).toBe('verify')
   })

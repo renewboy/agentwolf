@@ -5,9 +5,13 @@ import { AgentToolSchema } from '@agentwolf/contracts'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   builtInAgentTools,
+  cleanupPlayerProviderResources,
+  defaultPlayerProviderRegistry,
+  deletePlayerProviderSession,
   playerIsolationWorkspace,
   preparePlayerProviderSession,
   removePlayerIsolationWorkspace,
+  resolveLaunchSpec,
 } from '../src/index.js'
 
 const roots: string[] = []
@@ -251,6 +255,77 @@ describe('player provider isolation', () => {
 
     await removePlayerIsolationWorkspace(workspace, isolationRoot)
     await expect(realpath(prepared.cwd)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('physically removes owned Provider Session state without touching host credentials', async () => {
+    const root = await temporaryRoot('agentwolf-provider-session-cleanup-')
+    const workspace = await playerWorkspace(root)
+    const hostHome = resolve(root, 'host-codebuddy')
+    const hostStorage = resolve(hostHome, 'local_storage')
+    const isolationRoot = resolve(root, 'detached')
+    await mkdir(hostStorage, { recursive: true })
+    await writeFile(resolve(hostStorage, 'credential.info'), 'fixture\n', 'utf8')
+    const tool = builtInAgentTools().find((entry) => entry.kind === 'codebuddy')!
+    const prepared = await preparePlayerProviderSession({
+      tool,
+      workspace,
+      modelInstructions: 'PLAYER FOUNDATION',
+      isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
+    })
+    const isolatedHome = resolve(workspace, '.provider-homes', 'codebuddy')
+    await mkdir(resolve(isolatedHome, 'projects', 'player-session'), { recursive: true })
+    await writeFile(
+      resolve(isolatedHome, 'projects', 'player-session', 'session-owned.jsonl'),
+      'SESSION DATA\n',
+      'utf8',
+    )
+
+    await expect(
+      deletePlayerProviderSession({
+        tool,
+        workspace,
+        sessionId: '01a065d0-3333-7333-8333-333333333333',
+        isolation: { hostHomes: { codebuddy: hostHome }, isolationRoot },
+      }),
+    ).resolves.toBe('owned-state-deleted')
+    await expect(lstat(isolatedHome)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(resolve(hostStorage, 'credential.info'), 'utf8')).toBe('fixture\n')
+
+    await cleanupPlayerProviderResources(workspace, { isolation: { isolationRoot } })
+    await expect(lstat(prepared.cwd)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await lstat(workspace)).isDirectory()).toBe(true)
+  })
+
+  it('routes Codex-family host cleanup to each configured Agent home', async () => {
+    const root = await temporaryRoot('agentwolf-provider-host-cleanup-')
+    const workspace = await playerWorkspace(root)
+    const sessionId = '01a065d0-4444-7444-8444-444444444444'
+    for (const input of [
+      { kind: 'codex' as const, id: 'codex', suffix: '' },
+      { kind: 'trae-cli' as const, id: 'trae-cli', suffix: 'cli' },
+    ]) {
+      const hostHome = resolve(root, `host-${input.id}`)
+      const storageRoot = input.suffix ? resolve(hostHome, input.suffix) : hostHome
+      await mkdir(storageRoot, { recursive: true })
+      const index = resolve(storageRoot, 'session_index.jsonl')
+      await writeFile(index, `${JSON.stringify({ id: sessionId })}\n`, 'utf8')
+      const tool = builtInAgentTools().find((entry) => entry.kind === input.kind)!
+      const adapter = defaultPlayerProviderRegistry.resolve(tool)
+
+      await adapter.state.deleteHostSessions([
+        {
+          tool,
+          canonicalWorkspace: workspace,
+          runtimeWorkspace: workspace,
+          baseLaunch: resolveLaunchSpec(tool),
+          isolation: { hostHomes: { [input.id]: hostHome } },
+          modelInstructions: { path: resolve(workspace, 'foundation.md'), text: '' },
+          sessionId,
+        },
+      ])
+
+      expect(await readFile(index, 'utf8')).toBe('')
+    }
   })
 
   it('creates and removes the default detached workspace by its exact Match workspace digest', async () => {

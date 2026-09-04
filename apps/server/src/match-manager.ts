@@ -20,7 +20,8 @@ import { createReadableId } from './ids.js'
 import type { LiveConnection, LiveSubscriber } from './live-hub.js'
 import { MatchRuntime } from './match-runtime.js'
 import type { PlayerSessionFactory } from './player-runtime.js'
-import { removeMatchPlayerWorkspaces } from './player-workspace.js'
+import type { PlayerSessionDeleter } from './player-session-deletion.js'
+import { playerWorkspacePath, removeMatchPlayerWorkspaces } from './player-workspace.js'
 import type { TrajectoryService } from './trajectory-service.js'
 import type { RulesetCatalog } from './ruleset-catalog.js'
 
@@ -50,6 +51,7 @@ export interface MatchManagerOptions {
   readonly rulesets: RulesetCatalog
   readonly config: ServerConfig
   readonly mailbox?: ActionMailbox
+  readonly sessionDeleter?: PlayerSessionDeleter
   readonly sessionFactory?: PlayerSessionFactory
 }
 
@@ -213,6 +215,8 @@ export class MatchManager {
   }
 
   public async deleteMatch(id: MatchId): Promise<void> {
+    if (!this.#options.repository.getMatch(id)) throw new MatchNotFoundError(id)
+    const sessionBindings = this.#options.repository.playerSessions.list(id)
     const runtime = this.#active.get(id)
     if (runtime) {
       await runtime.close()
@@ -220,8 +224,29 @@ export class MatchManager {
     }
     for (const connection of this.#inactiveConnections.get(id) ?? []) connection.close()
     this.#inactiveConnections.delete(id)
-    if (!this.#options.repository.deleteMatch(id)) throw new MatchNotFoundError(id)
+    if (this.#options.sessionDeleter) {
+      await this.#options.sessionDeleter(
+        sessionBindings.flatMap((binding) =>
+          binding.state !== 'active' || !binding.sessionId
+            ? []
+            : [
+                {
+                  cwd: playerWorkspacePath(
+                    this.#options.config.dataDirectory,
+                    binding.matchId,
+                    binding.playerId,
+                  ),
+                  tool: binding.tool,
+                  sessionId: binding.sessionId,
+                  matchId: binding.matchId,
+                  playerId: binding.playerId,
+                },
+              ],
+        ),
+      )
+    }
     await removeMatchPlayerWorkspaces(this.#options.config.dataDirectory, id)
+    if (!this.#options.repository.deleteMatch(id)) throw new MatchNotFoundError(id)
   }
 
   public getMatch(id: MatchId, view: SpectatorView): MatchView {

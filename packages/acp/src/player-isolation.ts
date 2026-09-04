@@ -14,6 +14,8 @@ import { tmpdir } from 'node:os'
 import { dirname, parse, relative, resolve } from 'node:path'
 import type {
   PlayerModelInstructions,
+  PlayerProviderHostSessionDeletionContext,
+  PlayerProviderPreparationContext,
   PlayerProviderStatePolicy,
   PlayerProviderWorkspaceLifecycle,
   PlayerProviderWorkspacePolicy,
@@ -46,8 +48,12 @@ export const canonicalPlayerWorkspace: PlayerProviderWorkspacePolicy = {
 }
 
 export const noPlayerProviderState: PlayerProviderStatePolicy = {
+  key: 'no-player-provider-state',
+  ownsSessionStorage: false,
   environment: () => ({}),
   prepare: () => Promise.resolve(),
+  cleanup: () => Promise.resolve(),
+  deleteHostSessions: () => Promise.resolve(),
 }
 
 export function detachedPlayerWorkspace(
@@ -81,10 +87,20 @@ export interface PlayerProviderHomeOptions {
   readonly hostEnvironmentVariable?: string
   readonly defaultHostHome: () => string
   readonly credentialEntries: readonly string[]
+  readonly deleteHostSessions?: (input: {
+    readonly hostHome: string
+    readonly sessions: readonly {
+      readonly sessionId: string
+      readonly canonicalWorkspace: string
+      readonly runtimeWorkspace: string
+    }[]
+  }) => Promise<void>
 }
 
 export function playerProviderHome(options: PlayerProviderHomeOptions): PlayerProviderStatePolicy {
   return {
+    key: `player-provider-home:${options.id}:${options.directoryName}`,
+    ownsSessionStorage: true,
     environment: (context) => ({
       [options.environmentVariable]: resolve(
         context.canonicalWorkspace,
@@ -98,12 +114,7 @@ export function playerProviderHome(options: PlayerProviderHomeOptions): PlayerPr
         '.provider-homes',
         options.directoryName,
       )
-      const hostEnvironmentVariable = options.hostEnvironmentVariable ?? options.environmentVariable
-      const hostHome = resolve(
-        context.isolation.hostHomes?.[options.id] ??
-          context.baseLaunch.env[hostEnvironmentVariable] ??
-          options.defaultHostHome(),
-      )
+      const hostHome = playerProviderHostHome(options, context)
       await mkdir(isolatedHome, { recursive: true, mode: 0o700 })
       await Promise.all(
         options.credentialEntries.map((entryName) =>
@@ -111,7 +122,45 @@ export function playerProviderHome(options: PlayerProviderHomeOptions): PlayerPr
         ),
       )
     },
+    cleanup: async (context) => {
+      const homesRoot = resolve(context.canonicalWorkspace, '.provider-homes')
+      const ownedHome = resolve(homesRoot, options.directoryName)
+      requireDirectChild(homesRoot, ownedHome)
+      await rm(ownedHome, { recursive: true, force: true })
+    },
+    deleteHostSessions: async (contexts) => {
+      if (!options.deleteHostSessions) return
+      const groups = new Map<string, PlayerProviderHostSessionDeletionContext[]>()
+      for (const context of contexts) {
+        const hostHome = playerProviderHostHome(options, context)
+        const group = groups.get(hostHome) ?? []
+        group.push(context)
+        groups.set(hostHome, group)
+      }
+      for (const [hostHome, sessions] of groups) {
+        await options.deleteHostSessions({
+          hostHome,
+          sessions: sessions.map((session) => ({
+            sessionId: session.sessionId,
+            canonicalWorkspace: session.canonicalWorkspace,
+            runtimeWorkspace: session.runtimeWorkspace,
+          })),
+        })
+      }
+    },
   }
+}
+
+function playerProviderHostHome(
+  options: PlayerProviderHomeOptions,
+  context: PlayerProviderPreparationContext,
+): string {
+  const hostEnvironmentVariable = options.hostEnvironmentVariable ?? options.environmentVariable
+  return resolve(
+    context.isolation.hostHomes?.[options.id] ??
+      context.baseLaunch.env[hostEnvironmentVariable] ??
+      options.defaultHostHome(),
+  )
 }
 
 export async function preparePlayerModelInstructions(

@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import type { McpServer } from '@agentclientprotocol/sdk'
 import { detachedPlayerWorkspace, playerProviderHome } from '../player-isolation.js'
+import { deleteCodeBuddyHostSessions } from '../provider-session-storage.js'
 import { definePlayerProvider, playerActionToolNames } from '../player-provider-contracts.js'
 
 const knowledgeToolNames = ['Read', 'Grep', 'Glob', 'Skill'] as const
@@ -44,9 +45,12 @@ export const codebuddyPlayerProvider = definePlayerProvider({
     environmentVariable: 'CODEBUDDY_CONFIG_DIR',
     defaultHostHome: () => resolve(homedir(), '.codebuddy'),
     credentialEntries: ['local_storage'],
+    deleteHostSessions: ({ hostHome, sessions }) =>
+      deleteCodeBuddyHostSessions({ storageRoot: hostHome, sessions }),
   }),
   session: {
     approvedToolNames: [...playerActionToolNames, ...knowledgeToolNames],
+    deletion: 'owned-state',
     mcpTransport: 'launch',
     resume: 'verify',
     permissions: 'declared',

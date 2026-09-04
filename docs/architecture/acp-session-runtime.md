@@ -16,6 +16,7 @@ ACP Session 运行时遵守以下约束：
 - 未确认的送达不通过重放完整历史或创建新 Session 掩盖；
 - 只恢复受影响玩家，其他玩家的进程、Session、游标和 barrier 状态保持不动；
 - 进程、Session、Prompt 和 Match 关闭均有有界终止路径。
+- 删除 Match 时，每个持久 Session 通过标准协议或独占 Provider state 完成物理清理。
 
 [Agent Arena Core ACP runtime](../../vendor/agent-arena-core/packages/acp-runtime/README.md) 拥有协议、
 进程、Session、permission 与 delivery ledger 原语。[`packages/acp`](../../packages/acp/README.md)
@@ -61,7 +62,7 @@ flowchart LR
 | player-session repository | durable profile/tool snapshot、binding state、Session ID、bootstrap、pending action       | 不启动进程，不解释 ACP response                           |
 | `DeliveryLedger`          | Core 中的 `acknowledgedSequence` 与最多一个 active attempt                                | 不保存 Prompt 文本或游戏动作                              |
 | `ActionMailbox`           | token 绑定、当前 expectation、内存 action handoff                                         | 不成为持久动作所有者；接受回调立即写 repository           |
-| Provider registry/adapter | workspace/state/launch/Session policy 与可执行 spec                                       | 不决定 Match 重试、delivery 或游戏动作                    |
+| Provider registry/adapter | workspace/state/launch/Session policy、删除边界与可执行 spec                              | 不决定 Match 重试、delivery 或游戏动作                    |
 | Core `AcpSession`         | ACP 连接、协议协商、逻辑 Session 操作、单个 active Prompt                                 | 不决定 Match 恢复或替换 Session                           |
 | Core `AgentProcess`       | 子进程组、stderr tail 与 TERM/KILL 关闭                                                   | 不理解协议消息或游戏状态                                  |
 
@@ -253,6 +254,18 @@ Session，并继续当前 action boundary。其他玩家不会收到 foundation 
 
 stderr 只保留有界 tail，并写入当前 trajectory diagnostic；它不进入公开 MatchView。
 
+Match 删除使用独立的持久 Session 删除路径。PlayerRuntime 关闭后，server 依据删除前冻结的 bindings
+重新解析 Provider adapters。声明 `sessionCapabilities.delete` 的 Provider 由短连接 initialize，通过
+`session.list` 校验 Session ID 与 runtime workspace 的归属后执行 `session/delete`；目标已经不存在视为
+幂等成功。Trae、CodeBuddy 等未声明该能力的 Provider 将运行时 Session 状态限制在逐 Seat 独占 home。
+
+协议请求之后，state policy 按宿主 Agent home 合并同一 Match 的 Session IDs。Codex-family store 在
+删除前同时核对线程表、Session JSONL 与 UI catalog 中的 workspace，然后在各 SQLite 数据库内删除精确
+thread ID 的关联行，执行 `secure_delete`、WAL checkpoint 与 `VACUUM`，并移除 JSONL、artifact、lock、
+peer 和索引引用；CodeBuddy 以同样的 ID/owner 边界移除 project Session、trace、log 与 user state。
+ACP `session/delete` 回执本身不代表物理删除完成。目标从 Match-owned state 和已注册宿主 store 同时消失
+才是完成边界；任何所有权冲突或存储失败都会阻止 Match row 删除。
+
 ## 状态、故障与可观测性
 
 | 可观察状态                                                     | 来源                      | 用途                              |
@@ -272,7 +285,10 @@ Prompt timeout 或 cancel 未确认都会以显式 lifecycle/delivery error 上�
 
 - 新 Provider 通过 registry 注册 adapter，adapter 完整定义 workspace/state/launch/Session policy；
   Session factory 不按 Provider kind 分支。新 adapter 必须保持相同 Session、Prompt、permission、
-  stream 和 close 契约。
+  stream、close 和 delete 契约。
+- Provider 必须声明标准 `sessionCapabilities.delete`，或将全部可恢复 Session 数据放入可物理删除的
+  Match-owned
+  state；缺少两种删除边界的 adapter 不能注册。
 - Provider 必须声明 `session.resume`，或由内置适配在 bootstrap 前以新建的同一 Session ID 完成
   一次标准 `session/resume` 验证；恢复路径不使用 `session/load`。
 - Match 级重试、pending action、cursor 与 pause 策略留在 server，不能下沉到 Provider adapter。

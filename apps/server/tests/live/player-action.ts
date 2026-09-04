@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import {
   AcpPlayerSession,
   builtInAgentTools,
-  cleanupPlayerProviderWorkspaces,
+  cleanupPlayerProviderResources,
   defaultPlayerProviderRegistry,
   preparePlayerProviderSession,
   resolveLaunchSpec,
@@ -414,7 +414,7 @@ ${probeSandbox ? sandboxAcceptanceInstruction : ''}`
 } finally {
   await session?.close()
   await server.close()
-  await cleanupPlayerProviderWorkspaces(
+  await cleanupPlayerProviderResources(
     resolve(root, 'matches', matchId, 'players', playerId, 'workspace'),
   )
   await rm(root, { recursive: true, force: true })

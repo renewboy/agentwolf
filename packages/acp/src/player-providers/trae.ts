@@ -1,6 +1,7 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { canonicalPlayerWorkspace, playerProviderHome } from '../player-isolation.js'
+import { deleteCodexFamilyHostSessions } from '../provider-session-storage.js'
 import {
   definePlayerProvider,
   playerActionToolNames,
@@ -96,9 +97,12 @@ export const traePlayerProvider = definePlayerProvider({
     environmentVariable: 'TRAE_HOME',
     defaultHostHome: () => resolve(homedir(), '.trae'),
     credentialEntries: ['cli/auth.json'],
+    deleteHostSessions: ({ hostHome, sessions }) =>
+      deleteCodexFamilyHostSessions({ storageRoot: resolve(hostHome, 'cli'), sessions }),
   }),
   session: {
     approvedToolNames: [...playerActionToolNames, ...playerKnowledgeToolNames],
+    deletion: 'owned-state',
     mcpTransport: 'session',
     resume: 'advertised',
     permissions: 'declared',

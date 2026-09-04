@@ -7,7 +7,8 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 
 - REST 与 WebSocket 路由组装及 schema 校验。
 - Agent Tool/Profile、Character、身份牌池 board、settings 与 Match 目录。
-- 不可变的 Match 设置、活跃运行时编排、恢复、暂停、继续、只读归档与删除。
+- 不可变的 Match 设置、活跃运行时编排、恢复、暂停、继续、只读归档，以及包含持久 Session
+  物理清理的删除。
 - 用于 events、Session 绑定、delivery、复盘与开发者数据的 SQLite schema 与 repository。
 - 可见性安全的视图 projection，以及接入 Core subscription/presentation runtime 的实时连接协调。
 - 玩家绑定的 MCP 动作传输、Prompt 上下文适配与 Session 恢复。
@@ -20,7 +21,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
 
 - `app.ts`:HTTP 与 WebSocket 组装。
 - `repository.ts` 与各聚焦 repository:持久化 SQLite 访问。
-- `match-manager.ts`:Match 创建、查找、恢复与删除。
+- `match-manager.ts`:Match 创建、查找、恢复，以及以 Session/workspace 清理为提交前置条件的删除。
 - `match-runtime.ts`:活跃回合编排与 engine/action 边界。
 - `arena-runtime-context.ts`:组装 AgentWolf GameModule 与 Core Match/Session runtime。
 - `arena-match-turn.ts`:将普通非发言 boundary 交给 Core MatchOrchestrator/ActionGateway。
@@ -31,6 +32,7 @@ Session、MCP 动作、实时 projection、赛后复盘、轨迹诊断与确定�
   controls 适配到 Core live subscription 与 presentation barrier。
 - `mcp.ts`:玩家绑定的结构化动作传输。
 - `player-runtime.ts`:单个逻辑 Session 的 delivery 与恢复。
+- `player-session-deletion.ts`:把冻结 binding 转换为 Provider Session 删除请求。
 - `postgame-review-coordinator.ts`:复盘倒计时、sheets、聚合与反思。
 - `trajectory.ts`:Match Turn 创建、system events、runtime controls 与 revision publication。
 - `trajectory-turn-recorder.ts`:将 AgentWolf schemas/repository 适配到 Core Turn/Record recorder。

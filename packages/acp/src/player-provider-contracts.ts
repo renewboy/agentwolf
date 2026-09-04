@@ -39,6 +39,11 @@ export interface PlayerProviderCleanupContext {
   readonly isolation: PlayerProviderIsolationOptions
 }
 
+export interface PlayerProviderHostSessionDeletionContext extends PlayerProviderPreparationContext {
+  readonly runtimeWorkspace: string
+  readonly sessionId: string
+}
+
 export interface PlayerProviderWorkspaceLifecycle {
   readonly key: string
   cleanup(context: PlayerProviderCleanupContext): Promise<void>
@@ -53,8 +58,12 @@ export interface PlayerProviderWorkspacePolicy {
 }
 
 export interface PlayerProviderStatePolicy {
+  readonly key: string
+  readonly ownsSessionStorage: boolean
   environment(context: PlayerProviderPreparationContext): NodeJS.ProcessEnv
   prepare(context: PlayerProviderPreparationContext): Promise<void>
+  cleanup(context: PlayerProviderCleanupContext): Promise<void>
+  deleteHostSessions(contexts: readonly PlayerProviderHostSessionDeletionContext[]): Promise<void>
 }
 
 export interface PlayerProviderLaunchContext extends PlayerProviderPreparationContext {
@@ -69,6 +78,7 @@ export type PlayerProviderPermissionPolicy = 'declared' | 'opaque-mcp'
 
 export interface PlayerProviderSessionPolicy {
   readonly approvedToolNames: readonly string[]
+  readonly deletion: 'protocol' | 'owned-state'
   readonly mcpTransport: PlayerProviderMcpTransport
   readonly resume: PlayerProviderResumePolicy
   readonly permissions: PlayerProviderPermissionPolicy
@@ -96,6 +106,7 @@ export class PlayerProviderRegistry {
   readonly #byKind = new Map<AgentToolKind, PlayerProviderAdapter>()
   readonly #byTool = new Map<AgentToolId, PlayerProviderAdapter>()
   readonly #adapters = new Map<string, PlayerProviderAdapter>()
+  readonly #statePolicies = new Map<string, PlayerProviderStatePolicy>()
   readonly #workspaceLifecycles = new Map<string, PlayerProviderWorkspaceLifecycle>()
 
   public constructor(adapters: readonly PlayerProviderAdapter[]) {
@@ -104,6 +115,15 @@ export class PlayerProviderRegistry {
         throw new Error(`Duplicate player Provider adapter ${adapter.id}`)
       }
       this.#adapters.set(adapter.id, adapter)
+      const state = adapter.state
+      const registeredState = this.#statePolicies.get(state.key)
+      if (registeredState && registeredState !== state) {
+        throw new Error(`Conflicting player Provider state policy ${state.key}`)
+      }
+      if (adapter.session.deletion === 'owned-state' && !state.ownsSessionStorage) {
+        throw new Error(`Player Provider ${adapter.id} has no owned Session storage to delete`)
+      }
+      this.#statePolicies.set(state.key, state)
       const lifecycle = adapter.workspace.lifecycle
       const registeredLifecycle = this.#workspaceLifecycles.get(lifecycle.key)
       if (registeredLifecycle && registeredLifecycle !== lifecycle) {
@@ -138,5 +158,9 @@ export class PlayerProviderRegistry {
 
   public workspaceLifecycles(): readonly PlayerProviderWorkspaceLifecycle[] {
     return [...this.#workspaceLifecycles.values()]
+  }
+
+  public statePolicies(): readonly PlayerProviderStatePolicy[] {
+    return [...this.#statePolicies.values()]
   }
 }

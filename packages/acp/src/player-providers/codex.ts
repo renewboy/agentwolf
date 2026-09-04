@@ -1,6 +1,7 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { canonicalPlayerWorkspace, playerProviderHome } from '../player-isolation.js'
+import { deleteCodexFamilyHostSessions } from '../provider-session-storage.js'
 import { definePlayerProvider, playerActionToolNames } from '../player-provider-contracts.js'
 import {
   codexPlayerMcpFunctionNames,
@@ -34,9 +35,12 @@ export const codexPlayerProvider = definePlayerProvider({
     environmentVariable: 'CODEX_HOME',
     defaultHostHome: () => resolve(homedir(), '.codex'),
     credentialEntries: ['auth.json'],
+    deleteHostSessions: ({ hostHome, sessions }) =>
+      deleteCodexFamilyHostSessions({ storageRoot: hostHome, sessions }),
   }),
   session: {
     approvedToolNames: playerActionToolNames,
+    deletion: 'protocol',
     mcpTransport: 'session',
     resume: 'advertised',
     permissions: 'opaque-mcp',

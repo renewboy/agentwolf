@@ -12,6 +12,7 @@
 - `PlayerProviderRegistry` 与 Provider adapter 契约，组合 workspace、state、launch 和 Session
   policy。
 - Match-owned Provider home、隔离 launch workspace 与 sandbox 能力声明。
+- capability-gated `session/delete`、Match-owned Provider state 与宿主 Agent store 物理清理。
 - 通用的 delivery-ledger 类型与不确定送达错误。
 - 进程组监督与有界关闭集成。
 
@@ -43,7 +44,7 @@ Prompt,并自行决定该完成属于 supersede、已接受动作还是不确定
 | policy    | 责任                                                             |
 | --------- | ---------------------------------------------------------------- |
 | workspace | 解析 launch 目录，准备 Skill 链接，并按 lifecycle key 去重清理   |
-| state     | 准备 Match-owned Provider home，只引用允许的宿主凭据             |
+| state     | 准备并清理 Match-owned Provider home 与精确宿主 Session 记录     |
 | launch    | 从原始 Tool command/args/environment 生成仅游戏进程配置          |
 | Session   | 声明 MCP 传输方式、可见工具、resume 验证、permission 与 metadata |
 
@@ -51,8 +52,21 @@ Prompt,并自行决定该完成属于 supersede、已接受动作还是不确定
 四类 policy，返回 server 可直接传给 `AcpPlayerSession.start` 的完整 Session spec 与实际生效的
 foundation 文本。server 使用该文本记录 bootstrap trajectory。
 
+`deletePlayerProviderSessions` 按 adapter 声明的策略批量释放持久 Session。支持标准删除的 Provider
+通过短连接执行 `session/list` 归属校验与 `session/delete`；其余 Provider 必须把运行时 Session 存储
+放在独占 state policy 中。随后 state policy 按宿主 home 分组，以冻结 Session ID 和 canonical/runtime
+workspace 双重校验所有权，物理删除宿主 Agent store 中对应的 Session 文件、SQLite 行、日志、索引和
+WAL，并对发生删除的数据库执行 `secure_delete`、checkpoint 与 `VACUUM`。其他 Session 和宿主凭据不在
+清理范围内。
+
+ACP `session/delete` 的 Provider 实现可以只有归档语义，不能单独作为物理删除完成证明。完成边界是
+目标不再存在于 Match-owned state 和已注册的宿主 store；没有标准删除能力且没有独占存储的 adapter
+在注册时被拒绝。
+
 ## 失败行为
 
-协议关闭是有界的。进程监督通过所属进程组逐级升级终止。传输不确定性会报告给 server,而不是通过再创建一个 Session 或重放历史来掩盖。
+协议关闭和删除是有界的。进程监督通过所属进程组逐级升级终止。传输不确定性会报告给 server,
+而不是通过再创建一个 Session 或重放历史来掩盖。持久 Session 删除失败会阻止 Match 数据库记录
+进入已删除状态。
 
 测试使用假的 ACP 进程来获得确定性的协议行为;live adapter smoke 测试仍需凭据,并与无密钥的 CI 分离。
