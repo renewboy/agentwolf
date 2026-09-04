@@ -3,6 +3,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PROTOCOL_VERSION, agent, methods, ndJsonStream } from '@agentclientprotocol/sdk'
 
+const extraModel = process.env.AGENTWOLF_MOCK_EXTRA_MODEL
+const availableModels = ['mock-default', 'mock-model', ...(extraModel ? [extraModel] : [])]
+
 const modelOption = (currentValue = 'mock-default') =>
   process.env.AGENTWOLF_MOCK_MODEL_BOOLEAN === 'true'
     ? {
@@ -24,16 +27,10 @@ const modelOption = (currentValue = 'mock-default') =>
                 {
                   group: 'Models',
                   name: 'Models',
-                  options: [
-                    { value: 'mock-default', name: 'Mock default' },
-                    { value: 'mock-model', name: 'Mock model' },
-                  ],
+                  options: availableModels.map((value) => ({ value, name: value })),
                 },
               ]
-            : [
-                { value: 'mock-default', name: 'Mock default' },
-                { value: 'mock-model', name: 'Mock model' },
-              ],
+            : availableModels.map((value) => ({ value, name: value })),
       }
 
 const reasoningValues = (model) => (model === 'mock-model' ? ['low', 'high'] : ['low', 'medium'])
@@ -123,7 +120,10 @@ const app = agent({ name: 'AgentWolf mock agent' })
     const store = readStore()
     const sessionId = `mock-session-${store.sessions.length + 1}`
     store.sessions.push(sessionId)
-    store.configs[sessionId] = { model: 'mock-default', reasoningEffort: 'medium' }
+    store.configs[sessionId] = {
+      model: process.env.AGENTWOLF_MOCK_CURRENT_MODEL ?? 'mock-default',
+      reasoningEffort: 'medium',
+    }
     store.newCount += 1
     writeStore(store)
     return {
@@ -163,7 +163,7 @@ const app = agent({ name: 'AgentWolf mock agent' })
     if (!config) throw new Error('Unknown session')
     const value = String(params.value)
     if (params.configId === 'model') {
-      if (!['mock-default', 'mock-model'].includes(value)) throw new Error('Unknown model')
+      if (!availableModels.includes(value)) throw new Error('Unknown model')
       config.model = value
       if (!reasoningValues(value).includes(config.reasoningEffort)) {
         config.reasoningEffort = defaultReasoning(value)

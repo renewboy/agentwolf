@@ -178,6 +178,48 @@ describe('AgentProbeService', () => {
     )
     repository.close()
   }, 30_000)
+
+  it('fills Codex Astra reasoning efforts when ACP only reports the configured model', async () => {
+    const dataDirectory = await mkdtemp(resolve(tmpdir(), 'agentwolf-probe-astra-'))
+    temporaryDirectories.push(dataDirectory)
+    const repository = new SqliteRepository(':memory:')
+    const catalog = new AgentCatalogService(repository)
+    const fixture = fileURLToPath(
+      new URL('../../../packages/acp/tests/fixtures/mock-agent.mjs', import.meta.url),
+    )
+    const tool = catalog.createTool({
+      name: 'Codex without Astra metadata',
+      kind: 'codex',
+      command: process.execPath,
+      args: [fixture],
+      environment: {
+        AGENTWOLF_MOCK_CURRENT_MODEL: literal('gpt-6-astra'),
+        AGENTWOLF_MOCK_EXTRA_MODEL: literal('gpt-6-astra'),
+        AGENTWOLF_MOCK_DISABLE_REASONING: literal('true'),
+      },
+      modelConfigKey: 'model',
+    })
+    const config: ServerConfig = {
+      host: '127.0.0.1',
+      port: 4310,
+      dataDirectory,
+      databasePath: ':memory:',
+      publicBaseUrl: 'http://127.0.0.1:4310',
+      projectRoot: process.cwd(),
+      webDistPath: resolve(dataDirectory, 'web'),
+      developerMode: false,
+      publicSpeechInterruptMode: 'legacy',
+    }
+
+    const result = await new AgentProbeService(catalog, config).discoverTool(tool.id)
+
+    expect(result).toMatchObject({
+      ok: true,
+      currentModel: 'gpt-6-astra',
+      reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    })
+    repository.close()
+  })
 })
 
 function literal(value: string) {

@@ -243,6 +243,43 @@ describe('AgentsPage', () => {
     )
   })
 
+  it('keeps the initial model catalog after discovering another model', async () => {
+    apiMocks.listProfiles.mockResolvedValue([])
+    apiMocks.discoverTool
+      .mockResolvedValueOnce(
+        probe({
+          models: ['gpt-6-astra', 'gpt-5.6-sol'],
+          currentModel: 'gpt-6-astra',
+          reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+          currentReasoningEffort: undefined,
+        }),
+      )
+      .mockResolvedValueOnce(
+        probe({
+          models: ['gpt-5.6-sol'],
+          currentModel: 'gpt-5.6-sol',
+          reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+          currentReasoningEffort: 'xhigh',
+        }),
+      )
+    render(<AgentsPage />)
+    const model = await screen.findByRole('combobox', { name: getCopy('agents.model') })
+    await waitFor(() => expect(model).toBeEnabled())
+
+    await userEvent.click(model)
+    await userEvent.click(screen.getByRole('option', { name: 'gpt-5.6-sol' }))
+    await waitFor(() =>
+      expect(apiMocks.discoverTool).toHaveBeenLastCalledWith(tool.id, {
+        model: 'gpt-5.6-sol',
+      }),
+    )
+    await waitFor(() => expect(model).toBeEnabled())
+    await userEvent.click(model)
+
+    expect(screen.getByRole('option', { name: 'gpt-6-astra' })).toBeVisible()
+    expect(screen.getByRole('option', { name: 'gpt-5.6-sol' })).toBeVisible()
+  })
+
   it('creates and closes custom tools and reports validation/API failures', async () => {
     apiMocks.createTool
       .mockRejectedValueOnce(new Error('tool failed'))

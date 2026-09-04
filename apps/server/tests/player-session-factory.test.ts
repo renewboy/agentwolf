@@ -176,10 +176,50 @@ describe('defaultPlayerSessionFactory', () => {
       allowOpaqueMcpPermissions: true,
       verifyUnadvertisedSessionResume: false,
     })
+    expect(JSON.parse(options.launch.env.CODEX_CONFIG)).toMatchObject({ model: 'model-a' })
+    expect(options).not.toHaveProperty('model')
     expect(options).not.toHaveProperty('reasoningEffort')
     expect(options).not.toHaveProperty('resumeSessionId')
     expect(options).not.toHaveProperty('onStderr')
     expect(options).not.toHaveProperty('onPermissionDecision')
+  })
+
+  it('configures a Codex model and reasoning effort before creating the ACP session', async () => {
+    const codexTool = { ...tool, kind: 'codex' as const }
+    mocks.prepareSession.mockResolvedValueOnce({
+      providerId: 'codex',
+      modelInstructions: 'EFFECTIVE PLAYER FOUNDATION',
+      cwd: '/isolated/player',
+      launch: {
+        command: 'agent',
+        args: [],
+        env: { CODEX_CONFIG: JSON.stringify({ existing: true }) },
+      },
+      mcpServers: [],
+      sessionMeta: {},
+      approvedToolNames: [],
+      verifyUnadvertisedSessionResume: false,
+      allowOpaqueMcpPermissions: true,
+    })
+
+    await defaultPlayerSessionFactory({
+      cwd: '/tmp/codex-astra',
+      tool: codexTool,
+      profile: { ...profile, model: 'gpt-6-astra', reasoningEffort: 'ultra' },
+      modelInstructions: 'PLAYER FOUNDATION',
+      mcpServer: {} as never,
+      matchId: MatchIdSchema.parse('match-session-astra'),
+      playerId: PlayerIdSchema.parse('player-3'),
+    })
+
+    const options = mocks.start.mock.calls[0]![0]
+    expect(JSON.parse(options.launch.env.CODEX_CONFIG)).toEqual({
+      existing: true,
+      model: 'gpt-6-astra',
+      model_reasoning_effort: 'ultra',
+    })
+    expect(options).not.toHaveProperty('model')
+    expect(options).not.toHaveProperty('reasoningEffort')
   })
 
   it('enables the verified unadvertised resume path only for CodeBuddy', async () => {

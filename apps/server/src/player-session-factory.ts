@@ -2,6 +2,7 @@ import type { McpServer, RequestPermissionRequest } from '@agentclientprotocol/s
 import {
   AcpPlayerSession,
   playerActionToolNames,
+  prepareProviderModelSelection,
   preparePlayerProviderSession,
   type AcpPromptCallbacks,
   type AcpPromptResult,
@@ -47,16 +48,19 @@ export const defaultPlayerSessionFactory: PlayerSessionFactory = async (options)
     mcpServers,
     modelInstructions: options.modelInstructions,
   })
+  const preparedSelection = prepareProviderModelSelection(options.tool, prepared.launch, {
+    model: options.profile.model,
+    ...(options.profile.reasoningEffort
+      ? { reasoningEffort: options.profile.reasoningEffort }
+      : {}),
+  })
   // ACP processes may report provider defaults after resume; the Profile remains authoritative.
   const session = await AcpPlayerSession.start({
     cwd: prepared.cwd,
     clientInfo: { name: 'agentwolf', version: '0.1.0' },
-    launch: prepared.launch,
-    model: options.profile.model,
+    launch: preparedSelection.launch,
+    ...preparedSelection.sessionSelection,
     modelConfigKey: options.tool.modelConfigKey,
-    ...(options.profile.reasoningEffort
-      ? { reasoningEffort: options.profile.reasoningEffort }
-      : {}),
     ...(mode ? { mode } : {}),
     mcpServers: prepared.mcpServers,
     sessionMeta: {

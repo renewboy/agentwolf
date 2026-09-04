@@ -49,6 +49,7 @@ export function AgentsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const discoverySequence = useRef(0)
   const discoveryCache = useRef(new Map<string, Promise<AgentProbeResult>>())
+  const modelCatalog = useRef(new Map<AgentToolId, readonly string[]>())
   const profileOrdering = useProfileOrdering({
     profiles,
     busy,
@@ -100,10 +101,14 @@ export function AgentsPage() {
   )
 
   const discoverCapabilities = useCallback(
-    async (toolId: AgentToolId, preferredModel?: string): Promise<void> => {
+    async (
+      toolId: AgentToolId,
+      preferredModel?: string,
+      keepCurrentCapabilities = false,
+    ): Promise<void> => {
       const sequence = ++discoverySequence.current
       setDiscovering(true)
-      setCapabilities(null)
+      if (!keepCurrentCapabilities) setCapabilities(null)
       setDiscoveryError(null)
       try {
         const discover = async (model?: string): Promise<AgentProbeResult> => {
@@ -124,6 +129,11 @@ export function AgentsPage() {
         let result = await discover(preferredModel)
         if (!result.ok && preferredModel) result = await discover()
         if (sequence !== discoverySequence.current) return
+        if (result.ok) {
+          const models = mergeModels(modelCatalog.current.get(toolId) ?? [], result.models)
+          modelCatalog.current.set(toolId, models)
+          result = { ...result, models }
+        }
         setCapabilities(result)
         const failure = result.ok
           ? result.models.length === 0
@@ -379,7 +389,7 @@ export function AgentsPage() {
                 )}
                 onChange={(model) => {
                   setDraft({ ...draft, model, reasoningEffort: '' })
-                  if (draft.toolId) void discoverCapabilities(draft.toolId, model)
+                  if (draft.toolId) void discoverCapabilities(draft.toolId, model, true)
                 }}
               />
             </FormField>
@@ -526,4 +536,8 @@ function createEmptyProfile(toolId: AgentToolId | ''): ProfileDraft {
     promptTimeoutMs: AGENT_PROMPT_TIMEOUT_DEFAULT_MS,
     connection: '{}',
   }
+}
+
+function mergeModels(current: readonly string[], discovered: readonly string[]): string[] {
+  return [...new Set([...current, ...discovered])]
 }

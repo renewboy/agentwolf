@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import type { MatchView } from '@agentwolf/contracts'
 import {
   ignoreLiveMessage,
@@ -321,6 +322,54 @@ test('offers recovery controls and deletes a paused match', async ({
   resources,
 }) => {
   test.setTimeout(60_000)
+  const sessionToolResponse = await request.post('/api/agent-tools', {
+    data: {
+      name: `${resources.runId}-delete-session`,
+      kind: 'claude',
+      command: process.execPath,
+      args: [resolve('packages/acp/tests/fixtures/mock-agent.mjs')],
+      environment: {},
+      initialMode: 'read-only',
+      modelConfigKey: 'model',
+    },
+  })
+  expect(sessionToolResponse.ok()).toBe(true)
+  const sessionTool = (await sessionToolResponse.json()) as { id: string }
+  const sessionProfileResponse = await request.post('/api/agent-profiles', {
+    data: {
+      name: `${resources.runId}-delete-session`,
+      toolId: sessionTool.id,
+      model: 'mock-model',
+      promptTimeoutMs: 10_000,
+      connection: {},
+    },
+  })
+  expect(sessionProfileResponse.ok()).toBe(true)
+  const sessionProfile = (await sessionProfileResponse.json()) as { id: string }
+  const unavailableToolResponse = await request.post('/api/agent-tools', {
+    data: {
+      name: `${resources.runId}-no-session`,
+      kind: 'custom',
+      command: process.execPath,
+      args: [resolve('packages/acp/tests/fixtures/mock-agent.mjs')],
+      environment: {},
+      initialMode: 'read-only',
+      modelConfigKey: 'model',
+    },
+  })
+  expect(unavailableToolResponse.ok()).toBe(true)
+  const unavailableTool = (await unavailableToolResponse.json()) as { id: string }
+  const unavailableProfileResponse = await request.post('/api/agent-profiles', {
+    data: {
+      name: `${resources.runId}-no-session`,
+      toolId: unavailableTool.id,
+      model: 'mock-model',
+      promptTimeoutMs: 10_000,
+      connection: {},
+    },
+  })
+  expect(unavailableProfileResponse.ok()).toBe(true)
+  const unavailableProfile = (await unavailableProfileResponse.json()) as { id: string }
   const createdResponse = await request.post('/api/matches', {
     data: {
       boardId: 'board-quick-6',
@@ -328,7 +377,7 @@ test('offers recovery controls and deletes a paused match', async ({
       seats: Array.from({ length: 6 }, (_, index) => ({
         seat: index + 1,
         name: `${resources.runId}-paused-${index + 1}`,
-        profileId: resources.sharedProfileId,
+        profileId: index < 3 ? sessionProfile.id : unavailableProfile.id,
       })),
     },
   })
@@ -343,9 +392,13 @@ test('offers recovery controls and deletes a paused match', async ({
             status: string
           }
         ).status,
-      { timeout: 30_000 },
+      { timeout: 10_000 },
     )
     .toBe('paused')
+  const paused = (await (await request.get(`/api/matches/${created.id}?view=god`)).json()) as {
+    seats: Array<{ sessionStatus: string }>
+  }
+  expect(paused.seats.filter((seat) => seat.sessionStatus === 'ready')).toHaveLength(3)
 
   await page.goto(`/matches/${created.id}`)
   await expect(page.getByRole('button', { name: '继续对局' })).toBeVisible()

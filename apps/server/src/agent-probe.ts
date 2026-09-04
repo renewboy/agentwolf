@@ -1,6 +1,11 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { AcpPlayerSession, resolveLaunchSpec } from '@agentwolf/acp'
+import {
+  AcpPlayerSession,
+  prepareProviderModelSelection,
+  resolveLaunchSpec,
+  resolveProviderReasoningEfforts,
+} from '@agentwolf/acp'
 import {
   AgentProbeResultSchema,
   type AgentDiscoveryInput,
@@ -57,12 +62,16 @@ export class AgentProbeService {
     let session: AcpPlayerSession | null = null
     try {
       const mode = selection.mode ?? tool.initialMode
+      const preparedSelection = prepareProviderModelSelection(
+        tool,
+        resolveLaunchSpec(tool),
+        selection,
+      )
       session = await AcpPlayerSession.start({
         cwd,
-        launch: resolveLaunchSpec(tool),
+        launch: preparedSelection.launch,
         modelConfigKey: tool.modelConfigKey,
-        ...(selection.model ? { model: selection.model } : {}),
-        ...(selection.reasoningEffort ? { reasoningEffort: selection.reasoningEffort } : {}),
+        ...preparedSelection.sessionSelection,
         ...(mode ? { mode } : {}),
       })
       const modelOption = session.configOptions.find(
@@ -79,6 +88,12 @@ export class AgentProbeService {
       if (reasoningOption && reasoningOption.type !== 'select') {
         throw new Error('ACP thought_level configuration option is not selectable')
       }
+      const advertisedReasoningEfforts = reasoningOption ? selectValues(reasoningOption) : []
+      const reasoningEfforts = resolveProviderReasoningEfforts(
+        tool,
+        modelOption?.type === 'select' ? modelOption.currentValue : undefined,
+        advertisedReasoningEfforts,
+      )
       return AgentProbeResultSchema.parse({
         ok: true,
         agentName: session.initializeResponse.agentInfo?.name,
@@ -86,8 +101,12 @@ export class AgentProbeService {
         protocolVersion: session.initializeResponse.protocolVersion,
         models,
         ...(modelOption?.type === 'select' ? { currentModel: modelOption.currentValue } : {}),
-        reasoningEfforts: reasoningOption ? selectValues(reasoningOption) : [],
-        ...(reasoningOption ? { currentReasoningEffort: reasoningOption.currentValue } : {}),
+        reasoningEfforts,
+        ...(reasoningOption
+          ? { currentReasoningEffort: reasoningOption.currentValue }
+          : selection.reasoningEffort
+            ? { currentReasoningEffort: selection.reasoningEffort }
+            : {}),
         modes: session.availableModes.map((modeEntry) => modeEntry.id),
         message: 'connection-ok',
         durationMs: Math.round(performance.now() - startedAt),
