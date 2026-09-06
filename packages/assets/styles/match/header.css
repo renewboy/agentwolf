@@ -1,0 +1,230 @@
+.aw-match-hud {
+  position: relative;
+  z-index: 10;
+  flex: none;
+  padding: 0 26px;
+  border-bottom: 1px solid var(--aw-color-line);
+  background-color: var(--aw-color-night);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--aw-color-night) 94%, transparent),
+      color-mix(in srgb, var(--aw-color-night) 94%, transparent)
+    ),
+    var(--aw-texture-wood);
+  background-size: auto, 640px;
+}
+
+.aw-match-hud__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 62px;
+  max-width: 1920px;
+  margin: auto;
+}
+
+.aw-match-brand {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.aw-match-hud__inner > :is(.aw-match-controls, .aw-match-route-title) {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.aw-match-brand,
+.aw-match-navigation,
+.aw-match-controls,
+.aw-phase-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.aw-match-brand__emblem {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.aw-match-brand__title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.aw-match-brand .aw-brand {
+  font-family: var(--aw-font-display);
+  font-size: 19px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.aw-match-brand small {
+  color: var(--aw-color-text-muted);
+  font: 500 13px/1.3 var(--aw-font-display);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-phase-display {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px 10px;
+}
+
+.aw-match-controls {
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.aw-view-switch {
+  flex: none;
+}
+
+.aw-view-player-select {
+  width: 155px;
+}
+
+.aw-connection-indicator {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--aw-color-text-muted);
+}
+
+.aw-connection-indicator > span:not(.aw-connection-indicator__bars) {
+  display: none;
+}
+
+.aw-connection-indicator[data-state='live'] {
+  color: var(--aw-color-success);
+}
+
+.aw-connection-indicator[data-state='reconnecting'] {
+  color: var(--aw-color-warning);
+}
+
+.aw-connection-indicator__bars {
+  display: none;
+}
+
+.aw-match-route-title {
+  margin: 0;
+  color: var(--aw-color-text);
+  font: 500 20px var(--aw-font-display);
+  white-space: nowrap;
+}
+
+@media (max-width: 1350px) {
+  .aw-match-hud {
+    padding: 0 20px;
+  }
+  .aw-match-hud__inner {
+    gap: 15px;
+  }
+  .aw-match-controls {
+    gap: 6px;
+  }
+  .aw-match-controls:has(.aw-view-player-select) .aw-view-switch .aw-segmented__item span {
+    display: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .aw-match-hud__inner {
+    min-height: 60px;
+  }
+  .aw-phase-display {
+    gap: 4px 8px;
+  }
+  .aw-view-switch .aw-segmented__item span {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .aw-match-hud {
+    padding: 10px 12px;
+  }
+  .aw-match-hud__inner {
+    min-height: 0;
+    gap: 9px 8px;
+  }
+  .aw-match-brand {
+    display: contents;
+  }
+  .aw-match-brand__emblem {
+    display: none;
+  }
+  .aw-match-navigation {
+    grid-row: 1;
+    grid-column: 1;
+    gap: 6px;
+  }
+  .aw-match-brand__title {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: end;
+    text-align: right;
+  }
+  .aw-match-hud__inner > :is(.aw-match-controls, .aw-match-route-title) {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+  .aw-match-route-title {
+    width: 100%;
+    text-align: right;
+    font-size: 16px;
+  }
+  .aw-match-brand .aw-brand {
+    font-size: 17px;
+  }
+  .aw-match-brand small {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .aw-phase-display {
+    flex-wrap: nowrap;
+    gap: 7px;
+  }
+  .aw-match-controls {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 7px;
+  }
+  .aw-view-switch .aw-segmented__item span {
+    display: inline;
+  }
+  .aw-view-player-select {
+    width: 114px;
+  }
+  .aw-match-controls:has(.aw-view-player-select) .aw-view-switch .aw-segmented__item span {
+    display: none;
+  }
+}
+
+.aw-phase-display[aria-hidden='true'] {
+  visibility: hidden;
+}
+
+@media (max-width: 360px) {
+  .aw-view-switch .aw-segmented__item span {
+    display: none;
+  }
+}

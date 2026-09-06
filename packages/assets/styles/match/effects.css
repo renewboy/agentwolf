@@ -1,0 +1,65 @@
+.aw-role-effect-overlay {
+  --aw-role-effect-color: var(--aw-color-amber);
+  position: fixed;
+  z-index: var(--aw-layer-drawer);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aw-role-effect-overlay[data-effect='werewolf-attack'],
+.aw-role-effect-overlay[data-effect='werewolf-self-destruct'],
+.aw-role-effect-overlay[data-effect='hunter-shot'] {
+  --aw-role-effect-color: var(--aw-color-crimson-bright);
+}
+.aw-role-effect-overlay[data-effect='seer-inspect'] {
+  --aw-role-effect-color: var(--aw-effect-silver);
+}
+.aw-role-effect-overlay[data-effect='witch-antidote'] {
+  --aw-role-effect-color: var(--aw-color-success);
+}
+.aw-role-effect-overlay[data-effect='witch-poison'] {
+  --aw-role-effect-color: var(--aw-effect-violet);
+}
+.aw-role-effect-overlay[data-effect='guard-protect'] {
+  --aw-role-effect-color: var(--aw-effect-cyan);
+}
+.aw-role-effect-card {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 13px;
+  min-width: 188px;
+  padding: 30px 35px;
+  border: 1px solid var(--aw-role-effect-color);
+  border-radius: 3px;
+  color: var(--aw-role-effect-color);
+  background: var(--aw-color-night);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 45%);
+}
+.aw-role-effect-card::before {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid var(--aw-role-effect-color);
+  opacity: 0.3;
+  content: '';
+}
+.aw-role-effect-card strong {
+  color: var(--aw-color-text);
+  font-family: var(--aw-font-display);
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+.aw-role-effect-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+.aw-role-effect-particle {
+  position: absolute;
+  width: 4px;
+  height: 8px;
+  background: var(--aw-role-effect-color);
+}

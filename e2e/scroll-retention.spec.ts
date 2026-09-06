@@ -169,6 +169,30 @@ test('keeps the trajectory reading position while live records arrive', async ({
   ).toBeVisible()
   await page.waitForTimeout(120)
   expect(await ledger.evaluate((element) => element.scrollTop)).toBe(0)
+
+  const dateNavigator = page.getByRole('combobox', { name: '跳转到指定日期' })
+  await page.getByRole('textbox', { name: '搜索当前轨迹' }).fill('no matching record')
+  await dateNavigator.click()
+  await expect(page.getByRole('option')).toHaveCount(1)
+  await page.getByRole('option', { name: '第 1 天' }).click()
+  await expect(page.getByRole('textbox', { name: '搜索当前轨迹' })).toHaveValue('')
+  await expect(page.locator('.aw-trajectory-record[data-selected="true"]')).toContainText('#1')
+  const dayPosition = await ledger.evaluate((element) => element.scrollTop)
+  expect(dayPosition).toBeLessThan(80)
+  await ledger.evaluate((element) => {
+    element.scrollTop = element.scrollHeight - element.clientHeight - 60
+  })
+  await ledger.dispatchEvent('wheel', { deltaY: -24 })
+  await dateNavigator.click()
+  await page.getByRole('option', { name: '第 1 天' }).click()
+  await expect.poll(() => ledger.evaluate((element) => element.scrollTop)).toBe(dayPosition)
+  const finalRecord = trajectoryRecord(match.id, turn.turnId, records.length + 3, 4)
+  sendDelta({ type: 'trajectory.delta', revision: 4, turns: [], records: [finalRecord] })
+  await expect(
+    page.locator(`.aw-trajectory-minimap__node[aria-label="#${finalRecord.ordinal} 发言"]`),
+  ).toBeVisible()
+  await page.waitForTimeout(120)
+  expect(await ledger.evaluate((element) => element.scrollTop)).toBe(dayPosition)
 })
 
 function matchFixture(id: string): MatchView {

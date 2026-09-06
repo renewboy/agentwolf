@@ -1,29 +1,16 @@
-import {
-  ArrowLeft,
-  ArrowsLeftRight,
-  CheckCircle,
-  Eye,
-  EyeClosed,
-  SpeakerHigh,
-  SpeakerSlash,
-  UserFocus,
-  WifiHigh,
-  WifiSlash,
-} from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
   PlayerIdSchema,
   type MatchView,
   type PlayerId,
-  type RoleEffectMode,
   type SpectatorView,
 } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
-import { useRuntimeConfig } from '../../hooks/useRuntimeConfig.js'
 import { GameSelect } from '../GameSelect.js'
-import { StatusBadge } from '../StatusBadge.js'
+import { MatchRouteHeader } from './MatchRouteHeader.js'
+import { matchTimelineDays } from '../../match-timeline.js'
 
 export function MatchHeader({
   match,
@@ -36,10 +23,14 @@ export function MatchHeader({
   audioBusyElsewhere,
   audioSupported,
   onToggleAudio,
-  effectMode,
-  setEffectMode,
+  viewPending = false,
+  selectedDay,
+  onSelectDay,
 }: {
   readonly match: MatchView
+  readonly viewPending?: boolean
+  readonly selectedDay?: number | undefined
+  readonly onSelectDay?: ((day: number) => void) | undefined
   readonly viewKind: SpectatorView['kind']
   readonly setViewKind: (view: SpectatorView['kind']) => void
   readonly playerId: PlayerId
@@ -49,11 +40,8 @@ export function MatchHeader({
   readonly audioBusyElsewhere: boolean
   readonly audioSupported: boolean
   readonly onToggleAudio: () => void
-  readonly effectMode: RoleEffectMode
-  readonly setEffectMode: (mode: RoleEffectMode) => void
 }) {
-  const { developerMode } = useRuntimeConfig()
-  const showTrajectoryLink = developerMode && match.status !== 'paused'
+  const days = useMemo(() => matchTimelineDays(match.timeline), [match.timeline])
   const playerOptions = useMemo(
     () =>
       match.seats.map((seat) => ({
@@ -80,136 +68,86 @@ export function MatchHeader({
     connectionState !== 'live' ||
     (match.status === 'ended' &&
       (!match.postgameReview || ['completed', 'skipped'].includes(match.postgameReview.state)))
-  const effectOptions = useMemo(
-    () =>
-      (['full', 'reduced', 'off'] as const).map((mode) => ({
-        value: mode,
-        label: getCopy(`effects.${mode}`),
-      })),
-    [],
-  )
   return (
-    <header className="aw-match-hud">
-      <div className="aw-match-hud__inner">
-        <div className="aw-match-brand">
-          <Link
-            className="aw-button aw-button--square aw-tooltip-button aw-tooltip-button--start"
-            aria-label={getCopy('match.backLobby')}
-            data-tooltip={getCopy('match.backLobby')}
-            to="/"
-          >
-            <ArrowLeft size={18} aria-hidden />
-          </Link>
-          {showTrajectoryLink ? (
-            <Link
-              className="aw-button aw-button--square aw-tooltip-button"
-              aria-label={getCopy('match.openTrajectory')}
-              data-tooltip={getCopy('match.openTrajectory')}
-              to={`/matches/${match.id}/trajectory`}
-            >
-              <ArrowsLeftRight size={18} aria-hidden />
-            </Link>
-          ) : null}
-          <div>
-            <span className="aw-brand">{getCopy('brand')}</span>
-            <small>{match.boardName}</small>
-          </div>
+    <MatchRouteHeader
+      match={match}
+      page="match"
+      viewPending={viewPending}
+      days={days}
+      selectedDay={selectedDay}
+      onSelectDay={onSelectDay}
+    >
+      <div className="aw-match-controls">
+        <div
+          className="aw-segmented aw-segmented--compact aw-segmented--spectator aw-view-switch"
+          aria-label={getCopy('match.viewSelector')}
+        >
+          <ViewButton
+            active={viewKind === 'god'}
+            icon={<GameIcon name="eye" />}
+            label={getCopy('views.god')}
+            onClick={() => setViewKind('god')}
+          />
+          <ViewButton
+            active={viewKind === 'closed-eye'}
+            icon={<GameIcon name="eye-closed" />}
+            label={getCopy('views.closedEye')}
+            onClick={() => setViewKind('closed-eye')}
+          />
+          <ViewButton
+            active={viewKind === 'player'}
+            icon={<GameIcon name="pawn" />}
+            label={getCopy('views.player')}
+            onClick={() => setViewKind('player')}
+          />
         </div>
 
-        <div className="aw-phase-display">
-          <span>
-            {formatCopy(getCopy(match.phaseId.includes('night') ? 'match.night' : 'match.day'), {
-              day: match.phaseId.includes('night') ? match.day + 1 : match.day,
-            })}
-          </span>
-          <strong className="aw-phase-title">{match.phaseLabel}</strong>
-          <StatusBadge status={match.status} />
-        </div>
-
-        <div className="aw-match-controls">
-          <div className="aw-segmented aw-view-switch" aria-label={getCopy('match.viewSelector')}>
-            <ViewButton
-              active={viewKind === 'god'}
-              icon={<Eye />}
-              label={getCopy('views.god')}
-              onClick={() => setViewKind('god')}
-            />
-            <ViewButton
-              active={viewKind === 'closed-eye'}
-              icon={<EyeClosed />}
-              label={getCopy('views.closedEye')}
-              onClick={() => setViewKind('closed-eye')}
-            />
-            <ViewButton
-              active={viewKind === 'player'}
-              icon={<UserFocus />}
-              label={getCopy('views.player')}
-              onClick={() => setViewKind('player')}
-            />
-          </div>
-
-          {viewKind === 'player' ? (
-            <div className="aw-view-player-select">
-              <GameSelect
-                ariaLabel={getCopy('match.selectPlayer')}
-                value={playerId}
-                options={playerOptions}
-                onChange={(nextPlayerId) => setPlayerId(PlayerIdSchema.parse(nextPlayerId))}
-              />
-            </div>
-          ) : null}
-
-          <ConnectionIndicator state={connectionState} />
-          <div className="aw-effect-mode-select">
+        {viewKind === 'player' ? (
+          <div className="aw-view-player-select">
             <GameSelect
-              ariaLabel={getCopy('effects.mode')}
-              value={effectMode}
-              options={effectOptions}
-              onChange={(mode) => setEffectMode(mode)}
+              density="compact"
+              ariaLabel={getCopy('match.selectPlayer')}
+              value={playerId}
+              options={playerOptions}
+              onChange={(nextPlayerId) => setPlayerId(PlayerIdSchema.parse(nextPlayerId))}
             />
           </div>
-          <button
-            className="aw-button aw-button--square aw-audio-toggle"
-            aria-label={audioLabel}
-            aria-pressed={audioEnabled}
-            data-enabled={audioEnabled}
-            disabled={audioDisabled}
-            title={audioLabel}
-            type="button"
-            onClick={onToggleAudio}
-          >
-            {audioEnabled ? (
-              <SpeakerHigh size={19} aria-hidden />
-            ) : (
-              <SpeakerSlash size={19} aria-hidden />
-            )}
-          </button>
-        </div>
+        ) : null}
+
+        <ConnectionIndicator state={connectionState} />
+        <button
+          className="aw-button aw-button--compact aw-button--square aw-audio-toggle"
+          aria-label={audioLabel}
+          aria-pressed={audioEnabled}
+          data-enabled={audioEnabled}
+          disabled={audioDisabled}
+          type="button"
+          onClick={onToggleAudio}
+        >
+          {audioEnabled ? <GameIcon name="sound" size={19} /> : <GameIcon name="mute" size={19} />}
+        </button>
       </div>
-    </header>
+    </MatchRouteHeader>
   )
 }
 
 function ConnectionIndicator({ state }: { readonly state: LiveConnectionState }) {
+  if (state === 'settled') return null
   const label = getCopy(
     state === 'live'
       ? 'match.connectionLive'
-      : state === 'settled'
-        ? 'match.connectionSettled'
-        : state === 'unavailable'
-          ? 'match.connectionUnavailable'
-          : state === 'reconnecting'
-            ? 'match.connectionReconnecting'
-            : 'match.connectionConnecting',
+      : state === 'unavailable'
+        ? 'match.connectionUnavailable'
+        : state === 'reconnecting'
+          ? 'match.connectionReconnecting'
+          : 'match.connectionConnecting',
   )
   return (
-    <div className="aw-connection-indicator" data-state={state} title={label} role="status">
+    <div className="aw-connection-indicator" data-state={state} aria-label={label} role="status">
       {state === 'live' ? (
-        <WifiHigh size={17} aria-hidden />
-      ) : state === 'settled' ? (
-        <CheckCircle size={17} weight="fill" aria-hidden />
+        <GameIcon name="wifi" size={17} />
       ) : (
-        <WifiSlash size={17} aria-hidden />
+        <GameIcon name="warning" size={17} />
       )}
       <span>{label}</span>
       <span className="aw-connection-indicator__bars" aria-hidden>
@@ -234,9 +172,9 @@ function ViewButton({
 }) {
   return (
     <button
-      className="aw-segmented__item"
+      className="aw-segmented__item aw-choice"
       aria-pressed={active}
-      title={label}
+      aria-label={label}
       type="button"
       onClick={onClick}
     >

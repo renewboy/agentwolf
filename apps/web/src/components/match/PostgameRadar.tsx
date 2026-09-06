@@ -67,7 +67,7 @@ export function PostgameRadar({
       )}
       <dl className="aw-postgame-radar__values">
         {dimensions.map((dimension) => (
-          <div key={dimension}>
+          <div className="aw-panel aw-panel--rule" key={dimension}>
             <dt>{getCopy(`postgame.dimensions.${dimension}`)}</dt>
             <dd>{scores[dimension].toFixed(1)}</dd>
           </div>

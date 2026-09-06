@@ -1,4 +1,4 @@
-import { DotsSixVertical, Robot } from '@phosphor-icons/react'
+import { GameIcon } from './GameIcon.js'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type { AgentProfile, AgentProfileId } from '@agentwolf/contracts'
 import type { ProfileOrderingController } from '../hooks/useProfileOrdering.js'
@@ -29,7 +29,7 @@ export function AgentProfileList({
       ) : null}
       {profiles.map((profile) => (
         <div
-          className="aw-profile-item"
+          className="aw-profile-item aw-choice"
           data-dragging={ordering.draggingProfileId === profile.id}
           data-drop-position={
             ordering.dropTarget?.profileId === profile.id ? ordering.dropTarget.position : undefined
@@ -45,22 +45,22 @@ export function AgentProfileList({
           <button
             aria-label={formatCopy(getCopy('agents.reorderProfile'), { name: profile.name })}
             aria-disabled={busy || ordering.reordering}
-            className="aw-profile-item__handle"
-            title={getCopy('agents.orderHandleHint')}
+            className="aw-profile-item__handle aw-choice__handle"
+            aria-description={getCopy('agents.orderHandleHint')}
             type="button"
             onKeyDown={(event) => ordering.moveProfileWithKeyboard(event, profile.id)}
           >
-            <DotsSixVertical size={20} aria-hidden />
+            <GameIcon name="grip" size={20} />
           </button>
           <button
-            className="aw-profile-item__select"
+            className="aw-profile-item__select aw-choice__action"
             type="button"
             onClick={() => onSelect(profile)}
           >
-            <Robot size={22} aria-hidden />
+            <GameIcon name="pawn" size={22} />
             <span className="aw-profile-item__copy">
-              <strong>{profile.name}</strong>
-              <small>
+              <strong className="aw-choice__label">{profile.name}</strong>
+              <small className="aw-choice__meta">
                 {formatCopy(getCopy('agentFields.modelAndReasoning'), {
                   model: profile.model,
                   reasoning: profile.reasoningEffort ?? getCopy('agentFields.reasoningDefault'),

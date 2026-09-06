@@ -1,4 +1,4 @@
-import { CaretDown, CaretRight, MagnifyingGlass } from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFollowLatest } from '@agent-arena/react'
@@ -8,11 +8,17 @@ import type {
   TrajectoryOwnerId,
   TrajectoryPage,
   TrajectoryRecord,
-  TrajectoryRecordKind,
   TrajectoryTimelineGroup,
   TrajectoryTurn,
 } from '@agentwolf/contracts'
-import { timelineGroupId, timelineGroupLabel } from './trajectory-timeline.js'
+import {
+  recordLabel,
+  timelineGroupId,
+  timelineGroupLabel,
+  type TrajectoryRecordJump,
+} from './trajectory-timeline.js'
+
+export { TrajectoryMinimap } from './TrajectoryMinimap.js'
 
 type LedgerRow =
   | {
@@ -24,51 +30,6 @@ type LedgerRow =
     }
   | { readonly kind: 'record'; readonly key: string; readonly record: TrajectoryRecord }
 
-type MinimapLane = 'context' | 'model' | 'tools' | 'runtime'
-
-const minimapLanes: readonly MinimapLane[] = ['context', 'model', 'tools', 'runtime']
-
-export function TrajectoryMinimap({
-  page,
-  selectedId,
-  onSelect,
-}: {
-  readonly page: TrajectoryPage
-  readonly selectedId: string | null
-  readonly onSelect: (recordId: string) => void
-}) {
-  const records = [...page.records].sort((left, right) => left.ordinal - right.ordinal)
-  return (
-    <section className="aw-trajectory-minimap" aria-label={getCopy('trajectory.minimap')}>
-      <h2 className="aw-visually-hidden">{getCopy('trajectory.minimap')}</h2>
-      {minimapLanes.map((lane) => (
-        <div className="aw-trajectory-minimap__lane" key={lane}>
-          <span>{getCopy(`trajectory.minimapLanes.${lane}`)}</span>
-          <div className="aw-trajectory-minimap__track">
-            {records.map((record) =>
-              minimapLane(record.kind) === lane ? (
-                <button
-                  className="aw-trajectory-minimap__node"
-                  aria-label={`#${record.ordinal} ${recordLabel(record)}`}
-                  data-kind={record.kind}
-                  data-selected={record.recordId === selectedId}
-                  data-status={record.status}
-                  key={record.recordId}
-                  title={`#${record.ordinal} ${recordLabel(record)}`}
-                  type="button"
-                  onClick={() => onSelect(record.recordId)}
-                />
-              ) : (
-                <span className="aw-trajectory-minimap__gap" key={record.recordId} />
-              ),
-            )}
-          </div>
-        </div>
-      ))}
-    </section>
-  )
-}
-
 export function TrajectoryLedger({
   page,
   query,
@@ -78,6 +39,7 @@ export function TrajectoryLedger({
   onSelect,
   followLatest,
   loading,
+  jumpToRecord,
 }: {
   readonly page: TrajectoryPage
   readonly query: string
@@ -87,12 +49,14 @@ export function TrajectoryLedger({
   readonly onSelect: (value: string) => void
   readonly followLatest: boolean
   readonly loading: boolean
+  readonly jumpToRecord?: TrajectoryRecordJump | null
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualRef = useRef<HTMLDivElement>(null)
   const followController = useMemo(() => new FollowLatestController(), [])
   useFollowLatest(followController)
   const centeredSelection = useRef<string | null>(null)
+  const handledJump = useRef<number | null>(null)
   const expandedSelection = useRef<string | null>(null)
   const previousOwner = useRef<TrajectoryOwnerId | null>(null)
   const scrollByOwner = useRef(new Map<TrajectoryOwnerId, number>())
@@ -125,6 +89,33 @@ export function TrajectoryLedger({
   useLayoutEffect(() => {
     if (virtualRef.current) virtualRef.current.style.height = `${totalSize}px`
   }, [totalSize])
+  useLayoutEffect(() => {
+    if (
+      !jumpToRecord ||
+      jumpToRecord.ownerId !== page.ownerId ||
+      handledJump.current === jumpToRecord.requestId
+    )
+      return
+    const record = page.records.find((entry) => entry.recordId === jumpToRecord.recordId)
+    const turn = page.turns.find((entry) => entry.turnId === record?.turnId)
+    if (!record || !turn) return
+    followController.detach()
+    const groupId = timelineGroupId(turn.timelineGroup)
+    if (collapsedGroups.has(groupId)) {
+      setCollapsedGroups((current) => {
+        const next = new Set(current)
+        next.delete(groupId)
+        return next
+      })
+      return
+    }
+    const index = rows.findIndex((row) => row.key === record.recordId)
+    if (index < 0) return
+    handledJump.current = jumpToRecord.requestId
+    centeredSelection.current = record.recordId
+    expandedSelection.current = record.recordId
+    virtualizer.scrollToIndex(index, { align: 'start' })
+  }, [collapsedGroups, followController, jumpToRecord, page, rows, virtualizer])
   useLayoutEffect(() => {
     if (!selectedId) {
       expandedSelection.current = null
@@ -177,7 +168,7 @@ export function TrajectoryLedger({
     <section className="aw-trajectory-ledger" aria-busy={loading} data-loading={loading}>
       <div className="aw-trajectory-toolbar">
         <label>
-          <MagnifyingGlass size={16} aria-hidden />
+          <GameIcon name="eye" size={16} />
           <input
             className="aw-input"
             aria-label={getCopy('trajectory.search')}
@@ -188,12 +179,12 @@ export function TrajectoryLedger({
         </label>
         <div className="aw-trajectory-toolbar__actions">
           {page.nextBeforeTurn ? (
-            <button className="aw-button" type="button" onClick={onLoadOlder}>
+            <button className="aw-button aw-button--compact" type="button" onClick={onLoadOlder}>
               {getCopy('trajectory.loadOlder')}
             </button>
           ) : null}
           <button
-            className="aw-button"
+            className="aw-button aw-button--compact"
             type="button"
             onClick={() => setCollapsedGroups(allCollapsed ? new Set() : new Set(groupIds))}
           >
@@ -237,7 +228,7 @@ export function TrajectoryLedger({
               >
                 {row.kind === 'group' ? (
                   <button
-                    className="aw-trajectory-group"
+                    className="aw-choice aw-choice--compact aw-trajectory-group"
                     aria-expanded={!groupIsCollapsed}
                     data-collapsed={groupIsCollapsed}
                     type="button"
@@ -252,13 +243,15 @@ export function TrajectoryLedger({
                   >
                     <span className="aw-trajectory-group__caret">
                       {groupIsCollapsed ? (
-                        <CaretRight size={15} aria-hidden />
+                        <GameIcon name="forward" size={15} />
                       ) : (
-                        <CaretDown size={15} aria-hidden />
+                        <GameIcon name="down" size={15} />
                       )}
                     </span>
-                    <strong>{timelineGroupLabel(row.timelineGroup)}</strong>
-                    <small className="aw-trajectory-group__count">
+                    <strong className="aw-choice__label">
+                      {timelineGroupLabel(row.timelineGroup)}
+                    </strong>
+                    <small className="aw-choice__meta aw-trajectory-group__count">
                       {formatCopy(getCopy('trajectory.groupRecords'), {
                         count: row.recordCount,
                       })}
@@ -266,14 +259,14 @@ export function TrajectoryLedger({
                   </button>
                 ) : (
                   <button
-                    className="aw-trajectory-record"
+                    className="aw-choice aw-choice--compact aw-trajectory-record"
                     data-kind={row.record.kind}
                     data-status={row.record.status}
                     data-selected={selectedId === row.record.recordId}
                     type="button"
                     onClick={() => onSelect(row.record.recordId)}
                   >
-                    <span>#{row.record.ordinal}</span>
+                    <span className="aw-choice__meta">#{row.record.ordinal}</span>
                     <span
                       className="aw-trajectory-kind-tag"
                       data-kind={row.record.kind}
@@ -281,14 +274,11 @@ export function TrajectoryLedger({
                     >
                       {recordLabel(row.record)}
                     </span>
-                    <small>{recordPreview(row.record)}</small>
-                    <time
-                      dateTime={row.record.startedAt}
-                      title={timestampLabel(row.record.startedAt, true)}
-                    >
+                    <small className="aw-choice__meta">{recordPreview(row.record)}</small>
+                    <time className="aw-choice__meta" dateTime={row.record.startedAt}>
                       {timestampLabel(row.record.startedAt, false)}
                     </time>
-                    <em>{durationLabel(row.record.durationMs)}</em>
+                    <em className="aw-choice__meta">{durationLabel(row.record.durationMs)}</em>
                   </button>
                 )}
               </div>
@@ -452,10 +442,6 @@ function buildRows(
   })
 }
 
-function recordLabel(record: TrajectoryRecord): string {
-  return getCopy(`trajectory.kinds.${record.kind}`)
-}
-
 function recordPreview(record: TrajectoryRecord): string {
   let value: string
   if (record.kind === 'tool') {
@@ -538,29 +524,5 @@ function actionLabel(actionType: string): string {
       return getCopy('trajectory.actionTypes.postgameReflection')
     default:
       return actionType
-  }
-}
-
-function minimapLane(kind: TrajectoryRecordKind): MinimapLane {
-  switch (kind) {
-    case 'instructions':
-    case 'prompt':
-      return 'context'
-    case 'reasoning':
-    case 'message':
-    case 'usage':
-      return 'model'
-    case 'tool':
-    case 'permission':
-    case 'action':
-      return 'tools'
-    case 'diagnostic':
-    case 'lifecycle':
-    case 'error':
-      return 'runtime'
-    default: {
-      const exhaustive: never = kind
-      return exhaustive
-    }
   }
 }

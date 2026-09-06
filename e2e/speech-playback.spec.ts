@@ -328,7 +328,7 @@ test('plays every speech by sequence and keeps manual controls independent from 
       ),
     )
     .toBe(true)
-  await expect(page.locator('.aw-phase-title')).toHaveText('白天投票')
+  await expect(page.locator('.aw-presence__copy > small')).toHaveText('白天投票')
 
   current = {
     ...current,

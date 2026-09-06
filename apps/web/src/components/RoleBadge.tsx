@@ -1,4 +1,5 @@
 import type { RoleId } from '@agentwolf/contracts'
+import { roleArtwork } from '../role-art.js'
 
 export function RoleBadge({
   className,
@@ -13,6 +14,7 @@ export function RoleBadge({
     <span
       className={className ? `aw-role-badge ${className}` : 'aw-role-badge'}
       data-role-id={roleId ?? 'hidden'}
+      data-role-art={roleArtwork(roleId).id}
     >
       {label}
     </span>

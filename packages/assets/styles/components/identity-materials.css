@@ -1,0 +1,189 @@
+/* 由身份材质导出程序生成。 */
+.aw-player-card[data-role-art='role-villager'],
+.aw-role-badge[data-role-art='role-villager'] {
+  --aw-player-role-tag: url('../../art/roles/role-villager/tag-54c328553c.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-villager/tag-horizontal-7a4998eeb8.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-villager/ribbon-95aa292a65.webp');
+  --aw-player-landscape: url('../../art/roles/role-villager/landscape-c3c6345191.webp');
+  --aw-player-role-ink: #29251d;
+}
+
+.aw-player-card[data-role-art='role-werewolf'],
+.aw-role-badge[data-role-art='role-werewolf'] {
+  --aw-player-role-tag: url('../../art/roles/role-werewolf/tag-a71360b9ab.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-werewolf/tag-horizontal-dcd10058ba.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-werewolf/ribbon-110db487ac.webp');
+  --aw-player-landscape: url('../../art/roles/role-werewolf/landscape-5d2262dfd0.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-seer'],
+.aw-role-badge[data-role-art='role-seer'] {
+  --aw-player-role-tag: url('../../art/roles/role-seer/tag-8976fa23c0.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-seer/tag-horizontal-804bb0684b.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-seer/ribbon-168ba38fdf.webp');
+  --aw-player-landscape: url('../../art/roles/role-seer/landscape-aeb2ca82e2.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-witch'],
+.aw-role-badge[data-role-art='role-witch'] {
+  --aw-player-role-tag: url('../../art/roles/role-witch/tag-7f610861fe.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-witch/tag-horizontal-2d4a4bff49.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-witch/ribbon-90441d2dbe.webp');
+  --aw-player-landscape: url('../../art/roles/role-witch/landscape-a5a91edb17.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-hunter'],
+.aw-role-badge[data-role-art='role-hunter'] {
+  --aw-player-role-tag: url('../../art/roles/role-hunter/tag-aa0d596582.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-hunter/tag-horizontal-5333eb0080.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-hunter/ribbon-60d48f11ee.webp');
+  --aw-player-landscape: url('../../art/roles/role-hunter/landscape-f5df02e73f.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-idiot'],
+.aw-role-badge[data-role-art='role-idiot'] {
+  --aw-player-role-tag: url('../../art/roles/role-idiot/tag-442d26d6a8.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-idiot/tag-horizontal-2f07e299e3.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-idiot/ribbon-e6d373de87.webp');
+  --aw-player-landscape: url('../../art/roles/role-idiot/landscape-6ea6351b8b.webp');
+  --aw-player-role-ink: #29251d;
+}
+
+.aw-player-card[data-role-art='role-guard'],
+.aw-role-badge[data-role-art='role-guard'] {
+  --aw-player-role-tag: url('../../art/roles/role-guard/tag-398b4f6302.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-guard/tag-horizontal-792c19a4fd.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-guard/ribbon-f301f0a150.webp');
+  --aw-player-landscape: url('../../art/roles/role-guard/landscape-3c118f8d19.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-magic-mirror-girl'],
+.aw-role-badge[data-role-art='role-magic-mirror-girl'] {
+  --aw-player-role-tag: url('../../art/roles/role-magic-mirror-girl/tag-60c16af7ea.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-magic-mirror-girl/tag-horizontal-02eeaa63ff.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-magic-mirror-girl/ribbon-52d8d37fe0.webp');
+  --aw-player-landscape: url('../../art/roles/role-magic-mirror-girl/landscape-f32b7b80ed.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-white-wolf-king'],
+.aw-role-badge[data-role-art='role-white-wolf-king'] {
+  --aw-player-role-tag: url('../../art/roles/role-white-wolf-king/tag-dd5309cd5d.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-white-wolf-king/tag-horizontal-b2242f6348.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-white-wolf-king/ribbon-d7252d230f.webp');
+  --aw-player-landscape: url('../../art/roles/role-white-wolf-king/landscape-4b21e58e63.webp');
+  --aw-player-role-ink: #29251d;
+}
+
+.aw-player-card[data-role-art='role-awakened-hidden-wolf'],
+.aw-role-badge[data-role-art='role-awakened-hidden-wolf'] {
+  --aw-player-role-tag: url('../../art/roles/role-awakened-hidden-wolf/tag-aeee9f5be4.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-awakened-hidden-wolf/tag-horizontal-1f659ea200.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-awakened-hidden-wolf/ribbon-02d2d79643.webp');
+  --aw-player-landscape: url('../../art/roles/role-awakened-hidden-wolf/landscape-59654da337.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-cupid'],
+.aw-role-badge[data-role-art='role-cupid'] {
+  --aw-player-role-tag: url('../../art/roles/role-cupid/tag-26acce1c54.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-cupid/tag-horizontal-11a40d3564.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-cupid/ribbon-d93a06d084.webp');
+  --aw-player-landscape: url('../../art/roles/role-cupid/landscape-bb2d8479dc.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-thief'],
+.aw-role-badge[data-role-art='role-thief'] {
+  --aw-player-role-tag: url('../../art/roles/role-thief/tag-67e0677909.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-thief/tag-horizontal-6a84c88aae.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-thief/ribbon-5b982d135f.webp');
+  --aw-player-landscape: url('../../art/roles/role-thief/landscape-4641d33169.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-knight'],
+.aw-role-badge[data-role-art='role-knight'] {
+  --aw-player-role-tag: url('../../art/roles/role-knight/tag-09776e4c87.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-knight/tag-horizontal-4a68b49135.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-knight/ribbon-242229c594.webp');
+  --aw-player-landscape: url('../../art/roles/role-knight/landscape-428f986ecf.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-bear-tamer'],
+.aw-role-badge[data-role-art='role-bear-tamer'] {
+  --aw-player-role-tag: url('../../art/roles/role-bear-tamer/tag-7715eca5f2.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-bear-tamer/tag-horizontal-85877be5d8.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-bear-tamer/ribbon-ddfaa851f8.webp');
+  --aw-player-landscape: url('../../art/roles/role-bear-tamer/landscape-3cf7fc40c7.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-gravekeeper'],
+.aw-role-badge[data-role-art='role-gravekeeper'] {
+  --aw-player-role-tag: url('../../art/roles/role-gravekeeper/tag-39ead076cd.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-gravekeeper/tag-horizontal-155f93782a.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-gravekeeper/ribbon-c8cfff1ce3.webp');
+  --aw-player-landscape: url('../../art/roles/role-gravekeeper/landscape-79083bf6f6.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-dreamweaver'],
+.aw-role-badge[data-role-art='role-dreamweaver'] {
+  --aw-player-role-tag: url('../../art/roles/role-dreamweaver/tag-9672344da3.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-dreamweaver/tag-horizontal-ef3d7d1fa2.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-dreamweaver/ribbon-edafa8a6ee.webp');
+  --aw-player-landscape: url('../../art/roles/role-dreamweaver/landscape-8964010456.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-crow'],
+.aw-role-badge[data-role-art='role-crow'] {
+  --aw-player-role-tag: url('../../art/roles/role-crow/tag-492c81e4a1.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-crow/tag-horizontal-b7b419429d.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-crow/ribbon-6130b609e4.webp');
+  --aw-player-landscape: url('../../art/roles/role-crow/landscape-2123b1ce82.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-elder'],
+.aw-role-badge[data-role-art='role-elder'] {
+  --aw-player-role-tag: url('../../art/roles/role-elder/tag-7dec0e68ff.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-elder/tag-horizontal-5e5bc27e62.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-elder/ribbon-88f488ddb3.webp');
+  --aw-player-landscape: url('../../art/roles/role-elder/landscape-2a46bd0abb.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-wolf-king'],
+.aw-role-badge[data-role-art='role-wolf-king'] {
+  --aw-player-role-tag: url('../../art/roles/role-wolf-king/tag-cf7f64504f.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-wolf-king/tag-horizontal-78d97ef8c5.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-wolf-king/ribbon-30ceaaff16.webp');
+  --aw-player-landscape: url('../../art/roles/role-wolf-king/landscape-c00431f088.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='role-hidden-wolf'],
+.aw-role-badge[data-role-art='role-hidden-wolf'] {
+  --aw-player-role-tag: url('../../art/roles/role-hidden-wolf/tag-e61743cf22.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/role-hidden-wolf/tag-horizontal-247f29fa45.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/role-hidden-wolf/ribbon-4204f852b2.webp');
+  --aw-player-landscape: url('../../art/roles/role-hidden-wolf/landscape-a4b3109f38.webp');
+  --aw-player-role-ink: #f0e0c0;
+}
+
+.aw-player-card[data-role-art='hidden'],
+.aw-role-badge[data-role-art='hidden'] {
+  --aw-player-role-tag: url('../../art/roles/hidden/tag-cf10c44dc7.webp');
+  --aw-role-tag-horizontal: url('../../art/roles/hidden/tag-horizontal-78d12c649f.webp');
+  --aw-player-seat-ribbon: url('../../art/roles/hidden/ribbon-b3e60c201d.webp');
+  --aw-player-landscape: url('../../art/roles/hidden/landscape-e14b0339f1.webp');
+  --aw-player-role-ink: #f0e0c0;
+}

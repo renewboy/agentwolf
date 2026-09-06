@@ -2,6 +2,40 @@ import { expect, test } from './fixtures/test.js'
 
 test.describe.configure({ mode: 'serial' })
 
+test('keeps mobile configuration readable and opens tool setup in a contained dialog', async ({
+  page,
+  resources: _resources,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/agents')
+  const editor = page.locator('.aw-agent-editor')
+  await expect(page.locator('.aw-agent-library')).toBeVisible()
+  await expect(editor).toBeHidden()
+  await page.getByRole('button', { name: '配置详情', exact: true }).click()
+  await expect(editor.getByRole('heading', { name: '配置玩家' })).toBeVisible()
+  await expect(page.locator('.aw-agent-library')).toBeHidden()
+  const advanced = page.locator('.aw-advanced-settings')
+  await expect(advanced.getByLabel('运行模式', { exact: true })).toBeHidden()
+  await advanced.locator('summary').click()
+  await expect(advanced.getByLabel('运行模式', { exact: true })).toBeVisible()
+  const toolButton = page.getByRole('button', { name: '新增自定义工具' })
+  await toolButton.click()
+  const dialog = page.getByRole('dialog', { name: '接入自定义工具' })
+  await expect(dialog).toBeVisible()
+  const box = await dialog.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(toolButton).toBeFocused()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+})
+
 test('creates, reorders, defaults, edits, and deletes an Agent Profile', async ({
   page,
   request,
@@ -43,6 +77,10 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
     .locator('.aw-profile-item')
     .filter({ hasText: resources.boardProfileName })
   await expect(updatedProfileRow).toBeVisible()
+  await page.getByRole('heading', { level: 1 }).hover()
+  expect(
+    await updatedProfileRow.evaluate((element) => getComputedStyle(element, '::before').width),
+  ).toBe('3px')
   await expect(updatedProfileRow.locator('small')).toContainText('mock-model · low')
   const nameBox = await updatedProfileRow.locator('strong').boundingBox()
   const modelBox = await updatedProfileRow.locator('small').boundingBox()
@@ -115,6 +153,7 @@ test('creates, reorders, defaults, edits, and deletes an Agent Profile', async (
   expect(orderedProfiles[0]?.reasoningEffort).toBe('low')
 
   await page.goto('/matches/new')
+  await page.getByRole('button', { name: '确认牌组，安排玩家' }).click()
   const seatProfiles = page.getByRole('combobox', { name: 'Agent 配置' })
   await expect(seatProfiles).toHaveCount(12)
   expect(
@@ -171,29 +210,36 @@ test('generates unique seat names and preserves the manual role multiset', async
 }) => {
   await page.goto('/matches/new')
   const names = page.getByLabel('玩家昵称')
+  await page.getByRole('button', { name: '确认牌组，安排玩家' }).click()
   await expect(names).toHaveCount(12)
+  await page.getByRole('button', { name: '选择牌组', exact: true }).click()
 
   await page.getByRole('button', { name: '6 人', exact: true }).click()
   await expect(page.getByRole('button', { name: /6 人快速场/ })).toHaveAttribute(
     'data-selected',
     'true',
   )
+  await page.getByRole('button', { name: '确认牌组，安排玩家' }).click()
   await expect(names).toHaveCount(6)
+  await page.getByRole('button', { name: '选择牌组', exact: true }).click()
 
   await page.getByRole('button', { name: '9 人', exact: true }).click()
   await expect(page.getByRole('button', { name: /9 人标准场/ })).toHaveAttribute(
     'data-selected',
     'true',
   )
+  await page.getByRole('button', { name: '确认牌组，安排玩家' }).click()
   await expect(names).toHaveCount(9)
+  await page.getByRole('button', { name: '选择牌组', exact: true }).click()
 
   await page.getByRole('button', { name: '12 人', exact: true }).click()
+  await page.getByRole('button', { name: '确认牌组，安排玩家' }).click()
   await expect(names).toHaveCount(12)
   const before = await names.evaluateAll((elements) =>
     elements.map((element) => (element as HTMLInputElement).value),
   )
   expect(new Set(before).size).toBe(12)
-  await page.getByTitle('换一个名字').first().click()
+  await page.getByRole('button', { name: '换一个名字' }).first().click()
   const after = await names.evaluateAll((elements) =>
     elements.map((element) => (element as HTMLInputElement).value),
   )
@@ -219,3 +265,85 @@ test('generates unique seat names and preserves the manual role multiset', async
 function sorted(values: readonly string[]): string[] {
   return [...values].sort()
 }
+
+test('keeps a long Agent directory and editor in independent viewport scroll areas', async ({
+  page,
+  resources: _resources,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.route('**/api/agent-profiles', async (route) => {
+    const response = await route.fetch()
+    const profiles = (await response.json()) as Array<Record<string, unknown>>
+    await route.fulfill({
+      response,
+      json: Array.from({ length: 36 }, (_, index) => ({
+        ...profiles[0],
+        id: `profile-catalog-scroll-${index}`,
+        name: `目录配置 ${index + 1}`,
+      })),
+    })
+  })
+  await page.goto('/agents')
+  const list = page.locator('.aw-profile-list')
+  await expect(list.locator('.aw-profile-item')).toHaveCount(36)
+  const footer = page.locator('.aw-agent-editor > .aw-editor-actions')
+  const before = await footer.boundingBox()
+  await list.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(page.getByText('目录配置 36', { exact: true })).toBeInViewport()
+  await page.locator('.aw-advanced-settings > summary').click()
+  const editorScroll = page.locator('.aw-agent-editor > .aw-catalog-scroll')
+  await editorScroll.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  expect(await editorScroll.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  expect(await footer.boundingBox()).toEqual(before)
+  await expect(footer.getByRole('button', { name: '保存配置' })).toBeInViewport()
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+  expect(
+    await page
+      .locator('.aw-input')
+      .first()
+      .evaluate((element) => getComputedStyle(element).borderImageSource),
+  ).not.toBe('none')
+  expect(
+    await page
+      .locator('.aw-game-select__trigger')
+      .first()
+      .evaluate((element) => getComputedStyle(element).borderImageSource),
+  ).not.toBe('none')
+})
+
+test('persists visual effects preferences immediately in the browser', async ({
+  page,
+  resources: _resources,
+}) => {
+  await page.goto('/settings')
+  const select = page.getByRole('combobox', { name: '技能特效' })
+  await select.click()
+  const selectedOption = page.getByRole('option', { selected: true })
+  await expect(selectedOption).toHaveCSS('color', 'rgb(175, 44, 28)')
+  await expect(selectedOption).not.toHaveCSS('background-color', 'rgb(216, 208, 187)')
+  const hoveredOption = page.getByRole('option', { name: '精简', exact: true })
+  const idleText = await hoveredOption.evaluate((element) => getComputedStyle(element).color)
+  await hoveredOption.hover()
+  await expect(hoveredOption).not.toHaveCSS('color', idleText)
+  await expect(hoveredOption).toHaveCSS('color', 'rgb(175, 44, 28)')
+  await expect(hoveredOption).toHaveCSS('border-image-source', 'none')
+  await page.getByRole('heading', { level: 1 }).hover()
+  expect(
+    await selectedOption.evaluate((element) => getComputedStyle(element, '::before').width),
+  ).toBe('3px')
+  await page.getByRole('option', { name: '精简', exact: true }).click()
+  expect(await page.evaluate(() => localStorage.getItem('agentwolf.role-effect-mode'))).toBe(
+    'reduced',
+  )
+  await page.reload()
+  await expect(select).toHaveAttribute('data-value', 'reduced')
+  await select.click()
+  await page.getByRole('option', { name: '关闭', exact: true }).click()
+  expect(await page.evaluate(() => localStorage.getItem('agentwolf.role-effect-mode'))).toBe('off')
+  await expect(page.getByRole('button', { name: '保存设置' }).locator('.aw-icon')).toHaveCount(0)
+})

@@ -1,0 +1,212 @@
+.aw-agent-workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.7fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'library editor' 'tools editor';
+  min-height: 0;
+  gap: 16px;
+}
+.aw-agent-library {
+  grid-area: library;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 16px;
+  padding: 18px 12px 12px;
+  overflow: hidden;
+}
+.aw-agent-library > .aw-panel-heading {
+  flex: none;
+  padding-inline: 6px;
+}
+.aw-agent-editor {
+  grid-area: editor;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.aw-profile-list {
+  display: grid;
+  align-content: start;
+  min-height: 0;
+  gap: 8px;
+  padding: 4px 6px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.aw-profile-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 5px;
+  cursor: grab;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.aw-profile-item__handle {
+  display: grid;
+  width: 28px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+}
+
+.aw-profile-item__select {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  min-height: 54px;
+  gap: 10px;
+  padding: 6px;
+  text-align: left;
+}
+
+.aw-profile-item__copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+.aw-profile-item__copy strong,
+.aw-profile-item__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aw-profile-order-hint {
+  margin: 0 0 10px;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.aw-tool-summary {
+  grid-area: tools;
+  min-width: 0;
+  padding: 16px 18px;
+}
+.aw-tool-summary > .aw-panel-heading {
+  flex-wrap: wrap;
+  gap: 12px 6px;
+}
+.aw-tool-summary > .aw-panel-heading h3 {
+  font-size: 14px;
+}
+.aw-tool-directory {
+  margin-top: 12px;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+.aw-tool-directory summary {
+  width: fit-content;
+  padding: 5px 0;
+}
+.aw-tool-directory__list {
+  max-height: 150px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.aw-tool-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  color: var(--aw-color-text-muted);
+  font-size: 13px;
+}
+.aw-tool-row small {
+  font-size: 11px;
+}
+
+.aw-advanced-settings {
+  border-top: 1px solid var(--aw-color-line);
+  border-bottom: 1px solid var(--aw-color-line);
+}
+.aw-advanced-settings summary {
+  padding: 20px 0;
+  cursor: pointer;
+}
+.aw-advanced-settings summary strong {
+  margin-right: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.aw-advanced-settings summary span {
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+.aw-advanced-settings > .aw-editor-grid {
+  padding: 4px 0 24px;
+}
+
+.aw-tool-editor {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px;
+}
+.aw-tool-editor > .aw-button--primary {
+  justify-self: end;
+}
+
+@media (max-width: 1100px) {
+  .aw-agent-workspace {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .aw-agent-editor .aw-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .aw-advanced-settings summary span {
+    display: block;
+    margin-top: 6px;
+  }
+}
+@media (max-width: 760px) {
+  .aw-agent-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: 'library' 'tools';
+    gap: 12px;
+  }
+  .aw-agent-workspace[data-panel='detail'] {
+    grid-template-areas: 'editor' 'tools';
+  }
+  .aw-agent-workspace[data-panel='list'] > .aw-agent-editor,
+  .aw-agent-workspace[data-panel='detail'] > .aw-agent-library {
+    display: none;
+  }
+  .aw-tool-summary {
+    padding: 12px 16px;
+  }
+  .aw-tool-directory {
+    margin-top: 4px;
+  }
+  .aw-tool-directory__list {
+    max-height: 96px;
+  }
+  .aw-tool-editor {
+    padding: 20px;
+  }
+  .aw-tool-editor .aw-panel-heading {
+    align-items: start;
+  }
+  .aw-tool-editor .aw-panel-heading h2 {
+    line-height: 1.6;
+  }
+}

@@ -16,7 +16,6 @@
     "@agentwolf/assets": "workspace:*",
     "@agentwolf/contracts": "workspace:*",
     "@gsap/react": "2.1.2",
-    "@phosphor-icons/react": "2.1.10",
     "@tanstack/react-virtual": "3.14.10",
     "gsap": "3.15.0",
     "react": "19.2.8",

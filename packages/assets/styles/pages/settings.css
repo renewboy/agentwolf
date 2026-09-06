@@ -1,0 +1,72 @@
+.aw-settings-page {
+  max-width: 1000px;
+}
+.aw-global-settings {
+  display: grid;
+  max-width: 720px;
+  gap: 32px;
+  padding: 30px 0;
+  border-top: 1px solid var(--aw-color-line);
+}
+.aw-global-settings .aw-panel-heading {
+  align-items: start;
+}
+.aw-global-settings .aw-panel-heading h2 {
+  margin-bottom: 12px;
+  font-family: var(--aw-font-display);
+  font-size: 26px;
+  font-weight: 500;
+}
+.aw-global-settings .aw-panel-heading p {
+  margin: 0;
+  color: var(--aw-color-text-muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.aw-global-settings .aw-panel-heading > :is(svg, .aw-icon) {
+  color: var(--aw-color-text-muted);
+  flex-shrink: 0;
+}
+.aw-global-settings > .aw-field {
+  max-width: 480px;
+}
+.aw-speech-limit-input {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.aw-speech-limit-input .aw-input {
+  width: 160px;
+}
+.aw-speech-limit-input > span {
+  color: var(--aw-color-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.aw-global-settings > .aw-editor-actions {
+  padding-top: 24px;
+  border-top: 1px solid var(--aw-color-line);
+}
+
+@media (max-width: 700px) {
+  .aw-global-settings {
+    padding-top: 24px;
+    gap: 26px;
+  }
+  .aw-speech-limit-input {
+    gap: 12px;
+  }
+  .aw-speech-limit-input .aw-input {
+    width: 140px;
+  }
+}
+
+.aw-effect-preference-hints {
+  display: grid;
+  gap: 10px;
+  margin: -10px 0 0;
+  padding-left: 18px;
+  color: var(--aw-color-text-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}

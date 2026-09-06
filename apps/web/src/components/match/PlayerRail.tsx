@@ -1,43 +1,35 @@
-import { Cards, Crown, HandPalm, Heart, Medal, Skull, Trophy } from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { getCopy, getPlayerMarkerDefinition, type PlayerMarkerDefinition } from '@agentwolf/assets'
 import type { PlayerMarkerId, PostgameReviewView, SeatView } from '@agentwolf/contracts'
-import { RoleBadge } from '../RoleBadge.js'
+import { gameArt } from '../../game-art.js'
 import { characterPortraitUrl } from '../../character-portraits.js'
 import { formatAgentConfiguration } from '../../agent-configuration.js'
+import { roleArtwork } from '../../role-art.js'
 
 export function PlayerRail({
   seats,
-  side,
+  side = 'left',
   phaseId,
   postgameReview = null,
-  compact = false,
 }: {
+  readonly side?: 'left' | 'right'
   readonly seats: readonly SeatView[]
-  readonly side: 'left' | 'right' | 'mobile'
   readonly phaseId: string
   readonly postgameReview?: PostgameReviewView | null
-  readonly compact?: boolean
 }) {
   return (
     <aside
-      className={`aw-player-rail aw-player-rail--${side}`}
-      aria-label={getCopy(
-        side === 'left'
-          ? 'match.leftPlayers'
-          : side === 'right'
-            ? 'match.rightPlayers'
-            : 'match.players',
-      )}
+      className="aw-player-rail"
+      data-side={side}
+      aria-label={getCopy(side === 'left' ? 'match.leftPlayers' : 'match.rightPlayers')}
     >
       <div className="aw-player-rail__inner">
         {seats.map((seat) => (
           <PlayerCard
-            compact={compact}
             key={seat.playerId}
             phaseId={phaseId}
             postgameReview={postgameReview}
             seat={seat}
-            side={side}
           />
         ))}
       </div>
@@ -47,18 +39,14 @@ export function PlayerRail({
 
 function PlayerCard({
   seat,
-  side,
   phaseId,
   postgameReview,
-  compact,
 }: {
   readonly seat: SeatView
-  readonly side: 'left' | 'right' | 'mobile'
   readonly phaseId: string
   readonly postgameReview: PostgameReviewView | null
-  readonly compact: boolean
 }) {
-  const initial = Array.from(seat.name)[0] ?? String(seat.seat)
+  const artwork = roleArtwork(seat.roleId)
   const submittedReview = postgameReview?.submissions.some(
     (submission) => submission.reviewerId === seat.playerId,
   )
@@ -86,78 +74,76 @@ function PlayerCard({
   return (
     <article
       className="aw-player-card"
+      data-role-art={artwork.id}
       data-active={seat.active}
       data-alive={seat.alive}
-      data-compact={compact}
       data-player-id={seat.playerId}
       data-session={seat.sessionStatus}
       data-review-submitted={submittedReview}
       data-sheriff-candidate={seat.sheriffCandidate}
-      data-side={side}
-      data-tone={(seat.seat - 1) % 6}
     >
-      <div className="aw-player-avatar" aria-hidden>
-        <span className="aw-player-avatar__ring" />
-        <span className="aw-player-avatar__core">
+      <span className="aw-player-card__cloud" aria-hidden />
+      <div className="aw-player-avatar">
+        <span className="aw-player-avatar__core" aria-hidden>
           {seat.character ? (
             <img src={characterPortraitUrl(seat.character.portraitAssetId)} alt="" />
           ) : (
-            initial
+            <img src={gameArt.defaultPlayer} alt="" />
           )}
         </span>
-        <span className="aw-player-avatar__seat">{seat.seat}</span>
+        <img className="aw-player-avatar__frame" src={artwork.avatar} alt="" />
+        <span className="aw-player-card__role" data-role-id={seat.roleId ?? 'hidden'}>
+          {seat.roleName ?? getCopy('match.roleHidden')}
+        </span>
       </div>
+      <span className="aw-player-card__seat" aria-hidden>
+        {String(seat.seat).padStart(2, '0')}
+      </span>
       <div className="aw-player-card__copy">
         <div className="aw-player-card__name-row">
-          <strong>{seat.name}</strong>
+          <strong className="aw-player-name">{seat.name}</strong>
           {seat.sheriff ? (
-            <Crown
+            <span
               className="aw-player-crown"
               data-flip-id="sheriff-crown"
-              size={16}
-              weight="fill"
+              role="img"
               aria-label={getCopy('roles.sheriff')}
-            />
-          ) : null}
-          {seat.sheriffCandidate ? (
-            <span className="aw-sheriff-candidate" aria-label={getCopy('match.sheriffCandidate')}>
-              <HandPalm size={13} weight="fill" aria-hidden />
-              {getCopy('match.sheriffCandidate')}
+            >
+              <GameIcon name="crown" size={16} />
             </span>
           ) : null}
-          {!seat.alive ? <Skull size={15} aria-label={getCopy('match.eliminated')} /> : null}
-          {award ? (
-            <span className="aw-postgame-player-award" data-award={award}>
-              {award === 'mvp' ? (
-                <Trophy size={13} weight="fill" aria-hidden />
-              ) : (
-                <Medal size={13} weight="fill" aria-hidden />
-              )}
-              {award.toUpperCase()}
+          {!seat.alive ? (
+            <span role="img" aria-label={getCopy('match.eliminated')}>
+              <GameIcon name="skull" size={15} />
             </span>
           ) : null}
         </div>
         {seat.character ? (
-          <span className="aw-player-card__character">{seat.character.name}</span>
+          <span className="aw-player-name aw-player-card__character">{seat.character.name}</span>
         ) : null}
         <div className="aw-player-card__badges">
-          <RoleBadge
-            className="aw-player-card__role"
-            label={seat.roleName ?? getCopy('match.roleHidden')}
-            roleId={seat.roleId}
-          />
           {(seat.markers ?? []).map((markerId) => (
             <PlayerMarkerBadge key={markerId} markerId={markerId} />
           ))}
+          {seat.sheriffCandidate ? (
+            <span className="aw-sheriff-candidate" aria-label={getCopy('match.sheriffCandidate')}>
+              <GameIcon name="hand" size={13} />
+              {getCopy('match.sheriffCandidate')}
+            </span>
+          ) : null}
+          {award ? (
+            <span className="aw-postgame-player-award" data-award={award}>
+              <GameIcon name="award" size={13} />
+              {award.toUpperCase()}
+            </span>
+          ) : null}
         </div>
         <span className="aw-player-card__status">
           <span className="aw-player-card__status-mark" aria-hidden />
           {statusLabel}
         </span>
       </div>
-      <span className="aw-player-card__agent" title={formatAgentConfiguration(seat.agent)}>
-        {formatAgentConfiguration(seat.agent)}
-      </span>
+      <span className="aw-player-card__agent">{formatAgentConfiguration(seat.agent)}</span>
     </article>
   )
 }
@@ -181,9 +167,9 @@ function PlayerMarkerBadge({ markerId }: { readonly markerId: PlayerMarkerId }) 
 function PlayerMarkerIcon({ icon }: { readonly icon: PlayerMarkerDefinition['icon'] }) {
   switch (icon) {
     case 'heart':
-      return <Heart size={11} weight="fill" aria-hidden />
+      return <GameIcon name="heart" size={11} />
     case 'cards':
-      return <Cards size={11} weight="fill" aria-hidden />
+      return <GameIcon name="cards" size={11} />
   }
   throw new Error('Unknown player marker icon')
 }

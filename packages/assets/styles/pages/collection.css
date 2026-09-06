@@ -1,0 +1,220 @@
+.aw-character-library {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 34px;
+}
+.aw-character-gallery {
+  position: sticky;
+  top: 28px;
+  display: grid;
+  min-width: 0;
+  max-height: calc(100dvh - 100px);
+  gap: 20px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.aw-character-search {
+  width: 100%;
+}
+.aw-character-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 14px;
+}
+.aw-character-card {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 6px 6px 12px;
+}
+.aw-character-card > .aw-choice__art {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+}
+.aw-character-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.aw-character-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aw-character-detail {
+  padding-left: 34px;
+}
+.aw-character-overview {
+  display: grid;
+  gap: 28px;
+}
+.aw-character-overview__heading {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+.aw-character-overview__portrait {
+  width: 136px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: 3px;
+}
+.aw-character-overview__heading h2 {
+  margin: 12px 0 16px;
+  font-family: var(--aw-font-display);
+  font-size: clamp(26px, 2.7vw, 36px);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.aw-character-overview__heading p {
+  margin: 0;
+  color: var(--aw-color-text-muted);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.aw-character-notes {
+  padding-top: 24px;
+  border-top: 1px solid var(--aw-color-line);
+}
+.aw-character-notes h3 {
+  margin: 0 0 18px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.aw-character-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.aw-character-traits span {
+  padding: 5px 8px;
+  border: 1px solid var(--aw-color-line);
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+.aw-character-notes dl {
+  display: grid;
+  gap: 22px;
+  margin: 24px 0 0;
+}
+.aw-character-notes dl > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 18px;
+}
+.aw-character-notes dt {
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+.aw-character-notes dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+.aw-character-ability-note {
+  margin: 0;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.aw-character-editor__portrait {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.aw-character-portrait-preview {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 88px;
+  height: 112px;
+  overflow: hidden;
+  border: 1px solid var(--aw-color-line);
+  border-radius: 3px;
+}
+.aw-character-portrait-preview__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.aw-character-editor__portrait small {
+  flex-basis: 100%;
+  color: var(--aw-color-text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.aw-character-upload {
+  position: relative;
+  cursor: pointer;
+}
+.aw-character-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+.aw-character-detail .aw-editor-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .aw-character-library {
+    grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.2fr);
+    gap: 24px;
+  }
+  .aw-character-detail {
+    padding-left: 24px;
+  }
+  .aw-character-overview__heading {
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 18px;
+  }
+  .aw-character-overview__portrait {
+    width: 100px;
+  }
+}
+
+@media (max-width: 800px) {
+  .aw-character-library {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .aw-character-gallery {
+    position: static;
+    max-height: none;
+    padding-right: 0;
+    overflow: visible;
+  }
+  .aw-character-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: 124px;
+    gap: 14px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 8px;
+  }
+  .aw-character-detail {
+    padding: 26px 0 0;
+    border-top: 1px solid var(--aw-color-line);
+    border-left: 0;
+  }
+  .aw-character-overview__heading {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
+  .aw-character-overview__portrait {
+    width: 108px;
+  }
+  .aw-character-overview__heading h2 {
+    font-size: 28px;
+  }
+}

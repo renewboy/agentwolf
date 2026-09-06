@@ -1,39 +1,55 @@
-import {
-  GearSix,
-  CardsThree,
-  MoonStars,
-  PlusCircle,
-  SlidersHorizontal,
-  SquaresFour,
-} from '@phosphor-icons/react'
+import { GameIcon } from './GameIcon.js'
 import { NavLink, Outlet } from 'react-router-dom'
 import { getCopy } from '@agentwolf/assets'
+import { gameArt } from '../game-art.js'
 
 export function AppShell() {
   return (
     <div className="aw-app-shell">
+      <a className="aw-skip-link" href="#main-content">
+        {getCopy('tableDesign.skip')}
+      </a>
       <header className="aw-topbar">
         <NavLink className="aw-brand" to="/">
-          {getCopy('brand')}
+          <img src={gameArt.emblem} alt="" width="112" height="112" />
+          <span>
+            {getCopy('brand')}
+            <small>{getCopy('tableDesign.brandTagline')}</small>
+          </span>
         </NavLink>
-        <nav className="aw-nav" aria-label={getCopy('navigation.lobby')}>
-          <NavItem to="/" label={getCopy('navigation.lobby')} icon={<MoonStars />} end />
-          <NavItem to="/matches/new" label={getCopy('navigation.newMatch')} icon={<PlusCircle />} />
+        <nav className="aw-nav" aria-label={getCopy('tableDesign.navigation')}>
+          <NavItem to="/" label={getCopy('navigation.lobby')} icon={<GameIcon name="eye" />} end />
+          <NavItem
+            to="/matches/new"
+            label={getCopy('navigation.newMatch')}
+            icon={<GameIcon name="battle" />}
+          />
+          <NavItem
+            to="/boards"
+            label={getCopy('navigation.boards')}
+            icon={<GameIcon name="cards" />}
+          />
           <NavItem
             to="/collection/characters"
             label={getCopy('navigation.collection')}
-            icon={<CardsThree />}
+            icon={<GameIcon name="smile" />}
           />
-          <NavItem to="/boards" label={getCopy('navigation.boards')} icon={<SquaresFour />} />
-          <NavItem to="/agents" label={getCopy('navigation.agents')} icon={<GearSix />} />
+          <NavItem
+            to="/agents"
+            label={getCopy('navigation.agents')}
+            icon={<GameIcon name="pawn" />}
+          />
           <NavItem
             to="/settings"
             label={getCopy('navigation.settings')}
-            icon={<SlidersHorizontal />}
+            icon={<GameIcon name="settings" />}
           />
         </nav>
+        <img className="aw-sidebar-forest" src={gameArt.forest} alt="" />
       </header>
-      <Outlet />
+      <div className="aw-app-content" id="main-content" tabIndex={-1}>
+        <Outlet />
+      </div>
     </div>
   )
 }
@@ -50,9 +66,14 @@ function NavItem({
   readonly end?: boolean
 }) {
   return (
-    <NavLink className="aw-nav__link" to={to} end={end}>
+    <NavLink
+      className="aw-nav__link aw-choice aw-choice--navigation"
+      aria-label={label}
+      to={to}
+      end={end}
+    >
       {icon}
-      <span>{label}</span>
+      <span className="aw-choice__label">{label}</span>
     </NavLink>
   )
 }

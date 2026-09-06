@@ -1,0 +1,25 @@
+.aw-etched-divider {
+  position: relative;
+}
+
+.aw-etched-divider::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 14px;
+  background:
+    var(--aw-date-wood-center) center / 48px 14px no-repeat,
+    var(--aw-date-wood-rail) left center / calc(50% - 28px) 3px no-repeat,
+    var(--aw-date-wood-rail) right center / calc(50% - 28px) 3px no-repeat;
+  pointer-events: none;
+}
+
+.aw-etched-divider--compact::after {
+  height: 4px;
+  background-size:
+    15px 4px,
+    calc(50% - 9px) 1px,
+    calc(50% - 9px) 1px;
+}

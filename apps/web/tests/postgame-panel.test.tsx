@@ -124,6 +124,8 @@ describe('PostgameReviewPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: getCopy('postgame.skip') }))
     expect(onStart).toHaveBeenCalledOnce()
     expect(onSkip).toHaveBeenCalledOnce()
+    expect(screen.getByText('start failed')).not.toBeVisible()
+    fireEvent.click(screen.getByText(getCopy('tableDesign.errorDetails')))
     expect(screen.getByText('start failed')).toBeVisible()
     void act(() => vi.advanceTimersByTime(2_500))
     expect(screen.getByRole('timer')).toHaveTextContent('0')
@@ -258,9 +260,13 @@ describe('PostgameReviewPanel', () => {
       />,
     )
     expect(document.querySelector('.aw-postgame-strip')).toHaveTextContent(expected)
+    expect(document.querySelector('.aw-postgame-strip')).toHaveTextContent('好人阵营获胜')
+    expect(document.querySelector('.aw-postgame-strip')).not.toHaveTextContent('对局结束')
     if (state === 'paused') {
       await userEvent.click(screen.getByRole('button', { name: getCopy('postgame.resume') }))
       expect(onResume).toHaveBeenCalledOnce()
+      expect(screen.getByText('paused reason')).not.toBeVisible()
+      await userEvent.click(screen.getByText(getCopy('tableDesign.errorDetails')))
       expect(screen.getByText('paused reason')).toBeVisible()
     }
   })

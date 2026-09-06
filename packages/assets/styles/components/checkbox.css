@@ -1,0 +1,54 @@
+.aw-checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  color: var(--aw-color-text);
+  font-size: 13px;
+  line-height: 1.7;
+  cursor: pointer;
+}
+.aw-checkbox {
+  display: grid;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 3px;
+  place-items: center;
+  appearance: none;
+  border: 1px solid transparent;
+  border-image: var(--aw-control-frame) 38 / 4px stretch;
+  background:
+    var(--aw-texture-wood) center / 240px,
+    var(--aw-color-ink);
+  cursor: inherit;
+}
+.aw-checkbox::after {
+  width: 16px;
+  height: 16px;
+  background: url('../../art/icons/woodcut-check-185a268a.webp') center / contain no-repeat;
+  content: '';
+  visibility: hidden;
+  filter: brightness(0.25);
+}
+.aw-checkbox:checked {
+  background:
+    var(--aw-texture-paper) center / 240px,
+    #d8d0bb;
+}
+.aw-checkbox:checked::after {
+  visibility: visible;
+}
+.aw-checkbox:focus-visible {
+  outline: 2px solid var(--aw-color-text-highlight);
+  outline-offset: 3px;
+}
+.aw-checkbox:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.aw-checkbox-field:has(.aw-checkbox:disabled) {
+  color: var(--aw-color-text-muted);
+  cursor: not-allowed;
+}

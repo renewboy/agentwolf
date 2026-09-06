@@ -49,29 +49,29 @@ test('settles ended matches and stops polling a missing match', async ({
   await page.goto(`/matches/${endedMatch.id}`)
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'thinking')
   const previouslyThinkingRing = page.locator(
-    '.aw-stage-grid .aw-player-card[data-player-id="player-6"] .aw-player-avatar__ring',
+    '.aw-player-rail .aw-player-card[data-player-id="player-6"] .aw-player-card__status-mark',
   )
   const movingTransform = await previouslyThinkingRing.evaluate(
-    (element) => getComputedStyle(element).transform,
+    (element) => getComputedStyle(element).opacity,
   )
   await page.waitForTimeout(180)
   expect(
-    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).transform),
+    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).opacity),
   ).not.toBe(movingTransform)
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'ended')
-  await expect(page.locator('.aw-connection-indicator')).toContainText('对局记录已完整同步')
-  await expect(page.locator('.aw-stage-grid .aw-player-card__role')).toHaveText(
+  await expect(page.locator('.aw-connection-indicator')).toHaveCount(0)
+  await expect(page.locator('.aw-player-rail .aw-player-card__role')).toHaveText(
     endedMatch.seats.map((seat) => seat.roleName ?? '身份未公开'),
   )
-  const settledTransform = await previouslyThinkingRing.evaluate(
-    (element) => getComputedStyle(element).transform,
+  await expect(page.locator('.aw-player-card[data-player-id="player-6"]')).toContainText('已结束')
+  const settledOpacity = await previouslyThinkingRing.evaluate(
+    (element) => getComputedStyle(element).opacity,
   )
-  await page.waitForTimeout(360)
-  expect(
-    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).transform),
-  ).toBe(settledTransform)
   const settledSocketCount = socketCount
   await page.waitForTimeout(600)
+  expect(
+    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).opacity),
+  ).toBe(settledOpacity)
   expect(socketCount).toBe(settledSocketCount)
 
   const missingId = 'match-missing-stable-test'
@@ -114,21 +114,23 @@ test('receives the countdown and automatic review start over one live connection
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   await expect(page.getByRole('timer')).toBeVisible()
   await expect(page.getByRole('heading', { name: '复盘即将开始' })).toBeVisible()
+  await expect(page.locator('.aw-presence')).toHaveCount(0)
+  await expect(page.locator('.aw-postgame-strip')).toContainText('好人阵营获胜')
 
   current = collecting
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   await expect(page.getByRole('timer')).toHaveCount(0)
   await expect(page.getByText('已完成 0 / 6')).toBeVisible()
   const reviewingRings = page.locator(
-    '.aw-stage-grid .aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
+    '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
   )
   await expect(reviewingRings).toHaveCount(6)
   const initialTransform = await reviewingRings
     .first()
-    .evaluate((element) => getComputedStyle(element).transform)
+    .evaluate((element) => getComputedStyle(element).opacity)
   await page.waitForTimeout(180)
   expect(
-    await reviewingRings.first().evaluate((element) => getComputedStyle(element).transform),
+    await reviewingRings.first().evaluate((element) => getComputedStyle(element).opacity),
   ).not.toBe(initialTransform)
   await expect(page.locator('.aw-connection-indicator')).toContainText('实时连接正常')
 })
@@ -183,7 +185,7 @@ test('shows completed player ratings immediately and streams reflections through
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   await expect(page.getByText('已完成 1 / 6')).toBeVisible()
   await expect(
-    page.locator('.aw-stage-grid .aw-player-card[data-player-id="player-1"]'),
+    page.locator('.aw-player-rail .aw-player-card[data-player-id="player-1"]'),
   ).toHaveAttribute('data-review-submitted', 'true')
   await page.getByRole('button', { name: '查看复盘' }).click()
   await expect(page.locator('.aw-postgame-inspector')).toBeVisible()
@@ -204,13 +206,12 @@ test('shows completed player ratings immediately and streams reflections through
   ).toBeDisabled()
   await expect(page.getByRole('button', { name: '2 · 测试玩家2' })).toBeVisible()
   await expect(page.locator('.aw-postgame-radar__value')).toBeVisible()
-  const desktopFeedBounds = await page.locator('.aw-feed-shell').boundingBox()
+  await expect(page.locator('.aw-feed-shell')).toBeHidden()
+  const desktopRecordsBounds = await page.locator('.aw-match-records').boundingBox()
   const desktopInspectorBounds = await page.locator('.aw-postgame-inspector').boundingBox()
-  expect(desktopFeedBounds).not.toBeNull()
+  expect(desktopRecordsBounds).not.toBeNull()
   expect(desktopInspectorBounds).not.toBeNull()
-  expect((desktopFeedBounds?.x ?? 0) + (desktopFeedBounds?.width ?? 0)).toBeLessThanOrEqual(
-    desktopInspectorBounds?.x ?? 0,
-  )
+  expect(desktopInspectorBounds?.width).toBe(desktopRecordsBounds?.width)
   const reviewerTabBounds = await page
     .locator('.aw-postgame-player-tab')
     .filter({ hasText: '测试玩家1' })
@@ -254,6 +255,8 @@ test('shows completed player ratings immediately and streams reflections through
   } as unknown as MatchView
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
   await expect(page.getByRole('button', { name: '玩家评分' })).toBeVisible()
+  await page.locator('.aw-postgame-inspector-toggle').click()
+  await expect(page.locator('.aw-feed-shell')).toBeVisible()
   const feedAwards = postgameFeedGroup.locator('.aw-postgame-feed-result')
   await expect(feedAwards).toBeVisible()
   await expect(feedAwards).toContainText('本局 MVP 与 SVP')
@@ -299,9 +302,11 @@ test('shows completed player ratings immediately and streams reflections through
   await expect(page.getByRole('log').getByText(reflectionText, { exact: true })).toBeVisible()
   await expect(feedAwards.getByText('MVP · 获胜方最佳')).toBeVisible()
   await expect(feedAwards.locator('.aw-postgame-radar__value')).toHaveCount(2)
-  await expect(page.locator('.aw-connection-indicator')).toContainText('对局记录已完整同步')
+  await expect(page.locator('.aw-connection-indicator')).toHaveCount(0)
+  await page.getByRole('button', { name: '查看复盘' }).click()
   await page.setViewportSize({ width: 760, height: 900 })
-  await expect(page.locator('.aw-mobile-roster')).toBeVisible()
+  await expect(page.getByRole('complementary', { name: '左侧玩家' })).toBeVisible()
+  await expect(page.getByRole('complementary', { name: '右侧玩家' })).toBeVisible()
   await expect(page.locator('.aw-postgame-inspector')).toBeVisible()
   await expect(page.locator('.aw-feed-shell')).toBeHidden()
   const inspectorBounds = await page.locator('.aw-postgame-inspector').boundingBox()
@@ -402,6 +407,9 @@ test('offers recovery controls and deletes a paused match', async ({
 
   await page.goto(`/matches/${created.id}`)
   await expect(page.getByRole('button', { name: '继续对局' })).toBeVisible()
+  await expect(page.locator('.aw-feed-shell')).toBeVisible()
+  await expect(page.locator('.aw-pause-overlay')).toHaveCount(0)
+  await page.getByText('暂停详情与管理').click()
   await page.getByRole('button', { name: '删除对局' }).click()
   const dialog = page.getByRole('alertdialog', { name: '确认删除对局' })
   await expect(dialog).toBeVisible()

@@ -80,8 +80,8 @@ flowchart TB
 
 应用路由分为两种外壳：
 
-- setup、Agent/Profile、board、Character、settings、Lobby 和 developer 页面位于共享 `AppShell`；
-- Match 页面使用独立全视口外壳并 lazy load，避免常规导航布局介入实时舞台。
+- setup、Agent/Profile、board、Character、settings 和 Lobby 页面位于共享 `AppShell`；
+- Match 与 trajectory 使用独立全视口外壳和共享顶部，并在同一 Match Session 路由下 lazy load。
 
 Board 页面把 Role 数量编辑为完整身份牌池,并单独维护零至两张底牌;席位数由两者之差派生,逐 Seat
 Profile/Character defaults 随席位数调整。新建 Match 的手动模式把 Seat 与底牌显示为同一 multiset
@@ -171,7 +171,8 @@ Match 资源级 session 保存 `god/player/closed-eye` 和 player ID。view 改�
 
 MatchPage 只组合已投影信息：
 
-- Header：board/phase、连接状态、view、audio 和 effect mode；
+- Header：board、日期导航、连接状态、view 与 audio，顶部读取 Match Session 的实时快照；
+- Settings：浏览器内持久化的技能特效强度，由 Match 的 effect hook 消费；
 - PlayerRail：公开 Character、Role、alive、Sheriff、候选、投影授权的玩家标识和有限 Session status；
 - PresenceStage：从 Match status、postgame、连接、Session 和 speech 纯派生活动文案；
 - MatchFeed：timeline、live speech、vote detail、postgame award/reflection；

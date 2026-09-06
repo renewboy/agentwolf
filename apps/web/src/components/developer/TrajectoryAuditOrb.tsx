@@ -1,4 +1,4 @@
-import { CrosshairSimple, ShieldWarning, X } from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
@@ -102,7 +102,7 @@ export function TrajectoryAuditOrb({
     <>
       <button
         ref={orbRef}
-        className="aw-trajectory-audit-orb"
+        className="aw-button aw-trajectory-audit-orb"
         aria-label={formatCopy(getCopy('trajectory.auditOrbLabel'), {
           count: audit.issues.length,
         })}
@@ -119,19 +119,21 @@ export function TrajectoryAuditOrb({
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
       >
-        <ShieldWarning size={21} weight="fill" aria-hidden />
+        <GameIcon name="shield" size={25} />
         <b aria-hidden>{badge}</b>
       </button>
       <ModalDialog
-        className="aw-audit-dialog"
+        className="aw-dialog aw-audit-dialog"
         labelledBy="trajectory-audit-dialog-title"
         open={open}
         onClose={() => setOpen(false)}
       >
         <div className="aw-audit-dialog__header">
           <div>
-            <h2 id="trajectory-audit-dialog-title">{getCopy('trajectory.auditDialogTitle')}</h2>
-            <p>
+            <h2 className="aw-dialog__title" id="trajectory-audit-dialog-title">
+              {getCopy('trajectory.auditDialogTitle')}
+            </h2>
+            <p className="aw-dialog__description">
               {formatCopy(getCopy('trajectory.auditSummary'), {
                 turns: audit.auditedTurns,
                 issues: audit.issues.length,
@@ -139,13 +141,13 @@ export function TrajectoryAuditOrb({
             </p>
           </div>
           <button
-            className="aw-button aw-button--square"
+            className="aw-button aw-button--compact aw-button--square"
             aria-label={getCopy('common.close')}
             data-dialog-action
             type="button"
             onClick={() => setOpen(false)}
           >
-            <X size={18} aria-hidden />
+            <GameIcon name="close" size={18} />
           </button>
         </div>
         <ol className="aw-audit-dialog__issues">
@@ -164,7 +166,7 @@ export function TrajectoryAuditOrb({
                   </div>
                   {turn ? (
                     <button
-                      className="aw-button"
+                      className="aw-button aw-button--compact"
                       data-dialog-action
                       type="button"
                       onClick={() => {
@@ -172,7 +174,7 @@ export function TrajectoryAuditOrb({
                         onLocate(issue)
                       }}
                     >
-                      <CrosshairSimple size={15} aria-hidden />
+                      <GameIcon name="target" size={15} />
                       {getCopy('trajectory.locateAuditIssue')}
                     </button>
                   ) : null}

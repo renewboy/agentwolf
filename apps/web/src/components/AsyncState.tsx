@@ -1,4 +1,4 @@
-import { WarningCircle } from '@phosphor-icons/react'
+import { GameIcon } from './GameIcon.js'
 import { getCopy } from '@agentwolf/assets'
 
 export function LoadingState() {
@@ -20,7 +20,7 @@ export function ErrorState({
 }) {
   return (
     <div className="aw-empty-state aw-panel" role="alert">
-      <WarningCircle size={34} aria-hidden />
+      <GameIcon name="warning" size={34} />
       <strong>{getCopy('common.requestFailed')}</strong>
       <p>{message}</p>
       <button className="aw-button" type="button" onClick={retry}>

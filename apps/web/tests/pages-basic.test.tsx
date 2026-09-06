@@ -103,7 +103,7 @@ describe('LobbyPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
     expect(await screen.findByText('string failed')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
-    expect(await screen.findByText('村庄还没有开局')).toBeVisible()
+    expect(await screen.findByText('长夜将至，虚位以待')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: '刷新列表' }))
     expect(apiMocks.listMatches).toHaveBeenCalledTimes(4)
   })
@@ -138,7 +138,8 @@ describe('LobbyPage', () => {
       </MemoryRouter>,
     )
     await screen.findByText('Running')
-    expect(screen.getAllByRole('link', { name: '进入观战' })).toHaveLength(5)
+    expect(screen.getAllByRole('link', { name: /继续观战|回看对局/u })).toHaveLength(5)
+    expect(screen.queryByLabelText('牌局操作')).not.toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: '查看轨迹' })).toHaveLength(5)
     const simulation = screen.getAllByRole('button', { name: '添加仿真' })
     expect(simulation[0]).toBeDisabled()
@@ -150,6 +151,33 @@ describe('LobbyPage', () => {
     expect(await screen.findByTestId('simulation-dialog')).toHaveTextContent('Completed')
     await userEvent.click(screen.getByRole('button', { name: 'close simulation' }))
     expect(screen.queryByTestId('simulation-dialog')).not.toBeInTheDocument()
+  })
+
+  it('filters live and finished matches while retaining their correct destinations', async () => {
+    apiMocks.listMatches.mockResolvedValue([
+      matchView({ id: 'match-live', boardName: 'Live table' }),
+      matchView({ id: 'match-past', boardName: 'Past table', status: 'ended', winner: 'village' }),
+    ])
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('Live table')
+    await userEvent.click(screen.getByRole('button', { name: /已结束\s*1/u }))
+    expect(screen.queryByText('Live table')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '回看对局' })).toHaveAttribute(
+      'href',
+      '/matches/match-past',
+    )
+    await userEvent.click(screen.getByRole('button', { name: /进行中\s*1/u }))
+    expect(screen.queryByText('Past table')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '继续观战' })).toHaveAttribute(
+      'href',
+      '/matches/match-live',
+    )
+    await userEvent.click(screen.getByRole('button', { name: /全部\s*2/u }))
+    expect(screen.getByText('Past table')).toBeVisible()
   })
 
   it('deletes matches, cancels confirmation, and reports delete failures', async () => {

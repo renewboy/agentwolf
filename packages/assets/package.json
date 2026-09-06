@@ -19,6 +19,7 @@
     "./styles/index.css": "./styles/index.css"
   },
   "scripts": {
+    "art:roles": "node art/roles/export.mjs",
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
   },

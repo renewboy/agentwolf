@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +21,7 @@ import {
 } from '../src/components/match/PostgameAwardResults.js'
 import { PostgameRadar } from '../src/components/match/PostgameRadar.js'
 import { PlayerRail } from '../src/components/match/PlayerRail.js'
+import { gameArt } from '../src/game-art.js'
 import { matchView } from './fixtures/match.js'
 
 const scores = {
@@ -107,10 +108,9 @@ beforeEach(() => {
 })
 
 describe('MatchHeader', () => {
-  it('switches views, players, effects, audio, and shows developer navigation', async () => {
+  it('switches views, players, and audio within the shared Match navigation', async () => {
     const setViewKind = vi.fn()
     const setPlayerId = vi.fn()
-    const setEffectMode = vi.fn()
     const toggleAudio = vi.fn()
     const match = matchView()
     const { rerender } = render(
@@ -120,10 +120,8 @@ describe('MatchHeader', () => {
           audioEnabled={false}
           audioSupported
           connectionState="live"
-          effectMode="full"
           match={match}
           playerId={'player-1' as never}
-          setEffectMode={setEffectMode}
           setPlayerId={setPlayerId}
           setViewKind={setViewKind}
           viewKind="god"
@@ -135,7 +133,8 @@ describe('MatchHeader', () => {
       'href',
       `/matches/${match.id}/trajectory`,
     )
-    expect(screen.getByText('白天发言')).toBeVisible()
+    expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toHaveTextContent('第 1 天')
+    expect(screen.queryByText('白天发言')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '闭眼视角' }))
     await userEvent.click(screen.getByRole('button', { name: '玩家视角' }))
     expect(setViewKind).toHaveBeenNthCalledWith(1, 'closed-eye')
@@ -150,10 +149,8 @@ describe('MatchHeader', () => {
           audioEnabled
           audioSupported
           connectionState="live"
-          effectMode="reduced"
           match={{ ...match, phaseId: 'phase-night-wolf', phaseLabel: '狼人行动' }}
           playerId={'player-1' as never}
-          setEffectMode={setEffectMode}
           setPlayerId={setPlayerId}
           setViewKind={setViewKind}
           viewKind="player"
@@ -164,10 +161,9 @@ describe('MatchHeader', () => {
     await userEvent.click(screen.getByRole('combobox', { name: '选择玩家视角' }))
     await userEvent.click(screen.getByRole('option', { name: /二号玩家/ }))
     expect(setPlayerId).toHaveBeenCalledWith('player-2')
-    await userEvent.click(screen.getByRole('combobox', { name: '技能特效' }))
-    await userEvent.click(screen.getByRole('option', { name: '关闭' }))
-    expect(setEffectMode).toHaveBeenCalledWith('off')
-    expect(screen.getByText('第 2 夜')).toBeVisible()
+    expect(screen.queryByRole('combobox', { name: '技能特效' })).not.toBeInTheDocument()
+    expect(document.querySelector('.aw-match-hud .aw-status')).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toHaveTextContent('第 2 天')
   })
 
   it.each([
@@ -184,14 +180,12 @@ describe('MatchHeader', () => {
           audioEnabled={false}
           audioSupported={connectionState !== 'unavailable'}
           connectionState={connectionState}
-          effectMode="off"
           match={
             connectionState === 'settled'
               ? matchView({ status: 'ended', winner: 'village' })
               : matchView({ status: 'paused' })
           }
           playerId={'player-1' as never}
-          setEffectMode={vi.fn()}
           setPlayerId={vi.fn()}
           setViewKind={vi.fn()}
           viewKind="closed-eye"
@@ -199,10 +193,15 @@ describe('MatchHeader', () => {
         />
       </MemoryRouter>,
     )
-    expect(document.querySelector('.aw-connection-indicator')).toHaveAttribute(
-      'data-state',
-      connectionState,
-    )
+    if (connectionState === 'settled') {
+      expect(document.querySelector('.aw-connection-indicator')).not.toBeInTheDocument()
+      expect(document.querySelector('.aw-match-controls [data-icon="check"]')).toBeNull()
+    } else {
+      expect(document.querySelector('.aw-connection-indicator')).toHaveAttribute(
+        'data-state',
+        connectionState,
+      )
+    }
     expect(document.querySelector('.aw-audio-toggle')).toBeDisabled()
   })
 
@@ -214,10 +213,8 @@ describe('MatchHeader', () => {
           audioEnabled={false}
           audioSupported
           connectionState="live"
-          effectMode="full"
           match={matchView({ status: 'ended', winner: 'village', postgameReview: postgame })}
           playerId={'player-1' as never}
-          setEffectMode={vi.fn()}
           setPlayerId={vi.fn()}
           setViewKind={vi.fn()}
           viewKind="god"
@@ -235,7 +232,7 @@ describe('PlayerRail and postgame summaries', () => {
       ...seat,
       markers: index === 0 ? ['cupid-lover'] : [],
     })) as SeatView[]
-    render(<PlayerRail phaseId="phase-day-vote" postgameReview={null} seats={seats} side="left" />)
+    render(<PlayerRail phaseId="phase-day-vote" postgameReview={null} seats={seats} />)
 
     const marker = screen.getByLabelText('情侣')
     expect(marker).toHaveAttribute('data-marker-id', 'cupid-lover')
@@ -253,16 +250,17 @@ describe('PlayerRail and postgame summaries', () => {
         index === 0 ? { name: '角色卡', portraitAssetId: 'portrait-test', universe: '测试' } : null,
     })) as SeatView[]
     const { rerender } = render(
-      <PlayerRail
-        compact
-        phaseId="phase-day-vote"
-        postgameReview={postgame}
-        seats={seats}
-        side="left"
-      />,
+      <PlayerRail phaseId="phase-day-vote" postgameReview={postgame} seats={seats} />,
     )
     expect(screen.getByRole('complementary', { name: '左侧玩家' })).toBeVisible()
-    expect(screen.getByAltText('')).toHaveAttribute('src', '/api/character-assets/portrait-test')
+    expect(
+      screen.getByText('一号玩家').closest('.aw-player-card')?.querySelector('img'),
+    ).toHaveAttribute('src', '/api/character-assets/portrait-test')
+    expect(screen.getByText('角色卡')).toBeVisible()
+    expect(
+      screen.getByText('二号玩家').closest('.aw-player-card')?.querySelector('img'),
+    ).toHaveAttribute('src', gameArt.defaultPlayer)
+    expect(document.querySelectorAll('.aw-player-card__agent')).toHaveLength(seats.length)
     expect(screen.getByLabelText('警长')).toBeVisible()
     expect(screen.getByLabelText('上警')).toBeVisible()
     expect(screen.getByLabelText('已出局')).toBeVisible()
@@ -282,13 +280,12 @@ describe('PlayerRail and postgame summaries', () => {
         phaseId="phase-day-vote"
         postgameReview={{ ...postgame, state: 'reflecting', currentSpeakerId: 'player-2' } as never}
         seats={seats}
-        side="right"
       />,
     )
-    expect(screen.getByRole('complementary', { name: '右侧玩家' })).toHaveTextContent('复盘感言')
+    expect(screen.getByRole('complementary', { name: '左侧玩家' })).toHaveTextContent('复盘感言')
 
-    rerender(<PlayerRail phaseId="phase-day-vote" seats={seats} side="mobile" />)
-    expect(screen.getByRole('complementary', { name: '玩家' })).toHaveTextContent('投票中')
+    rerender(<PlayerRail phaseId="phase-day-vote" seats={seats} />)
+    expect(screen.getByRole('complementary', { name: '左侧玩家' })).toHaveTextContent('投票中')
   })
 
   it('renders radar values and all award resolution methods', () => {
@@ -324,7 +321,9 @@ describe('MatchFeed', () => {
     timelineItem(2, 'night.started', '第 1 夜'),
     timelineItem(3, 'guard.protected', '守卫守护'),
     timelineItem(4, 'public.announcement', '公开播报', { detail: '详情' }),
-    timelineItem(5, 'match.paused', '对局暂停'),
+    timelineItem(5, 'match.paused', '对局暂停：Decision expected action', {
+      detail: '完整诊断内容',
+    }),
     timelineItem(6, 'speech.committed', '玩家发言', { playerIds: ['player-1' as never] }),
     timelineItem(7, 'vote.resolved', '投票结果', {
       playerIds: ['player-1' as never, 'player-2' as never],
@@ -335,6 +334,35 @@ describe('MatchFeed', () => {
       postgame: true,
     }),
   ]
+
+  it('opens and locates a requested day, including repeated requests for the same day', async () => {
+    const scrollTo = vi.spyOn(HTMLElement.prototype, 'scrollTo')
+    const timeline = [
+      timelineItem(1, 'night.started', '第一夜'),
+      timelineItem(2, 'speech.committed', '第一天发言', { playerIds: ['player-1' as never] }),
+      timelineItem(3, 'night.started', '第二夜'),
+      timelineItem(4, 'speech.committed', '第二天发言', { playerIds: ['player-2' as never] }),
+    ]
+    const props = {
+      activeSpeech: null,
+      audio,
+      postgameReview: null,
+      seats: matchView().seats,
+      timeline,
+    }
+    const { rerender } = render(<MatchFeed {...props} />)
+    expect(document.querySelector('[data-day-key="day-1"]')).toHaveAttribute('data-open', 'false')
+    const request = { day: 1, requestId: 1 }
+    rerender(<MatchFeed {...props} jumpToDay={request} />)
+    await waitFor(() =>
+      expect(document.querySelector('[data-day-key="day-1"]')).toHaveAttribute('data-open', 'true'),
+    )
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' }))
+    await userEvent.click(screen.getByRole('button', { name: '折叠第 1 天' }))
+    expect(document.querySelector('[data-day-key="day-1"]')).toHaveAttribute('data-open', 'false')
+    rerender(<MatchFeed {...props} jumpToDay={{ day: 1, requestId: 2 }} />)
+    expect(document.querySelector('[data-day-key="day-1"]')).toHaveAttribute('data-open', 'true')
+  })
 
   it('groups and renders every feed-item family with audio controls', async () => {
     const seats = matchView().seats
@@ -352,6 +380,14 @@ describe('MatchFeed', () => {
       await userEvent.click(toggle)
     }
     expect(screen.getByText('对局创建')).toBeVisible()
+    const pausedEvent = screen
+      .getByText('对局暂停：Decision expected action')
+      .closest('.aw-system-event')!
+    expect(screen.getByText('对局暂停：Decision expected action')).not.toBeVisible()
+    expect(screen.getByText('完整诊断内容')).not.toBeVisible()
+    await userEvent.click(within(pausedEvent as HTMLElement).getByText('查看详情'))
+    expect(screen.getByText('对局暂停：Decision expected action')).toBeVisible()
+    expect(screen.getByText('完整诊断内容')).toBeVisible()
     expect(screen.getByText('投1号：')).toBeVisible()
     expect(screen.getByText('无人投票')).toBeVisible()
     expect(screen.getAllByText(/MVP/).length).toBeGreaterThan(0)
@@ -381,6 +417,7 @@ describe('MatchFeed', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /一号玩家.*跳过/ }))
     expect(audio.skip).toHaveBeenCalledOnce()
+    expect(screen.getByText('生成中')).toContainElement(document.querySelector('.aw-stream-cursor'))
 
     rerender(
       <MatchFeed
@@ -399,6 +436,9 @@ describe('MatchFeed', () => {
     await userEvent.click(screen.getByRole('button', { name: /二号玩家.*停止/ }))
     expect(audio.stop).toHaveBeenCalledOnce()
     expect(screen.getByText('等待下一位玩家发言')).toBeVisible()
+    expect(screen.getByText('等待下一位玩家发言')).toContainElement(
+      document.querySelector('.aw-stream-cursor'),
+    )
   })
 
   it('handles empty feeds, unknown speakers, group toggles, and unsupported audio', async () => {

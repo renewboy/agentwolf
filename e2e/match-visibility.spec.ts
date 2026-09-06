@@ -23,26 +23,37 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   const match = matchBody as { id: string }
   await page.goto(`/matches/${match.id}`)
   await expect(page.getByRole('heading', { name: '事件时间线' })).toBeVisible()
-  const roleLabels = page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__role')
+  const roleLabels = page.locator('.aw-player-rail .aw-player-card__role')
   await expect(roleLabels).toHaveCount(12)
-  await expect(page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__agent')).toHaveText(
+  await expect(page.locator('.aw-player-rail .aw-player-card__agent')).toHaveText(
     Array.from({ length: 12 }, () => `${resources.sharedToolName} · mock-model · high`),
   )
   expect(
     (await roleLabels.allTextContents()).filter((value) => value !== '身份未公开'),
   ).toHaveLength(12)
-  await expect(roleLabels.filter({ hasText: '女巫' })).toHaveCSS('color', 'rgb(189, 134, 223)')
-  await expect(roleLabels.filter({ hasText: '猎人' })).toHaveCSS('color', 'rgb(114, 198, 154)')
+  await expect(roleLabels.filter({ hasText: '女巫' })).toHaveCSS(
+    'border-image-source',
+    /role-witch\/tag-/u,
+  )
+  await expect(roleLabels.filter({ hasText: '猎人' })).toHaveCSS(
+    'border-image-source',
+    /role-hunter\/tag-/u,
+  )
 
   await page.getByRole('button', { name: '闭眼视角' }).click()
   await expect(roleLabels).toHaveText(Array.from({ length: 12 }, () => '身份未公开'))
-  await expect(page.locator('.aw-stage-grid > .aw-player-rail .aw-player-card__agent')).toHaveText(
+  await expect(page.locator('.aw-player-rail .aw-player-card__agent')).toHaveText(
     Array.from({ length: 12 }, () => `${resources.sharedToolName} · mock-model · high`),
   )
   expect(
     await roleLabels.evaluateAll((elements) =>
       elements.map((element) => element.dataset['roleId']),
     ),
+  ).toEqual(Array.from({ length: 12 }, () => 'hidden'))
+  expect(
+    await page
+      .locator('.aw-player-card')
+      .evaluateAll((cards) => cards.map((card) => card.getAttribute('data-role-art'))),
   ).toEqual(Array.from({ length: 12 }, () => 'hidden'))
 
   await page.getByRole('button', { name: '玩家视角' }).click()
@@ -77,7 +88,7 @@ test('renders a private night phase through its generic projection', async ({
   })
 
   await page.goto(`/matches/${match.id}`)
-  await expect(page.locator('.aw-phase-title')).toHaveText('夜间行动')
+  await expect(page.locator('.aw-presence__copy > small')).toHaveText('夜间行动')
   await expect(page.getByText('觉醒隐狼行动', { exact: true })).toHaveCount(0)
 })
 
@@ -136,7 +147,7 @@ test('shows Cupid relationship markers only in authorized spectator views', asyn
 
   await page.goto(`/matches/${base.id}`)
   const desktopMarkers = page.locator(
-    '.aw-stage-grid .aw-player-marker[data-marker-id="cupid-lover"]',
+    '.aw-player-rail .aw-player-marker[data-marker-id="cupid-lover"]',
   )
   await expect(desktopMarkers).toHaveCount(2)
   await expect(desktopMarkers).toHaveText(['情侣', '情侣'])
@@ -156,7 +167,7 @@ test('shows Cupid relationship markers only in authorized spectator views', asyn
 
   await page.setViewportSize({ width: 390, height: 844 })
   const mobileMarkers = page.locator(
-    '.aw-mobile-roster .aw-player-marker[data-marker-id="cupid-lover"]',
+    '.aw-player-rail .aw-player-marker[data-marker-id="cupid-lover"]',
   )
   await expect(mobileMarkers).toHaveCount(2)
   await expect(mobileMarkers.first()).toBeVisible()

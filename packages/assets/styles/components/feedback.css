@@ -1,0 +1,138 @@
+.aw-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text-muted);
+  background: var(--aw-color-ink);
+  font-size: 12px;
+}
+
+.aw-status--running {
+  border-color: rgb(111 168 132 / 58%);
+  color: var(--aw-color-success);
+}
+
+.aw-status--paused {
+  border-color: rgb(208 90 78 / 58%);
+  color: var(--aw-color-danger);
+}
+
+.aw-status--ended {
+  border-color: var(--aw-color-line-bright);
+  color: var(--aw-color-text-muted);
+}
+
+.aw-status--plain {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-image: none;
+  background: transparent;
+  line-height: 1.5;
+}
+
+.aw-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 280px;
+  padding: 34px;
+  text-align: center;
+}
+
+.aw-empty-state h1,
+.aw-empty-state h3,
+.aw-empty-state p {
+  margin: 0;
+}
+
+.aw-empty-state p {
+  max-width: 48ch;
+  color: var(--aw-color-text-muted);
+  line-height: 1.6;
+}
+
+.aw-empty-state--compact {
+  min-height: 150px;
+  padding: 20px;
+}
+
+.aw-loading {
+  display: grid;
+  gap: 18px;
+  width: min(960px, calc(100% - 32px));
+  margin: 60px auto;
+}
+
+.aw-loading__line {
+  width: 38%;
+  height: 42px;
+}
+
+.aw-loading__panel {
+  height: 420px;
+}
+
+.aw-visually-hidden {
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.aw-spin {
+  animation: aw-rotate 1s linear infinite;
+}
+
+@keyframes aw-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aw-skeleton {
+  overflow: hidden;
+  position: relative;
+  border-radius: var(--aw-radius-control);
+  background: var(--aw-color-surface-raised);
+}
+
+.aw-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 8%), transparent);
+  animation: aw-shimmer 1.4s infinite;
+  transform: translateX(-100%);
+}
+
+@keyframes aw-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.aw-form-message {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: var(--aw-radius-control);
+  font-size: 13px;
+}
+
+.aw-form-message--error {
+  color: var(--aw-color-danger);
+  background: rgb(156 53 47 / 22%);
+}
+
+.aw-form-message--success {
+  color: var(--aw-color-success);
+  background: rgb(111 168 132 / 18%);
+}

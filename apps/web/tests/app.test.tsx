@@ -82,7 +82,6 @@ describe('App routing', () => {
     ['/collection/characters', 'collection page'],
     ['/settings', 'settings page'],
     ['/matches/new', 'new match page'],
-    ['/matches/match-test-abcdef/trajectory', 'developer page'],
   ])('renders %s', async (path, content) => {
     renderApp(path)
     expect(await screen.findByText(content)).toBeVisible()
@@ -107,9 +106,12 @@ describe('App routing', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/')
   })
 
-  it('loads the Match route outside the application shell', async () => {
-    renderApp('/matches/match-test-abcdef')
-    expect(await screen.findByText('match page')).toBeVisible()
+  it.each([
+    ['/matches/match-test-abcdef', 'match page'],
+    ['/matches/match-test-abcdef/trajectory', 'developer page'],
+  ])('loads %s outside the application shell', async (path, content) => {
+    renderApp(path)
+    expect(await screen.findByText(content)).toBeVisible()
     expect(screen.queryByTestId('shell')).not.toBeInTheDocument()
   })
 
@@ -119,6 +121,7 @@ describe('App routing', () => {
     expect(sessionLifecycle).toEqual({ mounts: 1, unmounts: 0 })
     await userEvent.click(screen.getByRole('link', { name: 'open trajectory' }))
     expect(await screen.findByText(/developer page/)).toBeVisible()
+    expect(screen.queryByTestId('shell')).not.toBeInTheDocument()
     expect(sessionLifecycle).toEqual({ mounts: 1, unmounts: 0 })
     await userEvent.click(screen.getByRole('link', { name: 'back to match' }))
     expect(await screen.findByText(/match page/)).toBeVisible()

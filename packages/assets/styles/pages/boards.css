@@ -1,0 +1,307 @@
+.aw-board-management {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.7fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+}
+.aw-board-management > .aw-catalog-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 16px;
+  padding: 18px 12px 12px;
+}
+.aw-board-management > .aw-catalog-sidebar > .aw-panel-heading {
+  flex: none;
+  padding-inline: 6px;
+}
+.aw-board-management > .aw-catalog-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.aw-board-directory {
+  display: grid;
+  align-content: start;
+  min-height: 0;
+  gap: 8px;
+  padding: 4px 6px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.aw-board-management__item {
+  display: flex;
+  align-items: start;
+  width: 100%;
+  gap: 12px;
+  padding: 16px 12px;
+}
+.aw-board-management__item > :is(svg, .aw-icon) {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.aw-board-management__item > span {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+.aw-board-management__item small {
+}
+.aw-board-overview,
+.aw-board-editor {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+}
+.aw-board-overview__heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  align-items: center;
+  gap: 28px;
+}
+.aw-board-overview__heading h2 {
+  margin: 12px 0 16px;
+  font-family: var(--aw-font-display);
+  font-size: clamp(26px, 2.6vw, 38px);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.aw-board-overview__heading p {
+  margin: 0;
+  color: var(--aw-color-text-muted);
+  font-size: 14px;
+  line-height: 1.9;
+}
+.aw-board-overview__art {
+  width: 104px;
+  height: 148px;
+  object-fit: cover;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: 3px;
+  transform: rotate(5deg);
+}
+.aw-board-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 22px 0;
+  border-top: 1px solid var(--aw-color-line);
+  border-bottom: 1px solid var(--aw-color-line);
+}
+.aw-board-facts > div {
+  padding: 0 24px;
+  border-left: 1px solid var(--aw-color-line);
+}
+.aw-board-facts > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.aw-board-facts dt {
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+.aw-board-facts dd {
+  margin: 9px 0 0;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+.aw-board-overview h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.aw-board-composition__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+.aw-board-role-card {
+  display: grid;
+  gap: 24px;
+  align-content: space-between;
+  min-height: 116px;
+  padding: 16px 12px;
+}
+.aw-board-role-card__count {
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+.aw-board-role-card__count > strong {
+  color: var(--aw-color-text);
+  font-size: 26px;
+  font-weight: 400;
+}
+.aw-board-role-card .aw-role-badge {
+  justify-self: start;
+}
+.aw-board-rule-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 14px;
+}
+.aw-board-rule-summary p {
+  margin: 12px 0 0;
+  color: var(--aw-color-text-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.aw-board-defaults__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.aw-board-default-player {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+.aw-board-default-player > b {
+  color: var(--aw-color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.aw-board-default-player > img {
+  width: 38px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+.aw-board-default-player > span {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.aw-board-default-player strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.aw-board-default-player small {
+  overflow: hidden;
+  color: var(--aw-color-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-board-role-editor,
+.aw-board-character-editor,
+.aw-board-rules {
+  display: grid;
+  gap: 18px;
+  padding-top: 24px;
+  border-top: 1px solid var(--aw-color-line);
+}
+.aw-board-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.aw-board-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 12px;
+  padding: 12px;
+}
+.aw-board-role-row > span {
+  display: grid;
+  gap: 8px;
+}
+.aw-board-role-row small,
+.aw-board-rules small,
+.aw-board-character-editor .aw-panel-heading small,
+.aw-board-reserve-counter small {
+  color: var(--aw-color-text-muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.aw-board-reserve-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+}
+.aw-board-reserve-counter > span {
+  display: grid;
+  gap: 8px;
+}
+.aw-board-character-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.aw-board-character-slot {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px;
+}
+.aw-board-character-slot > img,
+.aw-board-character-slot__empty {
+  width: 40px;
+  height: 54px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid var(--aw-color-line);
+  background: var(--aw-color-surface);
+}
+.aw-board-seat-defaults {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 7px;
+}
+.aw-board-victory {
+  margin: 14px 0 10px;
+}
+.aw-board-victory .aw-segmented__item {
+  flex: 1;
+}
+@media (max-width: 1100px) {
+  .aw-board-role-grid,
+  .aw-board-character-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .aw-board-management {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .aw-board-management[data-panel='list'] > .aw-catalog-detail,
+  .aw-board-management[data-panel='detail'] > .aw-catalog-sidebar {
+    display: none;
+  }
+  .aw-board-overview__heading {
+    grid-template-columns: minmax(0, 1fr) 76px;
+    gap: 18px;
+  }
+  .aw-board-overview__art {
+    width: 76px;
+    height: 108px;
+  }
+  .aw-board-overview__heading h2 {
+    font-size: 28px;
+  }
+  .aw-board-composition__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .aw-board-role-card {
+    padding: 12px 8px;
+  }
+  .aw-board-facts > div {
+    padding: 0 14px;
+  }
+}

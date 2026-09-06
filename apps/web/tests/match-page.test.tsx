@@ -65,42 +65,57 @@ vi.mock('../src/components/match/RoleEffectController.js', () => ({
 vi.mock('../src/components/match/MatchHeader.js', () => ({
   MatchHeader: ({
     onToggleAudio,
-    setEffectMode,
+    onSelectDay,
+    selectedDay,
     setPlayerId,
     setViewKind,
     viewKind,
   }: {
     onToggleAudio: () => void
-    setEffectMode: (mode: string) => void
+    onSelectDay: (day: number) => void
+    selectedDay?: number
     setPlayerId: (id: string) => void
     setViewKind: (kind: string) => void
     viewKind: string
   }) => (
     <div data-testid="header">
       view:{viewKind}
+      <span data-testid="selected-day">{selectedDay ?? 'current'}</span>
       <button type="button" onClick={() => setViewKind('player')}>
         player view
       </button>
       <button type="button" onClick={() => setPlayerId('player-2')}>
         player two
       </button>
-      <button type="button" onClick={() => setEffectMode('off')}>
-        effect off
-      </button>
       <button type="button" onClick={onToggleAudio}>
         toggle audio
+      </button>
+      <button type="button" onClick={() => onSelectDay(1)}>
+        first day
+      </button>
+      <button type="button" onClick={() => onSelectDay(2)}>
+        second day
       </button>
     </div>
   ),
 }))
 vi.mock('../src/components/match/PlayerRail.js', () => ({
-  PlayerRail: ({ side, seats }: { side: string; seats: readonly unknown[] }) => (
-    <div data-testid={`rail-${side}`}>{seats.length}</div>
+  PlayerRail: ({ seats }: { seats: readonly unknown[] }) => (
+    <div data-testid="rail-table">{seats.length}</div>
   ),
 }))
 vi.mock('../src/components/match/MatchFeed.js', () => ({
-  MatchFeed: ({ audio }: { audio: { play: () => void; stop: () => void; skip: () => void } }) => (
+  MatchFeed: ({
+    audio,
+    jumpToDay,
+  }: {
+    audio: { play: () => void; stop: () => void; skip: () => void }
+    jumpToDay?: { day: number; requestId: number }
+  }) => (
     <div data-testid="feed">
+      <span data-testid="feed-jump">
+        {jumpToDay ? `${jumpToDay.day}:${jumpToDay.requestId}` : ''}
+      </span>
       <button type="button" onClick={audio.play}>
         feed play
       </button>
@@ -157,6 +172,17 @@ const cancelAll = vi.fn()
 const playManual = vi.fn()
 const stopManual = vi.fn()
 const skipAutomatic = vi.fn()
+
+function dayTimeline(count: number): MatchView['timeline'] {
+  return Array.from({ length: count }, (_, index) => ({
+    sequence: index + 1,
+    kind: 'night.started',
+    title: `第 ${index + 1} 夜`,
+    playerIds: [],
+    occurredAt: '2026-09-05T00:00:00.000Z',
+    postgame: false,
+  }))
+}
 
 function setLive(match: MatchView | null, overrides: Record<string, unknown> = {}): void {
   live.current = {
@@ -266,16 +292,20 @@ describe('MatchPage', () => {
     })
     setSpeech({ notice: 'playback notice' })
     const { rerender } = renderPage()
-    expect(screen.getByTestId('rail-mobile')).toHaveTextContent('2')
-    expect(screen.getByTestId('rail-left')).toHaveTextContent('1')
-    expect(screen.getByTestId('rail-right')).toHaveTextContent('1')
+    expect(screen.getAllByTestId('rail-table')).toHaveLength(2)
+    expect(screen.getAllByTestId('rail-table').map((rail) => rail.textContent)).toEqual(['1', '1'])
     expect(document.querySelector('.aw-audio-notice')).toHaveTextContent('playback notice')
-    expect(document.querySelector('.aw-stage-grid')).toHaveAttribute('aria-hidden', 'true')
+    const projection = document.querySelector('.aw-match-projection')!
+    expect(projection).toHaveAttribute('aria-hidden', 'true')
+    expect(projection).toHaveAttribute('inert')
+    for (const rail of screen.getAllByTestId('rail-table')) {
+      expect(projection).toContainElement(rail)
+    }
+    expect(document.querySelector('.aw-match-overview')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'player view' }))
     await userEvent.click(screen.getByRole('button', { name: 'player two' }))
-    await userEvent.click(screen.getByRole('button', { name: 'effect off' }))
     await userEvent.click(screen.getByRole('button', { name: 'toggle audio' }))
-    expect(effect.setMode).toHaveBeenCalledWith('off')
+    expect(screen.getByTestId('effects')).toHaveTextContent('off:god')
     expect(session.toggleVoice).toHaveBeenCalled()
     rerender(
       <MemoryRouter initialEntries={['/matches/match-test-abcdef']}>
@@ -367,8 +397,21 @@ describe('MatchPage', () => {
     }
   })
 
-  it('renders every active postgame presence state and controls inspector openness', async () => {
-    const base = matchView({ status: 'ended', winner: 'village' })
+  it('keeps the activity label on the narrated player while another player streams', () => {
+    presence.current = 'narrating'
+    setLive(
+      matchView({
+        activeSpeech: { speechId: 31, playerId: 'player-1', text: 'stream', final: false },
+      }),
+    )
+    setSpeech({ automaticPlayerId: 'player-2' })
+    renderPage()
+    expect(document.querySelector('.aw-presence__copy strong')).toHaveTextContent('二号玩家')
+    expect(document.querySelector('.aw-presence__copy strong')).not.toHaveTextContent('一号玩家')
+  })
+
+  it('uses one postgame summary and closes its inspector when navigating to a day', async () => {
+    const base = matchView({ status: 'ended', winner: 'village', timeline: dayTimeline(1) })
     const states = [
       { state: 'paused' },
       { state: 'countdown' },
@@ -386,7 +429,8 @@ describe('MatchPage', () => {
           </Routes>
         </MemoryRouter>,
       )
-      expect(document.querySelector('.aw-presence__copy strong')?.textContent).toBeTruthy()
+      expect(document.querySelector('.aw-presence')).toBeNull()
+      expect(screen.getByTestId('postgame')).toBeVisible()
     }
     setLive({ ...base, postgameReview: { state: 'collecting' } } as MatchView)
     rendered.rerender(
@@ -398,6 +442,12 @@ describe('MatchPage', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: 'review toggle' }))
     expect(screen.getByTestId('postgame')).toHaveTextContent('open:true')
+    await userEvent.click(screen.getByRole('button', { name: 'first day' }))
+    expect(screen.getByTestId('postgame')).toHaveTextContent('open:false')
+    expect(screen.getByTestId('feed-jump')).toHaveTextContent('1:1')
+    await userEvent.click(screen.getByRole('button', { name: 'first day' }))
+    expect(screen.getByTestId('feed-jump')).toHaveTextContent('1:2')
+    await userEvent.click(screen.getByRole('button', { name: 'review toggle' }))
     setLive({ ...base, postgameReview: { state: 'countdown' } } as MatchView)
     rendered.rerender(
       <MemoryRouter initialEntries={['/matches/match-test-abcdef']}>
@@ -407,6 +457,51 @@ describe('MatchPage', () => {
       </MemoryRouter>,
     )
     await waitFor(() => expect(screen.getByTestId('postgame')).toHaveTextContent('open:false'))
+  })
+
+  it('clears day navigation across projection, visibility, pending, and match boundaries', async () => {
+    const base = matchView({ day: 2, timeline: dayTimeline(2) })
+    setLive(base)
+    const rendered = renderPage()
+    const refresh = (next = base, viewPending = false): void => {
+      setLive(next, { viewPending })
+      rendered.rerender(
+        <MemoryRouter initialEntries={['/matches/match-test-abcdef']}>
+          <Routes>
+            <Route path="/matches/:matchId" element={<MatchPage />} />
+          </Routes>
+        </MemoryRouter>,
+      )
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'second day' }))
+    expect(screen.getByTestId('selected-day')).toHaveTextContent('2')
+    expect(screen.getByTestId('feed-jump')).toHaveTextContent('2:1')
+
+    session.viewKind = 'closed-eye'
+    refresh()
+    expect(screen.getByTestId('selected-day')).toHaveTextContent('current')
+    expect(screen.getByTestId('feed-jump')).toBeEmptyDOMElement()
+
+    await userEvent.click(screen.getByRole('button', { name: 'second day' }))
+    const visible = matchView({ timeline: dayTimeline(1) })
+    refresh(visible)
+    expect(screen.getByTestId('selected-day')).toHaveTextContent('current')
+    await userEvent.click(screen.getByRole('button', { name: 'second day' }))
+    expect(screen.getByTestId('feed-jump')).toBeEmptyDOMElement()
+
+    await userEvent.click(screen.getByRole('button', { name: 'first day' }))
+    refresh(visible, true)
+    expect(screen.getByTestId('selected-day')).toHaveTextContent('current')
+    expect(screen.getByTestId('feed-jump')).toBeEmptyDOMElement()
+    await userEvent.click(screen.getByRole('button', { name: 'first day' }))
+    expect(screen.getByTestId('feed-jump')).toBeEmptyDOMElement()
+    refresh(visible)
+    expect(screen.getByTestId('feed-jump')).toBeEmptyDOMElement()
+
+    await userEvent.click(screen.getByRole('button', { name: 'first day' }))
+    refresh(matchView({ id: 'match-other', timeline: dayTimeline(1) }))
+    expect(screen.getByTestId('selected-day')).toHaveTextContent('current')
+    expect(screen.getByTestId('feed-jump')).toBeEmptyDOMElement()
   })
 
   it('names the exact winning players for a third-party ending', () => {
@@ -446,7 +541,11 @@ describe('MatchPage', () => {
     renderPage()
     const resume = screen.getByRole('button', { name: '继续对局' })
     await userEvent.click(resume)
-    expect(await screen.findByText('resume failed')).toBeVisible()
+    expect(await screen.findByText('resume failed')).not.toBeVisible()
+    expect(document.querySelector('.aw-pause-overlay')).toBeNull()
+    expect(screen.getByTestId('feed')).toBeVisible()
+    await userEvent.click(screen.getByText('暂停详情与管理'))
+    expect(screen.getByText('resume failed')).toBeVisible()
     await userEvent.click(resume)
     expect(await screen.findByText('resume string failed')).toBeVisible()
     await userEvent.click(resume)

@@ -1,6 +1,8 @@
-import { CheckCircle, XCircle } from '@phosphor-icons/react'
+import { GameIcon } from './GameIcon.js'
 import { getCopy } from '@agentwolf/assets'
+import { useId } from 'react'
 import { FormField } from './FormField.js'
+import { ModalDialog } from './ModalDialog.js'
 
 export interface ToolDraft {
   readonly name: string
@@ -23,25 +25,41 @@ export const emptyToolDraft: ToolDraft = {
 export function CustomToolEditor({
   draft,
   busy,
+  error = null,
   onChange,
   onClose,
   onSave,
 }: {
   readonly draft: ToolDraft
   readonly busy: boolean
+  readonly error?: string | null
   readonly onChange: (draft: ToolDraft) => void
   readonly onClose: () => void
   readonly onSave: () => void
 }) {
+  const titleId = useId()
   return (
-    <section className="aw-tool-editor aw-panel">
+    <ModalDialog
+      open
+      busy={busy}
+      className="aw-tool-editor aw-dialog"
+      labelledBy={titleId}
+      onClose={onClose}
+    >
       <div className="aw-panel-heading">
-        <h2>{getCopy('agentFields.newTool')}</h2>
-        <button className="aw-button aw-button--icon" type="button" onClick={onClose}>
-          <XCircle size={18} aria-hidden />
+        <h2 id={titleId}>{getCopy('configDesign.agents.connectionTitle')}</h2>
+        <button
+          className="aw-button aw-button--icon"
+          data-dialog-action
+          disabled={busy}
+          type="button"
+          onClick={onClose}
+        >
+          <GameIcon name="close" size={18} />
           {getCopy('common.close')}
         </button>
       </div>
+      <p className="aw-catalog-note">{getCopy('configDesign.agents.toolHint')}</p>
       <div className="aw-editor-grid">
         <FormField label={getCopy('agentFields.toolName')}>
           <input
@@ -92,15 +110,20 @@ export function CustomToolEditor({
           />
         </FormField>
       </div>
+      {error ? (
+        <p className="aw-form-message aw-form-message--error" role="alert">
+          {error}
+        </p>
+      ) : null}
       <button
         className="aw-button aw-button--primary"
         disabled={busy}
+        data-dialog-action
         type="button"
         onClick={onSave}
       >
-        <CheckCircle size={18} aria-hidden />
         {getCopy('agentFields.saveTool')}
       </button>
-    </section>
+    </ModalDialog>
   )
 }

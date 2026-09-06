@@ -1,0 +1,30 @@
+@media (any-pointer: fine) {
+  :root {
+    --aw-cursor-idle: url('../../art/cursors/idle-464b5abbbe.png') 1 1;
+    --aw-cursor-pressed: url('../../art/cursors/pressed-9abad8c8ff.png') 1 1;
+    --aw-cursor-art: var(--aw-cursor-idle);
+  }
+  :root[data-aw-cursor='pressed'] {
+    --aw-cursor-art: var(--aw-cursor-pressed);
+  }
+  html,
+  body,
+  body * {
+    cursor: var(--aw-cursor-art), auto !important;
+  }
+  body
+    :is(
+      input:not(
+        [type='checkbox'],
+        [type='radio'],
+        [type='button'],
+        [type='submit'],
+        [type='range'],
+        [type='color']
+      ),
+      textarea,
+      [contenteditable='true']
+    ) {
+    cursor: text !important;
+  }
+}

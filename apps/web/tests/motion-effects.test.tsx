@@ -130,22 +130,20 @@ describe('MatchMotionController', () => {
     const scope = useRef<HTMLElement>(null)
     return (
       <section className="aw-match-shell" ref={scope}>
-        <div className="aw-lunar-field__glow" />
-        <div className="aw-lunar-field__haze" />
         <div className="aw-presence__orb" />
         <div className="aw-presence__signal" />
         <div className="aw-presence__wave">
           <span />
         </div>
-        <div className="aw-player-avatar__ring" />
+        <div className="aw-player-card__status-mark" />
         <div className="aw-player-card" data-session="thinking">
-          <span className="aw-player-avatar__ring" />
+          <span className="aw-player-card__status-mark" />
         </div>
         <div className="aw-player-card" data-session="starting">
-          <span className="aw-player-avatar__ring" />
+          <span className="aw-player-card__status-mark" />
         </div>
         <div className="aw-player-card" data-session="syncing">
-          <span className="aw-player-avatar__ring" />
+          <span className="aw-player-card__status-mark" />
         </div>
         <h2 className="aw-phase-title">Phase</h2>
         <div className="aw-feed-item" data-sequence={lastSequence} />
@@ -162,19 +160,10 @@ describe('MatchMotionController', () => {
     )
   }
 
-  it('runs ambient, presence, phase, feed, and Sheriff motion and cleans visibility', () => {
+  it('runs presence, phase, feed, and Sheriff motion with scoped cleanup', () => {
     const { rerender, unmount } = render(<Harness presenceState="thinking" />)
-    expect(motion.gsap.timeline).toHaveBeenCalled()
     expect(motion.gsap.to).toHaveBeenCalled()
     expect(motion.gsap.fromTo).toHaveBeenCalledTimes(2)
-    const ambient = motion.timelines[0]!
-    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
-    void act(() => document.dispatchEvent(new Event('visibilitychange')))
-    expect(ambient.pause).toHaveBeenCalled()
-    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
-    void act(() => document.dispatchEvent(new Event('visibilitychange')))
-    expect(ambient.resume).toHaveBeenCalled()
-
     rerender(<Harness presenceState="streaming" sheriffId="player-1" />)
     rerender(<Harness presenceState="starting" sheriffId="player-2" />)
     expect(motion.flipFrom).toHaveBeenCalled()
@@ -187,17 +176,17 @@ describe('MatchMotionController', () => {
     expect(motion.flipGetState).toHaveBeenCalled()
   })
 
-  it('spins every working player while sessions are starting', () => {
+  it('pulses every working player status while sessions are starting', () => {
     render(<Harness presenceState="starting" />)
     const workingRings = [
       ...document.querySelectorAll(
-        '.aw-player-card[data-session="starting"] .aw-player-avatar__ring, .aw-player-card[data-session="syncing"] .aw-player-avatar__ring, .aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
+        '.aw-player-card[data-session="starting"] .aw-player-card__status-mark, .aw-player-card[data-session="syncing"] .aw-player-card__status-mark, .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
       ),
     ]
     expect(workingRings).toHaveLength(3)
     expect(motion.gsap.to).toHaveBeenCalledWith(
       workingRings,
-      expect.objectContaining({ rotate: 360, repeat: -1 }),
+      expect.objectContaining({ opacity: 0.35, repeat: -1 }),
     )
   })
 
@@ -290,7 +279,6 @@ describe('RoleEffectController', () => {
       'data-role-effect',
       'werewolf-attack',
     )
-    expect(motion.gsap.timeline).toHaveBeenCalled()
     const completion = motion.timelineOptions.find((options) => options.onComplete)?.onComplete
     act(() => completion?.())
     expect(screen.getByText('预言家查验')).toBeVisible()

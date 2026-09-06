@@ -1,4 +1,4 @@
-import { WarningCircle } from '@phosphor-icons/react'
+import { GameIcon } from './GameIcon.js'
 import { useId, useRef } from 'react'
 import { getCopy } from '@agentwolf/assets'
 import { ModalDialog } from './ModalDialog.js'
@@ -36,7 +36,7 @@ export function ConfirmDialog({
       onClose={onCancel}
     >
       <div className="aw-confirm-dialog__icon" aria-hidden>
-        <WarningCircle size={28} weight="duotone" />
+        <GameIcon name="warning" size={36} />
       </div>
       <div className="aw-confirm-dialog__copy">
         <h2 id={titleId}>{title}</h2>

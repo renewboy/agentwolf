@@ -75,48 +75,19 @@ export function MatchMotionController({
   const flipState = useRef<ReturnType<typeof Flip.getState> | null>(null)
   const previousSheriffId = useRef<string | null>(sheriffId)
 
-  useGSAP(() => {
-    const root = scope.current ?? document.querySelector<HTMLElement>('.aw-match-shell')
-    if (!root) return undefined
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
-    const select = gsap.utils.selector(root)
-    const ambient = gsap.timeline({ repeat: -1, yoyo: true })
-    ambient
-      .to(select('.aw-lunar-field__glow'), {
-        xPercent: 5,
-        yPercent: 2,
-        scale: 1.08,
-        opacity: 0.7,
-        duration: 7,
-        ease: 'sine.inOut',
-      })
-      .to(
-        select('.aw-lunar-field__haze'),
-        { xPercent: -4, opacity: 0.55, duration: 9, ease: 'sine.inOut' },
-        0,
-      )
-    const onVisibility = (): void => {
-      if (document.hidden) ambient.pause()
-      else ambient.resume()
-    }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, {})
-
   useGSAP(
     () => {
       const root = scope.current ?? document.querySelector<HTMLElement>('.aw-match-shell')
       if (!root) return undefined
       const select = gsap.utils.selector(root)
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      const orbs = select('.aw-presence__orb')
       const signals = select('.aw-presence__signal')
       const waveBars = select('.aw-presence__wave > span')
-      const playerRings = select('.aw-player-avatar__ring')
-      const workingRings = select(
-        '.aw-player-card[data-session="starting"] .aw-player-avatar__ring, .aw-player-card[data-session="syncing"] .aw-player-avatar__ring, .aw-player-card[data-session="thinking"] .aw-player-avatar__ring',
+      const playerSignals = select('.aw-player-card__status-mark')
+      const workingSignals = select(
+        '.aw-player-card[data-session="starting"] .aw-player-card__status-mark, .aw-player-card[data-session="syncing"] .aw-player-card__status-mark, .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
       )
-      const continuousMotionTargets = [...orbs, ...signals, ...waveBars, ...playerRings]
+      const continuousMotionTargets = [...signals, ...waveBars, ...playerSignals]
       gsap.killTweensOf(continuousMotionTargets)
       gsap.set(continuousMotionTargets, { clearProps: 'transform,opacity' })
       if (reduce) {
@@ -124,24 +95,12 @@ export function MatchMotionController({
       }
 
       if (
-        presenceState === 'thinking' ||
-        presenceState === 'starting' ||
-        presenceState === 'reconnecting' ||
-        presenceState === 'recovering-agents'
-      ) {
-        gsap.to(orbs, {
-          rotate: 360,
-          duration: presenceState === 'thinking' ? 2.8 : 5.2,
-          repeat: -1,
-          ease: 'none',
-        })
-      }
-      if (
-        presenceState === 'thinking' ||
-        presenceState === 'awaiting-actions' ||
-        presenceState === 'starting' ||
-        presenceState === 'reconnecting' ||
-        presenceState === 'recovering-agents'
+        signals.length > 0 &&
+        (presenceState === 'thinking' ||
+          presenceState === 'awaiting-actions' ||
+          presenceState === 'starting' ||
+          presenceState === 'reconnecting' ||
+          presenceState === 'recovering-agents')
       ) {
         gsap.to(signals, {
           scaleX: 1,
@@ -153,19 +112,20 @@ export function MatchMotionController({
         })
       }
       if (
-        workingRings.length > 0 &&
+        workingSignals.length > 0 &&
         (presenceState === 'thinking' ||
           presenceState === 'starting' ||
           presenceState === 'recovering-agents')
       ) {
-        gsap.to(workingRings, {
-          rotate: 360,
-          duration: 2.2,
+        gsap.to(workingSignals, {
+          opacity: 0.35,
+          duration: 1.2,
           repeat: -1,
-          ease: 'none',
+          yoyo: true,
+          ease: 'sine.inOut',
         })
       }
-      if (presenceState === 'streaming' || presenceState === 'narrating') {
+      if (waveBars.length > 0 && (presenceState === 'streaming' || presenceState === 'narrating')) {
         gsap.to(waveBars, {
           scaleY: (_index) => gsap.utils.random(0.45, 1.35),
           duration: 0.34,

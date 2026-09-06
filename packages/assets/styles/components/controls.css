@@ -1,0 +1,550 @@
+.aw-icon {
+  display: inline-block;
+  flex: none;
+  object-fit: contain;
+  vertical-align: middle;
+  user-select: none;
+}
+.aw-icon-ink {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aw-button .aw-icon {
+  min-width: 22px;
+  min-height: 22px;
+}
+.aw-button--square .aw-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.aw-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: var(--aw-radius-control);
+  color: var(--aw-color-text);
+  background: var(--aw-color-surface);
+  background-image: var(--aw-texture-wood);
+  background-size: 280px;
+  background-blend-mode: soft-light;
+  border-image: var(--aw-control-frame) 38 / 5px stretch;
+  cursor: pointer;
+  font-family: var(--aw-font-display);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  transition:
+    border-color var(--aw-duration-fast),
+    background var(--aw-duration-fast),
+    filter var(--aw-duration-fast),
+    transform var(--aw-duration-fast);
+}
+.aw-button:hover:not(:disabled) {
+  background-color: var(--aw-color-surface-raised);
+  filter: brightness(1.2);
+}
+.aw-button--primary {
+  border: 1px solid transparent;
+  border-image: none;
+  border-radius: 0;
+  color: #fff0da;
+  background: var(--aw-button-plate) center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+.aw-button--primary:hover:not(:disabled),
+.aw-button--danger-solid:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--aw-button-plate) center / 100% 100% no-repeat;
+  filter: brightness(1.18);
+}
+.aw-button--primary .aw-icon,
+.aw-button--danger-solid .aw-icon {
+  display: none;
+}
+.aw-button--icon {
+  padding: 8px 12px;
+}
+.aw-button--square {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+.aw-button--danger {
+  border-color: rgb(224 122 99 / 35%);
+  color: var(--aw-color-danger);
+}
+.aw-button--danger-solid {
+  border: 1px solid transparent;
+  border-image: none;
+  color: #fff0da;
+  background: var(--aw-button-plate) center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+.aw-link-button {
+  width: fit-content;
+}
+.aw-panel {
+  border: 1px solid var(--aw-color-line-bright);
+  border-image: var(--aw-control-frame) 38 / 5px stretch;
+  border-radius: 0;
+  background:
+    var(--aw-texture-wood) center / 480px,
+    var(--aw-color-surface);
+  background-blend-mode: soft-light;
+}
+.aw-panel--compact {
+  border-image-width: 4px;
+}
+
+.aw-panel--unframed {
+  border: 0;
+  border-image: none;
+  background:
+    var(--aw-texture-wood) center / 480px,
+    #080907;
+  background-blend-mode: soft-light;
+}
+.aw-portrait-frame {
+  display: block;
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.aw-portrait-frame > img {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  border-radius: 50%;
+  object-fit: cover;
+}
+.aw-portrait-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('../../art/portrait-etched-ring-a062997d63.webp') center / contain no-repeat;
+  pointer-events: none;
+}
+
+.aw-panel--rule {
+  border-width: 0 0 1px;
+  border-image-width: 0 0 5px;
+  background: none;
+}
+
+.aw-panel--rule-top {
+  border-width: 1px 0 0;
+  border-image-width: 5px 0 0;
+  background: none;
+}
+.aw-panel__footer {
+  border-top: 1px solid var(--aw-color-line-bright);
+  background:
+    var(--aw-texture-wood) center / 360px,
+    var(--aw-color-ink);
+  background-blend-mode: soft-light;
+}
+.aw-field {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+.aw-field__label {
+  color: var(--aw-color-text);
+  font-size: 13px;
+  font-weight: 550;
+}
+.aw-field__hint {
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.aw-field__hint--error {
+  color: var(--aw-color-danger);
+}
+.aw-field[data-wide='true'] {
+  grid-column: 1 / -1;
+}
+.aw-input,
+.aw-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: 0;
+  border-image: var(--aw-control-frame) 38 / 5px stretch;
+  color: var(--aw-color-text);
+  background: var(--aw-color-ink);
+  background-image: var(--aw-texture-wood);
+  background-size: 384px;
+  background-blend-mode: soft-light;
+  box-shadow: inset 0 1px 4px rgb(0 0 0 / 35%);
+  transition: border-color var(--aw-duration-fast);
+}
+.aw-input::placeholder,
+.aw-textarea::placeholder {
+  color: var(--aw-color-text-muted);
+  opacity: 0.7;
+}
+.aw-input:hover:not(:disabled),
+.aw-textarea:hover:not(:disabled) {
+  border-color: var(--aw-color-text-muted);
+}
+.aw-input:focus,
+.aw-textarea:focus {
+  border-color: var(--aw-color-amber);
+}
+.aw-textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.8;
+}
+.aw-input[type='number'] {
+  appearance: textfield;
+}
+.aw-input::-webkit-inner-spin-button,
+.aw-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.aw-code-input {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.aw-inline-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+.aw-game-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.aw-game-select__trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: 0;
+  border-image: var(--aw-control-frame) 38 / 5px stretch;
+  color: var(--aw-color-text);
+  text-align: left;
+  background: var(--aw-color-ink);
+  background-image: var(--aw-texture-wood);
+  background-size: 384px;
+  background-blend-mode: soft-light;
+  box-shadow: inset 0 1px 4px rgb(0 0 0 / 35%);
+  cursor: pointer;
+  transition:
+    border-color var(--aw-duration-fast),
+    background var(--aw-duration-fast);
+}
+.aw-game-select__trigger:hover:not(:disabled),
+.aw-game-select__trigger:focus-visible,
+.aw-game-select[data-open='true'] .aw-game-select__trigger {
+  border-color: var(--aw-color-amber);
+  background-color: var(--aw-color-surface);
+  filter: brightness(1.2);
+}
+.aw-game-select__trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aw-game-select__trigger > span[data-placeholder='true'] {
+  color: var(--aw-color-text-muted);
+}
+.aw-game-select__trigger :is(svg, .aw-icon) {
+  color: var(--aw-color-text-muted);
+  transition: transform var(--aw-duration-fast);
+}
+.aw-game-select[data-open='true'] .aw-game-select__trigger :is(svg, .aw-icon) {
+  transform: rotate(180deg);
+}
+.aw-game-select-layer {
+  position: fixed;
+  z-index: 110;
+  inset: 0;
+  pointer-events: none;
+}
+.aw-game-select__listbox {
+  position: fixed;
+  top: var(--aw-select-top);
+  left: var(--aw-select-left);
+  width: var(--aw-select-width);
+  max-height: var(--aw-select-max-height);
+  padding: 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: 2px;
+  border-image: var(--aw-control-frame) 38 / 6px stretch;
+  color: var(--aw-color-text);
+  background: #24261f;
+  background-image: var(--aw-texture-wood);
+  background-size: 320px;
+  background-blend-mode: soft-light;
+  box-shadow:
+    0 18px 42px rgb(0 0 0 / 60%),
+    0 4px 0 #11130f,
+    0 0 0 3px rgb(7 9 6 / 55%);
+  scrollbar-width: thin;
+  pointer-events: auto;
+  animation: aw-select-enter 140ms var(--aw-ease-out) both;
+  transform-origin: top center;
+}
+@keyframes aw-select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.aw-game-select__option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--aw-color-text);
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+}
+.aw-game-select__option + .aw-game-select__option {
+  margin-top: 2px;
+}
+.aw-game-select__option > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aw-game-select__option :is(svg, .aw-icon) {
+  color: var(--aw-color-amber);
+}
+.aw-game-select__option[data-disabled='true'] {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.aw-game-select__empty {
+  padding: 18px 12px;
+  color: var(--aw-color-text-muted);
+  text-align: center;
+}
+.aw-segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: 0;
+  border-image: var(--aw-control-frame) 38 / 4px stretch;
+  background: var(--aw-color-ink);
+}
+.aw-segmented__item {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: var(--aw-color-text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+}
+.aw-segmented__item:hover {
+  color: var(--aw-color-text);
+}
+.aw-segmented__item[aria-pressed='true'],
+.aw-button[aria-pressed='true'] {
+  border-image: var(--aw-control-frame) 38 / 4px stretch;
+  color: var(--aw-color-text-highlight);
+  background: var(--aw-color-surface-raised);
+  background-image: var(--aw-texture-wood);
+  background-size: 240px;
+  background-blend-mode: soft-light;
+  box-shadow:
+    inset 0 -2px var(--aw-color-crimson-bright),
+    inset 0 0 0 1px var(--aw-color-line-bright);
+}
+.aw-counter {
+  display: grid;
+  grid-template-columns: 34px 34px 34px;
+  align-items: center;
+  gap: 4px;
+}
+.aw-counter .aw-button {
+  min-width: 34px;
+  width: 34px;
+}
+.aw-counter output {
+  color: var(--aw-color-text);
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.aw-rule-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--aw-color-line);
+  border-radius: 0;
+  border-image: var(--aw-control-frame) 38 / 4px stretch;
+  color: var(--aw-color-text);
+  text-align: left;
+  background: var(--aw-color-surface);
+  cursor: pointer;
+}
+.aw-rule-toggle > span {
+  display: grid;
+  gap: 5px;
+}
+
+.aw-rule-toggle:hover:not(:disabled) {
+  filter: brightness(1.2);
+}
+.aw-rule-toggle > i {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: none;
+  border: 1px solid var(--aw-color-line-bright);
+  border-radius: 30px;
+  background: var(--aw-color-ink);
+}
+.aw-rule-toggle > i::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--aw-color-text-muted);
+  transition: transform var(--aw-duration-fast);
+}
+.aw-rule-toggle[aria-checked='true'] > i {
+  background: var(--aw-color-crimson);
+  border-color: var(--aw-color-crimson);
+}
+.aw-rule-toggle[aria-checked='true'] > i::after {
+  background: var(--aw-color-text);
+  transform: translateX(18px);
+}
+@media (max-width: 600px) {
+  .aw-input,
+  .aw-textarea,
+  .aw-game-select__trigger {
+    font-size: 16px;
+  }
+  .aw-field[data-wide='true'] {
+    grid-column: auto;
+  }
+}
+
+.aw-button--compact {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.aw-button--compact .aw-icon {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+}
+.aw-button--compact.aw-button--square .aw-icon {
+  width: 20px;
+  height: 20px;
+}
+.aw-button--square.aw-button--compact {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+.aw-button--hero {
+  min-height: 64px;
+  padding: 18px 34px;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+}
+.aw-game-select--compact .aw-game-select__trigger {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.aw-input--numeric {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.aw-input:disabled,
+.aw-textarea:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+@media (max-width: 760px) {
+  .aw-button--compact,
+  .aw-game-select--compact .aw-game-select__trigger {
+    min-height: 44px;
+  }
+  .aw-button--square.aw-button--compact {
+    min-width: 44px;
+    width: 44px;
+  }
+}
+.aw-segmented--compact .aw-segmented__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.aw-segmented--spectator .aw-segmented__item {
+  font: 500 14px/1.25 var(--aw-font-display);
+}
+.aw-button[aria-current='true'] {
+  border-image: var(--aw-control-frame) 38 / 4px stretch;
+  color: var(--aw-color-text-highlight);
+  background:
+    var(--aw-texture-wood) center / 240px,
+    var(--aw-color-surface-raised);
+  background-blend-mode: soft-light;
+  box-shadow: inset 0 -2px var(--aw-color-crimson-bright);
+}
+@media (max-width: 760px) {
+  .aw-segmented--compact .aw-segmented__item {
+    min-height: 44px;
+  }
+  .aw-segmented--spectator.aw-segmented--compact .aw-segmented__item {
+    gap: 4px;
+    padding-inline: 5px;
+  }
+}

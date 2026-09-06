@@ -64,6 +64,33 @@ beforeEach(() => {
 })
 
 describe('CollectionPage', () => {
+  it('filters the portrait gallery and separates reading from unsaved edits', async () => {
+    render(<CollectionPage />)
+    expect(await screen.findByRole('heading', { name: builtIn.name })).toBeVisible()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByText(builtIn.socialStyle)).toBeVisible()
+    const search = screen.getByRole('searchbox', {
+      name: getCopy('configDesign.characters.search'),
+    })
+    await userEvent.type(search, '自建')
+    expect(screen.queryByRole('button', { name: /内置角色/u })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /自建角色/u }))
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.characters.edit') }),
+    )
+    fireEvent.change(screen.getByLabelText(getCopy('characterLibrary.name')), {
+      target: { value: '未保存姓名' },
+    })
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.catalog.cancelEdit') }),
+    )
+    expect(screen.getByRole('heading', { name: editable.name })).toBeVisible()
+    expect(apiMocks.updateCharacter).not.toHaveBeenCalled()
+    await userEvent.clear(search)
+    await userEvent.type(search, '不存在的人物')
+    expect(screen.getByText(getCopy('configDesign.characters.noResults'))).toBeVisible()
+  })
+
   it('handles Error/string load failures and retry', async () => {
     apiMocks.listCharacters
       .mockRejectedValueOnce(new Error('load failed'))
@@ -74,7 +101,7 @@ describe('CollectionPage', () => {
     await userEvent.click(screen.getByRole('button', { name: getCopy('common.retry') }))
     expect(await screen.findByText('string load failed')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: getCopy('common.retry') }))
-    expect(await screen.findByText(builtIn.name)).toBeVisible()
+    expect(await screen.findByRole('heading', { name: builtIn.name })).toBeVisible()
   })
 
   it('selects, copies, and reports copy failures for read-only Characters', async () => {
@@ -93,12 +120,15 @@ describe('CollectionPage', () => {
     expect(await screen.findByText(getCopy('characterLibrary.copied'))).toBeVisible()
 
     await userEvent.click(screen.getByRole('button', { name: /自建角色/u }))
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.characters.edit') }),
+    )
     expect(screen.queryByText(getCopy('characterLibrary.readOnly'))).not.toBeInTheDocument()
   })
 
   it('creates a Character only after portrait upload and normalizes multiline fields', async () => {
     render(<CollectionPage />)
-    await screen.findByText(builtIn.name)
+    await screen.findByRole('heading', { name: builtIn.name })
     await userEvent.click(screen.getByRole('button', { name: getCopy('characterLibrary.create') }))
     await userEvent.click(screen.getByRole('button', { name: getCopy('characterLibrary.save') }))
     expect(await screen.findByText(getCopy('characterLibrary.portraitRequired'))).toBeVisible()
@@ -147,8 +177,11 @@ describe('CollectionPage', () => {
       .mockRejectedValueOnce(new Error('save failed'))
       .mockRejectedValueOnce('save string failed')
     render(<CollectionPage />)
-    await screen.findByText(builtIn.name)
+    await screen.findByRole('heading', { name: builtIn.name })
     await userEvent.click(screen.getByRole('button', { name: /自建角色/u }))
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.characters.edit') }),
+    )
     const upload = document.querySelector<HTMLInputElement>('.aw-character-upload input')!
     fireEvent.change(upload, {
       target: { files: [new File(['x'], 'portrait.png', { type: 'image/png' })] },
@@ -171,10 +204,16 @@ describe('CollectionPage', () => {
       .mockRejectedValueOnce(new Error('delete failed'))
       .mockRejectedValueOnce('delete string failed')
       .mockResolvedValueOnce(undefined)
-    apiMocks.listCharacters.mockResolvedValueOnce([builtIn, editable]).mockResolvedValue([builtIn])
+    apiMocks.listCharacters
+      .mockResolvedValueOnce([builtIn, editable])
+      .mockResolvedValueOnce([builtIn, editable])
+      .mockResolvedValue([builtIn])
     render(<CollectionPage />)
-    await screen.findByText(builtIn.name)
+    await screen.findByRole('heading', { name: builtIn.name })
     await userEvent.click(screen.getByRole('button', { name: /自建角色/u }))
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.characters.edit') }),
+    )
     fireEvent.change(screen.getAllByRole('textbox')[0]!, { target: { value: '更新名称' } })
     await userEvent.click(screen.getByRole('button', { name: getCopy('characterLibrary.save') }))
     expect(apiMocks.updateCharacter).toHaveBeenCalled()

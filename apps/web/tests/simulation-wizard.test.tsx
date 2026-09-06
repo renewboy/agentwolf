@@ -134,6 +134,21 @@ describe('SimulationWizardDialog', () => {
     expect(await screen.findByText(getCopy('simulationWizard.completeExists'))).toBeVisible()
   })
 
+  it('keeps focus inside the review dialog when its primary action is disabled', async () => {
+    apiMocks.reviewSimulation.mockResolvedValueOnce(review({ warnings: ['review warning'] }))
+    const close = vi.fn()
+    render(<SimulationWizardDialog match={matchView()} onClose={close} />)
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('simulationWizard.startReview') }),
+    )
+    expect(await screen.findByText('review warning')).toBeVisible()
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: getCopy('common.cancel') })).toHaveFocus(),
+    )
+    await userEvent.keyboard('{Escape}')
+    expect(close).toHaveBeenCalledOnce()
+  })
+
   it('requires warning acknowledgement and current-behavior acceptance', async () => {
     apiMocks.reviewSimulation
       .mockResolvedValueOnce(

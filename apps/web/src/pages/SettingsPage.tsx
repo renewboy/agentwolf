@@ -1,11 +1,19 @@
-import { FloppyDisk, TextAa } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { getCopy } from '@agentwolf/assets'
 import { GlobalSettingsSchema, type GlobalSettings } from '@agentwolf/contracts'
+import { GameSelect } from '../components/GameSelect.js'
+import { FormField } from '../components/FormField.js'
+import { useRoleEffectMode } from '../hooks/useRoleEffectMode.js'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 
+const effectOptions = (['full', 'reduced', 'off'] as const).map((value) => ({
+  value,
+  label: getCopy(`effects.${value}`),
+}))
+
 export function SettingsPage() {
+  const [effectMode, setEffectMode] = useRoleEffectMode()
   const [settings, setSettings] = useState<GlobalSettings | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -44,32 +52,34 @@ export function SettingsPage() {
   if (!settings) return <LoadingState />
 
   return (
-    <main className="aw-page">
+    <main className="aw-page aw-settings-page">
       <div className="aw-page-heading">
         <h1>{getCopy('settings.title')}</h1>
-        <p>{getCopy('settings.description')}</p>
+        <p>{getCopy('configDesign.settings.intro')}</p>
       </div>
-      <section className="aw-global-settings aw-panel">
+      <section className="aw-global-settings">
         <div className="aw-panel-heading">
           <div>
             <h2>{getCopy('settings.speechTitle')}</h2>
-            <p>{getCopy('settings.speechDescription')}</p>
+            <p>{getCopy('configDesign.settings.speechHint')}</p>
           </div>
-          <TextAa size={28} aria-hidden />
         </div>
         <label className="aw-field">
           <span className="aw-field__label">{getCopy('settings.speechCharacterLimit')}</span>
-          <input
-            className="aw-input"
-            min={50}
-            max={2_000}
-            step={10}
-            type="number"
-            value={settings.speechCharacterLimit}
-            onChange={(event) =>
-              setSettings({ ...settings, speechCharacterLimit: Number(event.target.value) })
-            }
-          />
+          <div className="aw-speech-limit-input">
+            <input
+              className="aw-input aw-input--numeric"
+              min={50}
+              max={2_000}
+              step={10}
+              type="number"
+              value={settings.speechCharacterLimit}
+              onChange={(event) =>
+                setSettings({ ...settings, speechCharacterLimit: Number(event.target.value) })
+              }
+            />
+            <span>{getCopy('configDesign.settings.unit')}</span>
+          </div>
           <span className="aw-field__hint">{getCopy('settings.speechCharacterLimitHint')}</span>
         </label>
         {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
@@ -81,10 +91,30 @@ export function SettingsPage() {
             type="button"
             onClick={() => void save()}
           >
-            <FloppyDisk size={18} aria-hidden />
             {getCopy(busy ? 'settings.saving' : 'settings.save')}
           </button>
         </div>
+      </section>
+      <section className="aw-global-settings aw-visual-settings">
+        <div className="aw-panel-heading">
+          <div>
+            <h2>{getCopy('configDesign.settings.effectsTitle')}</h2>
+            <p>{getCopy('configDesign.settings.effectsHint')}</p>
+          </div>
+        </div>
+        <FormField label={getCopy('effects.mode')}>
+          <GameSelect
+            ariaLabel={getCopy('effects.mode')}
+            value={effectMode}
+            options={effectOptions}
+            onChange={setEffectMode}
+          />
+        </FormField>
+        <ul className="aw-effect-preference-hints">
+          <li>{getCopy('configDesign.settings.effectsFull')}</li>
+          <li>{getCopy('configDesign.settings.effectsReduced')}</li>
+          <li>{getCopy('configDesign.settings.effectsOff')}</li>
+        </ul>
       </section>
     </main>
   )

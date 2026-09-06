@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrajectoryDeltaSchema } from '@agentwolf/contracts'
 import type {
+  MatchView,
   TrajectoryAuditReport,
   TrajectoryPage,
   TrajectoryPlayerDebug,
@@ -16,6 +17,14 @@ const apiMocks = vi.hoisted(() => ({
   trajectoryAudit: vi.fn(),
   trajectoryPage: vi.fn(),
   trajectoryPlayerDebug: vi.fn(),
+}))
+
+const sessionSnapshot = vi.hoisted(() => ({
+  match: null as MatchView | null,
+  viewPending: false,
+}))
+vi.mock('../src/hooks/useMatchSession.js', () => ({
+  useMatchSession: () => sessionSnapshot,
 }))
 
 vi.mock('../src/api.js', () => ({ api: apiMocks }))
@@ -39,14 +48,19 @@ vi.mock('../src/components/developer/TrajectoryPanels.js', () => ({
     onSelect,
     page,
     query,
+    jumpToRecord,
   }: {
     onQuery: (value: string) => void
     onSelect: (id: string) => void
     page: TrajectoryPage
     query: string
+    jumpToRecord?: { recordId: string; requestId: number } | null
   }) => (
     <div data-testid="ledger">
       ledger:{page.ownerId}:{page.records.length}:{query}
+      <output data-testid="day-jump">
+        {jumpToRecord ? `${jumpToRecord.recordId}:${jumpToRecord.requestId}` : 'none'}
+      </output>
       <button type="button" onClick={() => onQuery('needle')}>
         query
       </button>
@@ -212,16 +226,20 @@ function audit(code = 'missing-prompt'): TrajectoryAuditReport {
 }
 
 function renderPage(matchId = 'match-test-abcdef') {
-  return render(
+  const pageTree = () => (
     <MemoryRouter initialEntries={[`/matches/${matchId}/trajectory`]}>
       <Routes>
         <Route path="/matches/:matchId/trajectory" element={<DeveloperPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
+  const rendered = render(pageTree())
+  return { ...rendered, rerenderPage: () => rendered.rerender(pageTree()) }
 }
 
 beforeEach(() => {
+  sessionSnapshot.match = null
+  sessionSnapshot.viewPending = false
   FakeWebSocket.instances.length = 0
   vi.stubGlobal('WebSocket', FakeWebSocket)
   for (const mock of Object.values(apiMocks)) mock.mockReset()
@@ -259,13 +277,15 @@ describe('DeveloperPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
     expect(await screen.findByText('string failure')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
-    expect(await screen.findByRole('heading', { name: '玩家行动轨迹' })).toBeVisible()
+    expect(await screen.findByTestId('ledger')).toBeVisible()
+    expect(screen.getByRole('heading', { name: '玩家行动轨迹' })).toBeVisible()
     unmount()
   })
 
   it('loads ordered owners, complete histories, debugging, query, records, and live deltas', async () => {
     renderPage()
-    expect(await screen.findByRole('heading', { name: '玩家行动轨迹' })).toBeVisible()
+    expect(await screen.findByTestId('ledger')).toBeVisible()
+    expect(screen.getByRole('heading', { name: '玩家行动轨迹' })).toBeVisible()
     expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'player-1', null)
     expect(apiMocks.trajectoryPage).toHaveBeenCalledWith('match-test-abcdef', 'player-1', 2)
     expect(apiMocks.trajectoryPlayerDebug).toHaveBeenCalledWith('match-test-abcdef', 'player-1')
@@ -295,9 +315,69 @@ describe('DeveloperPage', () => {
     expect(screen.getByTestId('ledger')).toHaveTextContent(':4:')
   })
 
+  it('updates the shared header from the Match session and hides a pending projection', async () => {
+    const rendered = renderPage()
+    await screen.findByTestId('ledger')
+    expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toHaveTextContent('第 1 天')
+    const diagnosticReads = apiMocks.getMatch.mock.calls.length
+
+    sessionSnapshot.match = matchView({
+      phaseId: 'phase-night-wolf',
+      phaseLabel: '狼人行动',
+      day: 2,
+    })
+    rendered.rerenderPage()
+    expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toHaveTextContent('第 3 天')
+    expect(screen.queryByText('白天发言')).not.toBeInTheDocument()
+
+    sessionSnapshot.viewPending = true
+    rendered.rerenderPage()
+    expect(document.querySelector('.aw-phase-display')).toHaveAttribute('aria-hidden', 'true')
+
+    sessionSnapshot.match = matchView({ day: 3 })
+    sessionSnapshot.viewPending = false
+    rendered.rerenderPage()
+    expect(document.querySelector('.aw-phase-display')).toHaveAttribute('aria-hidden', 'false')
+    expect(screen.getByText('第 3 天')).toBeVisible()
+    expect(screen.queryByText('狼人行动')).not.toBeInTheDocument()
+    expect(apiMocks.getMatch).toHaveBeenCalledTimes(diagnosticReads)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+
+  it('jumps only to dates with records for the current owner and permits a repeated date', async () => {
+    apiMocks.trajectoryPage.mockImplementation(async (_matchId, ownerId, before) => {
+      const result = trajectoryPage(ownerId, before)
+      return {
+        ...result,
+        turns: result.turns.map((turn) => ({
+          ...turn,
+          timelineGroup: { kind: 'day', index: turn.turnId === 'turn-older' ? 1 : 3 },
+        })),
+      }
+    })
+    renderPage()
+    await screen.findByTestId('ledger')
+    await userEvent.click(screen.getByRole('button', { name: 'query' }))
+    await userEvent.click(screen.getByRole('combobox', { name: '跳转到指定日期' }))
+    expect(screen.queryByRole('option', { name: '第 2 天' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('option', { name: '第 1 天' }))
+    expect(screen.getByTestId('ledger')).not.toHaveTextContent('needle')
+    expect(screen.getByTestId('day-jump')).toHaveTextContent('record-older:1')
+    expect(screen.getByTestId('inspector')).toHaveTextContent('record:record-older')
+    await userEvent.click(screen.getByRole('combobox', { name: '跳转到指定日期' }))
+    await userEvent.click(screen.getByRole('option', { name: '第 1 天' }))
+    expect(screen.getByTestId('day-jump')).toHaveTextContent('record-older:2')
+    await userEvent.click(
+      [...document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-owner')][2]!,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toBeDisabled(),
+    )
+  })
+
   it('switches system/player owners and reports debug failures', async () => {
     renderPage()
-    await screen.findByRole('heading', { name: '玩家行动轨迹' })
+    await screen.findByTestId('ledger')
     const ownerButtons = [...document.querySelectorAll<HTMLButtonElement>('.aw-trajectory-owner')]
     const system = ownerButtons[2]!
     await userEvent.click(system)
@@ -336,7 +416,7 @@ describe('DeveloperPage', () => {
   ])('focuses %s audit issues on %s', async (code, expectedRecord) => {
     apiMocks.trajectoryAudit.mockResolvedValueOnce(audit(code))
     renderPage()
-    await screen.findByRole('heading', { name: '玩家行动轨迹' })
+    await screen.findByTestId('ledger')
     await userEvent.click(screen.getByRole('button', { name: 'locate issue' }))
     expect(screen.getByTestId('inspector')).toHaveTextContent(`record:${expectedRecord}`)
   })
@@ -347,7 +427,7 @@ describe('DeveloperPage', () => {
       issues: [{ turnId: 'turn-2', code: 'actor-mismatch', detail: 'issue' }],
     })
     renderPage()
-    await screen.findByRole('heading', { name: '玩家行动轨迹' })
+    await screen.findByTestId('ledger')
 
     await userEvent.click(screen.getByRole('button', { name: 'locate issue' }))
 

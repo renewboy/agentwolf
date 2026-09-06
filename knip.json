@@ -6,5 +6,6 @@
     "lefthook"
   ],
   "ignore": ["vendor/**"],
+  "ignoreBinaries": ["magick"],
   "ignoreExportsUsedInFile": true
 }

@@ -1,40 +1,20 @@
-import { Copy, FloppyDisk, Minus, Plus, SquaresFour, Trash } from '@phosphor-icons/react'
+import { GameIcon } from '../components/GameIcon.js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
   CustomBoardInputSchema,
   type AgentProfile,
-  type AgentProfileId,
-  type BoardId,
   type BoardSummary,
-  type BoardVictory,
   type CharacterCard,
-  type CharacterId,
   type RoleId,
   type RoleSummary,
 } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
-import { FormField } from '../components/FormField.js'
-import { RoleBadge } from '../components/RoleBadge.js'
-import { GameSelect } from '../components/GameSelect.js'
-import { characterPortraitUrl } from '../character-portraits.js'
-
-interface BoardDraft {
-  readonly id: BoardId | null
-  readonly name: string
-  readonly description: string
-  readonly roles: Readonly<Record<string, number>>
-  readonly reserveCount: number
-  readonly characters: readonly (CharacterId | null)[]
-  readonly agentProfiles: readonly (AgentProfileId | null)[]
-  readonly sheriff: boolean
-  readonly victory: BoardVictory
-  readonly editable: boolean
-}
-
-const boardSeats = Array.from({ length: 24 }, (_, index) => index + 1)
+import { CatalogPanelSwitch, type CatalogPanel } from '../components/catalog/CatalogPanelSwitch.js'
+import { BoardEditor, type BoardDraft } from '../components/catalog/BoardEditor.js'
+import { BoardOverview } from '../components/catalog/BoardOverview.js'
 
 export function BoardsPage() {
   const [boards, setBoards] = useState<BoardSummary[] | null>(null)
@@ -46,6 +26,8 @@ export function BoardsPage() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<CatalogPanel>('list')
 
   const load = useCallback(async () => {
     setError(null)
@@ -98,13 +80,19 @@ export function BoardsPage() {
   )
 
   const selectBoard = (board: BoardSummary): void => {
+    setMobilePanel('detail')
     setNotice(null)
+    setError(null)
+    setEditing(false)
     setDraft(boardToDraft(board, board.editable))
   }
 
   const createEmpty = (): void => {
+    setMobilePanel('detail')
     if (!roles) return
     setNotice(null)
+    setError(null)
+    setEditing(true)
     setDraft({
       id: null,
       name: '',
@@ -122,6 +110,7 @@ export function BoardsPage() {
   const cloneCurrent = (): void => {
     if (!draft) return
     setNotice(null)
+    setEditing(true)
     setDraft({
       ...draft,
       id: null,
@@ -198,6 +187,7 @@ export function BoardsPage() {
       const saved = draft.id ? await api.updateBoard(draft.id, input) : await api.createBoard(input)
       await load()
       setDraft(boardToDraft(saved, true))
+      setEditing(false)
       setNotice(getCopy('boardManagement.saved'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -215,7 +205,9 @@ export function BoardsPage() {
       const nextBoards = await api.listBoards()
       setBoards(nextBoards)
       setDraft(boardToDraft(nextBoards[0]!, false))
+      setEditing(false)
       setDeleteOpen(false)
+      setMobilePanel('list')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -228,34 +220,49 @@ export function BoardsPage() {
   }
   if (!boards || !roles || !characters || !profiles || !draft) return <LoadingState />
 
+  const selectedBoard = boards.find((board) => board.id === draft.id)
+  const cancelEdit = (): void => {
+    const board = selectedBoard ?? boards[0]!
+    setDraft(boardToDraft(board, board.editable))
+    setEditing(false)
+    setError(null)
+  }
+
   return (
-    <main className="aw-page">
+    <main className="aw-page aw-workspace-page aw-boards-page">
       <div className="aw-page-heading">
         <h1>{getCopy('boardManagement.title')}</h1>
         <p>{getCopy('boardManagement.subtitle')}</p>
       </div>
-      <div className="aw-settings-layout aw-board-management">
-        <aside className="aw-agent-list aw-panel">
+      <CatalogPanelSwitch
+        panel={mobilePanel}
+        listLabel={getCopy('configDesign.catalog.boardList')}
+        detailLabel={getCopy('configDesign.catalog.boardDetail')}
+        onChange={setMobilePanel}
+      />
+      <div className="aw-catalog-layout aw-board-management" data-panel={mobilePanel}>
+        <aside className="aw-catalog-sidebar aw-panel">
           <div className="aw-panel-heading">
-            <h2>{getCopy('boardManagement.title')}</h2>
+            <h2>{getCopy('configDesign.catalog.boards')}</h2>
             <button className="aw-button aw-button--icon" type="button" onClick={createEmpty}>
-              <Plus size={18} aria-hidden />
+              <GameIcon name="plus" size={18} />
               {getCopy('boardManagement.create')}
             </button>
           </div>
-          <div className="aw-profile-list">
+          <div className="aw-board-directory">
             {boards.map((board) => (
               <button
-                className="aw-profile-item aw-board-management__item"
+                className="aw-board-management__item aw-choice"
                 data-selected={draft.id === board.id}
+                aria-pressed={draft.id === board.id}
                 key={board.id}
                 type="button"
                 onClick={() => selectBoard(board)}
               >
-                <SquaresFour size={22} aria-hidden />
+                <GameIcon name="cards" size={22} />
                 <span>
-                  <strong>{board.name}</strong>
-                  <small>
+                  <strong className="aw-choice__label">{board.name}</strong>
+                  <small className="aw-choice__meta">
                     {getCopy(
                       board.source === 'built-in'
                         ? 'boardManagement.builtIn'
@@ -275,240 +282,41 @@ export function BoardsPage() {
           </div>
         </aside>
 
-        <section className="aw-agent-editor aw-panel">
-          {!draft.editable ? (
-            <p className="aw-form-message">{getCopy('boardManagement.readOnly')}</p>
-          ) : null}
-          <div className="aw-editor-grid">
-            <FormField label={getCopy('boardManagement.name')}>
-              <input
-                className="aw-input"
-                disabled={!draft.editable}
-                value={draft.name}
-                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+        <section className="aw-catalog-detail aw-panel">
+          {!editing && selectedBoard ? (
+            <>
+              <BoardOverview
+                board={selectedBoard}
+                characters={characters}
+                profiles={profiles}
+                busy={busy}
+                onEdit={() => setEditing(true)}
+                onClone={cloneCurrent}
+                onDelete={() => setDeleteOpen(true)}
               />
-            </FormField>
-            <FormField label={getCopy('boardManagement.description')} wide>
-              <textarea
-                className="aw-textarea"
-                disabled={!draft.editable}
-                value={draft.description}
-                onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-              />
-            </FormField>
-          </div>
-
-          <div className="aw-board-role-editor">
-            <div className="aw-panel-heading">
-              <h3>{getCopy('boardManagement.roles')}</h3>
-              <strong>
-                {formatCopy(getCopy('boardManagement.cardAndPlayerCount'), {
-                  cards: cardCount,
-                  players: playerCount,
-                })}
-              </strong>
-            </div>
-            <div className="aw-board-role-grid">
-              {roles.map((role) => (
-                <div className="aw-board-role-row" key={role.id}>
-                  <span>
-                    <RoleBadge label={role.name} roleId={role.id} />
-                    <small>
-                      {getCopy(
-                        role.faction === 'werewolf'
-                          ? 'boardManagement.werewolfFaction'
-                          : 'boardManagement.goodFaction',
-                      )}
-                    </small>
-                  </span>
-                  <div className="aw-counter">
-                    <button
-                      className="aw-button aw-button--square"
-                      aria-label={formatCopy(getCopy('boardManagement.decrease'), {
-                        role: role.name,
-                      })}
-                      disabled={!draft.editable || (draft.roles[role.id] ?? 0) === 0}
-                      type="button"
-                      onClick={() => updateRole(role.id, -1)}
-                    >
-                      <Minus size={16} aria-hidden />
-                    </button>
-                    <output>{draft.roles[role.id] ?? 0}</output>
-                    <button
-                      className="aw-button aw-button--square"
-                      aria-label={formatCopy(getCopy('boardManagement.increase'), {
-                        role: role.name,
-                      })}
-                      disabled={!draft.editable || playerCount >= 24 || cardCount >= 26}
-                      type="button"
-                      onClick={() => updateRole(role.id, 1)}
-                    >
-                      <Plus size={16} aria-hidden />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="aw-board-reserve-counter">
-              <span>
-                <strong>{getCopy('boardManagement.reserveCards')}</strong>
-                <small>{getCopy('boardManagement.reserveCardsHint')}</small>
-              </span>
-              <div className="aw-counter">
-                <button
-                  className="aw-button aw-button--square"
-                  aria-label={getCopy('boardManagement.decreaseReserve')}
-                  disabled={!draft.editable || draft.reserveCount === 0}
-                  type="button"
-                  onClick={() => updateReserveCount(-1)}
-                >
-                  <Minus size={16} aria-hidden />
-                </button>
-                <output>{draft.reserveCount}</output>
-                <button
-                  className="aw-button aw-button--square"
-                  aria-label={getCopy('boardManagement.increaseReserve')}
-                  disabled={!draft.editable || draft.reserveCount === 2 || playerCount <= 6}
-                  type="button"
-                  onClick={() => updateReserveCount(1)}
-                >
-                  <Plus size={16} aria-hidden />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="aw-board-character-editor">
-            <div className="aw-panel-heading">
-              <span>
-                <h3>{getCopy('boardManagement.characters')}</h3>
-                <small>{getCopy('boardManagement.charactersHint')}</small>
-              </span>
-            </div>
-            <div className="aw-board-character-grid">
-              {boardSeats.slice(0, draft.characters.length).map((seat) => {
-                const characterId = draft.characters[seat - 1] ?? null
-                const profileId = draft.agentProfiles[seat - 1] ?? null
-                const character = characters.find((entry) => entry.id === characterId) ?? null
-                return (
-                  <div className="aw-board-character-slot" key={seat}>
-                    {character ? (
-                      <img src={characterPortraitUrl(character.portraitAssetId)} alt="" />
-                    ) : (
-                      <span className="aw-board-character-slot__empty" aria-hidden />
-                    )}
-                    <div className="aw-board-seat-defaults">
-                      <GameSelect
-                        ariaLabel={formatCopy(getCopy('boardManagement.agentSeat'), { seat })}
-                        disabled={!draft.editable}
-                        options={profileOptions}
-                        value={profileId ?? 'none'}
-                        onChange={(value) =>
-                          setDraft({
-                            ...draft,
-                            agentProfiles: draft.agentProfiles.map((entry, seatIndex) =>
-                              seatIndex === seat - 1 ? (value === 'none' ? null : value) : entry,
-                            ),
-                          })
-                        }
-                      />
-                      <GameSelect
-                        ariaLabel={formatCopy(getCopy('boardManagement.characterSeat'), {
-                          seat,
-                        })}
-                        disabled={!draft.editable}
-                        options={characterOptions}
-                        value={characterId ?? 'none'}
-                        onChange={(value) =>
-                          setDraft({
-                            ...draft,
-                            characters: draft.characters.map((entry, seatIndex) =>
-                              seatIndex === seat - 1 ? (value === 'none' ? null : value) : entry,
-                            ),
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="aw-board-rules">
-            <button
-              className="aw-rule-toggle"
-              aria-checked={draft.sheriff}
-              disabled={!draft.editable}
-              role="switch"
-              type="button"
-              onClick={() => setDraft({ ...draft, sheriff: !draft.sheriff })}
-            >
-              <span>
-                <strong>{getCopy('boardManagement.sheriff')}</strong>
-                <small>{getCopy('boardManagement.sheriffHint')}</small>
-              </span>
-              <i aria-hidden />
-            </button>
-            <div>
-              <strong>{getCopy('boardManagement.victory')}</strong>
-              <div className="aw-segmented aw-board-victory">
-                {(['slaughter-all', 'slaughter-edge'] as const).map((victory) => (
-                  <button
-                    className="aw-segmented__item"
-                    aria-pressed={draft.victory === victory}
-                    disabled={!draft.editable}
-                    key={victory}
-                    type="button"
-                    onClick={() => setDraft({ ...draft, victory })}
-                  >
-                    {getCopy(
-                      victory === 'slaughter-all'
-                        ? 'boardManagement.slaughterAll'
-                        : 'boardManagement.slaughterEdge',
-                    )}
-                  </button>
-                ))}
-              </div>
-              <small>
-                {getCopy(
-                  draft.victory === 'slaughter-all'
-                    ? 'boardManagement.slaughterAllHint'
-                    : 'boardManagement.slaughterEdgeHint',
-                )}
-              </small>
-            </div>
-          </div>
-
-          {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
-          {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
-          <div className="aw-editor-actions">
-            {draft.editable ? (
-              <button
-                className="aw-button aw-button--primary"
-                disabled={busy || !draft.name.trim() || playerCount < 6 || playerCount > 24}
-                type="button"
-                onClick={() => void save()}
-              >
-                <FloppyDisk size={18} aria-hidden />
-                {getCopy('boardManagement.save')}
-              </button>
-            ) : (
-              <button className="aw-button aw-button--primary" type="button" onClick={cloneCurrent}>
-                <Copy size={18} aria-hidden />
-                {getCopy('boardManagement.clone')}
-              </button>
-            )}
-            <button
-              className="aw-button aw-button--danger"
-              disabled={busy || !draft.editable || !draft.id}
-              type="button"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash size={18} aria-hidden />
-              {getCopy('boardManagement.delete')}
-            </button>
-          </div>
+              {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+              {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
+            </>
+          ) : (
+            <BoardEditor
+              draft={draft}
+              roles={roles}
+              characters={characters}
+              profileOptions={profileOptions}
+              characterOptions={characterOptions}
+              cardCount={cardCount}
+              playerCount={playerCount}
+              busy={busy}
+              error={error}
+              notice={notice}
+              onChange={setDraft}
+              onRoleChange={updateRole}
+              onReserveChange={updateReserveCount}
+              onCancel={cancelEdit}
+              onSave={() => void save()}
+              onDelete={() => setDeleteOpen(true)}
+            />
+          )}
         </section>
       </div>
       <ConfirmDialog
@@ -526,7 +334,7 @@ export function BoardsPage() {
 
 function boardToDraft(board: BoardSummary, editable: boolean): BoardDraft {
   return {
-    id: editable ? board.id : board.id,
+    id: board.id,
     name: board.name,
     description: board.description,
     roles: Object.fromEntries(board.roles.map((role) => [role.roleId, role.count])),

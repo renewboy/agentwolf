@@ -1,17 +1,4 @@
-import {
-  Crosshair,
-  Cards,
-  ArrowsLeftRight,
-  Crown,
-  Drop,
-  Eye,
-  Heart,
-  MoonStars,
-  Shield,
-  Skull,
-  Smiley,
-  Sparkle,
-} from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { useMemo, type ReactNode, type RefObject } from 'react'
 import { useSequencedCues } from '@agent-arena/react'
 import { SequencedCueQueue } from '@agent-arena/web-runtime'
@@ -147,20 +134,20 @@ export function RoleEffectController({
 
 function effectIcon(icon: (typeof roleEffectCatalog)[string]['icon']): ReactNode {
   const icons: Readonly<Record<(typeof roleEffectCatalog)[string]['icon'], ReactNode>> = {
-    moon: <MoonStars size={34} weight="fill" />,
-    skull: <Skull size={34} weight="fill" />,
-    eye: <Eye size={34} weight="fill" />,
-    sparkle: <Sparkle size={34} weight="fill" />,
-    drop: <Drop size={34} weight="fill" />,
-    crosshair: <Crosshair size={34} weight="bold" />,
-    smile: <Smiley size={34} weight="fill" />,
-    shield: <Shield size={34} weight="fill" />,
-    crown: <Crown size={34} weight="fill" />,
-    transfer: <ArrowsLeftRight size={34} weight="bold" />,
-    mirror: <Eye size={34} weight="duotone" />,
-    burst: <Skull size={34} weight="duotone" />,
-    heart: <Heart size={34} weight="fill" />,
-    cards: <Cards size={34} weight="fill" />,
+    moon: <GameIcon name="moon" size={34} />,
+    skull: <GameIcon name="skull" size={34} />,
+    eye: <GameIcon name="eye" size={34} />,
+    sparkle: <GameIcon name="sparkle" size={34} />,
+    drop: <GameIcon name="drop" size={34} />,
+    crosshair: <GameIcon name="target" size={34} />,
+    smile: <GameIcon name="smile" size={34} />,
+    shield: <GameIcon name="shield" size={34} />,
+    crown: <GameIcon name="crown" size={34} />,
+    transfer: <GameIcon name="swap" size={34} />,
+    mirror: <GameIcon name="eye" size={34} />,
+    burst: <GameIcon name="skull" size={34} />,
+    heart: <GameIcon name="heart" size={34} />,
+    cards: <GameIcon name="cards" size={34} />,
   }
   return icons[icon]
 }

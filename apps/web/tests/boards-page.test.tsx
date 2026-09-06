@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCopy } from '@agentwolf/assets'
 import type { AgentProfile, BoardSummary, CharacterCard, RoleSummary } from '@agentwolf/contracts'
@@ -43,8 +44,8 @@ const character = {
 function board(id: string, editable: boolean): BoardSummary {
   return {
     id,
-    name: editable ? '自建板子' : '内置板子',
-    description: '板子说明',
+    name: editable ? '自建板型' : '内置板型',
+    description: '板型说明',
     playerCount: 6,
     cardCount: 6,
     reserveCount: 0,
@@ -85,12 +86,60 @@ beforeEach(() => {
 })
 
 describe('BoardsPage', () => {
+  it('explains a simple board without inventing default players', async () => {
+    apiMocks.listBoards.mockResolvedValue([
+      { ...builtIn, sheriff: false, victory: 'slaughter-all', characters: [], agentProfiles: [] },
+    ])
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: builtIn.name })
+    expect(screen.getByText(getCopy('configDesign.catalog.sheriffOff'))).toBeVisible()
+    expect(screen.getByText(getCopy('boardManagement.slaughterAllHint'))).toBeVisible()
+    expect(
+      screen.queryByRole('heading', { name: getCopy('configDesign.catalog.defaults') }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('browses a board as a readable card set and cancels unsaved custom edits', async () => {
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: builtIn.name })).toBeVisible()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: getCopy('configDesign.catalog.useBoard') }),
+    ).toHaveAttribute('href', `/matches/new?board=${builtIn.id}`)
+    await userEvent.click(screen.getByRole('button', { name: /自建板型/u }))
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.catalog.editBoard') }),
+    )
+    fireEvent.change(screen.getByLabelText(getCopy('boardManagement.name')), {
+      target: { value: '未保存名称' },
+    })
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.catalog.cancelEdit') }),
+    )
+    expect(screen.getByRole('heading', { name: custom.name })).toBeVisible()
+    expect(screen.queryByText('未保存名称')).not.toBeInTheDocument()
+    expect(apiMocks.updateBoard).not.toHaveBeenCalled()
+  })
+
   it('handles Error/string load failures and retry', async () => {
     apiMocks.listBoards
       .mockRejectedValueOnce(new Error('load failed'))
       .mockRejectedValueOnce('string load failed')
       .mockResolvedValueOnce([builtIn])
-    render(<BoardsPage />)
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
     expect(await screen.findByText('load failed')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: getCopy('common.retry') }))
     expect(await screen.findByText('string load failed')).toBeVisible()
@@ -99,16 +148,24 @@ describe('BoardsPage', () => {
   })
 
   it('renders built-in defaults, clones the current board, and edits all rule/default fields', async () => {
-    render(<BoardsPage />)
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
     expect(await screen.findByText(getCopy('boardManagement.readOnly'))).toBeVisible()
-    expect(screen.getByAltText('')).toHaveAttribute('src', '/api/character-assets/portrait-test')
-    expect(screen.getByRole('switch')).toBeDisabled()
+    expect(document.querySelector('.aw-board-default-player img')).toHaveAttribute(
+      'src',
+      '/api/character-assets/portrait-test',
+    )
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(getCopy('boardManagement.name'))).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: getCopy('boardManagement.clone') }))
     expect(screen.queryByText(getCopy('boardManagement.readOnly'))).not.toBeInTheDocument()
-    const editor = document.querySelector<HTMLElement>('.aw-agent-editor')!
+    const editor = document.querySelector<HTMLElement>('.aw-catalog-editor')!
     const [name, description] = within(editor).getAllByRole('textbox')
     expect((name as HTMLInputElement).value).toContain('自建')
-    fireEvent.change(name!, { target: { value: '克隆板子' } })
+    fireEvent.change(name!, { target: { value: '克隆板型' } })
     fireEvent.change(description!, { target: { value: '克隆说明' } })
     await userEvent.click(screen.getByRole('switch'))
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
@@ -129,12 +186,16 @@ describe('BoardsPage', () => {
       .mockRejectedValueOnce(new Error('create failed'))
       .mockRejectedValueOnce('create string failed')
       .mockResolvedValueOnce(custom)
-    render(<BoardsPage />)
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
     await screen.findByText(getCopy('boardManagement.readOnly'))
     await userEvent.click(screen.getByRole('button', { name: getCopy('boardManagement.create') }))
-    const editor = document.querySelector<HTMLElement>('.aw-agent-editor')!
+    const editor = document.querySelector<HTMLElement>('.aw-catalog-editor')!
     const [name] = within(editor).getAllByRole('textbox')
-    fireEvent.change(name!, { target: { value: '新板子' } })
+    fireEvent.change(name!, { target: { value: '新板型' } })
     const addVillager = screen.getByRole('button', { name: '增加平民' })
     const addWolf = screen.getByRole('button', { name: '增加狼人' })
     for (let index = 0; index < 5; index += 1) await userEvent.click(addVillager)
@@ -160,7 +221,7 @@ describe('BoardsPage', () => {
     await userEvent.click(save)
     expect(apiMocks.createBoard).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        name: '新板子',
+        name: '新板型',
         sheriff: true,
         victory: 'slaughter-edge',
         reserveCount: 0,
@@ -179,10 +240,20 @@ describe('BoardsPage', () => {
       .mockRejectedValueOnce(new Error('delete failed'))
       .mockRejectedValueOnce('delete string failed')
       .mockResolvedValueOnce(undefined)
-    apiMocks.listBoards.mockResolvedValueOnce([builtIn, custom]).mockResolvedValue([builtIn])
-    render(<BoardsPage />)
+    apiMocks.listBoards
+      .mockResolvedValueOnce([builtIn, custom])
+      .mockResolvedValueOnce([builtIn, custom])
+      .mockResolvedValue([builtIn])
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
     await screen.findByText(getCopy('boardManagement.readOnly'))
-    await userEvent.click(screen.getByRole('button', { name: /自建板子/u }))
+    await userEvent.click(screen.getByRole('button', { name: /自建板型/u }))
+    await userEvent.click(
+      screen.getByRole('button', { name: getCopy('configDesign.catalog.editBoard') }),
+    )
     const save = screen.getByRole('button', { name: getCopy('boardManagement.save') })
     await userEvent.click(save)
     expect(await screen.findByText('update failed')).toBeVisible()
@@ -223,10 +294,14 @@ describe('BoardsPage', () => {
         requiredReserveCount: 2,
       },
     ])
-    render(<BoardsPage />)
+    render(
+      <MemoryRouter>
+        <BoardsPage />
+      </MemoryRouter>,
+    )
     await screen.findByText(getCopy('boardManagement.readOnly'))
     await userEvent.click(screen.getByRole('button', { name: getCopy('boardManagement.create') }))
-    const editor = document.querySelector<HTMLElement>('.aw-agent-editor')!
+    const editor = document.querySelector<HTMLElement>('.aw-catalog-editor')!
     fireEvent.change(within(editor).getAllByRole('textbox')[0]!, {
       target: { value: '盗贼自建板' },
     })

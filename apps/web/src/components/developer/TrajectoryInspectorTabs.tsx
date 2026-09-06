@@ -47,6 +47,7 @@ export function TrajectoryInspectorTabs({
       >
         <button
           ref={playerTabRef}
+          className="aw-choice aw-choice--compact"
           aria-controls="trajectory-player-panel"
           aria-selected={activeTab === 'player'}
           id="trajectory-player-tab"
@@ -59,6 +60,7 @@ export function TrajectoryInspectorTabs({
         </button>
         <button
           ref={recordTabRef}
+          className="aw-choice aw-choice--compact"
           aria-controls="trajectory-record-panel"
           aria-selected={activeTab === 'record'}
           id="trajectory-record-tab"

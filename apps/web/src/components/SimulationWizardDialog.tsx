@@ -1,14 +1,4 @@
-import {
-  ArrowRight,
-  Check,
-  CheckCircle,
-  Flask,
-  Package,
-  Pulse,
-  ShieldCheck,
-  WarningCircle,
-  XCircle,
-} from '@phosphor-icons/react'
+import { GameIcon, type GameIconName } from './GameIcon.js'
 import { useEffect, useId, useMemo, useRef } from 'react'
 import { useSimulationReview, type SimulationReviewStage } from '@agent-arena/devtools-react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
@@ -64,7 +54,10 @@ export function SimulationWizardDialog({
 
   useEffect(() => {
     if (!match || busy) return undefined
-    const frame = window.requestAnimationFrame(() => stageActionRef.current?.focus())
+    const frame = window.requestAnimationFrame(() => {
+      const action = stageActionRef.current
+      ;(action && !action.disabled ? action : cancelRef.current)?.focus()
+    })
     return () => window.cancelAnimationFrame(frame)
   }, [busy, match, stage])
 
@@ -73,7 +66,7 @@ export function SimulationWizardDialog({
   return (
     <ModalDialog
       busy={busy}
-      className="aw-simulation-wizard"
+      className="aw-dialog aw-simulation-wizard"
       describedBy={descriptionId}
       initialFocusRef={cancelRef}
       labelledBy={titleId}
@@ -82,11 +75,13 @@ export function SimulationWizardDialog({
     >
       <header className="aw-simulation-wizard__header">
         <div className="aw-simulation-wizard__mark" aria-hidden>
-          <Flask size={27} weight="duotone" />
+          <GameIcon name="flask" size={34} />
         </div>
         <div>
-          <h2 id={titleId}>{getCopy('simulationWizard.title')}</h2>
-          <p id={descriptionId}>
+          <h2 className="aw-dialog__title" id={titleId}>
+            {getCopy('simulationWizard.title')}
+          </h2>
+          <p className="aw-dialog__description" id={descriptionId}>
             {formatCopy(getCopy('simulationWizard.subtitle'), { board: match.boardName })}
           </p>
         </div>
@@ -121,7 +116,7 @@ export function SimulationWizardDialog({
         {stage === 'complete' && approval ? <CompletePanel approval={approval} /> : null}
       </div>
 
-      <footer className="aw-simulation-wizard__actions">
+      <footer className="aw-panel__footer aw-simulation-wizard__actions">
         {stage === 'prepare' ? (
           <>
             <button
@@ -141,7 +136,7 @@ export function SimulationWizardDialog({
               onClick={() => void runReview()}
             >
               {getCopy('simulationWizard.startReview')}
-              <ArrowRight size={17} aria-hidden />
+              <GameIcon name="forward" size={18} />
             </button>
           </>
         ) : null}
@@ -178,7 +173,7 @@ export function SimulationWizardDialog({
               onClick={() => void approve()}
             >
               {getCopy('simulationWizard.approve')}
-              <ArrowRight size={17} aria-hidden />
+              <GameIcon name="forward" size={18} />
             </button>
           </>
         ) : null}
@@ -191,7 +186,7 @@ export function SimulationWizardDialog({
             onClick={onClose}
           >
             {getCopy('simulationWizard.done')}
-            <Check size={17} aria-hidden />
+            <GameIcon name="check" size={18} />
           </button>
         ) : null}
       </footer>
@@ -202,17 +197,16 @@ export function SimulationWizardDialog({
 function WizardProgress({ stage }: { readonly stage: WizardStage }) {
   const active = stage === 'prepare' ? 0 : stage === 'reviewing' || stage === 'review' ? 1 : 2
   const items = [
-    { label: getCopy('simulationWizard.prepareLabel'), icon: Package },
-    { label: getCopy('simulationWizard.reviewLabel'), icon: ShieldCheck },
-    { label: getCopy('simulationWizard.approveLabel'), icon: CheckCircle },
-  ]
+    { label: getCopy('simulationWizard.prepareLabel'), icon: 'cards' },
+    { label: getCopy('simulationWizard.reviewLabel'), icon: 'shield' },
+    { label: getCopy('simulationWizard.approveLabel'), icon: 'check' },
+  ] satisfies readonly { label: string; icon: GameIconName }[]
   return (
     <ol
       className="aw-simulation-wizard__progress"
       aria-label={getCopy('simulationWizard.progress')}
     >
       {items.map((item, index) => {
-        const Icon = item.icon
         const state = index < active ? 'complete' : index === active ? 'current' : 'upcoming'
         return (
           <li
@@ -220,7 +214,7 @@ function WizardProgress({ stage }: { readonly stage: WizardStage }) {
             data-state={state}
             key={item.label}
           >
-            <Icon size={17} weight={state === 'current' ? 'fill' : 'regular'} aria-hidden />
+            <GameIcon name={item.icon} size={22} />
             <span>{item.label}</span>
           </li>
         )
@@ -242,7 +236,7 @@ function PreparePanel({
         <h3>{getCopy('simulationWizard.prepareTitle')}</h3>
         <p>{getCopy('simulationWizard.prepareDetail')}</p>
       </div>
-      <dl className="aw-simulation-wizard__summary">
+      <dl className="aw-panel aw-panel--compact aw-simulation-wizard__summary">
         <div>
           <dt>{getCopy('simulationWizard.sourceStatus')}</dt>
           <dd>
@@ -260,8 +254,8 @@ function PreparePanel({
           <dd>{match.phaseLabel}</dd>
         </div>
       </dl>
-      <div className="aw-simulation-wizard__notice">
-        <ShieldCheck size={21} aria-hidden />
+      <div className="aw-panel aw-panel--compact aw-simulation-wizard__notice">
+        <GameIcon name="shield" size={24} />
         <p>{getCopy('simulationWizard.safetyNotice')}</p>
       </div>
       {error ? <InlineIssue message={error} /> : null}
@@ -272,10 +266,10 @@ function PreparePanel({
 function ActivityPanel({ title, detail }: { readonly title: string; readonly detail: string }) {
   return (
     <section className="aw-simulation-wizard__activity" aria-live="polite">
-      <Pulse size={34} weight="duotone" aria-hidden />
+      <GameIcon name="pulse" size={42} />
       <h3>{title}</h3>
       <p>{detail}</p>
-      <span aria-hidden />
+      <span className="aw-skeleton" aria-hidden />
     </section>
   )
 }
@@ -303,7 +297,7 @@ function ReviewPanel({
           <h3>{getCopy('simulationWizard.reviewTitle')}</h3>
           <p>{getCopy('simulationWizard.reviewDetail')}</p>
         </div>
-        <strong data-ok={ready}>
+        <strong className="aw-status" data-ok={ready}>
           {getCopy(ready ? 'simulationWizard.reviewPassed' : 'simulationWizard.reviewNeedsAction')}
         </strong>
       </div>
@@ -367,7 +361,7 @@ function ReviewPanel({
 function ReviewCheck({ label, ok }: { readonly label: string; readonly ok: boolean }) {
   return (
     <div data-ok={ok}>
-      {ok ? <CheckCircle size={20} weight="fill" aria-hidden /> : <XCircle size={20} aria-hidden />}
+      <GameIcon name={ok ? 'check' : 'warning'} size={23} />
       <span>{label}</span>
       <strong>{getCopy(ok ? 'simulationWizard.passed' : 'simulationWizard.failed')}</strong>
     </div>
@@ -384,14 +378,14 @@ function WizardCheckbox({
   readonly onChange: (value: boolean) => void
 }) {
   return (
-    <label className="aw-simulation-wizard__checkbox">
+    <label className="aw-checkbox-field aw-simulation-wizard__checkbox">
       <input
+        className="aw-checkbox"
         checked={checked}
         data-dialog-action
         type="checkbox"
         onChange={(event) => onChange(event.target.checked)}
       />
-      <span aria-hidden>{checked ? <Check size={14} weight="bold" /> : null}</span>
       <strong>{label}</strong>
     </label>
   )
@@ -407,9 +401,9 @@ function IssueList({
   readonly danger?: boolean
 }) {
   return (
-    <div className="aw-simulation-wizard__issues" data-danger={danger}>
+    <div className="aw-panel aw-panel--compact aw-simulation-wizard__issues" data-danger={danger}>
       <div>
-        <WarningCircle size={19} aria-hidden />
+        <GameIcon name="warning" size={22} />
         <strong>{title}</strong>
       </div>
       <ul>
@@ -423,8 +417,11 @@ function IssueList({
 
 function InlineIssue({ message }: { readonly message: string }) {
   return (
-    <div className="aw-simulation-wizard__inline-error" role="alert">
-      <WarningCircle size={19} aria-hidden />
+    <div
+      className="aw-form-message aw-form-message--error aw-simulation-wizard__inline-error"
+      role="alert"
+    >
+      <GameIcon name="warning" size={22} />
       <span>{message}</span>
     </div>
   )
@@ -434,7 +431,7 @@ function CompletePanel({ approval }: { readonly approval: SimulationApprovalResu
   return (
     <section className="aw-simulation-wizard__complete">
       <div aria-hidden>
-        <CheckCircle size={42} weight="duotone" />
+        <GameIcon name="check" size={48} />
       </div>
       <h3>{getCopy('simulationWizard.completeTitle')}</h3>
       <p>
@@ -442,7 +439,7 @@ function CompletePanel({ approval }: { readonly approval: SimulationApprovalResu
           approval.created ? 'simulationWizard.completeCreated' : 'simulationWizard.completeExists',
         )}
       </p>
-      <code>{approval.relativePath}</code>
+      <code className="aw-panel aw-panel--compact">{approval.relativePath}</code>
       <small>
         {formatCopy(getCopy('simulationWizard.variantCount'), { count: approval.variants.length })}
       </small>

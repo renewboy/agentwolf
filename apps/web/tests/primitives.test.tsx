@@ -96,6 +96,26 @@ describe('small presentation primitives', () => {
     expect(screen.getByText('对局暂停')).toHaveClass('aw-status--paused')
   })
 
+  it('keeps named navigation and a content target on the trajectory route', () => {
+    render(
+      <MemoryRouter initialEntries={['/matches/match-test/trajectory']}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="matches/:matchId/trajectory" element={<main>Trajectory outlet</main>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Trajectory outlet')).toBeVisible()
+    expect(screen.getByRole('navigation', { name: '游戏导航' })).toBeVisible()
+    for (const name of ['对局大厅', '开始对局', '板型牌组', '人设图鉴', 'Agent 配置', '偏好设置']) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument()
+    }
+    expect(document.getElementById('main-content')).toContainElement(
+      screen.getByText('Trajectory outlet'),
+    )
+  })
+
   it('renders the application shell and active navigation', () => {
     render(
       <MemoryRouter initialEntries={['/boards']}>
@@ -107,8 +127,12 @@ describe('small presentation primitives', () => {
       </MemoryRouter>,
     )
     expect(screen.getByText('Board outlet')).toBeVisible()
-    expect(screen.getByRole('link', { name: '板子管理' })).toHaveClass('active')
-    expect(screen.getAllByRole('link')).toHaveLength(7)
+    expect(screen.getByRole('link', { name: '板型牌组' })).toHaveClass('active')
+    expect(screen.getByRole('link', { name: '跳至主要内容' })).toHaveAttribute(
+      'href',
+      '#main-content',
+    )
+    expect(screen.getAllByRole('link')).toHaveLength(8)
   })
 })
 

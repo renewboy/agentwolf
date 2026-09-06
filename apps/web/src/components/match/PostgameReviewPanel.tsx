@@ -1,4 +1,4 @@
-import { ArrowClockwise, CaretRight, Play, SkipForward, X } from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
@@ -10,6 +10,8 @@ import type {
 } from '@agentwolf/contracts'
 import { PostgameAwardCard } from './PostgameAwardResults.js'
 import { PostgameRadar } from './PostgameRadar.js'
+import { MatchErrorDetails } from './MatchErrorDetails.js'
+import { matchWinnerLabel } from './MatchPresence.js'
 
 export function PostgameReviewPanel({
   match,
@@ -75,15 +77,18 @@ export function PostgameReviewPanel({
   if (!review) return null
   if (review.state === 'countdown') {
     return (
-      <section className="aw-postgame-strip aw-postgame-strip--countdown" aria-live="polite">
+      <section
+        className="aw-panel aw-postgame-strip aw-postgame-strip--countdown"
+        aria-live="polite"
+      >
         <div>
-          <small>{getCopy('postgame.title')}</small>
+          <strong>{matchWinnerLabel(match)}</strong>
           <h2>{getCopy('postgame.countdownTitle')}</h2>
           <p>{formatCopy(getCopy('postgame.countdownDescription'), { seconds })}</p>
         </div>
         <div
           aria-label={formatCopy(getCopy('postgame.countdownAria'), { seconds })}
-          className="aw-postgame-countdown"
+          className="aw-panel aw-panel--compact aw-postgame-countdown"
           role="timer"
         >
           <strong>{seconds}</strong>
@@ -91,27 +96,33 @@ export function PostgameReviewPanel({
         </div>
         <div className="aw-postgame-actions">
           <button
-            className="aw-button aw-button--primary"
+            className="aw-button aw-button--compact aw-button--primary"
             disabled={busy}
             type="button"
             onClick={onStart}
           >
-            <Play size={17} weight="fill" aria-hidden />
+            <GameIcon name="play" size={17} />
             {getCopy(busy ? 'postgame.starting' : 'postgame.startNow')}
           </button>
-          <button className="aw-button" disabled={busy} type="button" onClick={onSkip}>
-            <SkipForward size={17} aria-hidden />
+          <button
+            className="aw-button aw-button--compact"
+            disabled={busy}
+            type="button"
+            onClick={onSkip}
+          >
+            <GameIcon name="skip" size={17} />
             {getCopy('postgame.skip')}
           </button>
         </div>
-        {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+        {error ? <MatchErrorDetails message={error} /> : null}
       </section>
     )
   }
   if (review.state === 'skipped') {
     return (
-      <div className="aw-postgame-strip aw-postgame-strip--compact">
-        {getCopy('postgame.skipped')}
+      <div className="aw-panel aw-postgame-strip aw-postgame-strip--compact">
+        <strong>{matchWinnerLabel(match)}</strong>
+        <span>{getCopy('postgame.skipped')}</span>
       </div>
     )
   }
@@ -133,7 +144,7 @@ export function PostgameReviewPanel({
       {open ? (
         <aside
           aria-label={getCopy('postgame.inspector')}
-          className="aw-postgame-inspector"
+          className="aw-panel aw-postgame-inspector"
           data-state={review.state}
           id="postgame-review-inspector"
         >
@@ -151,7 +162,7 @@ export function PostgameReviewPanel({
               <div className="aw-postgame-mode" aria-label={getCopy('postgame.title')}>
                 <button
                   aria-pressed={mode === 'result'}
-                  className="aw-button"
+                  className="aw-button aw-button--compact aw-choice"
                   type="button"
                   onClick={() => setMode('result')}
                 >
@@ -159,7 +170,7 @@ export function PostgameReviewPanel({
                 </button>
                 <button
                   aria-pressed={mode === 'sheets'}
-                  className="aw-button"
+                  className="aw-button aw-button--compact aw-choice"
                   type="button"
                   onClick={() => setMode('sheets')}
                 >
@@ -186,7 +197,7 @@ export function PostgameReviewPanel({
               onSelectTarget={setRatingTargetId}
             />
           )}
-          {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+          {error ? <MatchErrorDetails message={error} /> : null}
         </aside>
       ) : null}
     </>
@@ -247,40 +258,41 @@ function PostgameSummaryStrip({
               total: review.totalPlayers,
             })
   return (
-    <section className="aw-postgame-strip" data-state={review.state}>
+    <section className="aw-panel aw-postgame-strip" data-state={review.state}>
       <div className="aw-postgame-strip__summary">
-        <span className="aw-postgame-strip__signal" aria-hidden />
+        <GameIcon name="award" size={22} />
         <div>
-          <small>{getCopy('postgame.title')}</small>
-          <strong>{title}</strong>
-          <span>{detail}</span>
+          <strong>{matchWinnerLabel(match)}</strong>
+          <span className="aw-player-name">
+            {review.state === 'completed' ? detail : `${title} · ${detail}`}
+          </span>
         </div>
       </div>
       <div className="aw-postgame-strip__actions">
         {review.state === 'paused' ? (
           <button
-            className="aw-button aw-button--primary"
+            className="aw-button aw-button--compact aw-button--primary"
             disabled={busy}
             type="button"
             onClick={onResume}
           >
-            <ArrowClockwise size={17} aria-hidden />
+            <GameIcon name="refresh" size={17} />
             {getCopy('postgame.resume')}
           </button>
         ) : null}
         <button
           aria-controls="postgame-review-inspector"
           aria-expanded={open}
-          className="aw-button aw-postgame-inspector-toggle"
+          className="aw-button aw-button--compact aw-postgame-inspector-toggle"
           ref={openButtonRef}
           type="button"
           onClick={() => onOpenChange(!open)}
         >
           {getCopy(open ? 'postgame.closeInspector' : 'postgame.openInspector')}
-          <CaretRight size={17} aria-hidden />
+          <GameIcon name="forward" size={17} />
         </button>
       </div>
-      {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+      {error ? <MatchErrorDetails message={error} /> : null}
     </section>
   )
 }
@@ -310,7 +322,7 @@ function PostgameHeader({
               : getCopy('postgame.speakingTitle')}
         </h2>
       </div>
-      <strong>
+      <strong className="aw-player-name">
         {review.state === 'collecting'
           ? formatCopy(getCopy('postgame.collectingProgress'), {
               submitted: review.submittedCount,
@@ -325,12 +337,12 @@ function PostgameHeader({
       </strong>
       <button
         aria-label={getCopy('postgame.closeInspector')}
-        className="aw-button aw-button--square aw-postgame-inspector-close"
+        className="aw-button aw-button--compact aw-button--square aw-postgame-inspector-close"
         ref={closeButtonRef}
         type="button"
         onClick={onClose}
       >
-        <X size={17} aria-hidden />
+        <GameIcon name="close" size={17} />
       </button>
     </header>
   )
@@ -362,7 +374,7 @@ function ReviewSheets({
         {match.seats.map((seat) => (
           <button
             aria-pressed={reviewerId === seat.playerId}
-            className="aw-postgame-player-tab"
+            className="aw-button aw-button--compact aw-choice aw-postgame-player-tab"
             data-submitted={submitted.has(seat.playerId)}
             disabled={!submitted.has(seat.playerId)}
             key={seat.playerId}
@@ -370,7 +382,7 @@ function ReviewSheets({
             onClick={() => onSelectReviewer(seat.playerId)}
           >
             <span className="aw-postgame-player-tab__seat">{seat.seat}</span>
-            <span className="aw-postgame-player-tab__name">{seat.name}</span>
+            <span className="aw-player-name aw-postgame-player-tab__name">{seat.name}</span>
           </button>
         ))}
       </div>
@@ -378,7 +390,9 @@ function ReviewSheets({
         <p className="aw-postgame-empty">{getCopy('postgame.waitingSheet')}</p>
       ) : (
         <div className="aw-postgame-sheet">
-          <h3>{formatCopy(getCopy('postgame.reviewerSheet'), { player: reviewer.name })}</h3>
+          <h3 className="aw-player-name">
+            {formatCopy(getCopy('postgame.reviewerSheet'), { player: reviewer.name })}
+          </h3>
           <div className="aw-postgame-nominations">
             <Nomination
               label={getCopy('postgame.mvpNomination')}
@@ -395,12 +409,15 @@ function ReviewSheets({
                 const seat = seatFor(match, entry.playerId)
                 return seat ? (
                   <button
+                    className="aw-button aw-button--compact aw-choice"
                     aria-pressed={ratingTargetId === entry.playerId}
                     key={entry.playerId}
                     type="button"
                     onClick={() => onSelectTarget(entry.playerId)}
                   >
-                    {seat.seat} · {seat.name}
+                    <span className="aw-player-name">
+                      {seat.seat} · {seat.name}
+                    </span>
                   </button>
                 ) : null
               })}
@@ -439,7 +456,7 @@ function FinalResult({
           return seat ? (
             <button
               aria-pressed={selected?.playerId === entry.playerId}
-              className="aw-postgame-player-tab"
+              className="aw-button aw-button--compact aw-choice aw-postgame-player-tab"
               key={entry.playerId}
               type="button"
               onClick={() => onSelectPlayer(entry.playerId)}
@@ -466,9 +483,11 @@ function FinalResult({
 
 function Nomination({ label, seat }: { readonly label: string; readonly seat: SeatView | null }) {
   return (
-    <div>
+    <div className="aw-panel">
       <small>{label}</small>
-      <strong>{seat ? `${seat.seat} · ${seat.name}` : getCopy('common.none')}</strong>
+      <strong className="aw-player-name">
+        {seat ? `${seat.seat} · ${seat.name}` : getCopy('common.none')}
+      </strong>
     </div>
   )
 }

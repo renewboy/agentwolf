@@ -1,0 +1,57 @@
+.aw-disclosure-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
+  color: var(--aw-color-amber);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aw-disclosure-row__title {
+  font-family: var(--aw-font-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.aw-disclosure-row__meta {
+  justify-self: end;
+  color: var(--aw-color-text-muted);
+  font-family: var(--aw-font-ui);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.aw-disclosure-row__icon {
+  justify-self: end;
+  transition: transform var(--aw-duration-fast);
+}
+
+.aw-disclosure-row[aria-expanded='false'] .aw-disclosure-row__icon {
+  transform: rotate(-90deg);
+}
+
+.aw-disclosure-row:hover {
+  color: var(--aw-color-text);
+}
+
+.aw-disclosure-row:focus-visible {
+  outline: 1px solid var(--aw-color-amber);
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .aw-disclosure-row {
+    gap: 10px;
+    padding-inline: 4px;
+  }
+}

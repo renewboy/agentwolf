@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { getCopy } from '@agentwolf/assets'
 import { AppShell } from './components/AppShell.js'
+import { GameIconInk } from './components/GameIcon.js'
 import { AgentsPage } from './pages/AgentsPage.js'
 import { BoardsPage } from './pages/BoardsPage.js'
 import { CollectionPage } from './pages/CollectionPage.js'
@@ -11,6 +12,7 @@ import { SettingsPage } from './pages/SettingsPage.js'
 import { LoadingState } from './components/AsyncState.js'
 import { RuntimeConfigProvider, useRuntimeConfig } from './hooks/useRuntimeConfig.js'
 import { MatchSessionProvider } from './hooks/useMatchSession.js'
+import { useGameCursor } from './hooks/useGameCursor.js'
 
 const MatchPage = lazy(async () => {
   const module = await import('./pages/MatchPage.js')
@@ -23,11 +25,13 @@ const DeveloperPage = lazy(async () => {
 })
 
 export function App() {
+  useGameCursor()
   useEffect(() => {
     document.title = getCopy('brand')
   }, [])
   return (
     <RuntimeConfigProvider>
+      <GameIconInk />
       <AppRoutes />
     </RuntimeConfigProvider>
   )
@@ -55,20 +59,18 @@ function AppRoutes() {
             </Suspense>
           }
         />
-        <Route element={<AppShell />}>
-          <Route
-            path="trajectory"
-            element={
-              developerMode ? (
-                <Suspense fallback={<LoadingState />}>
-                  <DeveloperPage />
-                </Suspense>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-        </Route>
+        <Route
+          path="trajectory"
+          element={
+            developerMode ? (
+              <Suspense fallback={<LoadingState />}>
+                <DeveloperPage />
+              </Suspense>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

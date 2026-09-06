@@ -91,6 +91,23 @@ beforeEach(() => {
 })
 
 describe('AgentsPage', () => {
+  it('keeps the edited draft when switching between the profile list and detail', async () => {
+    render(<AgentsPage />)
+    const name = await screen.findByLabelText(getCopy('agentFields.profileName'))
+    const list = screen.getByRole('button', { name: getCopy('configDesign.agents.profileList') })
+    const detail = screen.getByRole('button', {
+      name: getCopy('configDesign.agents.profileDetail'),
+    })
+    expect(list).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(detail)
+    expect(detail).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.change(name, { target: { value: 'Unfinished profile' } })
+    await userEvent.click(list)
+    expect(list).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(detail)
+    expect(name).toHaveValue('Unfinished profile')
+  })
+
   it('handles Error/string load failures, retries, and empty profile state', async () => {
     apiMocks.listTools
       .mockRejectedValueOnce(new Error('load failed'))
@@ -117,6 +134,8 @@ describe('AgentsPage', () => {
     render(<AgentsPage />)
     await waitFor(() => expect(apiMocks.discoverTool).toHaveBeenCalledWith(tool.id, {}))
     const editor = document.querySelector<HTMLElement>('.aw-agent-editor')!
+    expect(within(editor).getByRole('spinbutton')).not.toBeVisible()
+    await userEvent.click(within(editor).getByText(getCopy('configDesign.agents.advanced')))
     expect(within(editor).getByRole('spinbutton')).toHaveValue(600_000)
     const textboxes = within(editor).getAllByRole('textbox')
     fireEvent.change(textboxes[0]!, { target: { value: 'New Profile' } })
@@ -288,6 +307,17 @@ describe('AgentsPage', () => {
     render(<AgentsPage />)
     await screen.findByText('Existing Profile')
     const toggle = screen.getByRole('button', { name: getCopy('agentFields.newTool') })
+    await userEvent.click(toggle)
+    const dialog = screen.getByRole('dialog', {
+      name: getCopy('configDesign.agents.connectionTitle'),
+    })
+    expect(dialog).toBeVisible()
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: getCopy('common.close') })).toHaveFocus(),
+    )
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(toggle).toHaveFocus())
     await userEvent.click(toggle)
     let toolEditor = document.querySelector<HTMLElement>('.aw-tool-editor')!
     let controls = within(toolEditor).getAllByRole('textbox')

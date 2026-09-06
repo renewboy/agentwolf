@@ -1,4 +1,4 @@
-import { Copy, Plus, Trash, UploadSimple, UserCircle } from '@phosphor-icons/react'
+import { GameIcon } from '../components/GameIcon.js'
 import { useCallback, useEffect, useState } from 'react'
 import { getCopy } from '@agentwolf/assets'
 import {
@@ -12,6 +12,7 @@ import { characterPortraitUrl, normalizeCharacterPortrait } from '../character-p
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { FormField } from '../components/FormField.js'
+import { CharacterOverview } from '../components/catalog/CharacterOverview.js'
 
 interface CharacterDraft {
   readonly id: CharacterId | null
@@ -35,6 +36,8 @@ export function CollectionPage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async () => {
     setError(null)
@@ -78,6 +81,7 @@ export function CollectionPage() {
       const next = await api.listCharacters()
       setCharacters(next)
       setDraft(cardToDraft(saved))
+      setEditing(false)
       setNotice(getCopy('characterLibrary.saved'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -94,6 +98,7 @@ export function CollectionPage() {
       const copied = await api.copyCharacter(draft.id)
       setCharacters(await api.listCharacters())
       setDraft(cardToDraft(copied))
+      setEditing(true)
       setNotice(getCopy('characterLibrary.copied'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -111,6 +116,7 @@ export function CollectionPage() {
       const next = await api.listCharacters()
       setCharacters(next)
       setDraft(cardToDraft(next[0]!))
+      setEditing(false)
       setConfirmDelete(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -138,198 +144,245 @@ export function CollectionPage() {
   if (!characters || !draft) return <LoadingState />
 
   const disabled = !draft.editable || saving || uploading
+  const selectedCharacter = characters.find((character) => character.id === draft.id)
+  const visibleCharacters = characters.filter((character) =>
+    `${character.name} ${character.universe}`
+      .toLocaleLowerCase()
+      .includes(search.trim().toLocaleLowerCase()),
+  )
+  const cancelEdit = (): void => {
+    setDraft(cardToDraft(selectedCharacter ?? characters[0]!))
+    setEditing(false)
+    setError(null)
+  }
   return (
-    <main className="aw-page">
+    <main className="aw-page aw-collection-page">
       <div className="aw-page-heading">
         <h1>{getCopy('characterLibrary.title')}</h1>
         <p>{getCopy('characterLibrary.subtitle')}</p>
       </div>
-      <div className="aw-settings-layout aw-character-library">
-        <aside className="aw-agent-list aw-panel">
+      <div className="aw-character-library">
+        <aside className="aw-character-gallery">
           <div className="aw-panel-heading">
-            <h2>{getCopy('characterLibrary.title')}</h2>
+            <h2>{getCopy('configDesign.catalog.characters')}</h2>
             <button
               className="aw-button aw-button--icon"
               type="button"
               onClick={() => {
                 setDraft(emptyDraft())
+                setEditing(true)
                 setNotice(null)
                 setError(null)
               }}
             >
-              <Plus size={18} aria-hidden />
+              <GameIcon name="plus" size={18} />
               {getCopy('characterLibrary.create')}
             </button>
           </div>
+          <input
+            className="aw-input aw-character-search"
+            aria-label={getCopy('configDesign.characters.search')}
+            placeholder={getCopy('configDesign.characters.search')}
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
           <div className="aw-character-grid">
-            {characters.map((character) => (
+            {visibleCharacters.map((character) => (
               <button
-                className="aw-character-card"
+                className="aw-character-card aw-choice aw-choice--portrait"
                 data-selected={draft.id === character.id}
+                aria-pressed={draft.id === character.id}
                 key={character.id}
                 type="button"
                 onClick={() => {
                   setDraft(cardToDraft(character))
+                  setEditing(false)
                   setNotice(null)
                   setError(null)
                 }}
               >
-                <img src={characterPortraitUrl(character.portraitAssetId)} alt="" />
+                <img
+                  className="aw-choice__art"
+                  src={characterPortraitUrl(character.portraitAssetId)}
+                  alt=""
+                />
                 <span>
-                  <strong>{character.name}</strong>
-                  <small>{character.universe}</small>
+                  <strong className="aw-choice__label">{character.name}</strong>
+                  <small className="aw-choice__meta">{character.universe}</small>
                 </span>
               </button>
             ))}
           </div>
+          {visibleCharacters.length === 0 ? (
+            <p className="aw-catalog-note">{getCopy('configDesign.characters.noResults')}</p>
+          ) : null}
         </aside>
 
-        <section className="aw-agent-editor aw-panel">
-          {!draft.editable ? (
-            <p className="aw-form-message">{getCopy('characterLibrary.readOnly')}</p>
-          ) : null}
-          <p className="aw-character-ability-note">{getCopy('characterLibrary.fullAbility')}</p>
-          <div className="aw-character-editor__portrait">
-            {draft.portraitAssetId ? (
-              <img
-                src={characterPortraitUrl(draft.portraitAssetId)}
-                alt={draft.name || getCopy('characterLibrary.portrait')}
+        <section className="aw-catalog-detail aw-character-detail">
+          {!editing && selectedCharacter ? (
+            <>
+              <CharacterOverview
+                character={selectedCharacter}
+                busy={saving}
+                onEdit={() => setEditing(true)}
+                onCopy={() => void copyCharacter()}
+                onDelete={() => setConfirmDelete(true)}
               />
-            ) : (
-              <UserCircle size={78} aria-hidden />
-            )}
-            {draft.editable ? (
-              <label className="aw-button aw-button--icon aw-character-upload">
-                <UploadSimple size={18} aria-hidden />
-                {getCopy(
-                  uploading ? 'characterLibrary.uploading' : 'characterLibrary.portraitUpload',
-                )}
-                <input
-                  accept="image/png,image/jpeg,image/webp"
-                  disabled={uploading}
-                  type="file"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) void uploadPortrait(file)
-                    event.target.value = ''
-                  }}
-                />
-              </label>
-            ) : null}
-            <small>{getCopy('characterLibrary.portraitHint')}</small>
-          </div>
-          <div className="aw-editor-grid">
-            <FormField label={getCopy('characterLibrary.name')}>
-              <input
-                className="aw-input"
-                disabled={disabled}
-                value={draft.name}
-                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              />
-            </FormField>
-            <FormField label={getCopy('characterLibrary.universe')}>
-              <input
-                className="aw-input"
-                disabled={disabled}
-                value={draft.universe}
-                onChange={(event) => setDraft({ ...draft, universe: event.target.value })}
-              />
-            </FormField>
-            <FormField label={getCopy('characterLibrary.summary')} wide>
-              <textarea
-                className="aw-textarea"
-                disabled={disabled}
-                value={draft.summary}
-                onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
-              />
-            </FormField>
-            <FormField
-              label={getCopy('characterLibrary.personality')}
-              hint={getCopy('characterLibrary.personalityHint')}
-            >
-              <textarea
-                className="aw-textarea"
-                disabled={disabled}
-                value={draft.personality}
-                onChange={(event) => setDraft({ ...draft, personality: event.target.value })}
-              />
-            </FormField>
-            <FormField label={getCopy('characterLibrary.socialStyle')}>
-              <textarea
-                className="aw-textarea"
-                disabled={disabled}
-                value={draft.socialStyle}
-                onChange={(event) => setDraft({ ...draft, socialStyle: event.target.value })}
-              />
-            </FormField>
-            <FormField
-              label={getCopy('characterLibrary.reasoningPresentation')}
-              hint={getCopy('characterLibrary.reasoningHint')}
-            >
-              <textarea
-                className="aw-textarea"
-                disabled={disabled}
-                value={draft.reasoningPresentation}
-                onChange={(event) =>
-                  setDraft({ ...draft, reasoningPresentation: event.target.value })
-                }
-              />
-            </FormField>
-            <FormField label={getCopy('characterLibrary.speechStyle')}>
-              <textarea
-                className="aw-textarea"
-                disabled={disabled}
-                value={draft.speechStyle}
-                onChange={(event) => setDraft({ ...draft, speechStyle: event.target.value })}
-              />
-            </FormField>
-            <FormField
-              label={getCopy('characterLibrary.boundaries')}
-              hint={getCopy('characterLibrary.boundariesHint')}
-            >
-              <textarea
-                className="aw-textarea"
-                disabled={disabled}
-                value={draft.boundaries}
-                onChange={(event) => setDraft({ ...draft, boundaries: event.target.value })}
-              />
-            </FormField>
-          </div>
-          {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
-          {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
-          <div className="aw-form-actions">
-            {draft.editable ? (
-              <button
-                className="aw-button aw-button--primary"
-                disabled={disabled}
-                type="button"
-                onClick={() => void save()}
-              >
-                {getCopy('characterLibrary.save')}
-              </button>
-            ) : (
-              <button
-                className="aw-button aw-button--primary"
-                disabled={saving}
-                type="button"
-                onClick={() => void copyCharacter()}
-              >
-                <Copy size={18} aria-hidden />
-                {getCopy('characterLibrary.copy')}
-              </button>
-            )}
-            {draft.editable && draft.id ? (
-              <button
-                className="aw-button aw-button--danger"
-                disabled={saving}
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Trash size={18} aria-hidden />
-                {getCopy('characterLibrary.delete')}
-              </button>
-            ) : null}
-          </div>
+              {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
+              {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+            </>
+          ) : (
+            <div className="aw-catalog-editor">
+              <header className="aw-catalog-editor__heading">
+                <h2>
+                  {getCopy(draft.id ? 'configDesign.characters.edit' : 'characterLibrary.create')}
+                </h2>
+                <p>{getCopy('configDesign.characters.editHint')}</p>
+              </header>
+              <p className="aw-character-ability-note">{getCopy('characterLibrary.fullAbility')}</p>
+              <div className="aw-character-editor__portrait">
+                <div className="aw-character-portrait-preview">
+                  {draft.portraitAssetId ? (
+                    <img
+                      className="aw-character-portrait-preview__image"
+                      src={characterPortraitUrl(draft.portraitAssetId)}
+                      alt={draft.name || getCopy('characterLibrary.portrait')}
+                    />
+                  ) : (
+                    <GameIcon name="pawn" size={78} />
+                  )}
+                </div>
+                {draft.editable ? (
+                  <label className="aw-button aw-button--icon aw-character-upload">
+                    <GameIcon name="upload" size={18} />
+                    {getCopy(
+                      uploading ? 'characterLibrary.uploading' : 'characterLibrary.portraitUpload',
+                    )}
+                    <input
+                      accept="image/png,image/jpeg,image/webp"
+                      disabled={uploading}
+                      type="file"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (file) void uploadPortrait(file)
+                        event.target.value = ''
+                      }}
+                    />
+                  </label>
+                ) : null}
+                <small>{getCopy('characterLibrary.portraitHint')}</small>
+              </div>
+              <div className="aw-editor-grid">
+                <FormField label={getCopy('characterLibrary.name')}>
+                  <input
+                    className="aw-input"
+                    disabled={disabled}
+                    value={draft.name}
+                    onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                  />
+                </FormField>
+                <FormField label={getCopy('characterLibrary.universe')}>
+                  <input
+                    className="aw-input"
+                    disabled={disabled}
+                    value={draft.universe}
+                    onChange={(event) => setDraft({ ...draft, universe: event.target.value })}
+                  />
+                </FormField>
+                <FormField label={getCopy('characterLibrary.summary')} wide>
+                  <textarea
+                    className="aw-textarea"
+                    disabled={disabled}
+                    value={draft.summary}
+                    onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
+                  />
+                </FormField>
+                <FormField
+                  label={getCopy('characterLibrary.personality')}
+                  hint={getCopy('characterLibrary.personalityHint')}
+                >
+                  <textarea
+                    className="aw-textarea"
+                    disabled={disabled}
+                    value={draft.personality}
+                    onChange={(event) => setDraft({ ...draft, personality: event.target.value })}
+                  />
+                </FormField>
+                <FormField label={getCopy('characterLibrary.socialStyle')}>
+                  <textarea
+                    className="aw-textarea"
+                    disabled={disabled}
+                    value={draft.socialStyle}
+                    onChange={(event) => setDraft({ ...draft, socialStyle: event.target.value })}
+                  />
+                </FormField>
+                <FormField
+                  label={getCopy('characterLibrary.reasoningPresentation')}
+                  hint={getCopy('characterLibrary.reasoningHint')}
+                >
+                  <textarea
+                    className="aw-textarea"
+                    disabled={disabled}
+                    value={draft.reasoningPresentation}
+                    onChange={(event) =>
+                      setDraft({ ...draft, reasoningPresentation: event.target.value })
+                    }
+                  />
+                </FormField>
+                <FormField label={getCopy('characterLibrary.speechStyle')}>
+                  <textarea
+                    className="aw-textarea"
+                    disabled={disabled}
+                    value={draft.speechStyle}
+                    onChange={(event) => setDraft({ ...draft, speechStyle: event.target.value })}
+                  />
+                </FormField>
+                <FormField
+                  label={getCopy('characterLibrary.boundaries')}
+                  hint={getCopy('characterLibrary.boundariesHint')}
+                >
+                  <textarea
+                    className="aw-textarea"
+                    disabled={disabled}
+                    value={draft.boundaries}
+                    onChange={(event) => setDraft({ ...draft, boundaries: event.target.value })}
+                  />
+                </FormField>
+              </div>
+              {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
+              {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
+              <div className="aw-form-actions aw-panel__footer">
+                <button
+                  className="aw-button"
+                  disabled={disabled}
+                  type="button"
+                  onClick={cancelEdit}
+                >
+                  {getCopy('configDesign.catalog.cancelEdit')}
+                </button>
+                <button
+                  className="aw-button aw-button--primary"
+                  disabled={disabled}
+                  type="button"
+                  onClick={() => void save()}
+                >
+                  {getCopy('characterLibrary.save')}
+                </button>
+                {draft.editable && draft.id ? (
+                  <button
+                    className="aw-button aw-button--danger"
+                    disabled={saving}
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <GameIcon name="trash" size={18} />
+                    {getCopy('characterLibrary.delete')}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
         </section>
       </div>
       <ConfirmDialog

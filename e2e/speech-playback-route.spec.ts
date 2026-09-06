@@ -60,6 +60,24 @@ test('keeps one voice session while switching between a Match and its trajectory
   await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['跨页播放。'])
   await page.getByRole('link', { name: '切换到玩家行动轨迹' }).click()
   await expect(page).toHaveURL(new RegExp(`/matches/${initial.id}/trajectory$`))
+  sendLive({
+    type: 'snapshot',
+    view: { kind: 'god' },
+    data: {
+      ...initial,
+      day: 2,
+      phaseId: 'phase-day-vote',
+      phaseLabel: '白天投票',
+      activeSpeech: {
+        speechId: 31,
+        playerId: 'player-1',
+        text: '跨页播放。',
+        final: false,
+      },
+    },
+  })
+  await expect(page.locator('.aw-phase-title')).toHaveCount(0)
+  await expect(page.locator('.aw-phase-display')).toContainText('第 2 天')
   expect(liveConnections).toBe(1)
   expect(await speechStubCancelCount(page)).toBe(0)
 

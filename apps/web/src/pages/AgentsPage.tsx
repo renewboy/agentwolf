@@ -1,4 +1,4 @@
-import { FloppyDisk, Plus, Pulse, Robot, Trash, Wrench } from '@phosphor-icons/react'
+import { GameIcon } from '../components/GameIcon.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
@@ -13,6 +13,7 @@ import {
 } from '@agentwolf/contracts'
 import { api } from '../api.js'
 import { ErrorState, LoadingState } from '../components/AsyncState.js'
+import { CatalogPanelSwitch, type CatalogPanel } from '../components/catalog/CatalogPanelSwitch.js'
 import { AgentProfileList } from '../components/AgentProfileList.js'
 import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { CustomToolEditor, emptyToolDraft, type ToolDraft } from '../components/CustomToolEditor.js'
@@ -47,6 +48,7 @@ export function AgentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<CatalogPanel>('list')
   const discoverySequence = useRef(0)
   const discoveryCache = useRef(new Map<string, Promise<AgentProbeResult>>())
   const modelCatalog = useRef(new Map<AgentToolId, readonly string[]>())
@@ -179,6 +181,7 @@ export function AgentsPage() {
   }, [discoverCapabilities, draft?.id, draft?.toolId, profiles])
 
   const selectProfile = (profile: AgentProfile): void => {
+    setMobilePanel('detail')
     setNotice(null)
     setDraft({
       id: profile.id,
@@ -227,6 +230,7 @@ export function AgentsPage() {
       await load()
       setDraft(createEmptyProfile(tools?.[0]?.id ?? ''))
       setDeleteOpen(false)
+      setMobilePanel('list')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -286,27 +290,37 @@ export function AgentsPage() {
   if (!tools || !profiles || !draft) return <LoadingState />
 
   return (
-    <main className="aw-page">
+    <main className="aw-page aw-workspace-page aw-agents-page">
       <div className="aw-page-heading">
         <h1>{getCopy('agents.title')}</h1>
-        <p>{getCopy('agents.emptyHint')}</p>
+        <p>{getCopy('configDesign.agents.intro')}</p>
       </div>
-      <div className="aw-settings-layout">
-        <aside className="aw-agent-list aw-panel">
+      <CatalogPanelSwitch
+        panel={mobilePanel}
+        listLabel={getCopy('configDesign.agents.profileList')}
+        detailLabel={getCopy('configDesign.agents.profileDetail')}
+        onChange={setMobilePanel}
+      />
+      <div className="aw-agent-workspace" data-panel={mobilePanel}>
+        <aside className="aw-agent-library aw-panel">
           <div className="aw-panel-heading">
-            <h2>{getCopy('agents.title')}</h2>
+            <h2>{getCopy('configDesign.agents.profiles')}</h2>
             <button
               className="aw-button aw-button--icon"
               type="button"
-              onClick={() => setDraft(createEmptyProfile(tools[0]?.id ?? ''))}
+              onClick={() => {
+                setDraft(createEmptyProfile(tools[0]?.id ?? ''))
+                setNotice(null)
+                setMobilePanel('detail')
+              }}
             >
-              <Plus size={18} aria-hidden />
+              <GameIcon name="plus" size={18} />
               {getCopy('agents.create')}
             </button>
           </div>
           {profiles.length === 0 ? (
             <div className="aw-empty-state aw-empty-state--compact">
-              <Robot size={32} aria-hidden />
+              <GameIcon name="pawn" size={32} />
               <strong>{getCopy('agents.empty')}</strong>
               <p>{getCopy('agents.emptyHint')}</p>
             </div>
@@ -319,151 +333,147 @@ export function AgentsPage() {
               onSelect={selectProfile}
             />
           )}
-          <div className="aw-tool-summary">
-            <div className="aw-panel-heading">
-              <h3>{getCopy('agentFields.customTools')}</h3>
-              <button
-                className="aw-button aw-button--icon"
-                type="button"
-                onClick={() => setShowToolEditor((current) => !current)}
-              >
-                <Wrench size={17} aria-hidden />
-                {getCopy('agentFields.newTool')}
-              </button>
-            </div>
-            {tools.map((tool) => (
-              <div className="aw-tool-row" key={tool.id}>
-                <span>{tool.name}</span>
-                <small>
-                  {getCopy(tool.builtIn ? 'agentFields.builtIn' : 'agentFields.custom')}
-                </small>
-              </div>
-            ))}
-          </div>
         </aside>
 
         <section className="aw-agent-editor aw-panel">
-          <div className="aw-editor-grid">
-            <FormField label={getCopy('agentFields.profileName')}>
-              <input
-                className="aw-input"
-                value={draft.name}
-                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              />
-            </FormField>
-            <FormField label={getCopy('agents.tool')}>
-              <GameSelect
-                ariaLabel={getCopy('agents.tool')}
-                value={draft.toolId}
-                options={toolOptions}
-                onChange={(toolId) =>
-                  setDraft({
-                    ...draft,
-                    toolId,
-                    model: '',
-                    reasoningEffort: '',
-                    mode: '',
-                  })
+          <div className="aw-catalog-scroll" key={draft.id ?? 'new'}>
+            <header className="aw-catalog-editor__heading">
+              <h2>{getCopy('configDesign.agents.profileTitle')}</h2>
+            </header>
+            <div className="aw-editor-grid">
+              <FormField label={getCopy('agentFields.profileName')}>
+                <input
+                  className="aw-input"
+                  value={draft.name}
+                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                />
+              </FormField>
+              <FormField label={getCopy('agents.tool')}>
+                <GameSelect
+                  ariaLabel={getCopy('agents.tool')}
+                  value={draft.toolId}
+                  options={toolOptions}
+                  onChange={(toolId) =>
+                    setDraft({
+                      ...draft,
+                      toolId,
+                      model: '',
+                      reasoningEffort: '',
+                      mode: '',
+                    })
+                  }
+                />
+              </FormField>
+              <FormField
+                label={getCopy('agents.model')}
+                hint={
+                  discovering
+                    ? getCopy('agentFields.modelsLoading')
+                    : capabilities?.ok
+                      ? formatCopy(getCopy('agentFields.modelsReady'), {
+                          count: capabilities.models.length,
+                        })
+                      : getCopy('agentFields.modelsSource')
                 }
-              />
-            </FormField>
-            <FormField
-              label={getCopy('agents.model')}
-              hint={
-                discovering
-                  ? getCopy('agentFields.modelsLoading')
-                  : capabilities?.ok
-                    ? formatCopy(getCopy('agentFields.modelsReady'), {
-                        count: capabilities.models.length,
-                      })
-                    : getCopy('agentFields.modelsSource')
-              }
-            >
-              <GameSelect
-                ariaLabel={getCopy('agents.model')}
-                disabled={discovering || !capabilities?.ok || capabilities.models.length === 0}
-                value={draft.model}
-                options={modelOptions}
-                placeholder={getCopy(
-                  discovering ? 'agentFields.modelsLoading' : 'agentFields.modelSelect',
-                )}
-                onChange={(model) => {
-                  setDraft({ ...draft, model, reasoningEffort: '' })
-                  if (draft.toolId) void discoverCapabilities(draft.toolId, model, true)
-                }}
-              />
-            </FormField>
-            <FormField
-              label={getCopy('agentFields.reasoningEffort')}
-              hint={
-                discovering
-                  ? getCopy('agentFields.reasoningLoading')
-                  : capabilities?.reasoningEfforts.length
-                    ? formatCopy(getCopy('agentFields.reasoningReady'), {
-                        count: capabilities.reasoningEfforts.length,
-                      })
-                    : getCopy('agentFields.reasoningUnavailable')
-              }
-            >
-              <GameSelect
-                ariaLabel={getCopy('agentFields.reasoningEffort')}
-                disabled={
-                  discovering || !capabilities?.ok || capabilities.reasoningEfforts.length === 0
+              >
+                <GameSelect
+                  ariaLabel={getCopy('agents.model')}
+                  disabled={discovering || !capabilities?.ok || capabilities.models.length === 0}
+                  value={draft.model}
+                  options={modelOptions}
+                  placeholder={getCopy(
+                    discovering ? 'agentFields.modelsLoading' : 'agentFields.modelSelect',
+                  )}
+                  onChange={(model) => {
+                    setDraft({ ...draft, model, reasoningEffort: '' })
+                    if (draft.toolId) void discoverCapabilities(draft.toolId, model, true)
+                  }}
+                />
+              </FormField>
+              <FormField
+                label={getCopy('agentFields.reasoningEffort')}
+                hint={
+                  discovering
+                    ? getCopy('agentFields.reasoningLoading')
+                    : capabilities?.reasoningEfforts.length
+                      ? formatCopy(getCopy('agentFields.reasoningReady'), {
+                          count: capabilities.reasoningEfforts.length,
+                        })
+                      : getCopy('agentFields.reasoningUnavailable')
                 }
-                value={draft.reasoningEffort || agentDefaultReasoning}
-                options={reasoningOptions}
-                onChange={(reasoningEffort) =>
-                  setDraft({
-                    ...draft,
-                    reasoningEffort:
-                      reasoningEffort === agentDefaultReasoning ? '' : reasoningEffort,
-                  })
-                }
-              />
-            </FormField>
-            <FormField label={getCopy('agentFields.mode')}>
-              <input
-                className="aw-input"
-                placeholder={selectedTool?.initialMode ?? getCopy('agentFields.modePlaceholder')}
-                value={draft.mode}
-                onChange={(event) => setDraft({ ...draft, mode: event.target.value })}
-              />
-            </FormField>
-            <FormField label={getCopy('agents.timeout')}>
-              <input
-                className="aw-input"
-                min={5_000}
-                max={600_000}
-                step={1_000}
-                type="number"
-                value={draft.promptTimeoutMs}
-                onChange={(event) =>
-                  setDraft({ ...draft, promptTimeoutMs: Number(event.target.value) })
-                }
-              />
-            </FormField>
-            <FormField
-              label={getCopy('agentFields.connection')}
-              hint={getCopy('agentFields.connectionHint')}
-              wide
-            >
-              <textarea
-                className="aw-textarea aw-code-input"
-                value={draft.connection}
-                onChange={(event) => setDraft({ ...draft, connection: event.target.value })}
-              />
-            </FormField>
+              >
+                <GameSelect
+                  ariaLabel={getCopy('agentFields.reasoningEffort')}
+                  disabled={
+                    discovering || !capabilities?.ok || capabilities.reasoningEfforts.length === 0
+                  }
+                  value={draft.reasoningEffort || agentDefaultReasoning}
+                  options={reasoningOptions}
+                  onChange={(reasoningEffort) =>
+                    setDraft({
+                      ...draft,
+                      reasoningEffort:
+                        reasoningEffort === agentDefaultReasoning ? '' : reasoningEffort,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
+            <details className="aw-advanced-settings">
+              <summary>
+                <strong>{getCopy('configDesign.agents.advanced')}</strong>
+                <span>{getCopy('configDesign.agents.advancedHint')}</span>
+              </summary>
+              <div className="aw-editor-grid">
+                <FormField label={getCopy('agentFields.mode')}>
+                  <input
+                    className="aw-input"
+                    placeholder={
+                      selectedTool?.initialMode ?? getCopy('agentFields.modePlaceholder')
+                    }
+                    value={draft.mode}
+                    onChange={(event) => setDraft({ ...draft, mode: event.target.value })}
+                  />
+                </FormField>
+                <FormField label={getCopy('agents.timeout')}>
+                  <input
+                    className="aw-input"
+                    min={5_000}
+                    max={600_000}
+                    step={1_000}
+                    type="number"
+                    value={draft.promptTimeoutMs}
+                    onChange={(event) =>
+                      setDraft({ ...draft, promptTimeoutMs: Number(event.target.value) })
+                    }
+                  />
+                </FormField>
+                <FormField
+                  label={getCopy('agentFields.connection')}
+                  hint={getCopy('agentFields.connectionHint')}
+                  wide
+                >
+                  <textarea
+                    className="aw-textarea aw-code-input"
+                    value={draft.connection}
+                    onChange={(event) => setDraft({ ...draft, connection: event.target.value })}
+                  />
+                </FormField>
+              </div>
+            </details>
+            {discoveryError ? (
+              <p className="aw-form-message aw-form-message--error">
+                {formatCopy(getCopy('agentFields.modelsLoadFailed'), {
+                  message: discoveryError,
+                })}
+              </p>
+            ) : null}
+            {error && !showToolEditor ? (
+              <p className="aw-form-message aw-form-message--error">{error}</p>
+            ) : null}
+            {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
           </div>
-          {discoveryError ? (
-            <p className="aw-form-message aw-form-message--error">
-              {formatCopy(getCopy('agentFields.modelsLoadFailed'), {
-                message: discoveryError,
-              })}
-            </p>
-          ) : null}
-          {error ? <p className="aw-form-message aw-form-message--error">{error}</p> : null}
-          {notice ? <p className="aw-form-message aw-form-message--success">{notice}</p> : null}
-          <div className="aw-editor-actions">
+          <footer className="aw-editor-actions aw-panel__footer">
             <button
               className="aw-button aw-button--primary"
               disabled={
@@ -478,7 +488,6 @@ export function AgentsPage() {
               type="button"
               onClick={() => void saveProfile()}
             >
-              <FloppyDisk size={18} aria-hidden />
               {getCopy('agents.save')}
             </button>
             <button
@@ -487,7 +496,7 @@ export function AgentsPage() {
               type="button"
               onClick={() => void probeProfile()}
             >
-              <Pulse size={18} aria-hidden />
+              <GameIcon name="pulse" size={18} />
               {getCopy('agents.probe')}
             </button>
             <button
@@ -496,17 +505,49 @@ export function AgentsPage() {
               type="button"
               onClick={() => setDeleteOpen(true)}
             >
-              <Trash size={18} aria-hidden />
+              <GameIcon name="trash" size={18} />
               {getCopy('agents.delete')}
             </button>
-          </div>
+          </footer>
         </section>
+        <div className="aw-tool-summary aw-panel">
+          <div className="aw-panel-heading">
+            <h3>{getCopy('configDesign.agents.tools')}</h3>
+            <button
+              className="aw-button aw-button--compact"
+              type="button"
+              onClick={() => {
+                setError(null)
+                setShowToolEditor(true)
+              }}
+            >
+              <GameIcon name="settings" size={17} />
+              {getCopy('agentFields.newTool')}
+            </button>
+          </div>
+          <details className="aw-tool-directory">
+            <summary>
+              {formatCopy(getCopy('configDesign.agents.toolCount'), { count: tools.length })}
+            </summary>
+            <div className="aw-tool-directory__list">
+              {tools.map((tool) => (
+                <div className="aw-tool-row" key={tool.id}>
+                  <span>{tool.name}</span>
+                  <small>
+                    {getCopy(tool.builtIn ? 'agentFields.builtIn' : 'agentFields.custom')}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
       </div>
 
       {showToolEditor ? (
         <CustomToolEditor
           busy={busy}
           draft={toolDraft}
+          error={error}
           onChange={setToolDraft}
           onClose={() => setShowToolEditor(false)}
           onSave={() => void saveCustomTool()}

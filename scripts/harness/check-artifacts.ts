@@ -67,6 +67,18 @@ for (const path of cssFiles) {
   if (!localPath(path).startsWith('packages/assets/styles/')) {
     errors.push(`${localPath(path)} is CSS outside packages/assets/styles`)
   }
+  if (localPath(path).startsWith('packages/assets/styles/components/')) continue
+  const sharedControl =
+    /\.aw-(?:button(?:--[\w-]+)?|choice(?:--[\w-]+)?|step-choice|role-badge(?:--[\w-]+)?|input|textarea|game-select(?:--[\w-]+|__[\w-]+)?)(?=[^\w-]|$)/u
+  const skinProperty =
+    /(?:^|[;\n])\s*(?:color|font(?:-[\w-]+)?|line-height|letter-spacing|background(?:-[\w-]+)?|border(?:-[\w-]+)?|box-shadow|padding(?:-[\w-]+)?|min-height)\s*:/u
+  for (const rule of (await text(path)).matchAll(/([^{}]+)\{([^{}]*)\}/gu)) {
+    if (sharedControl.test(rule[1]!) && skinProperty.test(rule[2]!)) {
+      errors.push(
+        `${localPath(path)} overrides shared control skin outside styles/components: ${rule[1]!.trim()}`,
+      )
+    }
+  }
 }
 
 const promptFiles = await sourceFiles(
@@ -285,8 +297,18 @@ for (const required of [
   'packages/assets/styles/index.css',
   'packages/assets/prompts/_core/bundle.json',
   'packages/assets/names/zh-CN.json',
-  'docs/design/reference/match-stage.png',
-  'docs/design/reference/match-stage.prompt.md',
+  'docs/design/reference/lobby-woodcut.png',
+  'docs/design/reference/setup-woodcut.png',
+  'docs/design/reference/match-council.png',
+  'docs/design/reference/catalog-workspace.png',
+  'docs/design/reference/woodcut-reference.prompt.md',
+  'packages/assets/art/village-night.webp',
+  'packages/assets/art/card-back.webp',
+  'packages/assets/art/profile-emblem.webp',
+  'packages/assets/art/sidebar-forest.webp',
+  'packages/assets/art/default-player.webp',
+  'packages/assets/art/cinnabar-impression.webp',
+  'packages/assets/art/identity-plaque.webp',
   'docs/design/reference/match-motion.md',
 ]) {
   try {

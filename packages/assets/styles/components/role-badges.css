@@ -1,0 +1,26 @@
+.aw-role-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 7px 15px 8px;
+  border: 1px solid transparent;
+  border-image: var(--aw-role-tag-horizontal) 44 54 fill / 5px 8px / 0 stretch;
+  border-radius: 0;
+  color: var(--aw-player-role-ink);
+  background: none;
+  font-family: var(--aw-font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.aw-role-badge--compact {
+  min-height: 28px;
+  padding: 5px 10px 6px;
+  font-size: 11px;
+}

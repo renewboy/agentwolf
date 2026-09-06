@@ -243,6 +243,39 @@ describe('Trajectory panels', () => {
     expect(document.querySelectorAll('.aw-trajectory-record')).toHaveLength(0)
   })
 
+  it('expands a requested date repeatedly and keeps live records from reclaiming its scroll position', async () => {
+    const current = page()
+    const props = {
+      followLatest: true,
+      loading: false,
+      onLoadOlder: vi.fn(),
+      onQuery: vi.fn(),
+      onSelect: vi.fn(),
+      page: current,
+      query: '',
+      selectedId: 'record-6',
+    }
+    const { rerender } = render(<TrajectoryLedger {...props} />)
+    await userEvent.click(screen.getByRole('button', { name: '折叠全部阶段' }))
+    expect(document.querySelectorAll('.aw-trajectory-record')).toHaveLength(0)
+    const jump = { day: 1, ownerId: current.ownerId, recordId: 'record-6', requestId: 1 }
+    virtual.scrollToIndex.mockClear()
+    rerender(<TrajectoryLedger {...props} jumpToRecord={jump} />)
+    expect(document.querySelector('.aw-trajectory-record[data-selected="true"]')).toHaveTextContent(
+      '#6',
+    )
+    expect(virtual.scrollToIndex).toHaveBeenLastCalledWith(expect.any(Number), { align: 'start' })
+    virtual.scrollToIndex.mockClear()
+    const updated = { ...current, records: [...current.records, record(12, 'message')] }
+    rerender(<TrajectoryLedger {...props} page={updated} jumpToRecord={jump} />)
+    expect(virtual.scrollToIndex).not.toHaveBeenCalled()
+    rerender(
+      <TrajectoryLedger {...props} page={updated} jumpToRecord={{ ...jump, requestId: 2 }} />,
+    )
+    expect(virtual.scrollToIndex).toHaveBeenCalledOnce()
+    expect(virtual.scrollToIndex).toHaveBeenLastCalledWith(expect.any(Number), { align: 'start' })
+  })
+
   it('renders all preview formats and action labels', () => {
     const actionTypes = [
       'bootstrap',

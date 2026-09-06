@@ -1,4 +1,4 @@
-import { Medal, Trophy } from '@phosphor-icons/react'
+import { GameIcon } from '../GameIcon.js'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type { PostgameReviewResult, SeatView } from '@agentwolf/contracts'
 import { PostgameRadar } from './PostgameRadar.js'
@@ -13,9 +13,9 @@ export function PostgameFeedAwards({
   readonly seats: readonly SeatView[]
 }) {
   return (
-    <article className="aw-feed-item aw-postgame-feed-result">
+    <article className="aw-panel aw-feed-item aw-postgame-feed-result">
       <header className="aw-postgame-feed-result__header">
-        <Trophy size={23} weight="fill" aria-hidden />
+        <GameIcon name="award" size={23} />
         <div>
           <small>{getCopy('postgame.title')}</small>
           <h3>{getCopy('postgame.feedAwardsTitle')}</h3>
@@ -68,15 +68,13 @@ export function PostgameAwardCard({
         : 'postgame.resolveStableDraw',
   )
   return (
-    <article className="aw-postgame-award" data-award={award}>
-      {award === 'mvp' ? (
-        <Trophy size={24} weight="fill" aria-hidden />
-      ) : (
-        <Medal size={24} weight="fill" aria-hidden />
-      )}
+    <article className="aw-panel aw-postgame-award" data-award={award}>
+      <GameIcon name="award" size={24} />
       <div>
         <small>{getCopy(`postgame.${award}`)}</small>
-        <strong>{seat ? `${seat.seat} · ${seat.name}` : awardResult.playerId}</strong>
+        <strong className="aw-player-name">
+          {seat ? `${seat.seat} · ${seat.name}` : awardResult.playerId}
+        </strong>
         <span>
           {formatCopy(getCopy('postgame.awardVotes'), {
             votes: awardResult.votes,
