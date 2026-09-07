@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
-import type { MatchView } from '@agentwolf/contracts'
+import type { MatchView, RoleEffectMode } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
 import { Flip, gsap, useGSAP } from '../../motion/gsap.js'
 
@@ -59,92 +59,31 @@ export function deriveMatchPresenceState(
 
 export function MatchMotionController({
   scope,
-  presenceState,
   phaseId,
   lastSequence,
   sheriffId,
-  sessionStateKey,
+  mode = 'full',
+  suspended = false,
 }: {
   readonly scope: RefObject<HTMLElement | null>
-  readonly presenceState: MatchPresenceState
   readonly phaseId: string
   readonly lastSequence: number
   readonly sheriffId: string | null
-  readonly sessionStateKey: string
+  readonly mode?: RoleEffectMode
+  readonly suspended?: boolean
 }) {
   const flipState = useRef<ReturnType<typeof Flip.getState> | null>(null)
   const previousSheriffId = useRef<string | null>(sheriffId)
+  const seenPhase = useRef<string | null>(null)
+  const seenSequence = useRef<number | null>(null)
 
   useGSAP(
     () => {
-      const root = scope.current ?? document.querySelector<HTMLElement>('.aw-match-shell')
-      if (!root) return undefined
-      const select = gsap.utils.selector(root)
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      const signals = select('.aw-presence__signal')
-      const waveBars = select('.aw-presence__wave > span')
-      const playerSignals = select('.aw-player-card__status-mark')
-      const workingSignals = select(
-        '.aw-player-card[data-session="starting"] .aw-player-card__status-mark, .aw-player-card[data-session="syncing"] .aw-player-card__status-mark, .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
-      )
-      const continuousMotionTargets = [...signals, ...waveBars, ...playerSignals]
-      gsap.killTweensOf(continuousMotionTargets)
-      gsap.set(continuousMotionTargets, { clearProps: 'transform,opacity' })
-      if (reduce) {
-        return undefined
-      }
-
-      if (
-        signals.length > 0 &&
-        (presenceState === 'thinking' ||
-          presenceState === 'awaiting-actions' ||
-          presenceState === 'starting' ||
-          presenceState === 'reconnecting' ||
-          presenceState === 'recovering-agents')
-      ) {
-        gsap.to(signals, {
-          scaleX: 1,
-          opacity: 0.92,
-          duration: 1.25,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-        })
-      }
-      if (
-        workingSignals.length > 0 &&
-        (presenceState === 'thinking' ||
-          presenceState === 'starting' ||
-          presenceState === 'recovering-agents')
-      ) {
-        gsap.to(workingSignals, {
-          opacity: 0.35,
-          duration: 1.2,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-        })
-      }
-      if (waveBars.length > 0 && (presenceState === 'streaming' || presenceState === 'narrating')) {
-        gsap.to(waveBars, {
-          scaleY: (_index) => gsap.utils.random(0.45, 1.35),
-          duration: 0.34,
-          stagger: 0.08,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-        })
-      }
-      return undefined
-    },
-    { dependencies: [presenceState, sessionStateKey] },
-  )
-
-  useGSAP(
-    () => {
+      if (seenPhase.current === phaseId) return
+      seenPhase.current = phaseId
       const root = scope.current ?? document.querySelector<HTMLElement>('.aw-match-shell')
       if (!root) return
-      if (!phaseId || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      if (!phaseId || suspended || mode !== 'full') return
       const titles = root.querySelectorAll('.aw-phase-title')
       if (titles.length === 0) return
       gsap.fromTo(
@@ -153,14 +92,16 @@ export function MatchMotionController({
         { y: 0, opacity: 1, duration: 0.48, ease: 'power3.out' },
       )
     },
-    { dependencies: [phaseId] },
+    { dependencies: [phaseId, mode, suspended], revertOnUpdate: true },
   )
 
   useGSAP(
     () => {
+      if (seenSequence.current === lastSequence) return
+      seenSequence.current = lastSequence
       const root = scope.current ?? document.querySelector<HTMLElement>('.aw-match-shell')
       if (!root) return
-      if (!lastSequence || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      if (!lastSequence || suspended || mode !== 'full') return
       const items = root.querySelectorAll(`.aw-feed-item[data-sequence="${lastSequence}"]`)
       if (items.length === 0) return
       gsap.fromTo(
@@ -169,15 +110,16 @@ export function MatchMotionController({
         { y: 0, opacity: 1, scale: 1, duration: 0.42, ease: 'power3.out' },
       )
     },
-    { dependencies: [lastSequence] },
+    { dependencies: [lastSequence, mode, suspended], revertOnUpdate: true },
   )
 
   useLayoutEffect(() => {
-    const scopeElement = scope.current
+    const scopeElement = scope.current ?? document.querySelector<HTMLElement>('.aw-match-shell')
     if (
       flipState.current &&
       previousSheriffId.current !== sheriffId &&
-      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      mode === 'full' &&
+      !suspended
     ) {
       Flip.from(flipState.current, {
         duration: 0.58,
@@ -191,7 +133,7 @@ export function MatchMotionController({
         flipState.current = Flip.getState(scopeElement.querySelectorAll('.aw-player-crown'))
       }
     }
-  }, [scope, sheriffId])
+  }, [scope, sheriffId, mode, suspended])
 
   return null
 }

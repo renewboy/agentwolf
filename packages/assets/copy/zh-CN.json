@@ -604,6 +604,8 @@
     "profileOption": "{{name}} / {{model}} / {{reasoning}}"
   },
   "match": {
+    "playerSpeaking": "发言中",
+    "playerNarrating": "播报中",
     "day": "第 {{day}} 天",
     "night": "第 {{day}} 夜",
     "timeline": "事件时间线",
@@ -830,10 +832,10 @@
       "speechHint": "控制每次发言的篇幅，让牌桌上的讨论保持清晰。",
       "unit": "字 / 次发言",
       "effectsTitle": "观战特效",
-      "effectsHint": "选择技能发动时的画面表现。设置立即生效，并保存在当前浏览器。",
-      "effectsFull": "完整：呈现完整的技能动画与画面反馈。",
-      "effectsReduced": "精简：缩短并减弱动态效果，保留技能反馈。",
-      "effectsOff": "关闭：隐藏技能动画，牌局记录仍正常显示。"
+      "effectsHint": "控制玩家状态与技能的动态表现。设置立即生效，并保存在当前浏览器。",
+      "effectsFull": "完整：玩家状态持续活动，技能效果呈现 2–3 秒。",
+      "effectsReduced": "精简：以稳定印记呈现技能，保留 2–3 秒展示时间。",
+      "effectsOff": "关闭：停止装饰动画，状态文字与牌局记录仍正常显示。"
     }
   },
   "tableDesign": {

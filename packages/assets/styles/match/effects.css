@@ -1,65 +1,242 @@
-.aw-role-effect-overlay {
-  --aw-role-effect-color: var(--aw-color-amber);
-  position: fixed;
-  z-index: var(--aw-layer-drawer);
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+.aw-role-effect-overlay,
+.aw-role-effect-anchor,
+.aw-role-effect-caption {
+  --aw-role-effect-color: #d6b47e;
+  color: var(--aw-role-effect-color);
   pointer-events: none;
 }
-.aw-role-effect-overlay[data-effect='werewolf-attack'],
-.aw-role-effect-overlay[data-effect='werewolf-self-destruct'],
-.aw-role-effect-overlay[data-effect='hunter-shot'] {
-  --aw-role-effect-color: var(--aw-color-crimson-bright);
+:is(.aw-role-effect-overlay, .aw-role-effect-anchor, .aw-role-effect-caption):is(
+  [data-effect='werewolf-attack'],
+  [data-effect='werewolf-self-destruct'],
+  [data-effect='white-wolf-detonate'],
+  [data-effect='awakened-hidden-wolf-attack'],
+  [data-effect='awakened-hidden-wolf-double-attack'],
+  [data-effect='hunter-shot']
+) {
+  --aw-role-effect-color: #b9472d;
 }
-.aw-role-effect-overlay[data-effect='seer-inspect'] {
-  --aw-role-effect-color: var(--aw-effect-silver);
+:is(.aw-role-effect-overlay, .aw-role-effect-anchor, .aw-role-effect-caption):is(
+  [data-effect='witch-antidote'],
+  [data-effect='guard-protect'],
+  [data-effect='awakened-hidden-wolf-shield']
+) {
+  --aw-role-effect-color: #9cb29a;
 }
-.aw-role-effect-overlay[data-effect='witch-antidote'] {
-  --aw-role-effect-color: var(--aw-color-success);
+:is(.aw-role-effect-overlay, .aw-role-effect-anchor, .aw-role-effect-caption):is(
+  [data-effect='witch-poison'],
+  [data-effect='awakened-hidden-wolf-poison']
+) {
+  --aw-role-effect-color: #b2a1bc;
 }
-.aw-role-effect-overlay[data-effect='witch-poison'] {
-  --aw-role-effect-color: var(--aw-effect-violet);
+:is(.aw-role-effect-overlay, .aw-role-effect-anchor, .aw-role-effect-caption):is(
+  [data-effect='seer-inspect'],
+  [data-effect='magic-mirror-inspect'],
+  [data-effect='awakened-hidden-wolf-inspect'],
+  [data-effect='awakened-hidden-wolf-learn']
+) {
+  --aw-role-effect-color: #c2d5d3;
 }
-.aw-role-effect-overlay[data-effect='guard-protect'] {
-  --aw-role-effect-color: var(--aw-effect-cyan);
+:is(
+  .aw-role-effect-overlay,
+  .aw-role-effect-anchor,
+  .aw-role-effect-caption
+)[data-effect='idiot-reveal'] {
+  --aw-role-effect-color: #fff;
 }
-.aw-role-effect-card {
-  position: relative;
-  display: grid;
-  place-items: center;
-  gap: 13px;
-  min-width: 188px;
-  padding: 30px 35px;
-  border: 1px solid var(--aw-role-effect-color);
-  border-radius: 3px;
-  color: var(--aw-role-effect-color);
-  background: var(--aw-color-night);
-  box-shadow: 0 10px 40px rgb(0 0 0 / 45%);
+:is(.aw-role-effect-overlay, .aw-role-effect-anchor, .aw-role-effect-caption):is(
+  [data-effect='cupid-link'],
+  [data-effect='cupid-linked-death']
+) {
+  --aw-role-effect-color: #cc846d;
 }
-.aw-role-effect-card::before {
+.aw-role-effect-overlay {
   position: absolute;
-  inset: 6px;
-  border: 1px solid var(--aw-role-effect-color);
-  opacity: 0.3;
-  content: '';
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
 }
-.aw-role-effect-card strong {
-  color: var(--aw-color-text);
-  font-family: var(--aw-font-display);
-  font-size: 23px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-}
-.aw-role-effect-particles {
+.aw-role-effect-anchor {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  z-index: 4;
+  top: 22%;
+  left: 21%;
+  width: 78%;
+  height: 78%;
+  opacity: 0;
+}
+.aw-role-effect-glyph {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4px;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+  filter: url('#aw-motion-ink') drop-shadow(0 1px 1px #10120f);
+}
+.aw-role-effect-halo {
+  stroke-width: 2px;
+  opacity: 0.7;
+}
+.aw-role-effect-anchor[data-part='source'] :is(.aw-role-effect-imprint, .aw-role-effect-dust) {
+  display: none;
+}
+.aw-role-effect-halo > path + path {
+  opacity: 0.45;
+  stroke-width: 1px;
+}
+.aw-role-effect-claws {
+  fill: currentColor;
+  stroke-width: 0;
+}
+.aw-role-effect-solid {
+  fill: currentColor;
+  fill-opacity: 0.2;
+}
+.aw-role-effect-drop {
+  fill: currentColor;
+  fill-opacity: 0.45;
+}
+.aw-role-effect-moon {
+  fill: currentColor;
+  fill-opacity: 0.6;
+  stroke: none;
+}
+.aw-role-effect-paper {
+  fill: #f7efe0;
+  fill-opacity: 0.65;
 }
 .aw-role-effect-particle {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0;
+}
+.aw-role-effect-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  max-width: 100%;
+  font: 500 17px/1.5 var(--aw-font-display);
+  text-align: left;
+}
+.aw-role-effect-caption__seal {
+  display: block;
+  flex: none;
+  width: 10px;
+  height: 22px;
+  background: url('../../art/council-role-tag.webp') center / 100% 100% no-repeat;
+}
+.aw-role-effect-caption[data-floating='true'] {
   position: absolute;
-  width: 4px;
-  height: 8px;
-  background: var(--aw-role-effect-color);
+  z-index: 5;
+  top: 12px;
+  right: 18px;
+  max-width: calc(100% - 36px);
+  padding: 6px 12px;
+  background: #12140fec;
+}
+.aw-role-effect-link {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.aw-role-effect-link__path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5px;
+  stroke-dasharray: 9 3 2 4;
+  opacity: 0.24;
+}
+.aw-role-effect-traveler {
+  opacity: 0;
+  stroke: currentColor;
+  stroke-width: 2px;
+  fill: #1b1c17;
+  filter: url('#aw-motion-ink');
+}
+.aw-match-shell[data-motion-mode='reduced'] .aw-role-effect-halo {
+  opacity: 0.45;
+}
+@media (max-width: 700px) {
+  .aw-role-effect-caption {
+    font-size: 13px;
+    gap: 5px;
+  }
+  .aw-role-effect-caption__seal {
+    width: 6px;
+    height: 17px;
+  }
+}
+.aw-role-effect-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.aw-role-effect-antidote,
+.aw-role-effect-poison,
+.aw-role-effect-heart-broken {
+  display: none;
+}
+.aw-role-effect-anchor[data-variant='antidote'] .aw-role-effect-antidote {
+  display: block;
+}
+.aw-role-effect-anchor[data-variant='poison'] .aw-role-effect-poison {
+  display: block;
+}
+.aw-role-effect-anchor[data-variant='break'] .aw-role-effect-heart-broken {
+  display: block;
+}
+.aw-role-effect-anchor[data-variant='break'] .aw-role-effect-heart-whole {
+  display: none;
+}
+.aw-role-effect-overlay[data-variant='break'] .aw-role-effect-traveler {
+  display: none;
+}
+.aw-role-effect-anchor[data-part='source']
+  :is(.aw-role-effect-antidote, .aw-role-effect-poison, .aw-role-effect-heart-broken) {
+  display: none;
+}
+.aw-role-effect-caption {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 0 8px;
+}
+.aw-role-effect-caption__seal {
+  grid-row: 1 / span 2;
+}
+.aw-role-effect-caption__title {
+  font-size: inherit;
+}
+.aw-role-effect-caption__outcome {
+  grid-column: 2;
+  font: 500 12px/1.3 var(--aw-font-display);
+  color: #eadbbd;
+}
+.aw-role-effect-anchor[data-family='reveal'] .aw-role-effect-imprint {
+  opacity: 0.25;
+}
+@media (max-width: 700px) {
+  .aw-role-effect-caption {
+    grid-template-columns: 6px minmax(0, 1fr);
+    gap: 0 5px;
+  }
+  .aw-role-effect-caption__outcome {
+    font-size: 11px;
+  }
+}
+.aw-role-effect-spread {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.2;
+}
+.aw-role-effect-antidote {
+  stroke-width: 3px;
+}
+.aw-role-effect-poison {
+  stroke-width: 4px;
+}
+.aw-role-effect-anchor[data-part='source'] :is(.aw-role-effect-spread, .aw-role-effect-cards) {
+  display: none;
 }

@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react'
+import { effectArt } from '../motion/effect-materials.js'
+
 const gameIconSources = {
   battle: new URL(
     '../../../../packages/assets/art/icons/woodcut-battle-3aca3563.webp',
@@ -156,9 +159,51 @@ const gameIconSources = {
 export type GameIconName = keyof typeof gameIconSources
 
 export function GameIconInk() {
+  const [grainReady, setGrainReady] = useState(false)
+  useEffect(() => {
+    if (effectArt.grain.startsWith('data:')) return undefined
+    const material = new Image()
+    const loaded = (): void => setGrainReady(true)
+    material.addEventListener('load', loaded, { once: true })
+    material.src = effectArt.grain
+    return () => {
+      material.removeEventListener('load', loaded)
+    }
+  }, [])
   return (
     <svg className="aw-icon-ink" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
+        <filter
+          id="aw-motion-ink"
+          x="-10%"
+          y="-10%"
+          width="120%"
+          height="120%"
+          colorInterpolationFilters="sRGB"
+        >
+          {grainReady ? (
+            <feImage href={effectArt.grain} preserveAspectRatio="none" result="noise" />
+          ) : (
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.34"
+              numOctaves="2"
+              seed="12"
+              result="noise"
+            />
+          )}
+          {grainReady ? (
+            <feColorMatrix in="noise" type="luminanceToAlpha" result="grain" />
+          ) : (
+            <feColorMatrix
+              in="noise"
+              type="matrix"
+              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2 2 2 0 -1.6"
+              result="grain"
+            />
+          )}
+          <feComposite in="SourceGraphic" in2="grain" operator="in" />
+        </filter>
         <filter id="aw-selection-ink" colorInterpolationFilters="sRGB">
           <feFlood floodColor="var(--aw-color-selection)" result="ink" />
           <feComposite in="ink" in2="SourceAlpha" operator="in" />

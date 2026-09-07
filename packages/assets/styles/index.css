@@ -24,6 +24,7 @@
 @import './match/header.css';
 @import './match/recovery.css';
 @import './match/roster.css';
+@import './match/activity.css';
 @import './match/feed.css';
 @import './match/postgame.css';
 @import './match/effects.css';

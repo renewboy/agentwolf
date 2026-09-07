@@ -15,6 +15,7 @@ import { characterPortraitUrl } from '../../character-portraits.js'
 import { gameArt } from '../../game-art.js'
 import { groupMatchTimeline } from '../../match-timeline.js'
 import { PostgameFeedAwards } from './PostgameAwardResults.js'
+import { InkActivity } from './InkActivity.js'
 
 export interface SpeechAudioControls {
   readonly supported: boolean
@@ -394,6 +395,12 @@ function SpeechBubble({
       <div className="aw-speech-bubble__body">
         <header>
           <strong className="aw-player-name">{playerLabel}</strong>
+          {live || playback !== 'idle' ? (
+            <InkActivity
+              className="aw-speech-bubble__activity"
+              state={playback !== 'idle' ? 'narrating' : 'speaking'}
+            />
+          ) : null}
           {item ? <time dateTime={item.occurredAt}>{formatEventTime(item.occurredAt)}</time> : null}
           {playback === 'automatic' && audio ? (
             <SpeechAudioButton
@@ -404,7 +411,7 @@ function SpeechBubble({
               speechId={playbackSpeechId}
             />
           ) : live ? (
-            <span>{getCopy('sessionStatuses.thinking')}</span>
+            <span>{getCopy('match.playerSpeaking')}</span>
           ) : item && audio ? (
             <SpeechAudioButton
               audio={audio}

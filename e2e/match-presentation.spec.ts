@@ -80,7 +80,7 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
   }
   const ring = page
     .locator(
-      '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
+      '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-player-card__activity .aw-ink-activity__moons > path',
     )
     .first()
   const transformBefore = await ring.evaluate((element) => getComputedStyle(element).opacity)
@@ -301,7 +301,8 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
   await expect(
     page.locator('.aw-player-rail .aw-player-card[data-player-id="player-1"]').first(),
   ).toHaveAttribute('data-role-effect', 'sheriff-elected')
-  await expect(overlay).toBeHidden({ timeout: 2_000 })
+  await expect(overlay).toHaveAttribute('data-duration', '2500')
+  await expect(overlay).toBeHidden({ timeout: 4_000 })
 
   await page.evaluate(() => window.localStorage.setItem('agentwolf.role-effect-mode', 'reduced'))
   await page.reload()
@@ -325,7 +326,7 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
   await expect(overlay).toHaveAttribute('data-effect', 'sheriff-transferred')
   await page.waitForTimeout(180)
   expect(await stage.evaluate((element) => getComputedStyle(element).transform)).toBe(before)
-  await expect(overlay).toBeHidden({ timeout: 2_000 })
+  await expect(overlay).toBeHidden({ timeout: 4_000 })
 
   await page.evaluate(() => window.localStorage.setItem('agentwolf.role-effect-mode', 'off'))
   await page.reload()

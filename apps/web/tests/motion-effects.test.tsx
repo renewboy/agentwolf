@@ -62,7 +62,6 @@ vi.mock('../src/motion/gsap.js', async () => {
 import {
   deriveMatchPresenceState,
   MatchMotionController,
-  type MatchPresenceState,
 } from '../src/components/match/MatchMotionController.js'
 import { RoleEffectController } from '../src/components/match/RoleEffectController.js'
 import { matchView } from './fixtures/match.js'
@@ -117,112 +116,40 @@ describe('deriveMatchPresenceState', () => {
 
 describe('MatchMotionController', () => {
   function Harness({
-    presenceState,
-    phaseId = 'phase-day-speech',
-    lastSequence = 1,
+    mode = 'full',
     sheriffId = null,
   }: {
-    readonly presenceState: MatchPresenceState
-    readonly phaseId?: string
-    readonly lastSequence?: number
+    readonly mode?: 'full' | 'reduced' | 'off'
     readonly sheriffId?: string | null
   }) {
     const scope = useRef<HTMLElement>(null)
     return (
       <section className="aw-match-shell" ref={scope}>
-        <div className="aw-presence__orb" />
-        <div className="aw-presence__signal" />
-        <div className="aw-presence__wave">
-          <span />
-        </div>
-        <div className="aw-player-card__status-mark" />
-        <div className="aw-player-card" data-session="thinking">
-          <span className="aw-player-card__status-mark" />
-        </div>
-        <div className="aw-player-card" data-session="starting">
-          <span className="aw-player-card__status-mark" />
-        </div>
-        <div className="aw-player-card" data-session="syncing">
-          <span className="aw-player-card__status-mark" />
-        </div>
         <h2 className="aw-phase-title">Phase</h2>
-        <div className="aw-feed-item" data-sequence={lastSequence} />
+        <div className="aw-feed-item" data-sequence="1" />
         <span className="aw-player-crown" />
         <MatchMotionController
-          lastSequence={lastSequence}
-          phaseId={phaseId}
-          presenceState={presenceState}
           scope={scope}
-          sessionStateKey="session"
+          mode={mode}
+          phaseId="phase-day-speech"
+          lastSequence={1}
           sheriffId={sheriffId}
         />
       </section>
     )
   }
-
-  it('runs presence, phase, feed, and Sheriff motion with scoped cleanup', () => {
-    const { rerender, unmount } = render(<Harness presenceState="thinking" />)
-    expect(motion.gsap.to).toHaveBeenCalled()
+  it('animates phase and feed entries and transfers the Sheriff marker', () => {
+    const { rerender, unmount } = render(<Harness />)
     expect(motion.gsap.fromTo).toHaveBeenCalledTimes(2)
-    rerender(<Harness presenceState="streaming" sheriffId="player-1" />)
-    rerender(<Harness presenceState="starting" sheriffId="player-2" />)
+    rerender(<Harness sheriffId="player-2" />)
     expect(motion.flipFrom).toHaveBeenCalled()
-    rerender(<Harness presenceState="reconnecting" sheriffId="player-2" />)
-    rerender(<Harness presenceState="recovering-agents" sheriffId="player-2" />)
-    rerender(<Harness presenceState="awaiting-actions" sheriffId="player-2" />)
-    rerender(<Harness presenceState="narrating" sheriffId="player-2" />)
-    expect(motion.gsap.killTweensOf).toHaveBeenCalled()
     unmount()
-    expect(motion.flipGetState).toHaveBeenCalled()
   })
-
-  it('pulses every working player status while sessions are starting', () => {
-    render(<Harness presenceState="starting" />)
-    const workingRings = [
-      ...document.querySelectorAll(
-        '.aw-player-card[data-session="starting"] .aw-player-card__status-mark, .aw-player-card[data-session="syncing"] .aw-player-card__status-mark, .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
-      ),
-    ]
-    expect(workingRings).toHaveLength(3)
-    expect(motion.gsap.to).toHaveBeenCalledWith(
-      workingRings,
-      expect.objectContaining({ opacity: 0.35, repeat: -1 }),
-    )
-  })
-
-  it('skips motion for reduced preference, missing roots, phases, and records', () => {
-    vi.mocked(window.matchMedia).mockReturnValue({
-      matches: true,
-      media: '(prefers-reduced-motion: reduce)',
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true),
-    })
-    const nullScope = createRef<HTMLElement>()
-    const { rerender } = render(
-      <MatchMotionController
-        lastSequence={0}
-        phaseId=""
-        presenceState="ended"
-        scope={nullScope}
-        sessionStateKey="none"
-        sheriffId={null}
-      />,
-    )
-    rerender(
-      <MatchMotionController
-        lastSequence={2}
-        phaseId="phase-day"
-        presenceState="paused"
-        scope={nullScope}
-        sessionStateKey="none-2"
-        sheriffId="player-2"
-      />,
-    )
-    expect(motion.gsap.to).not.toHaveBeenCalled()
+  it('keeps reduced and off presentations still', () => {
+    const { rerender } = render(<Harness mode="reduced" />)
+    rerender(<Harness mode="off" />)
+    expect(motion.gsap.fromTo).not.toHaveBeenCalled()
+    expect(motion.flipFrom).not.toHaveBeenCalled()
   })
 })
 
@@ -257,8 +184,13 @@ describe('RoleEffectController', () => {
     return (
       <section ref={scope}>
         <div className="aw-stage-grid" />
-        <article className="aw-player-card" data-player-id="player-1" />
-        <article className="aw-player-card" data-player-id="player-2" />
+        <div className="aw-effect-caption-slot" />
+        <article className="aw-player-card" data-player-id="player-1">
+          <div className="aw-player-avatar" />
+        </article>
+        <article className="aw-player-card" data-player-id="player-2">
+          <div className="aw-player-avatar" />
+        </article>
         <RoleEffectController
           cues={cues}
           lastSequence={lastSequence}
@@ -274,7 +206,11 @@ describe('RoleEffectController', () => {
     const { rerender } = render(<Harness cues={[]} lastSequence={1} />)
     rerender(<Harness cues={[cue(3, 'seer-inspect'), cue(2), cue(2)]} lastSequence={3} />)
     expect(screen.getByText('狼人夜袭')).toBeVisible()
-    expect(document.querySelectorAll('.aw-role-effect-particle')).toHaveLength(10)
+    expect(document.querySelectorAll('.aw-role-effect-anchor')).toHaveLength(2)
+    expect(document.querySelector('.aw-role-effect-overlay')).toHaveAttribute(
+      'data-duration',
+      '2500',
+    )
     expect(document.querySelector('[data-player-id="player-1"]')).toHaveAttribute(
       'data-role-effect',
       'werewolf-attack',

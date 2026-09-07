@@ -23,6 +23,8 @@ import { gameArt } from '../game-art.js'
 import { RoleEffectController } from '../components/match/RoleEffectController.js'
 import { useMatchSession } from '../hooks/useMatchSession.js'
 import { useRoleEffectMode } from '../hooks/useRoleEffectMode.js'
+import { useMotionEnvironment } from '../hooks/useMotionEnvironment.js'
+import { InkActivity } from '../components/match/InkActivity.js'
 import { matchTimelineDays } from '../match-timeline.js'
 
 interface ScopedFeedJumpRequest extends FeedJumpRequest {
@@ -39,6 +41,7 @@ export function MatchPage() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [feedJump, setFeedJump] = useState<ScopedFeedJumpRequest | null>(null)
   const [effectMode] = useRoleEffectMode()
+  const motion = useMotionEnvironment(effectMode)
   const {
     match,
     error,
@@ -90,11 +93,16 @@ export function MatchPage() {
     }),
     [speechPlayback],
   )
+  const playbackPlayerId =
+    speechPlayback.mode === 'manual'
+      ? (match?.timeline.find((item) => item.sequence === speechPlayback.manualSequence)
+          ?.playerIds[0] ?? null)
+      : speechPlayback.automaticPlayerId
   const presenceState = deriveMatchPresenceState(
     match,
     connectionState,
     viewPending,
-    speechPlayback.automaticPlayerId !== null,
+    playbackPlayerId !== null,
   )
   const postgameReviewState = match?.postgameReview?.state
   useEffect(() => {
@@ -151,11 +159,9 @@ export function MatchPage() {
     }
   }
   if (error && !match) return <ErrorState message={error} retry={() => void retry()} />
-  if (!match) return <MatchLoadingStage />
+  if (!match) return <MatchLoadingStage mode={motion.mode} hidden={motion.hidden} />
   const thinkingPlayer = match.seats.find((seat) => seat.sessionStatus === 'thinking') ?? null
-  const narratingPlayer = match.seats.find(
-    (seat) => seat.playerId === speechPlayback.automaticPlayerId,
-  )
+  const narratingPlayer = match.seats.find((seat) => seat.playerId === playbackPlayerId)
   const activityPlayer =
     presenceState === 'narrating'
       ? (narratingPlayer ?? null)
@@ -165,29 +171,33 @@ export function MatchPage() {
   const thinkingCount = match.seats.filter((seat) => seat.sessionStatus === 'thinking').length
   const lastSequence = match.lastSequence
   const sheriffId = match.seats.find((seat) => seat.sheriff)?.playerId ?? null
-  const sessionStateKey = match.seats
-    .map((seat) => `${seat.playerId}:${seat.sessionStatus}`)
-    .join('|')
+  const streamingPlayerId =
+    match.activeSpeech && !match.activeSpeech.final ? match.activeSpeech.playerId : null
+  const motionMode = viewPending ? 'off' : motion.mode
   return (
     <main
       className="aw-match-shell"
       data-presence-state={presenceState}
       data-phase={match.phaseId}
+      data-motion-mode={motionMode}
+      data-motion-suspended={motion.hidden}
       ref={stageRef}
     >
       <MatchMotionController
+        key={`motion:${match.id}`}
         lastSequence={lastSequence}
         phaseId={match.phaseId}
-        presenceState={presenceState}
         scope={stageRef}
         sheriffId={sheriffId}
-        sessionStateKey={sessionStateKey}
+        mode={motionMode}
+        suspended={motion.hidden}
       />
       <RoleEffectController
         cues={match.effectCues}
         lastSequence={match.lastSequence}
-        mode={viewPending ? 'off' : effectMode}
-        projectionKey={projectionKey}
+        mode={motion.hidden || match.status === 'paused' ? 'off' : motionMode}
+        projectionKey={`${match.id}:${projectionKey}`}
+        key={match.id}
         scope={stageRef}
       />
       <MatchHeader
@@ -225,6 +235,9 @@ export function MatchPage() {
               side="left"
               phaseId={match.phaseId}
               postgameReview={match.postgameReview}
+              streamingPlayerId={streamingPlayerId}
+              narratingPlayerId={playbackPlayerId}
+              suspended={match.status === 'paused' || viewPending}
               seats={match.seats.slice(0, Math.ceil(match.seats.length / 2))}
             />
             <section className="aw-panel aw-match-stage" data-review-open={reviewOpen}>
@@ -277,6 +290,9 @@ export function MatchPage() {
               phaseId={match.phaseId}
               postgameReview={match.postgameReview}
               seats={match.seats.slice(Math.ceil(match.seats.length / 2))}
+              streamingPlayerId={streamingPlayerId}
+              narratingPlayerId={playbackPlayerId}
+              suspended={match.status === 'paused' || viewPending}
             />
           </div>
         </div>
@@ -300,12 +316,24 @@ export function MatchPage() {
   )
 }
 
-function MatchLoadingStage() {
+function MatchLoadingStage({
+  mode,
+  hidden,
+}: {
+  readonly mode: 'full' | 'reduced' | 'off'
+  readonly hidden: boolean
+}) {
   return (
-    <main className="aw-match-shell aw-match-loading" data-presence-state="initial-loading">
+    <main
+      className="aw-match-shell aw-match-loading"
+      data-presence-state="initial-loading"
+      data-motion-mode={mode}
+      data-motion-suspended={hidden}
+    >
       <img src={gameArt.emblem} alt="" />
       <div className="aw-match-loading__brand">{getCopy('brand')}</div>
       <strong role="status">{getCopy('match.syncing')}</strong>
+      <InkActivity state="starting" />
     </main>
   )
 }

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "material": {
+    "grain": "../headline-pigment-f474e00fee.webp",
+    "paper": "../rice-paper.webp",
+    "crown": "../icons/woodcut-crown-bc4bf254.webp",
+    "cardBack": "../card-back.webp"
+  },
+  "families": {
+    "claw": {
+      "source": "claw.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "burst": {
+      "source": "burst.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "inspect": {
+      "source": "inspect.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "medicine": {
+      "source": "medicine.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "ward": {
+      "source": "ward.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "shot": {
+      "source": "shot.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "reveal": {
+      "source": "reveal.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "crown": {
+      "source": "crown.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "bond": {
+      "source": "bond.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    },
+    "cards": {
+      "source": "cards.svg",
+      "full": "ink-timeline",
+      "reduced": "imprint-hold",
+      "static": "imprint"
+    }
+  }
+}

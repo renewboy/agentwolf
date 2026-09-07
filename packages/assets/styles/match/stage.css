@@ -94,11 +94,11 @@
 }
 
 .aw-presence[data-state='paused'] .aw-presence__signal {
-  background: var(--aw-color-warning);
+  color: var(--aw-color-warning);
 }
 
 .aw-presence[data-state='ended'] .aw-presence__signal {
-  background: var(--aw-color-success);
+  color: var(--aw-color-success);
 }
 
 .aw-presence__wave {

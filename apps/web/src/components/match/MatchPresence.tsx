@@ -2,6 +2,7 @@ import { formatCopy, getCopy } from '@agentwolf/assets'
 import type { MatchView, SeatView } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
 import type { MatchPresenceState } from './MatchMotionController.js'
+import { InkActivity, type InkActivityState } from './InkActivity.js'
 
 export function PresenceStage({
   state,
@@ -17,12 +18,30 @@ export function PresenceStage({
   readonly thinkingCount: number
 }) {
   const label = presenceLabel(state, match, activePlayer, thinkingCount)
+  const activity: InkActivityState =
+    state === 'streaming'
+      ? 'speaking'
+      : state === 'narrating' ||
+          state === 'thinking' ||
+          state === 'starting' ||
+          state === 'paused' ||
+          state === 'ended'
+        ? state
+        : state === 'reconnecting' || state === 'recovering-agents'
+          ? 'reconnecting'
+          : state === 'initial-loading'
+            ? 'syncing'
+            : state === 'awaiting-actions' && match.phaseId.includes('vote')
+              ? 'voting'
+              : 'waiting'
   return (
     <section className="aw-panel aw-presence" data-state={state} aria-live="polite">
-      <span className="aw-presence__signal" aria-hidden />
+      <InkActivity className="aw-presence__signal" state={activity} />
       <div className="aw-presence__copy">
         {state !== 'ended' ? (
-          <small>{match.phaseLabel || getCopy('match.presenceLive')}</small>
+          <small className="aw-phase-title">
+            {match.phaseLabel || getCopy('match.presenceLive')}
+          </small>
         ) : null}
         <strong className="aw-player-name">{label}</strong>
       </div>
@@ -33,6 +52,7 @@ export function PresenceStage({
         <span />
         <span />
       </span>
+      <span className="aw-effect-caption-slot" aria-hidden />
       <span className="aw-visually-hidden">
         {connectionState === 'live'
           ? getCopy('match.connectionLive')

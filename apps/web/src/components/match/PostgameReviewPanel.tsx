@@ -12,6 +12,7 @@ import { PostgameAwardCard } from './PostgameAwardResults.js'
 import { PostgameRadar } from './PostgameRadar.js'
 import { MatchErrorDetails } from './MatchErrorDetails.js'
 import { matchWinnerLabel } from './MatchPresence.js'
+import { InkActivity } from './InkActivity.js'
 
 export function PostgameReviewPanel({
   match,
@@ -82,6 +83,7 @@ export function PostgameReviewPanel({
         aria-live="polite"
       >
         <div>
+          <InkActivity state="ended" className="aw-postgame-outcome-seal" />
           <strong>{matchWinnerLabel(match)}</strong>
           <h2>{getCopy('postgame.countdownTitle')}</h2>
           <p>{formatCopy(getCopy('postgame.countdownDescription'), { seconds })}</p>
@@ -121,6 +123,7 @@ export function PostgameReviewPanel({
   if (review.state === 'skipped') {
     return (
       <div className="aw-panel aw-postgame-strip aw-postgame-strip--compact">
+        <InkActivity state="ended" className="aw-postgame-outcome-seal" />
         <strong>{matchWinnerLabel(match)}</strong>
         <span>{getCopy('postgame.skipped')}</span>
       </div>
@@ -259,6 +262,7 @@ function PostgameSummaryStrip({
             })
   return (
     <section className="aw-panel aw-postgame-strip" data-state={review.state}>
+      <InkActivity state="ended" className="aw-postgame-outcome-seal" />
       <div className="aw-postgame-strip__summary">
         <GameIcon name="award" size={22} />
         <div>

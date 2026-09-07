@@ -1,0 +1,443 @@
+.aw-ink-activity {
+  display: inline-block;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  color: #ddc69b;
+  overflow: visible;
+  pointer-events: none;
+  filter: url('#aw-motion-ink');
+}
+.aw-ink-activity
+  :is(
+    .aw-ink-activity__orbit,
+    .aw-ink-activity__moons,
+    .aw-ink-activity__marks,
+    .aw-ink-activity__voice
+  ) {
+  display: none;
+}
+.aw-ink-activity__orbit {
+  transform-origin: 24px 24px;
+  stroke: currentColor;
+  stroke-width: 2.4px;
+  stroke-linecap: square;
+}
+.aw-ink-activity__echo {
+  opacity: 0.45;
+  stroke-width: 1px;
+}
+.aw-ink-activity
+  :is(
+    .aw-ink-activity__moons,
+    .aw-ink-activity__marks,
+    .aw-ink-activity__voice,
+    .aw-ink-activity__seal
+  ) {
+  fill: currentColor;
+}
+.aw-ink-activity__seal {
+  opacity: 0.6;
+}
+.aw-ink-activity:is([data-motion='starting'], [data-motion='speaking'], [data-motion='narrating'])
+  .aw-ink-activity__orbit {
+  display: block;
+  animation: aw-ink-orbit 2.4s linear infinite;
+}
+.aw-ink-activity[data-motion='thinking'] .aw-ink-activity__moons {
+  display: block;
+}
+.aw-ink-activity__moons > path {
+  animation: aw-ink-think 2.8s ease-in-out infinite alternate;
+}
+.aw-ink-activity__moons > path + path {
+  animation-delay: -1.4s;
+}
+.aw-ink-activity:is([data-motion='syncing'], [data-motion='waiting']) .aw-ink-activity__marks {
+  display: block;
+}
+.aw-ink-activity__marks > path {
+  animation: aw-ink-deliver 1.6s ease-in-out infinite;
+}
+.aw-ink-activity__marks > path:nth-child(2) {
+  animation-delay: -1.05s;
+}
+.aw-ink-activity__marks > path:nth-child(3) {
+  animation-delay: -0.53s;
+}
+.aw-ink-activity[data-motion='waiting'] .aw-ink-activity__marks > path {
+  animation-duration: 3.2s;
+}
+.aw-ink-activity:is([data-motion='speaking'], [data-motion='narrating']) .aw-ink-activity__voice {
+  display: block;
+}
+.aw-ink-activity__voice > path {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: aw-ink-voice 1.2s ease-in-out infinite alternate;
+}
+.aw-ink-activity__voice > path:nth-child(2) {
+  animation-delay: -0.8s;
+}
+.aw-ink-activity__voice > path:nth-child(3) {
+  animation-delay: -0.4s;
+}
+.aw-ink-activity[data-motion='narrating'] .aw-ink-activity__voice > path {
+  animation-duration: 0.7s;
+}
+.aw-ink-activity:is(
+    [data-motion='thinking'],
+    [data-motion='syncing'],
+    [data-motion='waiting'],
+    [data-motion='speaking'],
+    [data-motion='narrating']
+  )
+  .aw-ink-activity__seal {
+  display: none;
+}
+.aw-ink-activity[data-motion='ready'] .aw-ink-activity__seal {
+  opacity: 1;
+  animation: aw-ink-settle 220ms ease-out both;
+}
+.aw-ink-activity[data-motion='ready'] {
+  color: var(--aw-color-success);
+}
+.aw-ink-activity[data-motion='paused'] {
+  color: var(--aw-color-warning);
+}
+.aw-player-avatar__activity {
+  position: absolute;
+  z-index: 2;
+  top: 27%;
+  left: 26%;
+  width: 68%;
+  height: 68%;
+}
+.aw-player-avatar__activity
+  :is(
+    .aw-ink-activity__voice,
+    .aw-ink-activity__marks,
+    .aw-ink-activity__moons,
+    .aw-ink-activity__seal
+  ) {
+  display: none !important;
+}
+.aw-player-avatar__activity:is([data-motion='syncing'], [data-motion='thinking'])
+  .aw-ink-activity__orbit {
+  display: block;
+  animation: aw-ink-think 2.8s ease-in-out infinite alternate;
+}
+.aw-player-card__activity {
+  width: 21px;
+  height: 18px;
+}
+.aw-player-card__activity .aw-ink-activity__orbit {
+  display: none !important;
+}
+.aw-player-card:not(
+    [data-activity='idle'],
+    [data-activity='ended'],
+    [data-activity='paused'],
+    [data-activity='ready']
+  )
+  .aw-player-card__status-mark {
+  display: none;
+}
+.aw-player-card:is(
+    [data-activity='idle'],
+    [data-activity='ended'],
+    [data-activity='paused'],
+    [data-activity='ready']
+  )
+  .aw-player-card__activity {
+  display: none;
+}
+.aw-player-card:is([data-activity='speaking'], [data-activity='narrating'])
+  .aw-player-card__status {
+  color: #ecd6ab;
+}
+.aw-presence__signal.aw-ink-activity {
+  width: 30px;
+  height: 30px;
+  background: none;
+}
+.aw-presence__copy {
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+.aw-effect-caption-slot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  max-width: 42%;
+}
+.aw-effect-caption-slot:empty {
+  display: none;
+}
+.aw-presence:has(.aw-role-effect-caption) .aw-presence__wave {
+  display: none;
+}
+.aw-presence__wave span {
+  animation: aw-ink-voice 0.7s ease-in-out infinite alternate;
+}
+.aw-presence__wave span:nth-child(2n) {
+  animation-delay: -0.4s;
+}
+.aw-match-shell:is([data-motion-mode='reduced'], [data-motion-mode='off']) .aw-presence__wave span {
+  animation: none;
+}
+.aw-match-shell:is([data-motion-mode='reduced'], [data-motion-mode='off']) .aw-stream-cursor {
+  animation: none;
+}
+.aw-match-shell[data-motion-suspended='true'] .aw-presence__wave span {
+  animation-play-state: paused;
+}
+.aw-match-shell[data-motion-suspended='true'] .aw-ink-activity * {
+  animation-play-state: paused !important;
+}
+.aw-match-shell:is([data-motion-mode='reduced'], [data-motion-mode='off']) .aw-ink-activity * {
+  animation: none !important;
+  opacity: 0.8;
+  transform: none;
+}
+@keyframes aw-ink-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes aw-ink-think {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes aw-ink-deliver {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateX(-2px);
+  }
+  45% {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+}
+@keyframes aw-ink-voice {
+  from {
+    transform: scaleY(0.35);
+    opacity: 0.5;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+@keyframes aw-ink-settle {
+  from {
+    opacity: 0.35;
+    transform: scale(1.25);
+    transform-origin: center;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    transform-origin: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aw-ink-activity * {
+    animation: none !important;
+  }
+}
+@media (max-width: 700px) {
+  .aw-presence__signal.aw-ink-activity {
+    width: 25px;
+    height: 25px;
+  }
+  .aw-effect-caption-slot {
+    max-width: 45%;
+  }
+}
+.aw-ink-activity
+  :is(
+    .aw-ink-activity__clouds,
+    .aw-ink-activity__ballot,
+    .aw-ink-activity__connection,
+    .aw-ink-activity__ending
+  ) {
+  display: none;
+  stroke: currentColor;
+  stroke-width: 1.7px;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+}
+.aw-ink-activity[data-motion='waiting'] .aw-ink-activity__marks {
+  display: none;
+}
+.aw-ink-activity[data-motion='waiting'] .aw-ink-activity__clouds {
+  display: block;
+}
+.aw-ink-activity__clouds > path {
+  animation: aw-cloud-return 3.2s ease-in-out infinite alternate;
+}
+.aw-ink-activity__clouds > path + path {
+  animation-delay: -1.6s;
+}
+.aw-ink-activity[data-motion='voting'] .aw-ink-activity__ballot {
+  display: block;
+}
+.aw-ink-activity__ballot-seal {
+  fill: currentColor;
+  animation: aw-ink-think 3.2s ease-in-out infinite alternate;
+}
+.aw-ink-activity[data-motion='reconnecting'] .aw-ink-activity__connection {
+  display: block;
+}
+.aw-ink-activity__connection > path {
+  animation: aw-connection-join 2s ease-in-out infinite;
+}
+.aw-ink-activity__connection > path + path {
+  animation-direction: reverse;
+}
+.aw-ink-activity:is([data-motion='voting'], [data-motion='reconnecting'], [data-motion='ended'])
+  .aw-ink-activity__seal {
+  display: none;
+}
+.aw-ink-activity[data-motion='ended'] .aw-ink-activity__ending {
+  display: block;
+  animation: aw-outcome-impress 1.1s ease-out both;
+  transform-origin: center;
+}
+.aw-player-avatar__activity
+  :is(
+    .aw-ink-activity__ballot,
+    .aw-ink-activity__connection,
+    .aw-ink-activity__clouds,
+    .aw-ink-activity__ending
+  ) {
+  display: none !important;
+}
+.aw-player-card[data-activity='ready'] .aw-player-card__activity {
+  display: inline-block;
+}
+.aw-player-card[data-activity='ready'] .aw-player-card__status-mark {
+  display: none;
+}
+.aw-player-card[data-activity='ready'] .aw-player-card__activity {
+  width: 12px;
+}
+.aw-postgame-outcome-seal {
+  width: 34px;
+  height: 38px;
+  color: #d0b37c;
+}
+.aw-postgame-strip--countdown > div:first-child {
+  position: relative;
+}
+.aw-postgame-strip--countdown .aw-postgame-outcome-seal {
+  position: absolute;
+  left: -52px;
+  top: -5px;
+  opacity: 0;
+  animation: aw-countdown-seal 1.1s ease-out;
+}
+.aw-match-loading > img {
+  animation: aw-loading-imprint 450ms ease-out both;
+}
+.aw-match-shell:is([data-motion-mode='reduced'], [data-motion-mode='off'])
+  :is(.aw-postgame-outcome-seal, .aw-match-loading > img) {
+  animation: none;
+}
+@keyframes aw-cloud-return {
+  from {
+    opacity: 0.35;
+    transform: translateX(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+}
+@keyframes aw-connection-join {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateX(-4px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes aw-outcome-impress {
+  0% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(0.97);
+  }
+  50%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes aw-countdown-seal {
+  0% {
+    opacity: 0;
+  }
+  25%,
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes aw-loading-imprint {
+  from {
+    opacity: 0.15;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.aw-ink-activity__connection > path + path {
+  animation-name: aw-connection-join-right;
+  animation-direction: normal;
+}
+@keyframes aw-connection-join-right {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateX(4px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.aw-postgame-strip--countdown .aw-postgame-outcome-seal {
+  position: static;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  vertical-align: middle;
+  opacity: 1;
+  animation: none;
+}
+.aw-speech-bubble__activity {
+  width: 20px;
+  height: 20px;
+}
+.aw-speech-bubble__activity .aw-ink-activity__orbit {
+  display: none !important;
+}

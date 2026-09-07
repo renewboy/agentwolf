@@ -1,21 +1,28 @@
 import { GameIcon } from '../GameIcon.js'
 import { getCopy, getPlayerMarkerDefinition, type PlayerMarkerDefinition } from '@agentwolf/assets'
-import type { PlayerMarkerId, PostgameReviewView, SeatView } from '@agentwolf/contracts'
+import type { PlayerId, PlayerMarkerId, PostgameReviewView, SeatView } from '@agentwolf/contracts'
 import { gameArt } from '../../game-art.js'
 import { characterPortraitUrl } from '../../character-portraits.js'
 import { formatAgentConfiguration } from '../../agent-configuration.js'
 import { roleArtwork } from '../../role-art.js'
+import { InkActivity, type InkActivityState } from './InkActivity.js'
 
 export function PlayerRail({
   seats,
   side = 'left',
   phaseId,
   postgameReview = null,
+  streamingPlayerId = null,
+  narratingPlayerId = null,
+  suspended = false,
 }: {
   readonly side?: 'left' | 'right'
   readonly seats: readonly SeatView[]
   readonly phaseId: string
   readonly postgameReview?: PostgameReviewView | null
+  readonly streamingPlayerId?: PlayerId | null
+  readonly narratingPlayerId?: PlayerId | null
+  readonly suspended?: boolean
 }) {
   return (
     <aside
@@ -30,6 +37,9 @@ export function PlayerRail({
             phaseId={phaseId}
             postgameReview={postgameReview}
             seat={seat}
+            speaking={seat.playerId === streamingPlayerId}
+            narrating={seat.playerId === narratingPlayerId}
+            suspended={suspended}
           />
         ))}
       </div>
@@ -41,10 +51,16 @@ function PlayerCard({
   seat,
   phaseId,
   postgameReview,
+  speaking,
+  narrating,
+  suspended,
 }: {
   readonly seat: SeatView
   readonly phaseId: string
   readonly postgameReview: PostgameReviewView | null
+  readonly speaking: boolean
+  readonly narrating: boolean
+  readonly suspended: boolean
 }) {
   const artwork = roleArtwork(seat.roleId)
   const submittedReview = postgameReview?.submissions.some(
@@ -56,21 +72,42 @@ function PlayerCard({
       : postgameReview?.result?.svp.playerId === seat.playerId
         ? 'svp'
         : null
-  const statusLabel = postgameReview
-    ? getCopy(
-        postgameReview.state === 'collecting'
-          ? submittedReview
-            ? 'postgame.submitted'
-            : 'postgame.waiting'
-          : postgameReview.currentSpeakerId === seat.playerId
-            ? 'postgame.reflection'
-            : `sessionStatuses.${seat.sessionStatus}`,
-      )
-    : getCopy(
-        seat.sessionStatus === 'thinking' && phaseId.includes('vote')
-          ? 'match.playerVoting'
-          : `sessionStatuses.${seat.sessionStatus}`,
-      )
+  const activity: InkActivityState = suspended
+    ? 'paused'
+    : speaking
+      ? 'speaking'
+      : narrating
+        ? 'narrating'
+        : seat.sessionStatus === 'thinking'
+          ? phaseId.includes('vote')
+            ? 'voting'
+            : 'thinking'
+          : seat.sessionStatus === 'starting' || seat.sessionStatus === 'syncing'
+            ? seat.sessionStatus
+            : seat.sessionStatus === 'ready' || seat.sessionStatus === 'submitted'
+              ? 'ready'
+              : seat.sessionStatus === 'closed'
+                ? 'ended'
+                : 'idle'
+  const statusLabel = speaking
+    ? getCopy('match.playerSpeaking')
+    : narrating
+      ? getCopy('match.playerNarrating')
+      : postgameReview
+        ? getCopy(
+            postgameReview.state === 'collecting'
+              ? submittedReview
+                ? 'postgame.submitted'
+                : 'postgame.waiting'
+              : postgameReview.currentSpeakerId === seat.playerId
+                ? 'postgame.reflection'
+                : `sessionStatuses.${seat.sessionStatus}`,
+          )
+        : getCopy(
+            seat.sessionStatus === 'thinking' && phaseId.includes('vote')
+              ? 'match.playerVoting'
+              : `sessionStatuses.${seat.sessionStatus}`,
+          )
   return (
     <article
       className="aw-player-card"
@@ -79,6 +116,7 @@ function PlayerCard({
       data-alive={seat.alive}
       data-player-id={seat.playerId}
       data-session={seat.sessionStatus}
+      data-activity={activity}
       data-review-submitted={submittedReview}
       data-sheriff-candidate={seat.sheriffCandidate}
     >
@@ -92,6 +130,7 @@ function PlayerCard({
           )}
         </span>
         <img className="aw-player-avatar__frame" src={artwork.avatar} alt="" />
+        <InkActivity className="aw-player-avatar__activity" state={activity} />
         <span className="aw-player-card__role" data-role-id={seat.roleId ?? 'hidden'}>
           {seat.roleName ?? getCopy('match.roleHidden')}
         </span>
@@ -140,6 +179,7 @@ function PlayerCard({
         </div>
         <span className="aw-player-card__status">
           <span className="aw-player-card__status-mark" aria-hidden />
+          <InkActivity className="aw-player-card__activity" state={activity} />
           {statusLabel}
         </span>
       </div>

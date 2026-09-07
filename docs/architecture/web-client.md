@@ -230,18 +230,20 @@ active speech 或后续发言。同场 Match 与轨迹路由共享 controller �
 
 所有 GSAP 依赖通过 `src/motion/gsap.ts` 进入，版本由架构门禁固定。motion 分为两类：
 
-- `MatchMotionController` 根据 presence、phase、lastSequence、Sheriff 和 Session state 执行 ambient、
-  status、feed entry 与 FLIP transition；
-- `RoleEffectController` 消费 server 投影的 semantic `RoleEffectCue`，再从 assets catalog 读取 icon、
-  duration、tier 和样式。
+- `InkActivity` 消费已投影状态、流式发言者和播报者，以独立 CSS 图层表达持续活动；
+- `MatchMotionController` 根据阶段、记录与 Sheriff 变化编排离散入场和 FLIP；
+- `RoleEffectController` 消费 server 投影的 semantic `RoleEffectCue`，并交给 Web renderer 呈现。
+  assets 持有图形家族、源图、纹理、授权结果映射和时序。
 
 Role effect renderer 使用 Core sequenced cue queue，只接受大于当前 baseline 的 cues，按 sequence
 排序并用 cue ID 去重。首次加载和
-projection key 变化把 baseline 设为当前 `lastSequence`，避免播放历史事件。mode 为 full、reduced 或
-off；系统 reduced-motion 关闭连续/强 motion，off 同时推进 baseline，后续开启不会补播。
+Match ID 或 projection key 变化把 baseline 设为当前 `lastSequence`，避免播放历史事件。mode 为
+full、reduced 或 off；系统 reduced-motion 关闭连续/强 motion，off 同时推进 baseline，后续开启不会补播。
 
-GSAP timeline 在依赖变化时 revert，并清理 player dataset、tweens、visibility listener 和 DOM 状态。
-动画完成或失败不回写 server，也不持有 Match phase。
+Web renderer 使用当前 DOM 锚点，并随布局与滚动更新轨迹和正文保护区域。普通快照与流式分块
+不重启技能；锚点重绑延续剩余时长。GSAP timeline 在依赖变化时 revert，并清理 player dataset、
+tweens、observer 和 DOM 状态。后台或暂停清理演出，完成或有界超时只推进本地队列，不回写
+server，也不持有 Match phase。具体材质与动作见 [Match 动效规范](../design/reference/match-motion.md)。
 
 ## Developer UI
 

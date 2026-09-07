@@ -1,10 +1,8 @@
-import { GameIcon } from '../GameIcon.js'
-import { useMemo, type ReactNode, type RefObject } from 'react'
+import { useCallback, useMemo, type RefObject } from 'react'
 import { useSequencedCues } from '@agent-arena/react'
 import { SequencedCueQueue } from '@agent-arena/web-runtime'
-import { getCopy, getRoleEffectDefinition, roleEffectCatalog } from '@agentwolf/assets'
 import type { RoleEffectCue, RoleEffectMode } from '@agentwolf/contracts'
-import { gsap, useGSAP } from '../../motion/gsap.js'
+import { RoleEffectScene } from '../../motion/role-effects/RoleEffectScene.js'
 
 export function RoleEffectController({
   scope,
@@ -32,128 +30,15 @@ export function RoleEffectController({
     [cues, lastSequence, mode, projectionKey],
   )
   const { current } = useSequencedCues(queue, update)
-
-  useGSAP(
-    () => {
-      if (!current || mode === 'off') return undefined
-      const root = scope.current
-      if (!root) return undefined
-      const definition = getRoleEffectDefinition(current.effectId)
-      const overlay = root.querySelector('.aw-role-effect-card')
-      const particles = root.querySelectorAll('.aw-role-effect-particle')
-      const affectedIds = [...current.sourcePlayerIds, ...current.targetPlayerIds]
-      const playerCards = affectedIds.flatMap((playerId) => [
-        ...root.querySelectorAll<HTMLElement>(`.aw-player-card[data-player-id="${playerId}"]`),
-      ])
-      for (const card of playerCards) card.dataset['roleEffect'] = current.effectId
-      const timeline = gsap.timeline({
-        onComplete: () => queue.completeCurrent(),
-      })
-      if (overlay) {
-        timeline.fromTo(
-          overlay,
-          { opacity: 0, scale: 0.82, y: 12 },
-          {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            duration: mode === 'reduced' ? 0.18 : 0.28,
-            ease: 'back.out(1.35)',
-          },
-        )
-      }
-      if (mode === 'full') {
-        timeline.fromTo(
-          particles,
-          { opacity: 0, scale: 0.3, x: 0, y: 0 },
-          {
-            opacity: 0.9,
-            scale: 1,
-            x: (index) => seededOffset(current.cueId, index, 42),
-            y: (index) => seededOffset(current.cueId, index + 11, 28),
-            duration: 0.42,
-            stagger: 0.025,
-            ease: 'power3.out',
-          },
-          0.08,
-        )
-        timeline.fromTo(
-          playerCards,
-          { scale: 1 },
-          { scale: 1.035, duration: 0.12, yoyo: true, repeat: 1, ease: 'power3.out' },
-          0.08,
-        )
-        if (definition.tier === 'large') {
-          const stage = root.querySelector('.aw-stage-grid')
-          if (stage) {
-            timeline.to(
-              stage,
-              {
-                keyframes: { x: [0, -3, 3, -2, 2, 0] },
-                duration: 0.24,
-                ease: 'power2.out',
-              },
-              0.12,
-            )
-          }
-        }
-      }
-      timeline.to(
-        overlay,
-        {
-          opacity: 0,
-          scale: mode === 'reduced' ? 1 : 1.04,
-          duration: 0.2,
-          ease: 'power2.in',
-        },
-        Math.max(0.34, definition.durationMs / 1000 - 0.2),
-      )
-      return () => {
-        for (const card of playerCards) delete card.dataset['roleEffect']
-      }
-    },
-    { scope, dependencies: [current?.cueId, mode, queue], revertOnUpdate: true },
-  )
-
+  const complete = useCallback(() => queue.completeCurrent(), [queue])
   if (!current || mode === 'off') return null
-  const definition = getRoleEffectDefinition(current.effectId)
   return (
-    <div className="aw-role-effect-overlay" data-effect={current.effectId} aria-hidden>
-      <div className="aw-role-effect-card">
-        <span>{effectIcon(definition.icon)}</span>
-        <strong>{getCopy(definition.labelKey)}</strong>
-      </div>
-      <div className="aw-role-effect-particles">
-        {Array.from({ length: 10 }, (_, index) => (
-          <i className="aw-role-effect-particle" key={index} />
-        ))}
-      </div>
-    </div>
+    <RoleEffectScene
+      key={current.cueId}
+      cue={current}
+      mode={mode}
+      scope={scope}
+      onComplete={complete}
+    />
   )
-}
-
-function effectIcon(icon: (typeof roleEffectCatalog)[string]['icon']): ReactNode {
-  const icons: Readonly<Record<(typeof roleEffectCatalog)[string]['icon'], ReactNode>> = {
-    moon: <GameIcon name="moon" size={34} />,
-    skull: <GameIcon name="skull" size={34} />,
-    eye: <GameIcon name="eye" size={34} />,
-    sparkle: <GameIcon name="sparkle" size={34} />,
-    drop: <GameIcon name="drop" size={34} />,
-    crosshair: <GameIcon name="target" size={34} />,
-    smile: <GameIcon name="smile" size={34} />,
-    shield: <GameIcon name="shield" size={34} />,
-    crown: <GameIcon name="crown" size={34} />,
-    transfer: <GameIcon name="swap" size={34} />,
-    mirror: <GameIcon name="eye" size={34} />,
-    burst: <GameIcon name="skull" size={34} />,
-    heart: <GameIcon name="heart" size={34} />,
-    cards: <GameIcon name="cards" size={34} />,
-  }
-  return icons[icon]
-}
-
-function seededOffset(seed: string, index: number, magnitude: number): number {
-  let hash = index + 1
-  for (const character of seed) hash = (hash * 33 + character.codePointAt(0)!) >>> 0
-  return ((hash % 2001) / 1000 - 1) * magnitude
 }
