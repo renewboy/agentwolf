@@ -123,6 +123,12 @@ projector 从过滤后的事件生成 timeline 和 Role effect cues，私密事�
 6. 加入 server-owned postgame view 与当前 reflection stream；
 7. 终局投影保留获胜 Faction 与明确获胜 Player IDs，再用 `MatchViewSchema` 校验完整 DTO。
 
+MatchRuntime 持有按生成尝试与发言隔离的临时文本缓冲，只累积 PlayerRuntime 经 DirectSpeechResponse
+清洗、并用于 LiveHub 广播的文本。`projectMatch` 完成视图过滤后，只有可见 activeSpeech 尚未结束、
+且 SpeechId 与发言者均匹配时才补入该缓冲；不可见视图不能据此取得文本，postgame 继续使用自身的
+reflection stream。发言提交、新发言开始、尝试失败或 runtime 关闭时清空缓冲，旧尝试的迟到回调
+不能继续累积或广播。缓冲不改写持久事件；提交后 timeline 与音频请求校验使用已提交的规范原文。
+
 实时 snapshot 始终携带 subscriber 当前 `SpectatorView`。收到 `view.set` 后，server 先更新 subscriber
 view，再重新投影 snapshot，并让 SpeechPlaybackCoordinator 检查当前 pending speech 是否仍可见。
 
@@ -247,7 +253,7 @@ gateway 持久接受的动作优先于 supersede。取消期间完成多段发�
 
 Core presentation barrier 保证只有一个 WebSocket subscriber 可以拥有自动播放控制。若没有 owner、
 speech 对 owner 不可见或浏览器未启用播放，`waitFor` 立即返回 `not-required`。控制者断开、切换到
-不可见 view、关闭播放、合成失败或显式 skip 都以 skipped 释放当前边界，Match 不会因浏览器能力
+不可见 view、关闭播放、音频生成或播放失败以及显式 skip 都以 skipped 释放当前边界，Match 不会因浏览器能力
 永久阻塞。
 
 server 从 `speech.started` sequence 为可见发言派生稳定 `SpeechId`,并把它同时投影到 active speech、
@@ -255,6 +261,11 @@ server 从 `speech.started` sequence 为可见发言派生稳定 `SpeechId`,并�
 presentation playback controller。controller 以 `SpeechId` 管理整段 stream job,把流式文本切为完整
 句子,并在 `speech.committed` 到达时只补播尚未消费的尾部。skip 终结整个 job,同 ID 的后续 chunk 与
 过期 callback 不会重新出声。
+
+产品播放 port 使用同一 SpeechId 请求当前视图可见的角色语音。生成完成或 HTTP EOF 本身不构成
+completed；浏览器需要等完整音频流结束且所有排程声音实际播放结束，才向 controller 报告完成。
+取消同时终止当前音频请求与浏览器排程，并沿请求 ID 传播到推理进程。音色选择、流式格式与错误
+处理由[角色语音](speech-audio.md)专项持有；这些呈现机制不改变 server 的单一控制者与门控规则。
 
 每个 barrier sequence 只回执一次。用户单独播放一条已提交消息时,当前自动 job 以 skipped 释放,
 所选消息获得音频焦点；期间到达的现场发言只更新可见投影并按 skipped 释放 barrier,不进入补播
@@ -340,4 +351,5 @@ reflection 作为带独立稳定 sequence 的 postgame timeline item 合并到 M
 - [Prompt 与玩家上下文](prompt-and-context.md)：玩家 event cursor 与可见 facts。
 - [ACP Session 运行时](acp-session-runtime.md)：delivery、pending action 与恢复。
 - [Web 客户端](web-client.md)：连接状态、speech/motion 与本地呈现所有权。
+- [角色语音](speech-audio.md)：可见发言的音色生成、实际播放完成与取消传播。
 - [Match 生命周期](match-lifecycle.md)：终局、赛后状态和删除语义。

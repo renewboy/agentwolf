@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react'
-import { createBrowserSpeechPort, usePresentationPlayback } from '@agent-arena/react'
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { usePresentationPlayback } from '@agent-arena/react'
 import {
   PresentationPlaybackController,
   type PlaybackNotice,
@@ -15,6 +15,11 @@ import {
   type TimelineItem,
 } from '@agentwolf/contracts'
 import { completeSentences } from './speech-playback-text.js'
+import {
+  BrowserModelSpeech,
+  type ModelSpeechNotice,
+  type SpeechAudioIdentity,
+} from './browser-model-speech.js'
 
 export interface SpeechPlaybackController {
   readonly supported: boolean
@@ -25,10 +30,14 @@ export interface SpeechPlaybackController {
   readonly automaticBusy: boolean
   readonly manualSequence: number | null
   readonly notice: string | null
+  readonly noticeSpeechId: SpeechId | null
+  readonly noticeTitle: string
+  readonly noticeKind: 'fallback' | 'error'
   readonly playManual: (item: TimelineItem) => void
   readonly stopManual: () => void
   readonly skipAutomatic: (speechId: SpeechId) => void
   readonly cancelAll: () => void
+  readonly prepareAudio: () => void
 }
 
 export function useSpeechPlayback({
@@ -38,6 +47,7 @@ export function useSpeechPlayback({
   projectionKey,
   viewPending,
   resolveAutomatic,
+  audioIdentity,
 }: {
   readonly timeline: readonly TimelineItem[]
   readonly activeSpeech: MatchView['activeSpeech']
@@ -45,8 +55,23 @@ export function useSpeechPlayback({
   readonly projectionKey: string
   readonly viewPending: boolean
   readonly resolveAutomatic: (sequence: number, outcome: 'completed' | 'skipped') => boolean
+  readonly audioIdentity?: SpeechAudioIdentity
 }): SpeechPlaybackController {
-  const port = useMemo(() => createBrowserSpeechPort({ lang: 'zh-CN', rate: 2 }), [])
+  const port = useMemo(() => new BrowserModelSpeech(), [])
+  useEffect(() => {
+    port.setIdentity(audioIdentity ?? { matchId: null, view: { kind: 'god' } })
+  }, [audioIdentity, port])
+  const modelNotice = useSyncExternalStore(port.subscribe, port.snapshot, port.snapshot)
+  const lifecycle = useRef(0)
+  useEffect(() => {
+    lifecycle.current += 1
+    return () => {
+      const cleanup = ++lifecycle.current
+      queueMicrotask(() => {
+        if (lifecycle.current === cleanup) port.dispose()
+      })
+    }
+  }, [port])
   const controller = useMemo(
     () =>
       new PresentationPlaybackController<TimelineItem, PlayerId, SpeechId>({
@@ -88,7 +113,13 @@ export function useSpeechPlayback({
     ],
   )
   const state = usePresentationPlayback(controller, update)
-  const playManual = useCallback((item: TimelineItem) => controller.playManual(item), [controller])
+  const playManual = useCallback(
+    (item: TimelineItem) => {
+      port.prepare()
+      controller.playManual(item)
+    },
+    [controller, port],
+  )
   const stopManual = useCallback(() => controller.stopManual(), [controller])
   const skipAutomatic = useCallback(
     (speechId: SpeechId) => controller.skipAutomatic(speechId),
@@ -103,11 +134,55 @@ export function useSpeechPlayback({
     automaticPlayerId: state.automaticActor,
     automaticBusy: state.automaticBusy,
     manualSequence: state.manualSequence,
-    notice: localizeNotice(state.notice),
+    noticeSpeechId: port.lastSpeechId,
+    noticeTitle: getCopy(
+      modelNotice === 'default-unavailable'
+        ? 'match.audioDefaultFailedTitle'
+        : modelNotice?.startsWith('default-')
+          ? 'match.audioDefaultTitle'
+          : 'match.audioNoticeTitle',
+    ),
+    noticeKind:
+      modelNotice?.startsWith('default-') && modelNotice !== 'default-unavailable'
+        ? ('fallback' as const)
+        : ('error' as const),
+    notice: localizeModelNotice(modelNotice) ?? localizeNotice(state.notice),
     playManual,
     stopManual,
     skipAutomatic,
     cancelAll,
+    prepareAudio: port.prepare,
+  }
+}
+
+function localizeModelNotice(notice: ModelSpeechNotice | null): string | null {
+  switch (notice) {
+    case null:
+      return null
+    case 'unavailable':
+      return getCopy('match.audioModelUnavailable')
+    case 'no-voice':
+      return getCopy('match.audioCharacterVoiceUnavailable')
+    case 'default-preparing':
+      return getCopy('match.audioDefaultPreparing')
+    case 'default-loading':
+      return getCopy('match.audioDefaultLoading')
+    case 'default-error':
+      return getCopy('match.audioDefaultError')
+    case 'default-disabled':
+      return getCopy('match.audioDefaultDisabled')
+    case 'default-no-voice':
+      return getCopy('match.audioDefaultNoVoice')
+    case 'default-browser':
+      return getCopy('match.audioDefaultBrowser')
+    case 'default-unavailable':
+      return getCopy('match.audioDefaultUnavailable')
+    case 'activation-required':
+      return getCopy('match.audioActivationRequired')
+    default: {
+      const exhaustive: never = notice
+      return exhaustive
+    }
   }
 }
 

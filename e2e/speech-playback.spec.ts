@@ -66,7 +66,7 @@ test('starts narration at sentence boundaries and only appends the committed tai
     text: '。第二句',
   })
   await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一句。'])
-  expect(await speechStubRates(page)).toEqual([2])
+  expect(await speechStubRates(page)).toEqual([1])
   await finishSpeech(page)
 
   current = {
@@ -85,7 +85,7 @@ test('starts narration at sentence boundaries and only appends the committed tai
     state: { enabled: true, controlledByThisClient: true, pendingSequence: 31 },
   })
   await expect.poll(async () => speechStubState(page, 'spoken')).toEqual(['第一句。', '第二句'])
-  expect(await speechStubRates(page)).toEqual([2, 2])
+  expect(await speechStubRates(page)).toEqual([1, 1])
   await finishSpeech(page)
   await expect
     .poll(() =>
@@ -346,7 +346,7 @@ test('plays every speech by sequence and keeps manual controls independent from 
   })
   await expect(page.getByRole('button', { name: /跳过自动播报/ })).toBeVisible()
   await failSpeech(page)
-  await expect(page.getByText('语音播报失败，已跳过当前发言')).toBeVisible()
+  await expect(page.getByText('默认语音连接失败，请检查网络后重试。')).toBeVisible()
   await expect
     .poll(() =>
       clientMessages.some(

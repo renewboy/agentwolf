@@ -87,6 +87,12 @@ export function MatchPage() {
       automaticPlayerId: speechPlayback.automaticPlayerId,
       automaticBusy: speechPlayback.automaticBusy,
       manualSequence: speechPlayback.manualSequence,
+      notice: {
+        speechId: speechPlayback.noticeSpeechId,
+        title: speechPlayback.noticeTitle,
+        message: speechPlayback.notice,
+        kind: speechPlayback.noticeKind,
+      },
       play: speechPlayback.playManual,
       stop: speechPlayback.stopManual,
       skip: speechPlayback.skipAutomatic,
@@ -204,6 +210,9 @@ export function MatchPage() {
         audioBusyElsewhere={playbackState.enabled && !playbackState.controlledByThisClient}
         audioEnabled={voiceEnabled}
         audioSupported={speechPlayback.supported}
+        audioError={
+          controlError ?? (speechPlayback.noticeSpeechId === null ? speechPlayback.notice : null)
+        }
         connectionState={connectionState}
         match={match}
         onToggleAudio={toggleVoice}
@@ -270,11 +279,6 @@ export function MatchPage() {
                   onSkip={() => void runPostgameAction((id) => api.skipPostgameReview(id))}
                   onStart={() => void runPostgameAction((id) => api.startPostgameReview(id))}
                 />
-                {speechPlayback.notice || controlError ? (
-                  <p className="aw-panel aw-audio-notice" role="status">
-                    {speechPlayback.notice ?? controlError}
-                  </p>
-                ) : null}
                 <MatchFeed
                   activeSpeech={match.activeSpeech}
                   jumpToDay={activeFeedJump}

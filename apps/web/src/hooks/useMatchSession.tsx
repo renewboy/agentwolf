@@ -50,6 +50,7 @@ export function MatchSessionProvider({
   const live = useLiveMatch(matchId, view)
   const projectionKey = view.kind === 'player' ? `${view.kind}:${view.playerId}` : view.kind
   const speechPlayback = useSpeechPlayback({
+    audioIdentity: { matchId: live.match?.id ?? null, view },
     timeline: live.match?.timeline ?? [],
     activeSpeech: live.match?.activeSpeech ?? null,
     playbackState: live.playbackState,
@@ -91,11 +92,13 @@ export function MatchSessionProvider({
     }
   }, [speechPlayback, voiceEnabled])
 
+  const prepareAudio = speechPlayback.prepareAudio
   const toggleVoice = useCallback((): void => {
     const next = !voiceEnabled
+    if (next) prepareAudio()
     requestedState.current = null
     setVoiceEnabled(next)
-  }, [setVoiceEnabled, voiceEnabled])
+  }, [prepareAudio, setVoiceEnabled, voiceEnabled])
 
   const value = useMemo<MatchSessionContextValue>(
     () => ({

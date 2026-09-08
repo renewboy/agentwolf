@@ -17,17 +17,20 @@ const live = vi.hoisted(() => ({
   setSpeechPlaybackEnabled: vi.fn(() => true),
   resolveSpeechPlayback: vi.fn(() => true),
   observe: vi.fn(),
+  match: null as { readonly id: string } | null,
 }))
 const speech = vi.hoisted(() => ({
   mode: 'idle' as 'idle' | 'automatic' | 'manual',
   skipAutomatic: vi.fn(),
+  prepareAudio: vi.fn(),
+  options: vi.fn(),
 }))
 
 vi.mock('../src/hooks/useLiveMatch.js', () => ({
   useLiveMatch: (matchId: string, view: unknown) => {
     live.observe(matchId, view)
     return {
-      match: null,
+      match: live.match,
       error: null,
       controlError: null,
       retry: vi.fn(),
@@ -40,20 +43,24 @@ vi.mock('../src/hooks/useLiveMatch.js', () => ({
   },
 }))
 vi.mock('../src/hooks/useSpeechPlayback.js', () => ({
-  useSpeechPlayback: () => ({
-    supported: true,
-    mode: speech.mode,
-    activeSpeechId: speech.mode === 'automatic' ? 7 : null,
-    automaticSequence: null,
-    automaticPlayerId: null,
-    automaticBusy: speech.mode === 'automatic',
-    manualSequence: speech.mode === 'manual' ? 1 : null,
-    notice: null,
-    playManual: vi.fn(),
-    stopManual: vi.fn(),
-    skipAutomatic: speech.skipAutomatic,
-    cancelAll: vi.fn(),
-  }),
+  useSpeechPlayback: (options: unknown) => {
+    speech.options(options)
+    return {
+      supported: true,
+      mode: speech.mode,
+      activeSpeechId: speech.mode === 'automatic' ? 7 : null,
+      automaticSequence: null,
+      automaticPlayerId: null,
+      automaticBusy: speech.mode === 'automatic',
+      manualSequence: speech.mode === 'manual' ? 1 : null,
+      notice: null,
+      playManual: vi.fn(),
+      stopManual: vi.fn(),
+      skipAutomatic: speech.skipAutomatic,
+      cancelAll: vi.fn(),
+      prepareAudio: speech.prepareAudio,
+    }
+  },
 }))
 
 import { MatchSessionProvider, useMatchSession } from '../src/hooks/useMatchSession.js'
@@ -96,6 +103,9 @@ beforeEach(() => {
   live.resolveSpeechPlayback.mockReset()
   live.resolveSpeechPlayback.mockReturnValue(true)
   speech.skipAutomatic.mockReset()
+  speech.prepareAudio.mockReset()
+  speech.options.mockReset()
+  live.match = null
   live.observe.mockClear()
 })
 
@@ -112,6 +122,27 @@ describe('MatchSessionProvider', () => {
       kind: 'player',
       playerId: 'player-2',
     })
+  })
+  it('passes the loaded Match identity and selected view and unlocks audio on user activation', async () => {
+    live.match = { id: 'match-test-abcdef' }
+    render(<Probe />, { wrapper: Wrapper })
+    expect(speech.options).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        audioIdentity: { matchId: 'match-test-abcdef', view: { kind: 'closed-eye' } },
+      }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'player view' }))
+    await userEvent.click(screen.getByRole('button', { name: 'player two' }))
+    expect(speech.options).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        audioIdentity: {
+          matchId: 'match-test-abcdef',
+          view: { kind: 'player', playerId: 'player-2' },
+        },
+      }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'toggle' }))
+    expect(speech.prepareAudio).toHaveBeenCalledOnce()
   })
   it('keeps an enabled preference without retrying when another window owns speech', async () => {
     window.localStorage.setItem(voicePreferenceStorageKey, 'true')

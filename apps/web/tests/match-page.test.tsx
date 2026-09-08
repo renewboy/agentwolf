@@ -70,6 +70,7 @@ vi.mock('../src/components/match/MatchHeader.js', () => ({
     setPlayerId,
     setViewKind,
     viewKind,
+    audioError,
   }: {
     onToggleAudio: () => void
     onSelectDay: (day: number) => void
@@ -77,9 +78,11 @@ vi.mock('../src/components/match/MatchHeader.js', () => ({
     setPlayerId: (id: string) => void
     setViewKind: (kind: string) => void
     viewKind: string
+    audioError: string | null
   }) => (
     <div data-testid="header">
       view:{viewKind}
+      <span data-testid="audio-control-error">{audioError}</span>
       <span data-testid="selected-day">{selectedDay ?? 'current'}</span>
       <button type="button" onClick={() => setViewKind('player')}>
         player view
@@ -294,7 +297,8 @@ describe('MatchPage', () => {
     const { rerender } = renderPage()
     expect(screen.getAllByTestId('rail-table')).toHaveLength(2)
     expect(screen.getAllByTestId('rail-table').map((rail) => rail.textContent)).toEqual(['1', '1'])
-    expect(document.querySelector('.aw-audio-notice')).toHaveTextContent('playback notice')
+    expect(screen.getByTestId('audio-control-error')).toHaveTextContent('controller busy')
+    expect(document.querySelector('.aw-match-stage > .aw-audio-notice')).toBeNull()
     const projection = document.querySelector('.aw-match-projection')!
     expect(projection).toHaveAttribute('aria-hidden', 'true')
     expect(projection).toHaveAttribute('inert')

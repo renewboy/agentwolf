@@ -125,15 +125,6 @@
   height: 17px;
 }
 
-.aw-audio-notice {
-  flex: none;
-  margin: 0;
-  padding: 8px 20px;
-  color: var(--aw-color-text-muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
 .aw-projection-veil {
   position: absolute;
   z-index: 6;
@@ -222,9 +213,5 @@
   }
   .aw-presence__copy strong {
     font-size: 12px;
-  }
-  .aw-audio-notice {
-    padding: 8px 14px;
-    font-size: 11px;
   }
 }

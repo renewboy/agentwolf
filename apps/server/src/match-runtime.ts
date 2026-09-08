@@ -39,6 +39,7 @@ import { preparePlayerWorkspace } from './player-workspace.js'
 import { projectMatch } from './projector.js'
 import { SpeechPlaybackCoordinator } from './speech-playback-coordinator.js'
 import { RollingSpeechInterruptCoordinator } from './rolling-speech-interrupt.js'
+import { StreamedSpeechBuffer } from './streamed-speech-buffer.js'
 export type { MatchRuntimeOptions } from './match-runtime-types.js'
 export class MatchRuntime {
   readonly #options: MatchRuntimeOptions
@@ -51,6 +52,7 @@ export class MatchRuntime {
   readonly #players = new Map<PlayerId, PlayerRuntime>()
   readonly #tokens = new Map<PlayerId, string>()
   readonly #automaticRecoveryKeys = new Set<string>()
+  readonly #streamedSpeech = new StreamedSpeechBuffer()
   #postgame: PostgameReviewCoordinator | null = null
   #startPromise: Promise<void> | null = null
   #playerClosePromise: Promise<void> | null = null
@@ -105,7 +107,7 @@ export class MatchRuntime {
     }
   }
   public project(view: SpectatorView): MatchView {
-    return projectMatch({
+    const projected = projectMatch({
       matchId: this.engine.state.matchId,
       board: this.#options.board,
       boardName: this.#options.boardSnapshot.name,
@@ -124,6 +126,7 @@ export class MatchRuntime {
       postgameReview: this.#options.repository.postgameReviews.view(this.engine.state.matchId),
       ...(this.#postgame ? { activeSpeech: this.#postgame.activeSpeech } : {}),
     })
+    return this.#postgame ? projected : this.#streamedSpeech.project(projected)
   }
   public connect(subscriber: LiveSubscriber): LiveConnection {
     const unsubscribe = this.#hub.subscribe(subscriber)
@@ -146,6 +149,7 @@ export class MatchRuntime {
   }
   public async close(): Promise<void> {
     this.#disposed = true
+    this.#streamedSpeech.clear()
     this.#speechInterrupts?.stopAll()
     this.#playback.close()
     await this.#speechInterrupts?.settleAll()
@@ -407,10 +411,12 @@ export class MatchRuntime {
       turn.actionType === 'speech' && turn.speechKind
         ? currentSpeechId(this.engine.events, actor.playerId, turn.speechKind)
         : null
+    const streamed = this.#streamedSpeech.begin(speechId, actor.playerId)
     const callbacks: AcpPromptCallbacks =
       speechId !== null && turn.speechKind
         ? {
             onTextChunk: (text) => {
+              if (this.#disposed || !this.#streamedSpeech.append(streamed, text)) return
               onSpeechChunk?.(text)
               this.#hub.broadcastSpeechChunk(
                 this.engine.state,
@@ -430,6 +436,7 @@ export class MatchRuntime {
         callbacks,
       )
     } catch (error) {
+      this.#streamedSpeech.clear(streamed)
       throw new Error(`Player ${actor.playerId} turn failed: ${describeError(error)}`, {
         cause: error,
       })
@@ -437,6 +444,7 @@ export class MatchRuntime {
   }
 
   #record(events: readonly GameEvent[], broadcast = true): void {
+    this.#streamedSpeech.clearOnBoundary(events)
     this.#options.repository.appendEvents(events)
     this.#options.trajectory.recordSystemEvents(events)
     if (broadcast && events.length > 0) this.#broadcastSnapshotWhenReady()

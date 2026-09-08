@@ -172,6 +172,35 @@
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
+.aw-audio-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 2px 8px;
+  margin-top: 4px;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+.aw-audio-notice__dismiss {
+  flex: none;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.aw-audio-notice__dismiss:hover {
+  color: var(--aw-color-text);
+}
+.aw-audio-notice[data-kind='error'] {
+  color: var(--aw-color-crimson-bright);
+}
 .aw-speech-bubble__message {
   --aw-speech-frame: url('../../art/speech-paper-upper-pointer-frame.webp');
   --aw-speech-pointer: url('../../art/speech-paper-pointer.webp');

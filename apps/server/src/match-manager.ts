@@ -53,6 +53,7 @@ export interface MatchManagerOptions {
   readonly mailbox?: ActionMailbox
   readonly sessionDeleter?: PlayerSessionDeleter
   readonly sessionFactory?: PlayerSessionFactory
+  readonly onMatchDeleted?: (matchId: MatchId) => void
 }
 
 export class MatchManager {
@@ -247,6 +248,7 @@ export class MatchManager {
     }
     await removeMatchPlayerWorkspaces(this.#options.config.dataDirectory, id)
     if (!this.#options.repository.deleteMatch(id)) throw new MatchNotFoundError(id)
+    this.#options.onMatchDeleted?.(id)
   }
 
   public getMatch(id: MatchId, view: SpectatorView): MatchView {

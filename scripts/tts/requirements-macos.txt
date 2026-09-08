@@ -1,0 +1,12 @@
+# Apple Silicon：已发布的 MLX BF16 模型与预编译 Python 包。
+mlx==0.32.2
+mlx-audio==0.5.1
+mlx-lm==0.31.3
+transformers==5.16.1
+numpy==2.5.3
+soundfile==0.14.0
+safetensors==0.8.0
+huggingface-hub==1.30.0
+scipy==1.18.1
+sentencepiece==0.2.2
+filelock==3.32.5

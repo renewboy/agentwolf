@@ -41,6 +41,8 @@ export default defineConfig({
         AGENTWOLF_DATABASE_PATH: ':memory:',
         AGENTWOLF_DATA_DIR: resolve('.agentwolf/e2e'),
         AGENTWOLF_DEVELOPER_MODE: 'true',
+        AGENTWOLF_TTS_ENABLED: 'false',
+        AGENTWOLF_EDGE_TTS_ENABLED: 'false',
         AGENTWOLF_PORT: String(e2eServerPort),
       },
     },

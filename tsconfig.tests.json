@@ -30,6 +30,7 @@
       "@agentwolf/assets": ["./packages/assets/src/index.ts"],
       "@agentwolf/assets/prompts": ["./packages/assets/src/prompts.ts"],
       "@agentwolf/assets/player-skills": ["./packages/assets/src/player-skills.ts"],
+      "@agentwolf/assets/voices": ["./packages/assets/src/voices.ts"],
       "@agentwolf/game-engine": ["./packages/game-engine/src/index.ts"],
       "@agentwolf/acp": ["./packages/acp/src/index.ts"]
     },

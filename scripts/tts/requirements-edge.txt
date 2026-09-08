@@ -1,0 +1,2 @@
+# 默认语音使用已发布的 Edge TTS Python 包，无本地模型依赖。
+edge-tts==7.2.8

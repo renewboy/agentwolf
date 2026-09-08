@@ -204,10 +204,11 @@ MatchFeed 与 trajectory ledger 共享 Core follow-latest controller，并分别
 
 ## Speech playback
 
-`useSpeechPlayback` 将 AgentWolf TimelineItem、稳定 `SpeechId`、中文断句和 copy 映射到 Core
-presentation controller；
-显式 browser speech port 是 SpeechSynthesis 的唯一 owner。controller 接收 server playback state、
-timeline、activeSpeech、projection key 和 viewPending，并维护：
+`useSpeechPlayback` 将 AgentWolf TimelineItem、稳定 `SpeechId`、发言者、中文断句和 copy 映射到
+Core presentation controller。产品播放 port 根据 Match 与当前视图请求角色语音，持有 HTTP
+请求、PCM 播放和系统语音选择；浏览器副作用由各自的音频适配器管理。模型准备、音色路由、
+错误边界和跨层取消见[角色语音](speech-audio.md)。controller 接收 server playback state、timeline、
+activeSpeech、projection key 和 viewPending，并维护：
 
 - committed speech queue；
 - 当前 speech job、已消费字符和完整句 units；
@@ -216,8 +217,9 @@ timeline、activeSpeech、projection key 和 viewPending，并维护：
 
 流式 speech 只在完整句子形成时入队,commit 后补齐剩余尾部,并通过同一 `SpeechId` 绑定整个 job。
 skip 清除该 job 的当前句、待播句和后续增量；按钮提交原 `SpeechId`,因此重复点击不会跳过已经切换的
-下一段。合成 end 回执 completed；error、unsupported、显式 skip、view pending 或控制权丢失回执
-skipped。每个 pending sequence 只发送一次 `speech-playback.resolve`。
+下一段。播放 port 报告实际播放结束后回执 completed；角色语音要求 HTTP 正常结束且所有排程
+音频节点实际 ended。error、unsupported、显式 skip、view pending 或控制权丢失回执 skipped。
+每个 pending sequence 只发送一次 `speech-playback.resolve`。
 
 用户选择已提交消息时,controller 跳过自动队列并让该消息取得音频焦点。新 speech 在单条消息播放
 期间不抢占且不补播,但 pending barrier 立即以 skipped 释放；结束后只恢复仍在生成的 active speech。
@@ -226,7 +228,7 @@ skipped。每个 pending sequence 只发送一次 `speech-playback.resolve`。
 
 projection 切换立即取消当前声音并清空旧视角队列；新 view snapshot 到达后只接入新视角可见的
 active speech 或后续发言。同场 Match 与轨迹路由共享 controller 生命周期；离开 Match、资源不可用
-或 session dispose 时取消当前 utterance。
+或 session dispose 时取消当前音频请求、播放排程与系统语音。
 
 ## Motion 与 Role effects
 
@@ -264,7 +266,8 @@ accept-current 与 approve。AgentWolf adapter 只传 Match ID 和当前 REST DT
 - API schema 失败或 HTTP error 保留在 page/hook error state，用户可以显式 retry；客户端不使用
   未校验 payload 继续渲染。
 - WebSocket 解析错误显示连接错误，socket 关闭后走统一追平；已知 live control error 使用稳定文案。
-- SpeechSynthesis 不可用、抛错或回调 error 时自动 skip barrier，并保留文字内容。
+- 角色语音的准备、音色缺失和服务不可用状态按[语音故障边界](speech-audio.md#故障边界与可观测性)
+  选择系统语音；输入拒绝和音频流错误保持失败，自动播放 skip barrier 并保留文字。
 - reduced motion/off 模式保留完整语义 UI；动效缺失不影响操作和 Match progression。
 - 未知/删除 Match 收敛为不可用，不进行无界 reconnect。
 - 所有 effect、speech、timer、animation frame、event listener 和 socket 在 hook/component cleanup 中
@@ -286,6 +289,7 @@ accept-current 与 approve。AgentWolf adapter 只传 Match ID 和当前 REST DT
 
 - [系统架构](../architecture.md)：Web 在跨包依赖和端到端回合中的位置。
 - [信息同步](information-synchronization.md)：projection、barrier、WebSocket 与播放门控协议。
+- [角色语音](speech-audio.md)：音色、PCM 流、播放完成、取消与系统语音边界。
 - [Match 生命周期](match-lifecycle.md)：页面可触发的 lifecycle 与 postgame 状态。
 - [轨迹](trajectory.md)：Developer UI 的 summary、page、delta、debug 与 audit 数据源。
 - [仿真](simulation.md)：simulation wizard 的 candidate、review 与 approve 契约。

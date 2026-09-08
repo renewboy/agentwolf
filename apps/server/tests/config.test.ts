@@ -80,6 +80,14 @@ describe('server project root', () => {
     expect(() => loadServerConfig({ AGENTWOLF_DEVELOPER_MODE: '1' })).toThrow(/true or false/)
   })
 
+  it('enables background voice preparation by default and accepts an explicit disable switch', () => {
+    expect(loadServerConfig({}).speechAudioEnabled).toBe(true)
+    expect(loadServerConfig({ AGENTWOLF_TTS_ENABLED: 'false' }).speechAudioEnabled).toBe(false)
+    expect(() => loadServerConfig({ AGENTWOLF_TTS_ENABLED: 'invalid' })).toThrow(
+      'AGENTWOLF_TTS_ENABLED',
+    )
+  })
+
   it('selects the public speech interrupt rollout mode from startup configuration', () => {
     expect(loadServerConfig({}).publicSpeechInterruptMode).toBe('legacy')
     expect(

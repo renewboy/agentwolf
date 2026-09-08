@@ -1,5 +1,20 @@
 {
   "brand": "月影议会",
+  "speechAudio": {
+    "disabled": "角色语音服务未启用",
+    "preparing": "正在准备角色语音服务",
+    "preparingFallback": "正在后台准备角色语音，期间使用默认语音",
+    "loading": "正在加载 Qwen3-TTS 角色语音模型",
+    "preparationFailed": "角色模型准备失败，暂用默认语音",
+    "interrupted": "角色语音模型已停止，暂用默认语音",
+    "unsupportedPlatform": "角色语音需要受支持的 64 位服务端平台",
+    "notVisible": "当前视图没有这段发言",
+    "invalidText": "请求内容不是这段发言的原文",
+    "noVoice": "该角色未配置参考音色",
+    "notReady": "角色语音服务尚未就绪",
+    "unavailable": "角色语音服务暂不可用",
+    "defaultUnavailable": "默认语音暂不可用，请检查网络后重试"
+  },
   "roles": {
     "villager": "平民",
     "werewolf": "狼人",
@@ -630,6 +645,10 @@
     "audioUnsupportedSkipped": "语音播报不可用，已跳过当前发言",
     "audioPlaybackFailed": "这段发言播放失败",
     "audioPlaybackFailedSkipped": "语音播报失败，已跳过当前发言",
+    "audioModelPreparing": "正在准备角色语音模型，完成后自动播放",
+    "audioModelUnavailable": "角色语音模型暂不可用，请稍后重试",
+    "audioCharacterVoiceUnavailable": "该角色尚未配置参考音色",
+    "audioActivationRequired": "请点击发言播放，或重新开启语音以启用声音",
     "winner": "{{faction}}获胜",
     "winnerWithPlayers": "{{faction}}获胜：{{players}}",
     "sessionFailed": "Agent 连接异常",
@@ -682,7 +701,18 @@
     "playerVoting": "投票中",
     "sheriffCandidate": "上警",
     "alive": "存活",
-    "eliminated": "已出局"
+    "eliminated": "已出局",
+    "audioNoticeTitle": "语音提示",
+    "audioDefaultTitle": "本段使用默认语音",
+    "audioDefaultFailedTitle": "默认语音暂不可用",
+    "audioDefaultPreparing": "角色音色准备中，暂用默认语音。",
+    "audioDefaultLoading": "角色音色加载中，暂用默认语音。",
+    "audioDefaultError": "角色音色暂不可用，本段使用默认语音。",
+    "audioDefaultDisabled": "角色音色已关闭，本段使用默认语音。",
+    "audioDefaultNoVoice": "该角色暂无专属音色，本段使用默认语音。",
+    "audioDefaultUnavailable": "默认语音连接失败，请检查网络后重试。",
+    "audioDefaultBrowser": "当前浏览器使用默认语音。",
+    "audioNoticeDismiss": "不再提示"
   },
   "postgame": {
     "title": "对局复盘",

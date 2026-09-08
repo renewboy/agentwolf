@@ -88,6 +88,21 @@
   justify-content: flex-end;
 }
 
+.aw-match-audio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.aw-match-audio small {
+  max-width: 220px;
+  color: var(--aw-color-crimson-bright);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+
 .aw-view-switch {
   flex: none;
 }

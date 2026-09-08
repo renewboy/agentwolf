@@ -3,6 +3,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MatchView, SpeechPlaybackState, TimelineItem } from '@agentwolf/contracts'
 import { useSpeechPlayback } from '../src/hooks/useSpeechPlayback.js'
 
+const modelNotice = vi.hoisted(() => ({
+  value: null as import('../src/hooks/browser-model-speech.js').ModelSpeechNotice | null,
+}))
+
+vi.mock('../src/hooks/browser-model-speech.js', async () => {
+  const { createBrowserSpeechPort } = await import('@agent-arena/react')
+  return {
+    BrowserModelSpeech: class {
+      readonly port = createBrowserSpeechPort({ lang: 'zh-CN', rate: 1 })
+      get supported() {
+        return this.port.supported
+      }
+      setIdentity() {}
+      prepare() {}
+      snapshot = () => modelNotice.value
+      subscribe = () => () => {}
+      speak: import('@agent-arena/web-runtime').PlaybackPort['speak'] = (...args) =>
+        this.port.speak(...args)
+      cancel = () => this.port.cancel()
+      dispose = () => this.port.cancel()
+    },
+  }
+})
+
 class FakeUtterance extends EventTarget {
   public lang = ''
   public rate = 1
@@ -49,6 +73,7 @@ interface HookProps {
 }
 
 beforeEach(() => {
+  modelNotice.value = null
   speechSynthesis.cancel.mockReset()
   speechSynthesis.speak.mockReset()
   Object.defineProperty(window, 'speechSynthesis', {
@@ -106,7 +131,7 @@ describe('useSpeechPlayback committed speech', () => {
     const utterance = speechSynthesis.speak.mock.calls[0]![0] as unknown as FakeUtterance
     expect(utterance.text).toBe('完整发言。')
     expect(utterance.lang).toBe('zh-CN')
-    expect(utterance.rate).toBe(2)
+    expect(utterance.rate).toBe(1)
     void act(() => utterance.dispatchEvent(new Event('end')))
     await waitFor(() => expect(result.current.automaticBusy).toBe(false))
     expect(resolveAutomatic).toHaveBeenCalledWith(10, 'completed')
@@ -457,5 +482,27 @@ describe('useSpeechPlayback controls and projection changes', () => {
     })
     expect(result.current.automaticBusy).toBe(false)
     act(() => result.current.skipAutomatic(40 as never))
+  })
+})
+
+describe('speech notice presentation', () => {
+  it.each([
+    ['default-preparing', '角色音色准备中', 'fallback'],
+    ['default-loading', '角色音色加载中', 'fallback'],
+    ['default-error', '角色音色暂不可用', 'fallback'],
+    ['default-disabled', '角色音色已关闭', 'fallback'],
+    ['default-no-voice', '该角色暂无专属音色', 'fallback'],
+    ['default-browser', '当前浏览器使用默认语音', 'fallback'],
+    ['default-unavailable', '默认语音连接失败', 'error'],
+    ['unavailable', '角色语音模型暂不可用', 'error'],
+    ['no-voice', '该角色尚未配置参考音色', 'error'],
+    ['activation-required', '请点击发言播放', 'error'],
+  ] as const)('localizes %s without exposing the preset name', (notice, text, kind) => {
+    modelNotice.value = notice
+    const { result } = renderPlayback()
+    expect(result.current.notice).toContain(text)
+    expect(result.current.noticeKind).toBe(kind)
+    expect(result.current.noticeTitle).not.toContain('云希')
+    if (kind === 'fallback') expect(result.current.noticeTitle).toBe('本段使用默认语音')
   })
 })

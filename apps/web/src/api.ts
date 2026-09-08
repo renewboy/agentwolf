@@ -13,6 +13,11 @@ import {
   MatchViewSchema,
   RoleSummarySchema,
   RuntimeConfigSchema,
+  SPEECH_AUDIO_CONTENT_TYPE,
+  SpeechAudioErrorSchema,
+  SpeechAudioRequestSchema,
+  SpeechAudioStatusSchema,
+  SpeechAudioSourceSchema,
   SimulationApprovalResultSchema,
   SimulationReviewResultSchema,
   TrajectoryPageSchema,
@@ -44,6 +49,9 @@ import {
   type SpectatorView,
   type RoleSummary,
   type RuntimeConfig,
+  type SpeechAudioError,
+  type SpeechAudioRequest,
+  type SpeechAudioStatus,
   type SimulationApprovalRequest,
   type SimulationApprovalResult,
   type SimulationReviewResult,
@@ -64,6 +72,16 @@ export class ApiError extends Error {
   }
 }
 
+export class SpeechAudioUnavailableError extends ApiError {
+  public constructor(
+    public readonly code: Extract<SpeechAudioError['code'], `tts-${string}`>,
+    message: string,
+  ) {
+    super(message, 503)
+    this.name = 'SpeechAudioUnavailableError'
+  }
+}
+
 async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
   const headers = new Headers(init?.headers)
   if (init?.body) headers.set('Content-Type', 'application/json')
@@ -80,6 +98,72 @@ async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export const api = {
+  async speechAudioStatus(): Promise<SpeechAudioStatus> {
+    return SpeechAudioStatusSchema.parse(await requestJson('/api/speech-audio/status'))
+  },
+  async speechAudio(
+    matchId: MatchId,
+    input: SpeechAudioRequest,
+    signal: AbortSignal,
+  ): Promise<{
+    stream: ReadableStream<Uint8Array>
+    format: 'pcm' | 'mp3'
+    source: import('@agentwolf/contracts').SpeechAudioSource
+  }> {
+    const response = await fetch(`/api/matches/${encodeURIComponent(matchId)}/speech-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: `${SPEECH_AUDIO_CONTENT_TYPE}, audio/mpeg`,
+      },
+      body: JSON.stringify(SpeechAudioRequestSchema.parse(input)),
+      signal,
+    })
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null)
+      const error = SpeechAudioErrorSchema.safeParse(body)
+      if (
+        response.status === 503 &&
+        error.success &&
+        (error.data.code === 'tts-not-ready' ||
+          error.data.code === 'tts-unavailable' ||
+          error.data.code === 'tts-no-voice' ||
+          error.data.code === 'tts-default-unavailable')
+      ) {
+        throw new SpeechAudioUnavailableError(error.data.code, error.data.message)
+      }
+      throw new ApiError(error.success ? error.data.message : response.statusText, response.status)
+    }
+    const [mediaType, ...parameters] = (response.headers.get('Content-Type') ?? '')
+      .toLowerCase()
+      .split(';')
+      .map((part) => part.trim())
+    const values = new Map(
+      parameters.map((part) => {
+        const [key, value] = part.split('=')
+        return [key, value?.replaceAll('"', '')] as const
+      }),
+    )
+    const source = SpeechAudioSourceSchema.parse(
+      JSON.parse(
+        response.headers.get('X-AgentWolf-Speech-Source') ?? '{"provider":"qwen3-tts-0.6b"}',
+      ),
+    )
+    if (source.provider === 'edge-tts' && mediaType === 'audio/mpeg' && response.body) {
+      return { stream: response.body, format: 'mp3', source }
+    }
+    if (
+      source.provider !== 'qwen3-tts-0.6b' ||
+      mediaType !== 'audio/l16' ||
+      values.get('rate') !== '24000' ||
+      (values.get('channels') ?? '1') !== '1' ||
+      !response.body
+    ) {
+      await response.body?.cancel()
+      throw new ApiError('Unsupported speech audio format', 502)
+    }
+    return { stream: response.body, format: 'pcm', source }
+  },
   async runtimeConfig(): Promise<RuntimeConfig> {
     return RuntimeConfigSchema.parse(await requestJson('/api/runtime-config'))
   },

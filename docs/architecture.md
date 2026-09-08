@@ -277,6 +277,7 @@ mailbox 和 Session binding 中，直到全部有资格回合落定，随后按 
 - [Prompt 与玩家上下文](architecture/prompt-and-context.md)：bundle 所有权、可见事实和模型环境。
 - [ACP Session 运行时](architecture/acp-session-runtime.md)：进程、逻辑 Session、delivery 与恢复。
 - [信息同步](architecture/information-synchronization.md)：visibility、barrier、发言、播报与重连。
+- [角色语音](architecture/speech-audio.md)：Character 音色、模型准备、可见发言音频与流式播放。
 - [Match 生命周期](architecture/match-lifecycle.md)：目录、不可变快照、持久化、删除与赛后状态机。
 - [轨迹](architecture/trajectory.md)：Turn/Record、脱敏、实时读取与语义审计。
 - [仿真](architecture/simulation.md)：Match capture、candidate、双 runner 与 fixture 批准。

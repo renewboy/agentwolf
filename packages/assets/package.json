@@ -16,6 +16,10 @@
       "types": "./dist/player-skills.d.ts",
       "default": "./dist/player-skills.js"
     },
+    "./voices": {
+      "types": "./dist/voices.d.ts",
+      "default": "./dist/voices.js"
+    },
     "./styles/index.css": "./styles/index.css"
   },
   "scripts": {

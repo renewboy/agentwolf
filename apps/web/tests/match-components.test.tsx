@@ -119,6 +119,7 @@ describe('MatchHeader', () => {
           audioBusyElsewhere={false}
           audioEnabled={false}
           audioSupported
+          audioError="语音控制连接失败"
           connectionState="live"
           match={match}
           playerId={'player-1' as never}
@@ -134,6 +135,7 @@ describe('MatchHeader', () => {
       `/matches/${match.id}/trajectory`,
     )
     expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toHaveTextContent('第 1 天')
+    expect(document.querySelector('.aw-match-audio')).toHaveTextContent('语音控制连接失败')
     expect(screen.queryByText('白天发言')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '闭眼视角' }))
     await userEvent.click(screen.getByRole('combobox', { name: '玩家视角' }))
@@ -406,6 +408,12 @@ describe('MatchFeed', () => {
           activeSpeechId: 9 as never,
           automaticPlayerId: 'player-1' as never,
           automaticBusy: true,
+          notice: {
+            speechId: 9 as never,
+            title: '本段使用默认语音',
+            message: '角色音色准备中，暂用默认语音。',
+            kind: 'fallback',
+          },
         }}
         postgameReview={postgame}
         seats={seats}
@@ -414,6 +422,10 @@ describe('MatchFeed', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /一号玩家.*跳过/ }))
     expect(audio.skip).toHaveBeenCalledOnce()
+    expect(document.querySelectorAll('.aw-audio-notice')).toHaveLength(1)
+    expect(document.querySelector('[data-playback="automatic"]')).toContainElement(
+      screen.getByRole('status', { name: '本段使用默认语音' }),
+    )
     expect(screen.getByText('生成中')).toContainElement(document.querySelector('.aw-stream-cursor'))
 
     rerender(
@@ -432,6 +444,7 @@ describe('MatchFeed', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /二号玩家.*停止/ }))
     expect(audio.stop).toHaveBeenCalledOnce()
+    expect(document.querySelector('.aw-audio-notice')).toBeNull()
     expect(screen.getByText('等待下一位玩家发言')).toBeVisible()
     expect(screen.getByText('等待下一位玩家发言')).toContainElement(
       document.querySelector('.aw-stream-cursor'),

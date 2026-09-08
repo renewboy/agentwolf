@@ -46,6 +46,9 @@ import { SimulationService } from './simulation-service.js'
 import { TrajectoryService } from './trajectory-service.js'
 import { RulesetCatalog } from './ruleset-catalog.js'
 import { auditTrajectory } from './trajectory-audit.js'
+import { SpeechAudioService, type SpeechAudioProvider } from './speech-audio-service.js'
+import { registerSpeechAudioRoutes } from './speech-audio-routes.js'
+import { EdgeSpeechService, type DefaultSpeechProvider } from './edge-speech-service.js'
 
 export interface BuildServerOptions {
   readonly config: ServerConfig
@@ -53,6 +56,8 @@ export interface BuildServerOptions {
   readonly sessionDeleter?: PlayerSessionDeleter
   readonly sessionFactory?: PlayerSessionFactory
   readonly logger?: boolean
+  readonly speechAudio?: SpeechAudioProvider
+  readonly defaultSpeech?: DefaultSpeechProvider
 }
 
 export interface AgentWolfServer {
@@ -64,6 +69,7 @@ export interface AgentWolfServer {
   readonly trajectories: TrajectoryService
   readonly simulations: SimulationService
   readonly matches: MatchManager
+  readonly speechAudio: SpeechAudioProvider
   close(): Promise<void>
 }
 
@@ -79,6 +85,8 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   const simulations = new SimulationService(repository, boards, options.config)
   const sessionDeleter =
     options.sessionDeleter ?? (options.sessionFactory ? undefined : defaultPlayerSessionDeleter)
+  const speechAudio = options.speechAudio ?? new SpeechAudioService(options.config)
+  const defaultSpeech = options.defaultSpeech ?? new EdgeSpeechService(options.config)
   const matches = new MatchManager({
     repository,
     catalog,
@@ -87,6 +95,10 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     trajectories,
     rulesets,
     config: options.config,
+    onMatchDeleted: (id) => {
+      speechAudio.forgetMatch(id)
+      defaultSpeech.forgetMatch(id)
+    },
     ...(sessionDeleter ? { sessionDeleter } : {}),
     ...(options.sessionFactory ? { sessionFactory: options.sessionFactory } : {}),
   })
@@ -231,6 +243,8 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   app.post('/api/matches/:id/start', async (request, reply) => {
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
     const match = matches.beginMatch(id)
+    speechAudio.start()
+    defaultSpeech.start()
     return reply.code(202).send(match)
   })
   app.post('/api/matches/:id/resume', async (request, reply) => {
@@ -258,6 +272,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
     return matches.getMatch(id, viewFromQuery(request.query as Record<string, unknown>))
   })
+  registerSpeechAudioRoutes(app, matches, speechAudio, defaultSpeech)
   app.get('/api/developer/matches/:id/trajectory/summary', async (request) => {
     requireDeveloperMode(options.config)
     const id = MatchIdSchema.parse((request.params as { id: string }).id)
@@ -370,6 +385,13 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
   })
 
   app.addHook('onListen', async () => matches.initializePostgameReviews())
+  app.addHook('onListen', async () => {
+    speechAudio.start()
+    defaultSpeech.start()
+  })
+  app.addHook('preClose', async () => {
+    await Promise.all([speechAudio.close(), defaultSpeech.close()])
+  })
 
   if (existsSync(options.config.webDistPath)) {
     await app.register(staticPlugin, {
@@ -397,6 +419,7 @@ export async function buildServer(options: BuildServerOptions): Promise<AgentWol
     trajectories,
     simulations,
     matches,
+    speechAudio,
     close,
   }
 }

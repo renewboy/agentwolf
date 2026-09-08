@@ -16,6 +16,7 @@ import { gameArt } from '../../game-art.js'
 import { groupMatchTimeline } from '../../match-timeline.js'
 import { PostgameFeedAwards } from './PostgameAwardResults.js'
 import { InkActivity } from './InkActivity.js'
+import { SpeechAudioNotice } from './SpeechAudioNotice.js'
 
 export interface SpeechAudioControls {
   readonly supported: boolean
@@ -25,6 +26,12 @@ export interface SpeechAudioControls {
   readonly automaticPlayerId: PlayerId | null
   readonly automaticBusy: boolean
   readonly manualSequence: number | null
+  readonly notice?: {
+    readonly speechId: SpeechId | null
+    readonly title: string
+    readonly message: string | null
+    readonly kind: 'fallback' | 'error'
+  }
   readonly play: (item: TimelineItem) => void
   readonly stop: () => void
   readonly skip: (speechId: SpeechId) => void
@@ -422,6 +429,9 @@ function SpeechBubble({
             />
           ) : null}
         </header>
+        {audio?.notice && audio.notice.speechId === playbackSpeechId ? (
+          <SpeechAudioNotice {...audio.notice} />
+        ) : null}
         <div className="aw-speech-bubble__message">
           <span className="aw-speech-bubble__pointer" aria-hidden />
           <span className="aw-speech-bubble__landscape" aria-hidden />

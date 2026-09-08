@@ -31,6 +31,8 @@ AgentWolf 是一个 TypeScript workspace,用于在长驻的 ACP Agent Session �
   [ACP Session 运行时](docs/architecture/acp-session-runtime.md)。
 - 可见性、barrier、发言送达、回放与重连:
   [信息同步](docs/architecture/information-synchronization.md)。
+- Character 音色、模型准备、可见发言音频与流式播放:
+  [角色语音](docs/architecture/speech-audio.md)。
 - 对局配置、快照、持久化、删除与赛后复盘:
   [Match 生命周期](docs/architecture/match-lifecycle.md)。
 - ACP 回合记录、脱敏、审计与开发者诊断:[轨迹](docs/architecture/trajectory.md)。
@@ -119,12 +121,13 @@ pnpm dev
 
 ## 测试与运行时数据
 
+- 不要为可逆、影响小、只是复述实现的改动写测试。
+- 跑与本次改动相称的测试，并完成必要检查。这些通过之后，只有出现新改动、新失败或尚未解决的疑点时，才扩大或重复测试；否则继续把任务做完。
+- 收尾删掉本次产生、之后用不上的临时文件。
 - 规则加单元覆盖,协议/projection 边界加集成覆盖,可见交互流程加浏览器覆盖。
-- 断言协议或外部状态,而非 Agent 的自我报告。
 - 测试创建唯一记录并在 teardown 中清理;绝不复用或修改用户拥有的数据。
 - 运行时数据放在 `.agentwolf/` 下;不提交 Sessions、凭据、Match 日志、生成发言、截图或
   录像。
-- secrets 以环境变量名存储引用,绝不存值。
 
 ## 决策与完成
 

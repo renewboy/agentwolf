@@ -60,6 +60,9 @@ export default defineConfig({
       '@agentwolf/assets/player-skills': fileURLToPath(
         new URL('./packages/assets/src/player-skills.ts', import.meta.url),
       ),
+      '@agentwolf/assets/voices': fileURLToPath(
+        new URL('./packages/assets/src/voices.ts', import.meta.url),
+      ),
       '@agentwolf/assets/prompts': fileURLToPath(
         new URL('./packages/assets/src/prompts.ts', import.meta.url),
       ),

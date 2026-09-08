@@ -15,6 +15,8 @@ export interface ServerConfig {
   readonly webDistPath: string
   readonly developerMode: boolean
   readonly publicSpeechInterruptMode: PublicSpeechInterruptMode
+  readonly speechAudioEnabled?: boolean
+  readonly edgeSpeechEnabled?: boolean
 }
 
 export function loadServerConfig(
@@ -43,16 +45,24 @@ export function loadServerConfig(
     projectRoot,
     webDistPath: resolve(projectRoot, 'apps/web/dist'),
     developerMode,
+    speechAudioEnabled: parseBoolean(
+      environment['AGENTWOLF_TTS_ENABLED'] ?? 'true',
+      'AGENTWOLF_TTS_ENABLED',
+    ),
+    edgeSpeechEnabled: parseBoolean(
+      environment['AGENTWOLF_EDGE_TTS_ENABLED'] ?? 'true',
+      'AGENTWOLF_EDGE_TTS_ENABLED',
+    ),
     publicSpeechInterruptMode: PublicSpeechInterruptModeSchema.parse(
       environment['AGENTWOLF_PUBLIC_SPEECH_INTERRUPT_MODE'] ?? 'legacy',
     ),
   }
 }
 
-function parseBoolean(value: string): boolean {
+function parseBoolean(value: string, name = 'AGENTWOLF_DEVELOPER_MODE'): boolean {
   if (value === 'true') return true
   if (value === 'false') return false
-  throw new Error('AGENTWOLF_DEVELOPER_MODE must be true or false')
+  throw new Error(`${name} must be true or false`)
 }
 
 function findProjectRoot(start: string): string {

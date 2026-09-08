@@ -2,17 +2,13 @@
   display: grid;
   flex: 1;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
 }
 .aw-match-records > .aw-feed-shell {
-  grid-row: 3;
-  grid-column: 1;
-}
-.aw-match-records > .aw-audio-notice {
   grid-row: 2;
-  grid-column: 1 / -1;
+  grid-column: 1;
 }
 .aw-match-records[data-review-open='true'] > .aw-feed-shell {
   display: none;
@@ -139,7 +135,7 @@
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 16px;
   grid-column: 1;
-  grid-row: 3;
+  grid-row: 2;
   min-width: 0;
   min-height: 0;
   padding: 20px;
@@ -173,7 +169,7 @@
 }
 .aw-postgame-content {
   display: grid;
-  grid-row: 3;
+  grid-row: 2;
   align-content: start;
   gap: 16px;
   min-height: 0;

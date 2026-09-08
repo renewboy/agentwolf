@@ -1,0 +1,74 @@
+[
+  {
+    "characterId": "character-edogawa-conan",
+    "referenceFile": "edogawa-conan.flac",
+    "sha256": "ae2f866fdc9214ea3b88ed39baef77d91f3353c886b9bf71cfb31cd2324053db",
+    "referenceText": "那个时候我也设法挺过来了，所以没问题的。拜托你把药给我。新加坡。博士，就是这个，这场大赛那个人也会出赛哦，四百战连胜那个。一开始是园子提议说要去看那场大赛的，她找小五郎叔叔跟小兰一起去。"
+  },
+  {
+    "characterId": "character-kudo-shinichi",
+    "referenceFile": "kudo-shinichi.flac",
+    "sha256": "6160625c6208780f261276f739639f74e1a29ec5ae7504785f41eb507ff81e93",
+    "referenceText": "你到底是怎么想的？就是对我的事啊。听说你昨天跟那个冲田碰过面了。我说你啊，该不会已经忘记我在伦敦跟你告白的事了吧？抱歉，小兰，我突然接到案件委托人打给我的电话。那么之后联络啊。"
+  },
+  {
+    "characterId": "character-mouri-ran",
+    "referenceFile": "mouri-ran.flac",
+    "sha256": "86fb98021b9b443a41576f387006049cc9f3254f4ec47b73a4047dac9e833531",
+    "referenceText": "你这样子才不会糟糕呢。喜欢上一个人是很好的事情啊，我也觉得应该珍惜这样子的感觉哟。不过你们现在先当好朋友应该比较好吧，不管是步美或是小哀，柯南或是元太当然也是了。"
+  },
+  {
+    "characterId": "character-mouri-kogoro",
+    "referenceFile": "mouri-kogoro.flac",
+    "sha256": "6247e875e759b911233c1265b47c2465aa033476e9fd6af81cb3f38c848ceef8",
+    "referenceText": "我们赶回来，车子也许会在半路上出意外，也可能会爆胎，甚至有可能塞车。要是真是如此，麻美小姐的一条命就没有了。如果你希望她回心转意的话，你为什么不用委婉的方法让她回心转意呢？"
+  },
+  {
+    "characterId": "character-haibara-ai",
+    "referenceFile": "haibara-ai.flac",
+    "sha256": "d0399469f7962abd243e0af7d4853c01c810a5521e302dd6bdcbcde5d5bde9c7",
+    "referenceText": "不行。不行就是不行。他又想要用那个药恢复原本的模样了，明明校外教学那个时候，才刚吃过苦头没多久。不行。烦死了。"
+  },
+  {
+    "characterId": "character-agasa-hiroshi",
+    "referenceFile": "agasa-hiroshi.flac",
+    "sha256": "0e1cb35057881c34115da0fddd292532286464e7df078ffc9a34a44ed3fffa8d",
+    "referenceText": "你们两个是怎么了？你究竟打算去什么地方啊？你是说京极真啊？也是哦，因为那本护照是新一的嘛。哦，我劝你这一次最好还是死心吧。别这么沮丧嘛，好，我出个谜题帮你转换心情。"
+  },
+  {
+    "characterId": "character-hattori-heiji",
+    "referenceFile": "hattori-heiji.flac",
+    "sha256": "14e5245d57c3038c594ebf2fb6524839b0c907e7e9515ce6ca0947254440064c",
+    "referenceText": "我这次找你们来，就是为了让你们好好看看大阪这个地方。我们人哪，什么时候会死都没有一个定数的。我做了一个不太吉利的梦哦。就是这样了，你就好好地在大阪这里玩玩吧。"
+  },
+  {
+    "characterId": "character-toyama-kazuha",
+    "referenceFile": "toyama-kazuha.flac",
+    "sha256": "26bd6ff93a2fa11a2637493e596f397554c171f546f48e0cd4600672cecdaac1",
+    "referenceText": "你就是那个平次在东京那里交到，他又老挂在嘴边，叫工藤的女人吧？我在这里可以告诉你一件事情，我跟平次可是从以前就用铁的锁链所绑住的好朋友哦。"
+  },
+  {
+    "characterId": "character-kaito-kid",
+    "referenceFile": "kaito-kid.flac",
+    "sha256": "5a89d953b833cbdae9ee4a560a0b5f13ec2e996f7093df9ec54f6a9a7f852330",
+    "referenceText": "我真是服了你了，我就放弃这颗珍珠吧。代我带句话给铃木夫人，说我很抱歉，把她的派对给搞砸了。哦，我都忘了，我向那个女孩借了衣服，让她睡在救生艇里。如果再不去找她的话，她可能会感冒的。"
+  },
+  {
+    "characterId": "character-akai-shuichi",
+    "referenceFile": "akai-shuichi.flac",
+    "sha256": "bf1b8729f1b506fd6c67688dce36348c565572d75af2984e881c7bc772f0e7ea",
+    "referenceText": "换个角度想，也算是不幸中的大幸，她现在一直昏迷不醒。因为就算他们有本事找到这间病房来，要把失去意识的人带出去，也必须要冒非常大的风险才行。最干脆的方法，是把那三个人一起转到别的医院。"
+  },
+  {
+    "characterId": "character-amuro-toru",
+    "referenceFile": "amuro-toru.flac",
+    "sha256": "db728d8e8fab230d7d56b2cd34130792160124c0d1586aafbe0545da430bce26",
+    "referenceText": "哼，真不像是擅自在日本活动的FBI会说出口的话。现在已经是分秒必争了。你那个武器应该管用吧？组织的头号狙击手，记得在海自抵达前搞定，黑麦威士忌。"
+  },
+  {
+    "characterId": "character-gin",
+    "referenceFile": "gin.flac",
+    "sha256": "d640501274fb9df7f03fca367ff4c61ee2081fc32c763459f1ae207dbc179a07",
+    "referenceText": "诶，是我。你那边情况怎么样？什么，人还没来啊？诶，担心个什么劲儿啊。目标会在傍晚六点整的时候出现在杯户饭店。他还不知道，今天就是他个人的追思会。"
+  }
+]

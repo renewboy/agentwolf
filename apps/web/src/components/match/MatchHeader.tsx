@@ -41,6 +41,7 @@ export function MatchHeader({
   audioEnabled,
   audioBusyElsewhere,
   audioSupported,
+  audioError,
   onToggleAudio,
   viewPending = false,
   selectedDay,
@@ -58,6 +59,7 @@ export function MatchHeader({
   readonly audioEnabled: boolean
   readonly audioBusyElsewhere: boolean
   readonly audioSupported: boolean
+  readonly audioError?: string | null
   readonly onToggleAudio: () => void
 }) {
   const days = useMemo(() => matchTimelineDays(match.timeline), [match.timeline])
@@ -133,17 +135,24 @@ export function MatchHeader({
           />
         </div>
 
-        <button
-          className="aw-button aw-button--compact aw-button--square aw-audio-toggle"
-          aria-label={audioLabel}
-          aria-pressed={audioEnabled}
-          data-enabled={audioEnabled}
-          disabled={audioDisabled}
-          type="button"
-          onClick={onToggleAudio}
-        >
-          {audioEnabled ? <GameIcon name="sound" size={19} /> : <GameIcon name="mute" size={19} />}
-        </button>
+        <div className="aw-match-audio">
+          <button
+            className="aw-button aw-button--compact aw-button--square aw-audio-toggle"
+            aria-label={audioLabel}
+            aria-pressed={audioEnabled}
+            data-enabled={audioEnabled}
+            disabled={audioDisabled}
+            type="button"
+            onClick={onToggleAudio}
+          >
+            {audioEnabled ? (
+              <GameIcon name="sound" size={19} />
+            ) : (
+              <GameIcon name="mute" size={19} />
+            )}
+          </button>
+          {audioError ? <small role="status">{audioError}</small> : null}
+        </div>
       </div>
     </MatchRouteHeader>
   )
