@@ -32,6 +32,7 @@ import {
   type NarrationCatalog,
 } from '@agentwolf/assets'
 import {
+  canViewEvent,
   publiclyEliminatedPlayerIds,
   visibleEvents,
   visibleRoleId,
@@ -91,9 +92,18 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
     roleName: (roleId: NonNullable<ReturnType<typeof visibleRoleId>>) =>
       getCopy(options.roles.role(roleId).displayNameKey),
   }
-  const projectedActiveSpeech = projectedEvents.reduce<MatchView['activeSpeech']>(
+  const projectedActiveSpeech = options.events.reduce<MatchView['activeSpeech']>(
     (active, event) => {
+      if (
+        active &&
+        !active.final &&
+        (event.payload.type === 'phase.changed' ||
+          event.payload.type === 'day.interrupted' ||
+          event.payload.type === 'match.ended')
+      )
+        return null
       if (event.payload.type === 'speech.started') {
+        if (!canViewEvent(event, options.view, options.state)) return active?.final ? active : null
         return {
           speechId: SpeechIdSchema.parse(event.sequence),
           playerId: event.payload.playerId,
@@ -102,6 +112,7 @@ export function projectMatch(options: ProjectMatchOptions): MatchView {
         }
       }
       if (event.payload.type === 'speech.committed') {
+        if (!canViewEvent(event, options.view, options.state)) return active
         return {
           speechId:
             active?.playerId === event.payload.playerId
@@ -313,7 +324,8 @@ function visibleSessionStatus(
   const status = options.sessionStatus?.(playerId) ?? 'idle'
   if (options.view.kind === 'god') return status
   if (options.view.kind === 'player' && options.view.playerId === playerId) return status
-  if (activeSpeech?.playerId === playerId && !activeSpeech.final) return status
+  // Public activity is a game fact; a private listener or delivery must not change it.
+  if (activeSpeech?.playerId === playerId && !activeSpeech.final) return 'thinking'
   return 'idle'
 }
 

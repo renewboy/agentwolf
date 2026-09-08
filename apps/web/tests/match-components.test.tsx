@@ -136,8 +136,12 @@ describe('MatchHeader', () => {
     expect(screen.getByRole('combobox', { name: '跳转到指定日期' })).toHaveTextContent('第 1 天')
     expect(screen.queryByText('白天发言')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '闭眼视角' }))
-    await userEvent.click(screen.getByRole('button', { name: '玩家视角' }))
+    await userEvent.click(screen.getByRole('combobox', { name: '玩家视角' }))
     expect(setViewKind).toHaveBeenNthCalledWith(1, 'closed-eye')
+    expect(setViewKind).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('listbox', { name: '玩家视角' })).toBeVisible()
+    expect(document.querySelector('.aw-view-player-select')).toBeNull()
+    await userEvent.click(screen.getByRole('option', { name: /一号玩家/ }))
     expect(setViewKind).toHaveBeenNthCalledWith(2, 'player')
     await userEvent.click(screen.getByRole('button', { name: /语音播报/ }))
     expect(toggleAudio).toHaveBeenCalledOnce()
@@ -158,7 +162,7 @@ describe('MatchHeader', () => {
         />
       </MemoryRouter>,
     )
-    await userEvent.click(screen.getByRole('combobox', { name: '选择玩家视角' }))
+    await userEvent.click(screen.getByRole('combobox', { name: '玩家视角' }))
     await userEvent.click(screen.getByRole('option', { name: /二号玩家/ }))
     expect(setPlayerId).toHaveBeenCalledWith('player-2')
     expect(screen.queryByRole('combobox', { name: '技能特效' })).not.toBeInTheDocument()
@@ -193,15 +197,8 @@ describe('MatchHeader', () => {
         />
       </MemoryRouter>,
     )
-    if (connectionState === 'settled') {
-      expect(document.querySelector('.aw-connection-indicator')).not.toBeInTheDocument()
-      expect(document.querySelector('.aw-match-controls [data-icon="check"]')).toBeNull()
-    } else {
-      expect(document.querySelector('.aw-connection-indicator')).toHaveAttribute(
-        'data-state',
-        connectionState,
-      )
-    }
+    expect(document.querySelector('.aw-connection-indicator')).not.toBeInTheDocument()
+    expect(document.querySelector('.aw-match-controls [data-icon="wifi"]')).toBeNull()
     expect(document.querySelector('.aw-audio-toggle')).toBeDisabled()
   })
 

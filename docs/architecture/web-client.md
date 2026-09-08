@@ -157,7 +157,9 @@ socket error 统一触发 close。close 后 hook 保留 MatchView，HTTP 追平�
 
 ### View 切换
 
-Match 资源级 session 保存 `god/player/closed-eye` 和 player ID。view 改变时：
+Match 资源级 session 默认请求 `closed-eye`，选择入口按闭眼、玩家、上帝排列。Player ID 初始为空；
+用户进入玩家选项后，只有明确选择一个席位才请求该玩家投影，未选择时继续消费闭眼投影。
+不同 Match 使用独立 Session；同场 Match 与轨迹子路由共享当前选择。view 改变时：
 
 1. hook 发送 `view.set`，并保持旧 snapshot 仅用于避免页面闪空；
 2. `loadedViewKey` 与请求 key 不同，`viewPending=true`；

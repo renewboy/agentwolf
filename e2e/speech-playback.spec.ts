@@ -46,6 +46,7 @@ test('starts narration at sentence boundaries and only appends the committed tai
   })
 
   await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await page.getByRole('button', { name: '语音播报已关闭' }).click()
   await expect(page.getByRole('button', { name: '语音播报已开启' })).toBeVisible()
   sendLive({
@@ -135,6 +136,7 @@ test('keeps skip available across speaker handoff and suppresses later chunks af
   })
 
   await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await page.getByRole('button', { name: '语音播报已关闭' }).click()
   sendLive({
     type: 'speech-chunk',
@@ -277,6 +279,7 @@ test('plays every speech by sequence and keeps manual controls independent from 
   })
 
   await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const manualPlay = page.getByRole('button', { name: /播放这段发言/ }).first()
   await manualPlay.click()
   await expect(page.getByRole('button', { name: /停止播放/ })).toBeVisible()
@@ -392,6 +395,7 @@ test('lets one message preempt live speech without queuing speech that arrives m
   })
 
   await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await page.getByRole('button', { name: '语音播报已关闭' }).click()
   sendLive({
     type: 'speech-chunk',

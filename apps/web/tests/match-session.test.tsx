@@ -16,6 +16,7 @@ const live = vi.hoisted(() => ({
   connectionState: 'live' as string,
   setSpeechPlaybackEnabled: vi.fn(() => true),
   resolveSpeechPlayback: vi.fn(() => true),
+  observe: vi.fn(),
 }))
 const speech = vi.hoisted(() => ({
   mode: 'idle' as 'idle' | 'automatic' | 'manual',
@@ -23,17 +24,20 @@ const speech = vi.hoisted(() => ({
 }))
 
 vi.mock('../src/hooks/useLiveMatch.js', () => ({
-  useLiveMatch: () => ({
-    match: null,
-    error: null,
-    controlError: null,
-    retry: vi.fn(),
-    connectionState: live.connectionState,
-    playbackState: live.playbackState,
-    setSpeechPlaybackEnabled: live.setSpeechPlaybackEnabled,
-    resolveSpeechPlayback: live.resolveSpeechPlayback,
-    viewPending: false,
-  }),
+  useLiveMatch: (matchId: string, view: unknown) => {
+    live.observe(matchId, view)
+    return {
+      match: null,
+      error: null,
+      controlError: null,
+      retry: vi.fn(),
+      connectionState: live.connectionState,
+      playbackState: live.playbackState,
+      setSpeechPlaybackEnabled: live.setSpeechPlaybackEnabled,
+      resolveSpeechPlayback: live.resolveSpeechPlayback,
+      viewPending: false,
+    }
+  },
 }))
 vi.mock('../src/hooks/useSpeechPlayback.js', () => ({
   useSpeechPlayback: () => ({
@@ -92,9 +96,23 @@ beforeEach(() => {
   live.resolveSpeechPlayback.mockReset()
   live.resolveSpeechPlayback.mockReturnValue(true)
   speech.skipAutomatic.mockReset()
+  live.observe.mockClear()
 })
 
 describe('MatchSessionProvider', () => {
+  it('starts closed-eye and requests a player projection only after explicit selection', async () => {
+    render(<Probe />, { wrapper: Wrapper })
+    expect(screen.getByText('closed-eye:null')).toBeVisible()
+    expect(live.observe).toHaveBeenLastCalledWith('match-test-abcdef', { kind: 'closed-eye' })
+    await userEvent.click(screen.getByRole('button', { name: 'player view' }))
+    expect(screen.getByText('player:null')).toBeVisible()
+    expect(live.observe).toHaveBeenLastCalledWith('match-test-abcdef', { kind: 'closed-eye' })
+    await userEvent.click(screen.getByRole('button', { name: 'player two' }))
+    expect(live.observe).toHaveBeenLastCalledWith('match-test-abcdef', {
+      kind: 'player',
+      playerId: 'player-2',
+    })
+  })
   it('keeps an enabled preference without retrying when another window owns speech', async () => {
     window.localStorage.setItem(voicePreferenceStorageKey, 'true')
     live.playbackState = {

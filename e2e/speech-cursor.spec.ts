@@ -26,6 +26,7 @@ for (const side of ['left', 'right'] as const) {
       sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
     })
     await page.goto(`/matches/${current.id}`)
+    await page.getByRole('button', { name: '上帝视角', exact: true }).click()
 
     const bubble = page.locator('.aw-speech-bubble[data-live="true"]')
     const message = bubble.locator('.aw-speech-bubble__message')

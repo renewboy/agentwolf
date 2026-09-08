@@ -55,6 +55,7 @@ for (const seatCount of [10, 12, 24]) {
     })
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`/matches/${match.id}`)
+    await page.getByRole('button', { name: '上帝视角', exact: true }).click()
     const cards = page.locator('.aw-player-rail .aw-player-card')
     await expect(cards).toHaveCount(seatCount)
     await expectDayCentered(page)

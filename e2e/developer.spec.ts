@@ -50,6 +50,7 @@ test('streams a normalized developer trajectory with system instructions, prompt
   ).json()) as MatchView
   const firstSeat = matchSnapshot.seats.find((seat) => seat.seat === 1)!
   await page.goto(`/matches/${match.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const matchRole = page
     .locator(
       '.aw-match-projection .aw-player-card[data-player-id="player-1"] .aw-player-card__role',

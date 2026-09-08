@@ -47,31 +47,28 @@ test('settles ended matches and stops polling a missing match', async ({
     }, 1_200)
   })
   await page.goto(`/matches/${endedMatch.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'thinking')
   const previouslyThinkingRing = page.locator(
-    '.aw-player-rail .aw-player-card[data-player-id="player-6"] .aw-player-card__status-mark',
+    '.aw-player-rail .aw-player-card[data-player-id="player-6"] .aw-avatar-orbit__rotor',
   )
   const movingTransform = await previouslyThinkingRing.evaluate(
-    (element) => getComputedStyle(element).opacity,
+    (element) => getComputedStyle(element).transform,
   )
   await page.waitForTimeout(180)
   expect(
-    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).opacity),
+    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).transform),
   ).not.toBe(movingTransform)
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'ended')
   await expect(page.locator('.aw-connection-indicator')).toHaveCount(0)
   await expect(page.locator('.aw-player-rail .aw-player-card__role')).toHaveText(
-    endedMatch.seats.map((seat) => seat.roleName ?? '身份未公开'),
+    endedMatch.seats.map((seat) => seat.roleName ?? '未知'),
   )
   await expect(page.locator('.aw-player-card[data-player-id="player-6"]')).toContainText('已结束')
-  const settledOpacity = await previouslyThinkingRing.evaluate(
-    (element) => getComputedStyle(element).opacity,
-  )
+  await expect(previouslyThinkingRing).toHaveCount(0)
   const settledSocketCount = socketCount
   await page.waitForTimeout(600)
-  expect(
-    await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).opacity),
-  ).toBe(settledOpacity)
+  await expect(previouslyThinkingRing).toHaveCount(0)
   expect(socketCount).toBe(settledSocketCount)
 
   const missingId = 'match-missing-stable-test'
@@ -109,6 +106,7 @@ test('receives the countdown and automatic review start over one live connection
   })
 
   await page.goto(`/matches/${matchId}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.getByRole('timer')).toHaveCount(0)
   current = countdown
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
@@ -122,17 +120,17 @@ test('receives the countdown and automatic review start over one live connection
   await expect(page.getByRole('timer')).toHaveCount(0)
   await expect(page.getByText('已完成 0 / 6')).toBeVisible()
   const reviewingRings = page.locator(
-    '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
+    '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-avatar-orbit__rotor',
   )
   await expect(reviewingRings).toHaveCount(6)
   const initialTransform = await reviewingRings
     .first()
-    .evaluate((element) => getComputedStyle(element).opacity)
+    .evaluate((element) => getComputedStyle(element).transform)
   await page.waitForTimeout(180)
   expect(
-    await reviewingRings.first().evaluate((element) => getComputedStyle(element).opacity),
+    await reviewingRings.first().evaluate((element) => getComputedStyle(element).transform),
   ).not.toBe(initialTransform)
-  await expect(page.locator('.aw-connection-indicator')).toContainText('实时连接正常')
+  await expect(page.locator('.aw-connection-indicator')).toHaveCount(0)
 })
 
 test('shows completed player ratings immediately and streams reflections through speech bubbles', async ({
@@ -157,6 +155,7 @@ test('shows completed player ratings immediately and streams reflections through
   })
 
   await page.goto(`/matches/${matchId}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.getByRole('timer')).toHaveCount(0)
   current = countdown
   sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
@@ -406,6 +405,7 @@ test('offers recovery controls and deletes a paused match', async ({
   expect(paused.seats.filter((seat) => seat.sessionStatus === 'ready')).toHaveLength(3)
 
   await page.goto(`/matches/${created.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.getByRole('button', { name: '继续对局' })).toBeVisible()
   await expect(page.locator('.aw-feed-shell')).toBeVisible()
   await expect(page.locator('.aw-pause-overlay')).toHaveCount(0)

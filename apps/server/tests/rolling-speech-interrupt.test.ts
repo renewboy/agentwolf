@@ -23,6 +23,38 @@ afterEach(async () => {
 })
 
 describe('rolling public speech interrupts', () => {
+  it('hides running daytime listeners from closed-eye and unrelated player snapshots', async () => {
+    const setup = await createRollingMatch({ explosionsRemaining: 0, speechDelayMs: 500 })
+    await waitForDaySpeechCount(setup.server, setup.matchId, 1)
+    const god = setup.server.matches.getMatch(setup.matchId, { kind: 'god' })
+    const speaker = god.activeSpeech?.playerId
+    const listeners = god.seats.filter(
+      (seat) => seat.playerId !== speaker && seat.sessionStatus === 'thinking',
+    )
+    expect(listeners.length).toBeGreaterThan(0)
+    const unrelated = god.seats.find(
+      (seat) => seat.faction === 'village' && seat.playerId !== speaker,
+    )!
+    for (const view of [
+      { kind: 'closed-eye' },
+      { kind: 'player', playerId: unrelated.playerId },
+    ] as const) {
+      const response = await setup.server.app.inject({
+        method: 'GET',
+        url: `/api/matches/${setup.matchId}?view=${view.kind}${view.kind === 'player' ? `&playerId=${view.playerId}` : ''}`,
+      })
+      expect(response.statusCode).toBe(200)
+      const observed = response.json() as typeof god
+      for (const listener of listeners) {
+        expect(observed.seats.find((seat) => seat.playerId === listener.playerId)).toMatchObject({
+          active: false,
+          sessionStatus: 'idle',
+        })
+      }
+      expect(observed.effectCues).toEqual([])
+    }
+  }, 15_000)
+
   it('keeps listener prompts disabled for a legacy Match', async () => {
     const setup = await createRollingMatch({ explosionsRemaining: 0, speechDelayMs: 5 }, 'legacy')
     await waitForDaySpeechCount(setup.server, setup.matchId, 1)

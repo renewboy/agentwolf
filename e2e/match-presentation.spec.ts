@@ -40,6 +40,7 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`/matches/${match.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const shell = page.locator('.aw-match-shell')
   await expect(shell).toHaveAttribute('data-presence-state', 'thinking')
   await expect(page.getByRole('link', { name: '切换到玩家行动轨迹' })).toHaveCount(0)
@@ -79,13 +80,11 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
     ).toContain('engraved-frame')
   }
   const ring = page
-    .locator(
-      '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-player-card__activity .aw-ink-activity__moons > path',
-    )
+    .locator('.aw-player-rail .aw-player-card[data-session="thinking"] .aw-avatar-orbit__rotor')
     .first()
-  const transformBefore = await ring.evaluate((element) => getComputedStyle(element).opacity)
+  const transformBefore = await ring.evaluate((element) => getComputedStyle(element).transform)
   await page.waitForTimeout(320)
-  const transformAfter = await ring.evaluate((element) => getComputedStyle(element).opacity)
+  const transformAfter = await ring.evaluate((element) => getComputedStyle(element).transform)
   expect(transformAfter).not.toBe(transformBefore)
 
   const desktopMetrics = await page.evaluate(() => {
@@ -143,20 +142,19 @@ test('keeps the match viewport fixed and animates a real thinking state', async 
   await expect(cards.first()).toBeHidden()
   await expect(page.locator('.aw-projection-veil')).toBeHidden()
   await expect(page.locator('.aw-player-rail .aw-player-card__role')).toHaveText(
-    Array.from({ length: 6 }, () => '身份未公开'),
+    Array.from({ length: 6 }, () => '未知'),
   )
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.reload()
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'thinking')
   const reducedRing = page
-    .locator(
-      '.aw-player-rail .aw-player-card[data-session="thinking"] .aw-player-card__status-mark',
-    )
+    .locator('.aw-player-rail .aw-player-card[data-session="thinking"] .aw-avatar-orbit__rotor')
     .first()
-  const reducedBefore = await reducedRing.evaluate((element) => getComputedStyle(element).opacity)
+  const reducedBefore = await reducedRing.evaluate((element) => getComputedStyle(element).transform)
   await page.waitForTimeout(320)
-  const reducedAfter = await reducedRing.evaluate((element) => getComputedStyle(element).opacity)
+  const reducedAfter = await reducedRing.evaluate((element) => getComputedStyle(element).transform)
   expect(reducedAfter).toBe(reducedBefore)
   await expect(page.getByText('测试玩家6正在思考')).toBeVisible()
 })
@@ -184,6 +182,7 @@ test('opens an earlier day from the header and keeps that position during live s
   })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`/matches/${match.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const firstDay = page.locator('[data-day-key="day-1"]')
   const feed = page.getByRole('log')
   await expect(firstDay).toHaveAttribute('data-open', 'false')
@@ -239,6 +238,7 @@ test('identifies the Sheriff while daytime speech order is pending', async ({
   })
 
   await page.goto(`/matches/${deciding.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.getByText('2 号警长 测试玩家2正在决定发言顺序')).toBeVisible()
 
   current = {
@@ -274,6 +274,7 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
     sendSnapshot(base)
   })
   await page.goto(`/matches/${base.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(
     page.locator('.aw-player-rail .aw-player-card[data-player-id="player-1"]').first(),
   ).toContainText('上警')
@@ -306,6 +307,7 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
 
   await page.evaluate(() => window.localStorage.setItem('agentwolf.role-effect-mode', 'reduced'))
   await page.reload()
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'thinking')
   const stage = page.locator('.aw-stage-grid')
   const before = await stage.evaluate((element) => getComputedStyle(element).transform)
@@ -330,6 +332,7 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
 
   await page.evaluate(() => window.localStorage.setItem('agentwolf.role-effect-mode', 'off'))
   await page.reload()
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'thinking')
   ;(sendSnapshot as ((match: MatchView) => void) | null)?.({
     ...base,
@@ -340,7 +343,7 @@ test('plays visible role-effect cues once and respects reduced and off modes', a
   await expect(overlay).toHaveCount(0)
 })
 
-test('shows sealed vote progress without a thinking spinner and groups ballots by seat', async ({
+test('rotates the voting avatar and groups sealed ballots by seat', async ({
   page,
   resources: _resources,
 }) => {
@@ -351,6 +354,7 @@ test('shows sealed vote progress without a thinking spinner and groups ballots b
   })
 
   await page.goto(`/matches/${match.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const shell = page.locator('.aw-match-shell')
   await expect(shell).toHaveAttribute('data-presence-state', 'awaiting-actions')
   await expect(page.getByText('等待玩家提交投票', { exact: true })).toBeVisible()
@@ -360,19 +364,11 @@ test('shows sealed vote progress without a thinking spinner and groups ballots b
   const votingPlayer = page.locator('.aw-player-rail .aw-player-card[data-player-id="player-6"]')
   await expect(votingPlayer).toContainText('投票中')
 
-  const status = votingPlayer.locator('.aw-player-card__status-mark')
-  const signal = page.locator('.aw-presence__signal')
-  const motionBefore = await Promise.all([
-    status.evaluate((element) => getComputedStyle(element).opacity),
-    signal.evaluate((element) => getComputedStyle(element).opacity),
-  ])
+  const orbit = votingPlayer.locator('.aw-avatar-orbit__rotor')
+  await expect(orbit).toHaveCSS('animation-name', 'aw-ink-orbit')
+  const before = await orbit.evaluate((element) => getComputedStyle(element).transform)
   await page.waitForTimeout(360)
-  const motionAfter = await Promise.all([
-    status.evaluate((element) => getComputedStyle(element).opacity),
-    signal.evaluate((element) => getComputedStyle(element).opacity),
-  ])
-  expect(motionAfter[0]).toBe(motionBefore[0])
-  expect(motionAfter[1]).not.toBe(motionBefore[1])
+  expect(await orbit.evaluate((element) => getComputedStyle(element).transform)).not.toBe(before)
 
   const voteResult = page.locator('.aw-vote-result')
   await expect(voteResult).toContainText('投票结算：1号、4号同为3票。')

@@ -96,9 +96,23 @@ test('reviews complete ink states, role variants and protected view changes', as
     })
   })
   await page.goto(`/matches/${current.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const player = page.locator('.aw-player-card[data-player-id="player-1"]')
   const shell = page.locator('.aw-match-shell')
   await expect(player).toHaveAttribute('data-activity', 'starting')
+  const orbit = player.locator('.aw-avatar-orbit__rotor')
+  await expect(orbit).toHaveCSS('animation-name', 'aw-ink-orbit')
+  const orbitBefore = await orbit.evaluate((element) => getComputedStyle(element).transform)
+  const frameBefore = await player.evaluate(
+    (element) => getComputedStyle(element, '::after').filter,
+  )
+  await page.waitForTimeout(350)
+  expect(await orbit.evaluate((element) => getComputedStyle(element).transform)).not.toBe(
+    orbitBefore,
+  )
+  expect(await player.evaluate((element) => getComputedStyle(element, '::after').filter)).not.toBe(
+    frameBefore,
+  )
   await expect(page.locator('.aw-player-card')).toHaveCount(12)
   const materials = await player.evaluate((element) => {
     const style = getComputedStyle(element)
@@ -118,6 +132,7 @@ test('reviews complete ink states, role variants and protected view changes', as
   }
   publish()
   await expect(player).toHaveAttribute('data-activity', 'thinking')
+  await expect(orbit).toHaveCSS('animation-name', 'aw-ink-orbit')
   await page.waitForTimeout(1200)
   current = {
     ...current,

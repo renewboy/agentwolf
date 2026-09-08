@@ -48,6 +48,7 @@ test('keeps page information unobscured on hover and preserves spectator selecti
   await expect(watch).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)')
   await expect(watch).toHaveCSS('filter', 'brightness(1.18)')
   await watch.click()
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const configuration = page.locator('.aw-player-card__agent').first()
   await expect(configuration).toContainText('mock-model')
   const view = page.getByRole('button', { name: '闭眼视角', exact: true })

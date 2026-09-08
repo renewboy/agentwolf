@@ -80,7 +80,7 @@ function AppRoutes() {
 function MatchSessionRoute() {
   const { matchId } = useParams<{ matchId: string }>()
   return (
-    <MatchSessionProvider matchId={matchId}>
+    <MatchSessionProvider key={matchId} matchId={matchId}>
       <Outlet />
     </MatchSessionProvider>
   )

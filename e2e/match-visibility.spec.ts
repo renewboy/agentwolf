@@ -6,7 +6,7 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   page,
   request,
   resources,
-}) => {
+}, testInfo) => {
   const matchResponse = await request.post('/api/matches', {
     data: {
       boardId: 'board-standard-12',
@@ -22,15 +22,24 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   expect(matchResponse.ok(), JSON.stringify(matchBody)).toBe(true)
   const match = matchBody as { id: string }
   await page.goto(`/matches/${match.id}`)
+  await expect(page.getByRole('button', { name: '闭眼视角', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.locator('.aw-player-card[data-role-art="hidden"]')).toHaveCount(12)
+  await expect(page.locator('.aw-view-switch button')).toHaveText([
+    '闭眼视角',
+    '玩家视角',
+    '上帝视角',
+  ])
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await expect(page.getByRole('heading', { name: '事件时间线' })).toBeVisible()
   const roleLabels = page.locator('.aw-player-rail .aw-player-card__role')
   await expect(roleLabels).toHaveCount(12)
   await expect(page.locator('.aw-player-rail .aw-player-card__agent')).toHaveText(
     Array.from({ length: 12 }, () => `${resources.sharedToolName} · mock-model · high`),
   )
-  expect(
-    (await roleLabels.allTextContents()).filter((value) => value !== '身份未公开'),
-  ).toHaveLength(12)
+  expect((await roleLabels.allTextContents()).filter((value) => value !== '未知')).toHaveLength(12)
   await expect(roleLabels.filter({ hasText: '女巫' })).toHaveCSS(
     'border-image-source',
     /role-witch\/tag-/u,
@@ -41,7 +50,7 @@ test('projects god, closed-eye, and player spectator views from the server', asy
   )
 
   await page.getByRole('button', { name: '闭眼视角' }).click()
-  await expect(roleLabels).toHaveText(Array.from({ length: 12 }, () => '身份未公开'))
+  await expect(roleLabels).toHaveText(Array.from({ length: 12 }, () => '未知'))
   await expect(page.locator('.aw-player-rail .aw-player-card__agent')).toHaveText(
     Array.from({ length: 12 }, () => `${resources.sharedToolName} · mock-model · high`),
   )
@@ -56,19 +65,41 @@ test('projects god, closed-eye, and player spectator views from the server', asy
       .evaluateAll((cards) => cards.map((card) => card.getAttribute('data-role-art'))),
   ).toEqual(Array.from({ length: 12 }, () => 'hidden'))
 
-  await page.getByRole('button', { name: '玩家视角' }).click()
-  await expect(page.getByLabel('选择玩家视角')).toBeVisible()
+  await page.getByRole('combobox', { name: '玩家视角' }).click()
+  await expect(page.getByRole('combobox', { name: '玩家视角' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: '玩家视角' })).toHaveAttribute('data-value', '')
+  await expect(roleLabels).toHaveText(Array.from({ length: 12 }, () => '未知'))
+  const menu = page.getByRole('listbox', { name: '玩家视角' })
+  const trigger = page.getByRole('combobox', { name: '玩家视角' })
+  await expect(menu).toBeVisible()
+  await expect(page.locator('.aw-match-controls [role="combobox"]')).toHaveCount(1)
+  await expect(page.locator('.aw-match-controls [data-icon="wifi"]')).toHaveCount(0)
+  const menuBounds = await menu.boundingBox()
+  const triggerBounds = await trigger.boundingBox()
+  expect(menuBounds!.y).toBeGreaterThanOrEqual(triggerBounds!.y + triggerBounds!.height)
+  await expect(menu).toHaveCSS('opacity', '1')
+  await page.screenshot({ path: testInfo.outputPath('player-view-menu.png') })
+  await page.getByRole('option').first().click()
   await expect
     .poll(
-      async () =>
-        (await roleLabels.allTextContents()).filter((value) => value !== '身份未公开').length,
+      async () => (await roleLabels.allTextContents()).filter((value) => value !== '未知').length,
     )
     .toBeGreaterThanOrEqual(1)
-  const visibleRoles = (await roleLabels.allTextContents()).filter(
-    (value) => value !== '身份未公开',
-  )
+  const visibleRoles = (await roleLabels.allTextContents()).filter((value) => value !== '未知')
   expect(visibleRoles.length).toBeGreaterThanOrEqual(1)
   expect(visibleRoles.length).toBeLessThanOrEqual(4)
+  await expect(trigger).toHaveClass(/aw-choice--selected/)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await trigger.click()
+  await expect(menu).toBeVisible()
+  await expect(trigger.locator('span[data-placeholder]')).toBeHidden()
+  const mobileBounds = await menu.boundingBox()
+  expect(mobileBounds!.x).toBeGreaterThanOrEqual(0)
+  expect(mobileBounds!.x + mobileBounds!.width).toBeLessThanOrEqual(390)
+  await expect(menu).toHaveCSS('opacity', '1')
+  await page.screenshot({ path: testInfo.outputPath('player-view-menu-mobile.png') })
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
 })
 
 test('renders a private night phase through its generic projection', async ({
@@ -146,6 +177,7 @@ test('shows Cupid relationship markers only in authorized spectator views', asyn
   })
 
   await page.goto(`/matches/${base.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const desktopMarkers = page.locator(
     '.aw-player-rail .aw-player-marker[data-marker-id="cupid-lover"]',
   )
@@ -155,9 +187,11 @@ test('shows Cupid relationship markers only in authorized spectator views', asyn
 
   await page.getByRole('button', { name: '闭眼视角' }).click()
   await expect(desktopMarkers).toHaveCount(0)
-  await page.getByRole('button', { name: '玩家视角' }).click()
+  await page.getByRole('combobox', { name: '玩家视角' }).click()
+  const playerSelect = page.getByRole('combobox', { name: '玩家视角' })
+  await expect(desktopMarkers).toHaveCount(0)
+  await page.getByRole('option', { name: '1 号玩家 测试玩家1', exact: true }).click()
   await expect(desktopMarkers).toHaveCount(2)
-  const playerSelect = page.getByRole('combobox', { name: '选择玩家视角' })
   await playerSelect.click()
   await page.getByRole('option', { name: '3 号玩家 测试玩家3', exact: true }).click()
   await expect(desktopMarkers).toHaveCount(0)
@@ -244,6 +278,7 @@ test('shows private wolf ballots in god and Werewolf player views only', async (
   })
 
   await page.goto(`/matches/${base.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const privateVote = page.getByText(/狼人投票平票/)
   await expect(privateVote).toBeVisible()
   await expect(page.locator('.aw-vote-result__detail > span')).toHaveText([
@@ -254,9 +289,11 @@ test('shows private wolf ballots in god and Werewolf player views only', async (
 
   await page.getByRole('button', { name: '闭眼视角' }).click()
   await expect(privateVote).toBeHidden()
-  await page.getByRole('button', { name: '玩家视角' }).click()
+  await page.getByRole('combobox', { name: '玩家视角' }).click()
+  const playerSelect = page.getByRole('combobox', { name: '玩家视角' })
+  await expect(privateVote).toBeHidden()
+  await page.getByRole('option', { name: '1 号玩家 测试玩家1', exact: true }).click()
   await expect(privateVote).toBeVisible()
-  const playerSelect = page.getByRole('combobox', { name: '选择玩家视角' })
   await playerSelect.click()
   await page.getByRole('option', { name: '4 号玩家 测试玩家4', exact: true }).click()
   await expect(privateVote).toBeHidden()

@@ -1,5 +1,6 @@
 import { GameIcon } from '../GameIcon.js'
 import { useMemo } from 'react'
+import { Select } from '@agent-arena/react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import {
   PlayerIdSchema,
@@ -8,9 +9,27 @@ import {
   type SpectatorView,
 } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
-import { GameSelect } from '../GameSelect.js'
 import { MatchRouteHeader } from './MatchRouteHeader.js'
 import { matchTimelineDays } from '../../match-timeline.js'
+
+const playerMenuClasses = {
+  root: 'aw-view-player-menu',
+  trigger: 'aw-segmented__item aw-choice aw-view-player-menu__trigger',
+  layer: 'aw-game-select-layer',
+  listbox: 'aw-game-select__listbox',
+  option: 'aw-game-select__option aw-choice',
+  empty: 'aw-game-select__empty',
+}
+const selectedPlayerMenuClasses = {
+  ...playerMenuClasses,
+  trigger: `${playerMenuClasses.trigger} aw-choice--selected`,
+}
+const playerMenuPosition = {
+  left: '--aw-select-left',
+  top: '--aw-select-top',
+  width: '--aw-select-width',
+  maxHeight: '--aw-select-max-height',
+}
 
 export function MatchHeader({
   match,
@@ -33,7 +52,7 @@ export function MatchHeader({
   readonly onSelectDay?: ((day: number) => void) | undefined
   readonly viewKind: SpectatorView['kind']
   readonly setViewKind: (view: SpectatorView['kind']) => void
-  readonly playerId: PlayerId
+  readonly playerId: PlayerId | null
   readonly setPlayerId: (playerId: PlayerId) => void
   readonly connectionState: LiveConnectionState
   readonly audioEnabled: boolean
@@ -83,38 +102,37 @@ export function MatchHeader({
           aria-label={getCopy('match.viewSelector')}
         >
           <ViewButton
-            active={viewKind === 'god'}
-            icon={<GameIcon name="eye" />}
-            label={getCopy('views.god')}
-            onClick={() => setViewKind('god')}
-          />
-          <ViewButton
             active={viewKind === 'closed-eye'}
             icon={<GameIcon name="eye-closed" />}
             label={getCopy('views.closedEye')}
             onClick={() => setViewKind('closed-eye')}
           />
+          <Select
+            ariaLabel={getCopy('views.player')}
+            value={viewKind === 'player' ? (playerId ?? '') : ''}
+            options={playerOptions}
+            classNames={viewKind === 'player' ? selectedPlayerMenuClasses : playerMenuClasses}
+            positionVariables={playerMenuPosition}
+            selectedIndicator={<GameIcon name="check" size={17} />}
+            triggerIndicator={
+              <>
+                <GameIcon name="pawn" />
+                <span>{getCopy('views.player')}</span>
+              </>
+            }
+            onChange={(nextPlayerId) => {
+              setPlayerId(PlayerIdSchema.parse(nextPlayerId))
+              setViewKind('player')
+            }}
+          />
           <ViewButton
-            active={viewKind === 'player'}
-            icon={<GameIcon name="pawn" />}
-            label={getCopy('views.player')}
-            onClick={() => setViewKind('player')}
+            active={viewKind === 'god'}
+            icon={<GameIcon name="eye" />}
+            label={getCopy('views.god')}
+            onClick={() => setViewKind('god')}
           />
         </div>
 
-        {viewKind === 'player' ? (
-          <div className="aw-view-player-select">
-            <GameSelect
-              density="compact"
-              ariaLabel={getCopy('match.selectPlayer')}
-              value={playerId}
-              options={playerOptions}
-              onChange={(nextPlayerId) => setPlayerId(PlayerIdSchema.parse(nextPlayerId))}
-            />
-          </div>
-        ) : null}
-
-        <ConnectionIndicator state={connectionState} />
         <button
           className="aw-button aw-button--compact aw-button--square aw-audio-toggle"
           aria-label={audioLabel}
@@ -128,34 +146,6 @@ export function MatchHeader({
         </button>
       </div>
     </MatchRouteHeader>
-  )
-}
-
-function ConnectionIndicator({ state }: { readonly state: LiveConnectionState }) {
-  if (state === 'settled') return null
-  const label = getCopy(
-    state === 'live'
-      ? 'match.connectionLive'
-      : state === 'unavailable'
-        ? 'match.connectionUnavailable'
-        : state === 'reconnecting'
-          ? 'match.connectionReconnecting'
-          : 'match.connectionConnecting',
-  )
-  return (
-    <div className="aw-connection-indicator" data-state={state} aria-label={label} role="status">
-      {state === 'live' ? (
-        <GameIcon name="wifi" size={17} />
-      ) : (
-        <GameIcon name="warning" size={17} />
-      )}
-      <span>{label}</span>
-      <span className="aw-connection-indicator__bars" aria-hidden>
-        <i />
-        <i />
-        <i />
-      </span>
-    </div>
   )
 }
 

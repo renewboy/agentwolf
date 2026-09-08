@@ -305,7 +305,7 @@ describe('MatchPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'player view' }))
     await userEvent.click(screen.getByRole('button', { name: 'player two' }))
     await userEvent.click(screen.getByRole('button', { name: 'toggle audio' }))
-    expect(screen.getByTestId('effects')).toHaveTextContent('off:god')
+    expect(screen.getByTestId('effects')).toHaveTextContent('off:match-test-abcdef:god')
     expect(session.toggleVoice).toHaveBeenCalled()
     rerender(
       <MemoryRouter initialEntries={['/matches/match-test-abcdef']}>

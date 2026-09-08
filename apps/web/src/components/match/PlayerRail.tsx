@@ -6,6 +6,7 @@ import { characterPortraitUrl } from '../../character-portraits.js'
 import { formatAgentConfiguration } from '../../agent-configuration.js'
 import { roleArtwork } from '../../role-art.js'
 import { InkActivity, type InkActivityState } from './InkActivity.js'
+import { AvatarActivity } from './AvatarActivity.js'
 
 export function PlayerRail({
   seats,
@@ -130,7 +131,7 @@ function PlayerCard({
           )}
         </span>
         <img className="aw-player-avatar__frame" src={artwork.avatar} alt="" />
-        <InkActivity className="aw-player-avatar__activity" state={activity} />
+        <AvatarActivity state={activity} />
         <span className="aw-player-card__role" data-role-id={seat.roleId ?? 'hidden'}>
           {seat.roleName ?? getCopy('match.roleHidden')}
         </span>

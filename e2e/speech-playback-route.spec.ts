@@ -49,6 +49,7 @@ test('keeps one voice session while switching between a Match and its trajectory
   })
 
   await page.goto(`/matches/${initial.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   await page.getByRole('button', { name: '语音播报已关闭' }).click()
   sendLive({
     type: 'speech-chunk',

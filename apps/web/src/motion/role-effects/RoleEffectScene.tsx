@@ -117,6 +117,12 @@ export function RoleEffectScene({
       const dust = targets.flatMap((target) => [
         ...target.querySelectorAll('.aw-role-effect-particle'),
       ])
+      const grounds = targets.flatMap((target) => [
+        ...target.querySelectorAll('.aw-role-effect-ground'),
+      ])
+      const halos = targets.flatMap((target) => [
+        ...target.querySelectorAll('.aw-role-effect-halo'),
+      ])
       const timeline = gsap.timeline({ onComplete: finish })
       const visibleTargets = [...targets, ...(caption.current ? [caption.current] : [])]
       timeline.fromTo(
@@ -127,17 +133,31 @@ export function RoleEffectScene({
       )
       if (mode === 'full' && elapsed < 0.4) {
         timeline.fromTo(
+          grounds,
+          { opacity: 0, scale: 0.7 },
+          { opacity: 1, scale: 1, duration: 0.65, ease: 'sine.out' },
+          0,
+        )
+        timeline.fromTo(
+          halos,
+          { rotate: -24, opacity: 0, transformOrigin: '50% 50%' },
+          { rotate: 0, opacity: 1, duration: 0.85, ease: 'power2.out' },
+          0.06,
+        )
+        timeline.fromTo(
           glyphs,
-          { scale: 0.88, rotate: -5, transformOrigin: '50% 50%' },
-          { scale: 1, rotate: 0, duration: 0.45, ease: 'power2.out' },
-          0.05,
+          { scale: 1.12, rotate: -3, opacity: 0, transformOrigin: '50% 50%' },
+          { scale: 1, rotate: 0, opacity: 1, duration: 0.6, ease: 'power3.out' },
+          0.22,
         )
         if (definition.family === 'claw') {
           timeline.fromTo(
-            glyphs,
+            targets.flatMap((target) => [
+              ...target.querySelectorAll('.aw-role-effect-claws > path'),
+            ]),
             { clipPath: 'inset(0 0 100% 0)' },
-            { clipPath: 'inset(0 0 0% 0)', duration: 0.55, ease: 'power2.in' },
-            0.12,
+            { clipPath: 'inset(0 0 0% 0)', duration: 0.32, stagger: 0.09, ease: 'power2.in' },
+            0.24,
           )
         }
         if (definition.family === 'medicine') {
@@ -241,15 +261,20 @@ export function RoleEffectScene({
           dust,
           { opacity: 0, scale: 0.4, x: 0, y: 0 },
           {
-            opacity: 0.8,
-            scale: 1,
-            x: (index) => seededOffset(cue.cueId, index, 78),
-            y: (index) => seededOffset(cue.cueId, index + 13, 74),
-            duration: 0.8,
-            stagger: 0.012,
+            opacity: 0.65,
+            scale: 0.8,
+            x: (index) => seededOffset(cue.cueId, index, 66),
+            y: (index) => seededOffset(cue.cueId, index + 13, 62),
+            duration: 1.15,
+            stagger: 0.025,
             ease: 'power2.out',
           },
-          0.25,
+          0.4,
+        )
+        timeline.to(
+          dust,
+          { opacity: 0, duration: 0.7, stagger: 0.015, ease: 'sine.in' },
+          Math.max(1.2, duration - 1),
         )
         const traveler = scene.current?.querySelector('.aw-role-effect-traveler')
         const path = scene.current?.querySelector<SVGPathElement>('.aw-role-effect-link__path')
@@ -321,6 +346,7 @@ export function RoleEffectScene({
               else stamps.current.delete(anchor.playerId)
             }}
           >
+            <span className="aw-role-effect-ground" />
             <InkEffectGlyph family={definition.family} />
           </div>,
           anchor.avatar,

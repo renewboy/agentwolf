@@ -2,8 +2,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import * as acpRuntime from '@agent-arena/acp-runtime'
 import { AgentToolIdSchema, AgentToolSchema } from '@agentwolf/contracts'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   AcpPlayerSession,
   canonicalPlayerWorkspace,
@@ -168,28 +169,13 @@ describe('PlayerProviderRegistry', () => {
   })
 
   it('requires protocol deletion unless the Provider owns its complete Session state', async () => {
-    const workspace = await mkdtemp(resolve(tmpdir(), 'agentwolf-provider-delete-policy-'))
-    const fixture = fileURLToPath(new URL('./fixtures/mock-agent.mjs', import.meta.url))
-    const unsupportedTool = AgentToolSchema.parse({
-      ...customTool,
-      id: 'tool-protocol-delete-unsupported',
-      command: process.execPath,
-      args: [fixture],
-      environment: {
-        AGENTWOLF_MOCK_DISABLE_DELETE: {
-          source: 'literal',
-          value: 'true',
-          secret: false,
-        },
-      },
-    })
+    const workspace = resolve(tmpdir(), 'agentwolf-provider-delete-policy')
     const unsupported = {
       ...adapter(
         'protocol-delete-unsupported',
-        { type: 'tool', toolId: unsupportedTool.id },
+        { type: 'tool', toolId: customTool.id },
         'unsupported',
       ),
-      launch: (context: Parameters<PlayerProviderAdapter['launch']>[0]) => context.launch,
     } satisfies PlayerProviderAdapter
     let cleanupCount = 0
     const ownedState = {
@@ -208,52 +194,38 @@ describe('PlayerProviderRegistry', () => {
       id: 'protocol-delete-owned-state',
       state: ownedState,
     } satisfies PlayerProviderAdapter
-    try {
-      await expect(
-        deletePlayerProviderSession({
-          tool: unsupportedTool,
-          workspace,
-          sessionId: 'session-unsupported',
-          registry: new PlayerProviderRegistry([unsupported]),
-        }),
-      ).rejects.toThrow(/does not support session\/delete/)
-      await expect(
-        deletePlayerProviderSession({
-          tool: unsupportedTool,
-          workspace,
-          sessionId: 'session-owned',
-          registry: new PlayerProviderRegistry([owned]),
-        }),
-      ).resolves.toBe('owned-state-deleted')
+    const deleteSession = vi
+      .spyOn(acpRuntime, 'deleteAcpSession')
+      .mockResolvedValueOnce('unsupported')
+      .mockResolvedValueOnce('unsupported')
+      .mockRejectedValueOnce(new Error('protocol failure'))
 
-      const mismatchedTool = AgentToolSchema.parse({
-        ...unsupportedTool,
-        id: 'tool-protocol-delete-failure',
-        environment: {
-          AGENTWOLF_MOCK_PROTOCOL_MISMATCH: {
-            source: 'literal',
-            value: 'true',
-            secret: false,
-          },
-        },
-      })
-      const mismatched = {
-        ...owned,
-        id: 'protocol-delete-failure',
-        selector: { type: 'tool', toolId: mismatchedTool.id } as const,
-      } satisfies PlayerProviderAdapter
-      await expect(
-        deletePlayerProviderSession({
-          tool: mismatchedTool,
-          workspace,
-          sessionId: 'session-failure',
-          registry: new PlayerProviderRegistry([mismatched]),
-        }),
-      ).resolves.toBe('owned-state-deleted')
-      expect(cleanupCount).toBe(2)
-    } finally {
-      await rm(workspace, { recursive: true, force: true })
-    }
+    await expect(
+      deletePlayerProviderSession({
+        tool: customTool,
+        workspace,
+        sessionId: 'session-unsupported',
+        registry: new PlayerProviderRegistry([unsupported]),
+      }),
+    ).rejects.toThrow(/does not support session\/delete/)
+    await expect(
+      deletePlayerProviderSession({
+        tool: customTool,
+        workspace,
+        sessionId: 'session-owned',
+        registry: new PlayerProviderRegistry([owned]),
+      }),
+    ).resolves.toBe('owned-state-deleted')
+    await expect(
+      deletePlayerProviderSession({
+        tool: customTool,
+        workspace,
+        sessionId: 'session-failure',
+        registry: new PlayerProviderRegistry([owned]),
+      }),
+    ).resolves.toBe('owned-state-deleted')
+    expect(deleteSession).toHaveBeenCalledTimes(3)
+    expect(cleanupCount).toBe(2)
   })
 
   it('batches host-store deletion for Sessions sharing one Provider state policy', async () => {

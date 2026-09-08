@@ -27,6 +27,7 @@ test('keeps the speech feed reading position during streamed generation', async 
   })
 
   await page.goto(`/matches/${match.id}`)
+  await page.getByRole('button', { name: '上帝视角', exact: true }).click()
   const feed = page.locator('.aw-feed-scroll')
   await expect
     .poll(() =>

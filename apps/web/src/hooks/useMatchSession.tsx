@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { PlayerIdSchema, type PlayerId, type SpectatorView } from '@agentwolf/contracts'
+import { type PlayerId, type SpectatorView } from '@agentwolf/contracts'
 import { useLiveMatch } from './useLiveMatch.js'
 import { useSpeechPlayback, type SpeechPlaybackController } from './useSpeechPlayback.js'
 import { useVoicePreference } from './useVoicePreference.js'
@@ -17,7 +17,7 @@ type LiveMatchSession = ReturnType<typeof useLiveMatch>
 
 export interface MatchSessionContextValue extends LiveMatchSession {
   readonly viewKind: SpectatorView['kind']
-  readonly playerId: PlayerId
+  readonly playerId: PlayerId | null
   readonly projectionKey: string
   readonly speechPlayback: SpeechPlaybackController
   readonly voiceEnabled: boolean
@@ -35,11 +35,16 @@ export function MatchSessionProvider({
   readonly matchId: string | undefined
   readonly children: ReactNode
 }) {
-  const [viewKind, setViewKind] = useState<SpectatorView['kind']>('god')
-  const [playerId, setPlayerId] = useState<PlayerId>(PlayerIdSchema.parse('player-1'))
+  const [viewKind, setViewKind] = useState<SpectatorView['kind']>('closed-eye')
+  const [playerId, setPlayerId] = useState<PlayerId | null>(null)
   const [voiceEnabled, setVoiceEnabled] = useVoicePreference()
   const view = useMemo<SpectatorView>(
-    () => (viewKind === 'player' ? { kind: 'player', playerId } : { kind: viewKind }),
+    () =>
+      viewKind === 'player'
+        ? playerId
+          ? { kind: 'player', playerId }
+          : { kind: 'closed-eye' }
+        : { kind: viewKind },
     [playerId, viewKind],
   )
   const live = useLiveMatch(matchId, view)

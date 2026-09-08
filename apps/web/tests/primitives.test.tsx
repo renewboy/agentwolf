@@ -89,8 +89,8 @@ describe('small presentation primitives', () => {
     rerender(<RoleBadge className="custom" label="女巫" roleId={'role-witch' as never} />)
     expect(screen.getByText('女巫')).toHaveClass('aw-role-badge', 'custom')
     expect(screen.getByText('女巫')).toHaveAttribute('data-role-id', 'role-witch')
-    rerender(<RoleBadge label="身份未公开" />)
-    expect(screen.getByText('身份未公开')).toHaveAttribute('data-role-id', 'hidden')
+    rerender(<RoleBadge label="未知" />)
+    expect(screen.getByText('未知')).toHaveAttribute('data-role-id', 'hidden')
 
     rerender(<StatusBadge status="paused" />)
     expect(screen.getByText('对局暂停')).toHaveClass('aw-status--paused')

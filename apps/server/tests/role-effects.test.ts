@@ -21,8 +21,8 @@ describe('role effect catalog', () => {
       }
     }
     for (const definition of definitions) {
-      expect(definition.durationMs).toBeGreaterThanOrEqual(320)
-      expect(definition.durationMs).toBeLessThanOrEqual(760)
+      expect(definition.durationMs).toBeGreaterThanOrEqual(2500)
+      expect(definition.durationMs).toBeLessThanOrEqual(3000)
     }
     expect(roleEffectCatalog['sheriff-elected']).toMatchObject({ roleId: null, tier: 'large' })
     expect(roleEffectCatalog['sheriff-transferred']).toMatchObject({ roleId: null, tier: 'large' })

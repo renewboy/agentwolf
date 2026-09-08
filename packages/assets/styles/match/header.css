@@ -92,31 +92,11 @@
   flex: none;
 }
 
-.aw-view-player-select {
-  width: 155px;
-}
-
-.aw-connection-indicator {
+/* The segmented player control retains its label while the menu marks the selected seat. */
+.aw-view-player-menu {
   display: flex;
-  flex: none;
-  align-items: center;
-  gap: 5px;
-  color: var(--aw-color-text-muted);
 }
-
-.aw-connection-indicator > span:not(.aw-connection-indicator__bars) {
-  display: none;
-}
-
-.aw-connection-indicator[data-state='live'] {
-  color: var(--aw-color-success);
-}
-
-.aw-connection-indicator[data-state='reconnecting'] {
-  color: var(--aw-color-warning);
-}
-
-.aw-connection-indicator__bars {
+.aw-view-switch .aw-view-player-menu__trigger > span[data-placeholder] {
   display: none;
 }
 
@@ -136,9 +116,6 @@
   }
   .aw-match-controls {
     gap: 6px;
-  }
-  .aw-match-controls:has(.aw-view-player-select) .aw-view-switch .aw-segmented__item span {
-    display: none;
   }
 }
 
@@ -210,12 +187,6 @@
   }
   .aw-view-switch .aw-segmented__item span {
     display: inline;
-  }
-  .aw-view-player-select {
-    width: 114px;
-  }
-  .aw-match-controls:has(.aw-view-player-select) .aw-view-switch .aw-segmented__item span {
-    display: none;
   }
 }
 

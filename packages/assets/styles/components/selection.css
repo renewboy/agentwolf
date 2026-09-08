@@ -26,6 +26,7 @@
     [data-active='true'],
     [data-selected='true'],
     [aria-selected='true'],
+    .aw-choice--selected,
     [aria-pressed='true'],
     [aria-current='page']
   ):where(:not(:disabled, [data-disabled='true'], .aw-choice--count)) {
@@ -43,6 +44,7 @@
     [data-active='true'],
     [data-selected='true'],
     [aria-selected='true'],
+    .aw-choice--selected,
     [aria-pressed='true'],
     [aria-current='page']
   ):where(:not(:disabled, [data-disabled='true'], .aw-choice--count))
@@ -52,6 +54,7 @@
 .aw-choice:is(
     [data-selected='true'],
     [aria-selected='true'],
+    .aw-choice--selected,
     [aria-pressed='true'],
     [aria-current='page']
   ):where(:not(:disabled, [data-disabled='true'], .aw-choice--count))::before {

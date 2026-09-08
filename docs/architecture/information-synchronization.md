@@ -105,9 +105,10 @@ Role。转换为共享阵营成员会追加新的 `faction.members`,使当前有
 `PhaseNode.presentation` 可以是 public、actors 或 god。无权看到精确 phase 的 view 收到节点声明的
 `hiddenPhaseId/hiddenLabelKey`，因此私密 actor 顺序和行为类型不会从页面标题泄露。
 
-Session status 只向 god、该玩家本人或当前公开发言者暴露；其他 Seat 显示 idle。赛后完成/跳过后，
-所有 Seat 统一显示 closed。projector 先过滤事件，再从过滤结果生成 timeline 和 Role effect cues，
-所以私密事件无法通过动画、关联 Player ID 或文案侧漏。
+内部 Session status 只向 god 和该玩家本人暴露。其他观看者仅从可见的未完成发言取得该发言者的
+统一工作状态，其余 Seat 显示 idle；后台旁听、同步、完成和失败不会改变外部席位活动。阶段结束
+或后续私密发言会清除未完成的旧发言标记。赛后完成/跳过后，所有 Seat 统一显示 closed。
+projector 从过滤后的事件生成 timeline 和 Role effect cues，私密事件的主体、目标和结果遵循同一受众。
 
 ## MatchView 投影
 
