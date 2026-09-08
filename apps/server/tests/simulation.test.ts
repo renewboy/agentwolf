@@ -46,6 +46,11 @@ import { MatchTrajectoryRecorder } from '../src/trajectory.js'
 import { ActionMailbox } from '../src/action-mailbox.js'
 import { createSimulationSessionFactory } from '../src/simulation-session-replay.js'
 
+vi.mock('@agentwolf/assets/player-skills', async () => {
+  const { linkPlayerSkills } = await import('./fixtures/linked-player-skills.js')
+  return { ensurePlayerSkills: linkPlayerSkills }
+})
+
 const roots: string[] = []
 const repositories: SqliteRepository[] = []
 

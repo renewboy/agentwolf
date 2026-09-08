@@ -20,6 +20,7 @@ const phases: Readonly<Record<string, readonly (readonly RepositoryGate[])[]>> =
   all: [
     ...staticPhases,
     [{ label: 'tests', command: 'pnpm', args: ['test:coverage:raw'] }],
+    [{ label: 'simulation', command: 'pnpm', args: ['test:simulation'] }],
     [{ label: 'build', command: 'pnpm', args: ['build'] }],
   ],
 }

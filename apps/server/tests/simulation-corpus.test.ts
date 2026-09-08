@@ -2,10 +2,15 @@ import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { SimulationFixtureSchema } from '@agentwolf/contracts'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { scanSimulationSecrets } from '../src/simulation-canonical.js'
 import { runOrchestrationSimulation } from '../src/simulation-orchestration.js'
 import { runEngineSimulation } from '../src/simulation-runner.js'
+
+vi.mock('@agentwolf/assets/player-skills', async () => {
+  const { linkPlayerSkills } = await import('./fixtures/linked-player-skills.js')
+  return { ensurePlayerSkills: linkPlayerSkills }
+})
 
 const corpus = resolve('apps/server/tests/fixtures/simulations')
 const projectRoot = resolve(import.meta.dirname, '../../..')

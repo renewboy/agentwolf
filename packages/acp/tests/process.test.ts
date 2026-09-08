@@ -39,6 +39,26 @@ describe.skipIf(process.platform === 'win32')('ACP process guardian', () => {
     await expectProcessesGone([info.agentPid, info.childPid])
   }, 10_000)
 
+  it('closes a cooperative ACP process without waiting for the watchdog', async () => {
+    const root = await mkdtemp(resolve(tmpdir(), 'agentwolf-process-cooperative-'))
+    roots.push(root)
+    const agent = new AgentProcess({
+      cwd: root,
+      launch: {
+        command: process.execPath,
+        args: ['-e', 'setInterval(() => undefined, 1_000)'],
+        env: { ...process.env },
+      },
+    })
+    if (agent.child.pid) ownedPids.add(agent.child.pid)
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 100))
+
+    const startedAt = Date.now()
+    await agent.close()
+
+    expect(Date.now() - startedAt).toBeLessThan(1_000)
+  })
+
   it('terminates the guarded tree when the AgentWolf parent is killed', async () => {
     const { root, infoPath, readyPath } = await processTreePaths()
     const parent = spawn(process.execPath, [treeParent, guardian, treeAgent, infoPath, readyPath], {

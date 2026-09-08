@@ -147,7 +147,7 @@ describe('match orchestration', () => {
     expect(terminal.seats.find((seat) => seat.playerId === 'player-12')?.markers).toContain(
       'thief-origin',
     )
-    const archive = await waitForArchive(server, created.id)
+    const archive = await skipPostgameReviewAndReadArchive(server, created.id)
     expect(archive).toMatchObject({
       sourceRuleset: { familyId: 'classic', revision: 9 },
       trajectoryAudit: { ok: true, issues: [] },
@@ -283,7 +283,7 @@ describe('match orchestration', () => {
     expect(loversRevealed!.sequence).toBeGreaterThan(
       events.findLast((event) => event.payload.type === 'role.revealed')!.sequence,
     )
-    const archive = await waitForArchive(server, created.id)
+    const archive = await skipPostgameReviewAndReadArchive(server, created.id)
     expect(archive).toMatchObject({
       sourceRuleset: { familyId: 'classic', revision: 9 },
       trajectoryAudit: { ok: true, issues: [] },
@@ -1818,13 +1818,11 @@ async function waitForMatch(server: AgentWolfServer, matchId: MatchId): Promise<
   throw new Error('Match did not reach a terminal state')
 }
 
-async function waitForArchive(server: AgentWolfServer, matchId: MatchId) {
-  for (let attempt = 0; attempt < 1_000; attempt += 1) {
-    const archive = server.repository.getMatchArchive(matchId)
-    if (archive) return archive
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
-  }
-  throw new Error('Match did not produce a read-only archive')
+async function skipPostgameReviewAndReadArchive(server: AgentWolfServer, matchId: MatchId) {
+  await server.matches.skipPostgameReview(matchId)
+  const archive = server.repository.getMatchArchive(matchId)
+  if (!archive) throw new Error('Skipping postgame review did not produce a read-only archive')
+  return archive
 }
 
 async function waitForPlaybackSequence(messages: readonly LiveMessage[]): Promise<number> {
