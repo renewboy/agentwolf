@@ -933,7 +933,6 @@
     "waiting": "正在等待语音模型准备",
     "downloading": "正在下载角色语音模型",
     "verifying": "正在校验角色语音模型",
-    "loading": "下载已完成，正在加载角色音色",
     "ready": "角色语音已就绪",
     "error": "角色语音准备失败",
     "disconnected": "语音服务连接中断",
@@ -954,7 +953,6 @@
       "waiting": "语音准备中",
       "downloading": "语音下载中",
       "verifying": "语音校验中",
-      "loading": "语音加载中",
       "ready": "语音已就绪",
       "error": "语音准备失败",
       "disconnected": "语音服务断开"

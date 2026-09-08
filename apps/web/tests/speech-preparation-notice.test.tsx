@@ -25,7 +25,7 @@ it('shows real download progress, completion, disconnection and recovery without
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1000)
   })
-  expect(screen.getByText('下载已完成，正在加载角色音色')).toBeVisible()
+  expect(screen.queryByRole('complementary')).toBeNull()
   status.mockResolvedValue({ ...base, state: 'ready' })
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1000)
@@ -69,6 +69,16 @@ it('shows preparation failures and dependency installation without an invented p
     await vi.advanceTimersByTimeAsync(1000)
   })
   expect(screen.getByText('角色语音准备失败')).toBeVisible()
+  status.mockResolvedValue({ ...base, state: 'loading' })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000)
+  })
+  expect(screen.queryByRole('complementary')).toBeNull()
+  status.mockResolvedValue({ ...base, state: 'ready' })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000)
+  })
+  expect(screen.queryByRole('complementary')).toBeNull()
 })
 
 it('keeps progress and completion visible when minimized and restores the saved layout', async () => {

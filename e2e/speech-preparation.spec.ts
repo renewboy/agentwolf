@@ -62,7 +62,7 @@ test('supports touch dragging without scrolling the page', async ({ browser }) =
     await page.route('**/api/speech-audio/status', (route) =>
       route.fulfill({
         json: {
-          state: 'loading',
+          state: 'preparing',
           model: 'qwen3-tts-0.6b',
           voices: 12,
           message: null,
@@ -117,7 +117,7 @@ test('announces preparation progress and completion across page navigation', asy
   await page.goto('/settings')
   await expect(notice).toContainText('50%')
   state = 'loading'
-  await expect(notice).toContainText('下载已完成，正在加载角色音色')
+  await expect(notice).toBeHidden()
   state = 'ready'
   await expect(notice).toContainText('角色语音已就绪')
   const readyStatus = page.waitForResponse('**/api/speech-audio/status')

@@ -9,16 +9,12 @@ export function SpeechPreparationNotice() {
   const [dismissed, setDismissed] = useState(false)
   const [announceReady, setAnnounceReady] = useState(false)
   useEffect(() => {
-    setDismissed(false)
-    if (status?.state === 'preparing' || status?.state === 'loading') setAnnounceReady(true)
-  }, [status?.state, disconnected])
+    if (status?.progress?.stage === 'downloading') {
+      setDismissed(false)
+      setAnnounceReady(true)
+    }
+  }, [status?.progress?.stage])
   const ready = status?.state === 'ready' && !disconnected
-  const visible =
-    Boolean(status || disconnected) &&
-    !(ready && (dismissed || !announceReady)) &&
-    !(status?.state === 'disabled' && !disconnected)
-  const { panel: panelRef, minimized, dragging, toggle, handle } = useSpeechNoticeLayout(visible)
-  if (!visible) return null
   const progress = status?.progress
   const stage = disconnected
     ? 'disconnected'
@@ -26,9 +22,15 @@ export function SpeechPreparationNotice() {
       ? 'error'
       : ready
         ? 'ready'
-        : status?.state === 'loading'
-          ? 'loading'
-          : (progress?.stage ?? 'dependencies')
+        : (progress?.stage ?? 'dependencies')
+  const visible =
+    Boolean(status || disconnected) &&
+    !(ready && (dismissed || !announceReady)) &&
+    !(status?.state === 'loading' && !disconnected) &&
+    stage !== 'loading' &&
+    !(status?.state === 'disabled' && !disconnected)
+  const { panel: panelRef, minimized, dragging, toggle, handle } = useSpeechNoticeLayout(visible)
+  if (!visible) return null
   const title = getCopy(
     minimized ? `speechPreparation.compact.${stage}` : `speechPreparation.${stage}`,
   )
