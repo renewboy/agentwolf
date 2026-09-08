@@ -87,6 +87,7 @@ export function MatchHeader({
     !audioSupported ||
     audioBusyElsewhere ||
     connectionState !== 'live' ||
+    match.status === 'paused' ||
     (match.status === 'ended' &&
       (!match.postgameReview || ['completed', 'skipped'].includes(match.postgameReview.state)))
   return (

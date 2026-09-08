@@ -896,7 +896,7 @@
     "arrangeSeats": "安排玩家",
     "begin": "入席开局",
     "pauseHint": "记录已保留，准备好后可以继续。",
-    "pauseDetails": "暂停详情与管理",
+    "pauseDetails": "暂停详情",
     "actionFailed": "操作未完成，请重试或查看详情。",
     "errorDetails": "查看详情",
     "matchOverview": "本局概况",

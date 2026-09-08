@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -25,7 +25,6 @@ const session = vi.hoisted(() => ({
 const presence = vi.hoisted(() => ({ current: 'awaiting-actions' }))
 const apiMocks = vi.hoisted(() => ({
   resumeMatch: vi.fn(),
-  deleteMatch: vi.fn(),
   startPostgameReview: vi.fn(),
   skipPostgameReview: vi.fn(),
   resumePostgameReview: vi.fn(),
@@ -297,7 +296,7 @@ describe('MatchPage', () => {
     const { rerender } = renderPage()
     expect(screen.getAllByTestId('rail-table')).toHaveLength(2)
     expect(screen.getAllByTestId('rail-table').map((rail) => rail.textContent)).toEqual(['1', '1'])
-    expect(screen.getByTestId('audio-control-error')).toHaveTextContent('controller busy')
+    expect(screen.getByTestId('audio-control-error')).not.toHaveTextContent('controller busy')
     expect(document.querySelector('.aw-match-stage > .aw-audio-notice')).toBeNull()
     const projection = document.querySelector('.aw-match-projection')!
     expect(projection).toHaveAttribute('aria-hidden', 'true')
@@ -531,43 +530,27 @@ describe('MatchPage', () => {
     expect(document.querySelector('.aw-presence__copy strong')).not.toHaveTextContent('一号玩家')
   })
 
-  it('resumes and deletes paused matches, including Error and string failures', async () => {
+  it('resumes paused matches without exposing a delete action', async () => {
     const paused = matchView({ status: 'paused', pausedReason: 'agent failed' })
     setLive(paused)
     apiMocks.resumeMatch
       .mockRejectedValueOnce(new Error('resume failed'))
       .mockRejectedValueOnce('resume string failed')
       .mockResolvedValueOnce(paused)
-    apiMocks.deleteMatch
-      .mockRejectedValueOnce(new Error('delete failed'))
-      .mockRejectedValueOnce('delete string failed')
-      .mockResolvedValueOnce(undefined)
     renderPage()
     const resume = screen.getByRole('button', { name: '继续对局' })
     await userEvent.click(resume)
     expect(await screen.findByText('resume failed')).not.toBeVisible()
     expect(document.querySelector('.aw-pause-overlay')).toBeNull()
     expect(screen.getByTestId('feed')).toBeVisible()
-    await userEvent.click(screen.getByText('暂停详情与管理'))
+    await userEvent.click(screen.getByText('暂停详情'))
     expect(screen.getByText('resume failed')).toBeVisible()
     await userEvent.click(resume)
     expect(await screen.findByText('resume string failed')).toBeVisible()
     await userEvent.click(resume)
     expect(retry).toHaveBeenCalled()
 
-    const deleteButton = screen.getByRole('button', { name: '删除对局' })
-    for (const error of ['delete failed', 'delete string failed']) {
-      await userEvent.click(deleteButton)
-      await userEvent.click(
-        within(screen.getByRole('alertdialog')).getByRole('button', { name: '删除对局' }),
-      )
-      expect(await screen.findByText(error)).toBeVisible()
-    }
-    await userEvent.click(deleteButton)
-    await userEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: '删除对局' }),
-    )
-    expect(await screen.findByText('lobby destination')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '删除对局' })).toBeNull()
   })
 
   it('runs start/skip/resume postgame actions and reports failures', async () => {

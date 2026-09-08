@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { getCopy } from '@agentwolf/assets'
 import type { MatchId } from '@agentwolf/contracts'
 import { api } from '../api.js'
-import { ConfirmDialog } from '../components/ConfirmDialog.js'
 import { ErrorState } from '../components/AsyncState.js'
 import {
   MatchFeed,
@@ -33,11 +31,9 @@ interface ScopedFeedJumpRequest extends FeedJumpRequest {
 }
 
 export function MatchPage() {
-  const navigate = useNavigate()
   const stageRef = useRef<HTMLElement>(null)
   const [actionBusy, setActionBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [feedJump, setFeedJump] = useState<ScopedFeedJumpRequest | null>(null)
   const [effectMode] = useRoleEffectMode()
@@ -45,7 +41,6 @@ export function MatchPage() {
   const {
     match,
     error,
-    controlError,
     retry,
     connectionState,
     playbackState,
@@ -137,18 +132,6 @@ export function MatchPage() {
       setActionBusy(false)
     }
   }
-  const deleteMatch = async (): Promise<void> => {
-    if (!match) return
-    setActionBusy(true)
-    setActionError(null)
-    try {
-      await api.deleteMatch(match.id)
-      void navigate('/')
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : String(cause))
-      setActionBusy(false)
-    }
-  }
   const runPostgameAction = async (
     action: (id: NonNullable<typeof match>['id']) => Promise<unknown>,
   ): Promise<void> => {
@@ -210,9 +193,7 @@ export function MatchPage() {
         audioBusyElsewhere={playbackState.enabled && !playbackState.controlledByThisClient}
         audioEnabled={voiceEnabled}
         audioSupported={speechPlayback.supported}
-        audioError={
-          controlError ?? (speechPlayback.noticeSpeechId === null ? speechPlayback.notice : null)
-        }
+        audioError={speechPlayback.noticeSpeechId === null ? speechPlayback.notice : null}
         connectionState={connectionState}
         match={match}
         onToggleAudio={toggleVoice}
@@ -264,7 +245,6 @@ export function MatchPage() {
                   busy={actionBusy}
                   error={actionError}
                   reason={match.pausedReason}
-                  onDelete={() => setDeleteOpen(true)}
                   onResume={() => void resumeMatch()}
                 />
               ) : null}
@@ -307,15 +287,6 @@ export function MatchPage() {
           </div>
         ) : null}
       </section>
-      <ConfirmDialog
-        busy={actionBusy}
-        confirmLabel={getCopy('match.delete')}
-        description={getCopy('match.deleteConfirm')}
-        open={deleteOpen}
-        title={getCopy('match.deleteTitle')}
-        onCancel={() => setDeleteOpen(false)}
-        onConfirm={() => void deleteMatch()}
-      />
     </main>
   )
 }

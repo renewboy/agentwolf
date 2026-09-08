@@ -1,7 +1,13 @@
-import type { PlaybackCallbacks, PlaybackContext, PlaybackPort } from '@agent-arena/web-runtime'
+import type {
+  PlaybackCallbacks,
+  PlaybackContext,
+  PlaybackPort,
+  PlaybackPreparation,
+} from '@agent-arena/web-runtime'
 import type { MatchId, PlayerId, SpectatorView, SpeechId } from '@agentwolf/contracts'
 import { api, SpeechAudioUnavailableError } from '../api.js'
 import { AudioActivationError, BrowserPcmSpeech } from './browser-pcm-speech.js'
+import { SpeechAudioPrefetch } from './speech-audio-prefetch.js'
 
 export type ModelSpeechNotice =
   | 'unavailable'
@@ -22,6 +28,7 @@ export interface SpeechAudioIdentity {
 export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
   #identity: SpeechAudioIdentity
   readonly #pcm = new BrowserPcmSpeech()
+  readonly #prefetch = new SpeechAudioPrefetch()
   readonly #listeners = new Set<() => void>()
   #notice: ModelSpeechNotice | null = null
   #speechId: SpeechId | null = null
@@ -40,6 +47,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
         this.#identity.view.kind === 'player' &&
         identity.view.playerId !== this.#identity.view.playerId)
     ) {
+      this.cancel()
       this.#speechId = null
       this.#setNotice(null)
     }
@@ -64,12 +72,22 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     void this.#pcm.prepare().catch(() => this.#setNotice('activation-required'))
   }
 
+  public prefetch(units: readonly PlaybackPreparation<PlayerId, SpeechId>[]): void {
+    this.#prefetch.synchronize(units, this.#identity)
+  }
+
   public speak(
     text: string,
     callbacks: PlaybackCallbacks,
     context?: PlaybackContext<PlayerId, SpeechId>,
   ): void {
-    this.cancel()
+    if (context?.unitId === undefined) this.cancel()
+    else {
+      this.#generation += 1
+      this.#request?.abort()
+      this.#request = null
+      this.#pcm.cancel()
+    }
     this.#speechId = context?.key ?? null
     this.#setNotice(null)
     const generation = this.#generation
@@ -90,16 +108,19 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     }
     const request = new AbortController()
     this.#request = request
-    void api
-      .speechAudio(
-        identity.matchId,
-        {
-          speechId: context.key,
-          view: identity.view,
-          text,
-        },
-        request.signal,
-      )
+    const response =
+      context.unitId !== undefined
+        ? this.#prefetch.open(context.unitId)
+        : api.speechAudio(
+            identity.matchId,
+            {
+              speechId: context.key,
+              view: identity.view,
+              text,
+            },
+            request.signal,
+          )
+    void response
       .then(async ({ stream, format, source }) => {
         if (!current()) {
           await stream.cancel()
@@ -133,6 +154,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     this.#generation += 1
     this.#request?.abort()
     this.#request = null
+    this.#prefetch.cancel()
     this.#pcm.cancel()
   }
 

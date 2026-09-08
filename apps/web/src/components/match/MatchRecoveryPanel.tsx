@@ -6,13 +6,11 @@ export function MatchRecoveryPanel({
   error,
   reason,
   onResume,
-  onDelete,
 }: {
   readonly busy: boolean
   readonly error: string | null
   readonly reason: string | null
   readonly onResume: () => void
-  readonly onDelete: () => void
 }) {
   return (
     <section className="aw-panel aw-match-recovery" aria-label={getCopy('match.paused')}>
@@ -41,15 +39,6 @@ export function MatchRecoveryPanel({
         <summary>{getCopy('tableDesign.pauseDetails')}</summary>
         {reason ? <pre>{reason}</pre> : null}
         {error ? <pre>{error}</pre> : null}
-        <button
-          className="aw-button aw-button--danger aw-button--compact"
-          disabled={busy}
-          type="button"
-          onClick={onDelete}
-        >
-          <GameIcon name="trash" size={16} />
-          {getCopy('match.delete')}
-        </button>
       </details>
     </section>
   )

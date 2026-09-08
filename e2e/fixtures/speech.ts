@@ -231,21 +231,28 @@ export async function observeNativePcmPlayback(page: Page): Promise<void> {
         })
       const response = await nativeFetch(...args)
       if (isSpeech && response.ok && response.body) {
-        const nativeGetReader = response.body.getReader.bind(response.body)
-        Object.defineProperty(response.body, 'getReader', {
-          configurable: true,
-          value: () => {
-            const reader = nativeGetReader()
-            const nativeRead = reader.read.bind(reader)
-            reader.read = async () => {
-              const result = await nativeRead()
-              if (result.done) state.eofAt = performance.now()
-              else state.receivedBytes += result.value.byteLength
-              return result
-            }
-            return reader
+        const reader = response.body.getReader()
+        const observed = new ReadableStream<Uint8Array>(
+          {
+            pull: async (controller) => {
+              try {
+                const result = await reader.read()
+                if (result.done) {
+                  state.eofAt = performance.now()
+                  controller.close()
+                } else {
+                  state.receivedBytes += result.value.byteLength
+                  controller.enqueue(result.value)
+                }
+              } catch (error) {
+                controller.error(error)
+              }
+            },
+            cancel: (reason) => reader.cancel(reason),
           },
-        })
+          { highWaterMark: 0 },
+        )
+        return new Response(observed, { status: response.status, headers: response.headers })
       }
       return response
     }

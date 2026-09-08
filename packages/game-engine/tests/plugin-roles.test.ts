@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { BoardIdSchema, RoleIdSchema } from '@agentwolf/contracts'
 import {
   awakenedHiddenWolfAbilityIds,
   GameEngine,
@@ -7,12 +8,23 @@ import {
   magicMirrorInspectedEventType,
   mirrorHiddenBoard,
   publiclyEliminatedPlayerIds,
+  sixPlayerBoard,
   v1AbilityIds,
   whiteWolfAbilityIds,
   whiteWolfDetonatedEventType,
-  whiteWolfKingBoard,
 } from '../src/index.js'
-import { actorsWithRole, createManualEngine, playNight, submitExpected } from './helpers.js'
+import { actorsWithRole, createManualEngine, playNight } from './helpers.js'
+
+const quickWhiteWolfKingBoard = {
+  ...sixPlayerBoard,
+  id: BoardIdSchema.parse('board-white-wolf-king-quick-6'),
+  roles: [
+    { roleId: RoleIdSchema.parse('role-white-wolf-king'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-villager'), count: 3 },
+    { roleId: RoleIdSchema.parse('role-seer'), count: 1 },
+    { roleId: RoleIdSchema.parse('role-hunter'), count: 1 },
+  ],
+}
 
 describe('plugin role settlement', () => {
   it('settles Magic Mirror Girl exact-role inspection and records target history', () => {
@@ -80,18 +92,11 @@ describe('plugin role settlement', () => {
   })
 
   it('shares the wolf attack and settles White Wolf King detonation through death triggers', () => {
-    const engine = createManualEngine(whiteWolfKingBoard)
+    const engine = createManualEngine(quickWhiteWolfKingBoard)
     const actorId = actorsWithRole(engine, 'role-white-wolf-king')[0]!
     const targetId = actorsWithRole(engine, 'role-hunter')[0]!
     engine.start()
     playNight(engine, { wolfTargetId: null })
-    expect(engine.state.phaseId).toBe('phase-sheriff-signup')
-    submitExpected(engine, (playerId) => ({
-      type: 'sheriff-action',
-      matchId: engine.state.matchId,
-      actorId: playerId,
-      action: 'decline',
-    }))
     expect(engine.state.phaseId).toBe('phase-day-speech')
     while (engine.activeActor() !== actorId) {
       const playerId = engine.activeActor()

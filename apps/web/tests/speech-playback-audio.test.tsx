@@ -71,6 +71,103 @@ beforeEach(() => {
 })
 
 describe('Qwen presentation hook integration', () => {
+  it('requests the next sentence at inference EOF before any current audio node ends', async () => {
+    let first!: ReadableStreamDefaultController<Uint8Array>
+    let second!: ReadableStreamDefaultController<Uint8Array>
+    fetchMock
+      .mockResolvedValueOnce(
+        pcmResponse(
+          new ReadableStream({
+            start(value) {
+              first = value
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        pcmResponse(
+          new ReadableStream({
+            start(value) {
+              second = value
+            },
+          }),
+        ),
+      )
+    const props = initialProps()
+    const hook = renderHook((input) => useSpeechPlayback(input), { initialProps: props })
+    act(() => hook.result.current.prepareAudio())
+    hook.rerender({
+      ...props,
+      timeline: [{ ...item(), title: '第一句。第二句。' }],
+      playbackState: { ...props.playbackState, pendingSequence: 30 },
+    })
+    const audio = FakePcmContext.instances[0]!
+    first.enqueue(pcmSamples(48_000))
+    await waitFor(() => expect(audio.sources).toHaveLength(20))
+    expect(fetchMock).toHaveBeenCalledOnce()
+    first.close()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(props.resolveAutomatic).not.toHaveBeenCalled()
+    expect(JSON.parse(fetchMock.mock.calls[1]![1]!.body as string).text).toBe('第二句。')
+    second.enqueue(pcmSamples(24_000))
+    second.close()
+    expect(audio.sources).toHaveLength(20)
+    act(() => {
+      audio.currentTime = 2
+      for (const source of [...audio.sources]) source.finish()
+    })
+    await waitFor(() => expect(audio.sources).toHaveLength(30))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(props.resolveAutomatic).not.toHaveBeenCalled()
+    act(() => {
+      for (const source of audio.sources.slice(20)) source.finish()
+    })
+    await waitFor(() =>
+      expect(props.resolveAutomatic).toHaveBeenCalledExactlyOnceWith(30, 'completed'),
+    )
+    hook.unmount()
+  })
+
+  it('aborts the next sentence when the playing speech is skipped and never plays a late response', async () => {
+    let respond!: (response: Response) => void
+    fetchMock
+      .mockResolvedValueOnce(
+        pcmResponse(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(pcmSamples(48_000))
+              controller.close()
+            },
+          }),
+        ),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            respond = resolve
+          }),
+      )
+    const props = initialProps()
+    const hook = renderHook((input) => useSpeechPlayback(input), { initialProps: props })
+    act(() => hook.result.current.prepareAudio())
+    hook.rerender({
+      ...props,
+      timeline: [{ ...item(), title: '第一句。第二句。' }],
+      playbackState: { ...props.playbackState, pendingSequence: 30 },
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    const pendingSignal = fetchMock.mock.calls[1]![1]!.signal!
+    act(() => hook.result.current.skipAutomatic(speechId))
+    expect(pendingSignal.aborted).toBe(true)
+    expect(props.resolveAutomatic).toHaveBeenCalledExactlyOnceWith(30, 'skipped')
+    const cancelled = vi.fn()
+    respond(pcmResponse(new ReadableStream({ cancel: cancelled })))
+    await waitFor(() => expect(cancelled).toHaveBeenCalledOnce())
+    for (const source of FakePcmContext.instances[0]!.sources)
+      expect(source.stop).toHaveBeenCalledOnce()
+    hook.unmount()
+  })
+
   it.each([
     ['preparing', '角色音色准备中，暂用默认语音。'],
     ['loading', '角色音色加载中，暂用默认语音。'],
