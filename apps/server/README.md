@@ -91,13 +91,13 @@ Fastify 在 `onListen` 中启动后台准备，开局与播放请求也会触发
 
 成功响应的 `X-AgentWolf-Speech-Source` 头包含 `SpeechAudioSource` JSON，声明实际 provider、默认音色
 与回退原因。角色模型返回 `audio/L16;rate=24000;channels=1`，默认语音返回 `audio/mpeg`。
-请求中的 `preferDefault` 用于不支持 Web Audio 的客户端。默认语音失败返回 `tts-default-unavailable`；
+默认语音失败返回 `tts-default-unavailable`；
 发言不可见或原文不匹配在任何合成前被拒绝。
 
-| 接口                                 | 输入与结果                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `GET /api/speech-audio/status`       | 返回 `SpeechAudioStatus`，包含 `disabled/preparing/loading/ready/error` 状态、模型标识、音色数量及说明 |
-| `POST /api/matches/:id/speech-audio` | 接收 `SpeechAudioRequest` 的 `speechId`、`view` 和原文 `text`；根据所选后端返回 PCM 或 MP3             |
+| 接口                                 | 输入与结果                                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/speech-audio/status`       | 返回 `SpeechAudioStatus`，包含 `disabled/preparing/loading/ready/error` 状态、模型标识、音色数量、准备阶段与下载字节进度 |
+| `POST /api/matches/:id/speech-audio` | 接收 `SpeechAudioRequest` 的 `speechId`、`view` 和原文 `text`；根据所选后端返回 PCM 或 MP3                               |
 
 请求与状态 schema 由 [contracts](../../packages/contracts/src/speech-audio.ts) 拥有。`text` 为
 1–2000 字符，必须包含于同一 `speechId` 的当前可见原文中；角色从该发言所属的 Match Seat

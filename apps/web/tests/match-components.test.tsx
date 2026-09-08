@@ -445,10 +445,9 @@ describe('MatchFeed', () => {
     await userEvent.click(screen.getByRole('button', { name: /二号玩家.*停止/ }))
     expect(audio.stop).toHaveBeenCalledOnce()
     expect(document.querySelector('.aw-audio-notice')).toBeNull()
-    expect(screen.getByText('等待下一位玩家发言')).toBeVisible()
-    expect(screen.getByText('等待下一位玩家发言')).toContainElement(
-      document.querySelector('.aw-stream-cursor'),
-    )
+    const pendingSpeech = document.querySelector('.aw-speech-bubble[data-live="true"] p')
+    expect(pendingSpeech?.textContent).toBe('')
+    expect(pendingSpeech).toContainElement(document.querySelector('.aw-stream-cursor'))
   })
 
   it('handles empty feeds, unknown speakers, group toggles, and unsupported audio', async () => {

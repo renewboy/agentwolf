@@ -1,7 +1,6 @@
 import type { PlaybackCallbacks, PlaybackContext, PlaybackPort } from '@agent-arena/web-runtime'
 import type { MatchId, PlayerId, SpectatorView, SpeechId } from '@agentwolf/contracts'
 import { api, SpeechAudioUnavailableError } from '../api.js'
-import { BrowserEdgeMediaSpeech } from './browser-edge-media-speech.js'
 import { AudioActivationError, BrowserPcmSpeech } from './browser-pcm-speech.js'
 
 export type ModelSpeechNotice =
@@ -14,7 +13,6 @@ export type ModelSpeechNotice =
   | 'default-disabled'
   | 'default-no-voice'
   | 'default-unavailable'
-  | 'default-browser'
 
 export interface SpeechAudioIdentity {
   readonly matchId: MatchId | null
@@ -22,7 +20,6 @@ export interface SpeechAudioIdentity {
 }
 
 export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
-  readonly #fallback: PlaybackPort
   #identity: SpeechAudioIdentity
   readonly #pcm = new BrowserPcmSpeech()
   readonly #listeners = new Set<() => void>()
@@ -31,16 +28,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
   #request: AbortController | null = null
   #generation = 0
 
-  public constructor(
-    fallback?: PlaybackPort,
-    identity: SpeechAudioIdentity = { matchId: null, view: { kind: 'god' } },
-  ) {
-    this.#fallback =
-      fallback ??
-      new BrowserEdgeMediaSpeech(
-        () => this.#identity,
-        () => this.#setNotice('default-browser'),
-      )
+  public constructor(identity: SpeechAudioIdentity = { matchId: null, view: { kind: 'god' } }) {
     this.#identity = identity
   }
 
@@ -63,7 +51,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
   }
 
   public get supported(): boolean {
-    return this.#pcm.supported || this.#fallback.supported
+    return this.#pcm.supported
   }
 
   public snapshot = (): ModelSpeechNotice | null => this.#notice
@@ -94,21 +82,6 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
       error: (error) => {
         if (current()) callbacks.error(error)
       },
-    }
-    if (!this.#pcm.supported) {
-      this.#setNotice('default-browser')
-      this.#fallback.speak(
-        text,
-        {
-          ...guarded,
-          error: (error) => {
-            if (current()) this.#setNotice('default-unavailable')
-            guarded.error(error)
-          },
-        },
-        context,
-      )
-      return
     }
     if (!identity.matchId || !context) {
       this.#setNotice('unavailable')
@@ -161,7 +134,6 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     this.#request?.abort()
     this.#request = null
     this.#pcm.cancel()
-    this.#fallback.cancel()
   }
 
   public dispose(): void {

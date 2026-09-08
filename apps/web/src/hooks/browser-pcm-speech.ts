@@ -23,6 +23,7 @@ interface Playback {
 }
 
 export class BrowserPcmSpeech {
+  readonly #mp3 = new BrowserMp3Speech()
   #context: AudioContext | null = null
   #playback: Playback | null = null
 
@@ -43,6 +44,7 @@ export class BrowserPcmSpeech {
       void stream.cancel().catch(() => undefined)
       return Promise.reject(new AudioActivationError())
     }
+    if (format === 'mp3') return this.#mp3.play(stream)
     return new Promise<void>((resolve, reject) => {
       const playback: Playback = {
         reader: stream.getReader(),
@@ -57,13 +59,12 @@ export class BrowserPcmSpeech {
         buffering: true,
       }
       this.#playback = playback
-      void (
-        format === 'mp3' ? this.#readEncoded(playback, context) : this.#read(playback, context)
-      ).catch((error: unknown) => this.#fail(playback, error))
+      void this.#read(playback, context).catch((error: unknown) => this.#fail(playback, error))
     })
   }
 
   public cancel(): void {
+    this.#mp3.cancel()
     const playback = this.#playback
     if (playback) this.#fail(playback, new DOMException('Playback cancelled', 'AbortError'))
   }
@@ -73,33 +74,6 @@ export class BrowserPcmSpeech {
     const context = this.#context
     this.#context = null
     if (context && context.state !== 'closed') void context.close().catch(() => undefined)
-  }
-
-  async #readEncoded(playback: Playback, context: AudioContext): Promise<void> {
-    const chunks: Uint8Array[] = []
-    let bytes = 0
-    while (this.#playback === playback) {
-      const chunk = await playback.reader.read()
-      if (this.#playback !== playback) return
-      if (chunk.done) break
-      bytes += chunk.value.length
-      if (bytes > 16 * 1_024 * 1_024) throw new Error('Encoded speech exceeds size limit')
-      chunks.push(chunk.value)
-    }
-    if (bytes === 0) throw new Error('Empty speech audio')
-    const encoded = new Uint8Array(bytes)
-    let offset = 0
-    for (const chunk of chunks) {
-      encoded.set(chunk, offset)
-      offset += chunk.length
-    }
-    const buffer = await context.decodeAudioData(encoded.buffer)
-    if (this.#playback !== playback) return
-    playback.eof = true
-    playback.reader.releaseLock()
-    if (buffer.length === 0) throw new Error('Empty decoded speech audio')
-    this.#scheduleBuffer(playback, context, buffer)
-    this.#finish(playback)
   }
 
   async #read(playback: Playback, context: AudioContext): Promise<void> {
@@ -205,3 +179,4 @@ export class BrowserPcmSpeech {
     playback.reject(error)
   }
 }
+import { BrowserMp3Speech } from './browser-mp3-speech.js'

@@ -15,6 +15,50 @@ import { expect, test } from './fixtures/test.js'
 
 const text = '这段发言使用角色音色播放。'
 
+test('streams native MP3 before HTTP EOF and waits for the final audio before completion', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const play = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'play')!.value as (
+      this: HTMLMediaElement,
+    ) => Promise<void>
+    Object.defineProperty(window, 'mp3AudioTest', {
+      value: { element: null as HTMLMediaElement | null },
+    })
+    HTMLMediaElement.prototype.play = function () {
+      ;(window as unknown as { mp3AudioTest: { element: HTMLMediaElement } }).mp3AudioTest.element =
+        this
+      return play.call(this)
+    }
+  })
+  const match = await setup(page, 'native-mp3-streaming')
+  const source = await controlledPcmRoute(page, match.id, true)
+  try {
+    const bytes = readFileSync(new URL('./fixtures/speech-tone.mp3', import.meta.url))
+    match.publish()
+    await expect.poll(source.ready).toBe(true)
+    source.writeBytes(bytes.subarray(0, Math.floor(bytes.length / 2)))
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { mp3AudioTest: { element: HTMLMediaElement | null } })
+              .mp3AudioTest.element?.currentTime ?? 0,
+        ),
+      )
+      .toBeGreaterThan(0.1)
+    expect(match.resolutions()).toEqual([])
+    source.writeBytes(bytes.subarray(Math.floor(bytes.length / 2)))
+    source.end()
+    await expect
+      .poll(() => match.resolutions().map((message) => message['outcome']))
+      .toEqual(['completed'])
+    expect(await speechStubState(page)).toEqual([])
+  } finally {
+    await source.close()
+  }
+})
+
 function pcmFixture(seconds = 2): Buffer {
   const samples = 24_000 * seconds
   const audio = Buffer.alloc(samples * 2)
@@ -26,7 +70,7 @@ function pcmFixture(seconds = 2): Buffer {
   return audio
 }
 
-async function controlledPcmRoute(page: Page, matchId: string) {
+async function controlledPcmRoute(page: Page, matchId: string, mp3 = false) {
   let ready = false
   let aborted = false
   let write = (_bytes: Buffer): void => {
@@ -57,7 +101,19 @@ async function controlledPcmRoute(page: Page, matchId: string) {
     reply.once('close', () => {
       aborted = !reply.writableFinished
     })
-    reply.writeHead(200, { 'Content-Type': 'audio/L16;rate=24000;channels=1' })
+    reply.writeHead(200, {
+      'Content-Type': mp3 ? 'audio/mpeg' : 'audio/L16;rate=24000;channels=1',
+      ...(mp3
+        ? {
+            'X-AgentWolf-Speech-Source': JSON.stringify({
+              provider: 'edge-tts',
+              voice: 'zh-CN-YunxiNeural',
+              reason: 'preparing',
+            }),
+            'Access-Control-Expose-Headers': 'X-AgentWolf-Speech-Source',
+          }
+        : {}),
+    })
     reply.flushHeaders()
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -69,6 +125,7 @@ async function controlledPcmRoute(page: Page, matchId: string) {
   )
   return {
     ready: () => ready,
+    writeBytes: (bytes: Buffer) => write(bytes),
     write: (seconds: number) => {
       write(pcmFixture(seconds))
     },

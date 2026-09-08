@@ -39,9 +39,8 @@ export function registerSpeechAudioRoutes(
         .send({ code: 'speech-audio-invalid-text', message: getCopy('speechAudio.invalidText') })
     }
     const status = audio.status()
-    const reason = input.preferDefault
-      ? ('browser' as const)
-      : !speech.characterId || !audio.hasVoice(speech.characterId)
+    const reason =
+      !speech.characterId || !audio.hasVoice(speech.characterId)
         ? ('no-voice' as const)
         : status.state === 'ready'
           ? null

@@ -8,6 +8,7 @@ import {
   type TimelineItem,
 } from '@agentwolf/contracts'
 import { useSpeechPlayback } from '../src/hooks/useSpeechPlayback.js'
+import { FakeMp3Audio, FakeMediaSource, installMp3Audio } from './helpers/fake-mp3-audio.js'
 import {
   FakePcmContext,
   installPcmAudio,
@@ -60,6 +61,7 @@ function initialProps(): Parameters<typeof useSpeechPlayback>[0] {
 
 beforeEach(() => {
   installPcmAudio()
+  installMp3Audio()
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
   browserSpeech.speak.mockReset()
@@ -101,8 +103,10 @@ describe('Qwen presentation hook integration', () => {
       expect(hook.result.current.noticeKind).toBe('fallback')
       expect(hook.result.current.noticeSpeechId).toBe(speechId)
       expect(browserSpeech.speak).not.toHaveBeenCalled()
-      await waitFor(() => expect(FakePcmContext.instances[0]!.sources).toHaveLength(1))
-      act(() => FakePcmContext.instances[0]!.sources[0]!.finish())
+      await waitFor(() => expect(FakeMediaSource.all[0]!.endOfStream).toHaveBeenCalledOnce())
+      act(() => {
+        FakeMp3Audio.all[0]!.dispatchEvent(new Event('ended'))
+      })
       await waitFor(() =>
         expect(props.resolveAutomatic).toHaveBeenCalledExactlyOnceWith(30, 'completed'),
       )

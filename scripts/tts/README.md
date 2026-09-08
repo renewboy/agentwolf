@@ -37,7 +37,9 @@ uv pip install --only-binary=:all: --python .agentwolf/tts-runtime/.venv-qwen-ma
 
 `assets-manifest.json` 固定模型 repository、revision、文件尺寸与摘要。MLX 权重直接使用社区发布物；
 PyTorch 权重来自 Qwen 模型仓库。准备命令仅下载当前后端所需文件，支持校验后的复用与断点续传，
-全部校验通过后原子写入完成清单。`--cpu` 为独立验证或明确指定 CPU 的准备入口。
+全部校验通过后原子写入完成清单。下载文件保留为 `.download`，重启后通过 HTTP Range 续传；
+已经完整写入的临时文件先校验，再成为模型文件。准备进程通过 `--watch-parent` 监测 Node 持有的
+stdin 管道；Node 退出或被强杀导致管道关闭时，准备进程退出，已写入的文件保留。`--cpu` 为独立验证或明确指定 CPU 的准备入口。
 
 | 数据目录下的路径                   | 内容                       |
 | ---------------------------------- | -------------------------- |
@@ -53,6 +55,8 @@ PyTorch 权重来自 Qwen 模型仓库。准备命令仅下载当前后端所需
 
 stdin 和 stdout 均为逐行 JSON，诊断日志写入 stderr。启动成功输出 `ready` 与实际 `backend`；
 启动失败输出不带请求 `id` 的 `error` 并退出。准备命令的 `ready` 包含完成清单路径 `manifest`。
+准备命令通过 `progress` 消息报告等待、下载与校验阶段，以及整个所选模型的已接收字节和总字节。
+Node 持有依赖准备与加载阶段，并通过语音状态接口向浏览器提供完整准备状态。
 
 请求：
 

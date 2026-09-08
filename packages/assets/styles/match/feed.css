@@ -221,7 +221,8 @@
   border: 0;
   color: inherit;
   background: none;
-  font-size: 15px;
+  font-family: var(--aw-font-display);
+  font-size: 17px;
   line-height: 1.9;
   letter-spacing: 0.01em;
   overflow-wrap: anywhere;
@@ -436,7 +437,7 @@
     font-size: 9px;
   }
   .aw-speech-bubble__body p {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.85;
     padding: 52px 22px 120px;
   }

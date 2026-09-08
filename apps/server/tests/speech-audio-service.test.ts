@@ -189,6 +189,35 @@ afterEach(async () => {
 })
 
 describe('speech audio model preparation', () => {
+  it('publishes validated progress across fragmented preparation output and clears it when ready', async () => {
+    const original = mocks.spawn.getMockImplementation()!
+    let preparation!: PreparationChild
+    mocks.spawn.mockImplementation((command: string, args: string[], options: SpawnOptions) => {
+      if (args.includes('--watch-parent')) {
+        preparation = new PreparationChild(90_000 + children.length)
+        children.push(preparation)
+        expect(options.stdio).toEqual(['pipe', 'pipe', 'pipe'])
+        return preparation
+      }
+      return original(command, args, options)
+    })
+    const service = createService()
+    service.start()
+    await vi.waitFor(() => expect(preparation).toBeDefined())
+    const progress = { stage: 'downloading', downloadedBytes: 400, totalBytes: 1000 }
+    const message = JSON.stringify({ type: 'progress', progress }) + '\n'
+    preparation.stdout.write(message.slice(0, 30))
+    preparation.stdout.write(message.slice(30))
+    expect(service.status().progress).toEqual(progress)
+    preparation.stdout.write(
+      JSON.stringify({ type: 'progress', progress: { ...progress, downloadedBytes: 2000 } }) + '\n',
+    )
+    expect(service.status().progress).toEqual(progress)
+    preparation.finish()
+    await vi.waitFor(() => expect(service.status().state).toBe('ready'))
+    expect(service.status().progress).toBeUndefined()
+  })
+
   it('installs the portable backend, retries CPU wheels, and reports actual worker capabilities', async () => {
     Object.defineProperty(process, 'platform', { ...platform, value: 'linux' })
     Object.defineProperty(process, 'arch', { ...architecture, value: 'x64' })
@@ -268,6 +297,7 @@ describe('speech audio model preparation', () => {
           resolve(config.projectRoot, 'scripts/tts/prepare.py'),
           '--data-dir',
           config.dataDirectory,
+          '--watch-parent',
         ],
       },
     ])

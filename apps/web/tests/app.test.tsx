@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Outlet, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('../src/components/SpeechPreparationNotice.js', () => ({
+  SpeechPreparationNotice: () => null,
+}))
+
 const runtime = vi.hoisted(() => ({ developerMode: true }))
 const sessionLifecycle = vi.hoisted(() => ({ mounts: 0, unmounts: 0 }))
 vi.mock('../src/hooks/useRuntimeConfig.js', () => ({

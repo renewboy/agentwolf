@@ -35,7 +35,6 @@ export class FakePcmContext {
   public currentTime = 0
   public readonly destination = {}
   public readonly sources: FakePcmSource[] = []
-  readonly decodeAudioData = vi.fn(async (_data: ArrayBuffer) => new FakePcmBuffer(4800, 48000))
   readonly resume = vi.fn(async () => {
     this.state = 'running'
   })

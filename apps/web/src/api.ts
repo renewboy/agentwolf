@@ -98,8 +98,10 @@ async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export const api = {
-  async speechAudioStatus(): Promise<SpeechAudioStatus> {
-    return SpeechAudioStatusSchema.parse(await requestJson('/api/speech-audio/status'))
+  async speechAudioStatus(signal?: AbortSignal): Promise<SpeechAudioStatus> {
+    return SpeechAudioStatusSchema.parse(
+      await requestJson('/api/speech-audio/status', signal ? { signal } : undefined),
+    )
   },
   async speechAudio(
     matchId: MatchId,

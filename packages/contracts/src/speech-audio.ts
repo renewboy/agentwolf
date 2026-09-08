@@ -11,7 +11,7 @@ export const SpeechAudioSourceSchema = z.discriminatedUnion('provider', [
   z.object({
     provider: z.literal('edge-tts'),
     voice: z.literal(DEFAULT_SPEECH_VOICE),
-    reason: z.enum(['preparing', 'loading', 'error', 'disabled', 'no-voice', 'browser']),
+    reason: z.enum(['preparing', 'loading', 'error', 'disabled', 'no-voice']),
   }),
 ])
 export type SpeechAudioSource = z.infer<typeof SpeechAudioSourceSchema>
@@ -21,7 +21,6 @@ export const SpeechAudioRequestSchema = z
     speechId: SpeechIdSchema,
     view: SpectatorViewSchema,
     text: z.string().trim().min(1).max(2_000),
-    preferDefault: z.boolean().optional(),
   })
   .strict()
 export type SpeechAudioRequest = z.infer<typeof SpeechAudioRequestSchema>
@@ -50,11 +49,21 @@ export const SpeechAudioBackendSchema = z.object({
 })
 export type SpeechAudioBackend = z.infer<typeof SpeechAudioBackendSchema>
 
+export const SpeechAudioProgressSchema = z
+  .object({
+    stage: z.enum(['dependencies', 'waiting', 'downloading', 'verifying', 'loading']),
+    downloadedBytes: z.number().int().nonnegative(),
+    totalBytes: z.number().int().nonnegative(),
+  })
+  .refine((value) => value.downloadedBytes <= value.totalBytes)
+export type SpeechAudioProgress = z.infer<typeof SpeechAudioProgressSchema>
+
 export const SpeechAudioStatusSchema = z.object({
   state: z.enum(['disabled', 'preparing', 'loading', 'ready', 'error']),
   model: z.literal('qwen3-tts-0.6b'),
   message: z.string().nullable(),
   voices: z.number().int().nonnegative(),
   backend: SpeechAudioBackendSchema.optional(),
+  progress: SpeechAudioProgressSchema.optional(),
 })
 export type SpeechAudioStatus = z.infer<typeof SpeechAudioStatusSchema>
