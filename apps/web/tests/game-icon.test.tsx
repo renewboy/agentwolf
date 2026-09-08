@@ -1,6 +1,24 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import { GameIcon } from '../src/components/GameIcon.js'
+import { act, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { GameIcon, GameIconInk } from '../src/components/GameIcon.js'
+
+const materials = vi.hoisted(() => ({ grain: '/ink-grain.webp' }))
+vi.mock('../src/motion/effect-materials.js', () => ({ effectArt: materials }))
+
+class MaterialImage extends EventTarget {
+  static instances: MaterialImage[] = []
+  src = ''
+  constructor() {
+    super()
+    MaterialImage.instances.push(this)
+  }
+}
+
+beforeEach(() => {
+  materials.grain = '/ink-grain.webp'
+  MaterialImage.instances = []
+  vi.stubGlobal('Image', MaterialImage)
+})
 
 describe('GameIcon', () => {
   it('renders decorative artwork without adding an accessible image', () => {
@@ -41,5 +59,36 @@ describe('GameIcon', () => {
     )
     expect(image).toHaveAttribute('width', '16')
     expect(image).not.toHaveClass('aw-spin')
+  })
+})
+
+describe('GameIconInk material lifecycle', () => {
+  it('keeps procedural grain until the material loads and releases the load listener on unmount', () => {
+    const { container, unmount } = render(<GameIconInk />)
+    const image = MaterialImage.instances[0]!
+    expect(image.src).toBe('/ink-grain.webp')
+    expect(container.querySelector('feTurbulence')).not.toBeNull()
+    expect(container.querySelector('feImage')).toBeNull()
+    act(() => {
+      image.dispatchEvent(new Event('error'))
+    })
+    expect(container.querySelector('feTurbulence')).not.toBeNull()
+    act(() => {
+      image.dispatchEvent(new Event('load'))
+    })
+    expect(container.querySelector('feTurbulence')).toBeNull()
+    expect(container.querySelector('feImage')).toHaveAttribute('href', '/ink-grain.webp')
+    expect(container.querySelector('feColorMatrix')).toHaveAttribute('type', 'luminanceToAlpha')
+    const remove = vi.spyOn(image, 'removeEventListener')
+    unmount()
+    expect(remove).toHaveBeenCalledWith('load', expect.any(Function))
+  })
+
+  it('uses procedural grain without requesting the transparent placeholder', () => {
+    materials.grain = 'data:image/svg+xml,placeholder'
+    const { container } = render(<GameIconInk />)
+    expect(MaterialImage.instances).toHaveLength(0)
+    expect(container.querySelector('feTurbulence')).toHaveAttribute('seed', '12')
+    expect(container.querySelector('feColorMatrix')).toHaveAttribute('type', 'matrix')
   })
 })
