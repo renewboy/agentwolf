@@ -245,4 +245,39 @@ describe('useLiveMatch', () => {
       hook.unmount()
     }
   })
+
+  it.each([null, 'completed', 'skipped'] as const)(
+    'switches terminal views through HTTP with postgame state %s',
+    async (state) => {
+      const terminal = matchView({
+        status: 'ended',
+        winner: 'village',
+        postgameReview: state ? { state } : null,
+      })
+      apiMocks.getMatch.mockResolvedValue(terminal)
+      const { result, rerender } = renderHook(
+        ({ view }: { view: SpectatorView }) => useLiveMatch(terminal.id, view),
+        { initialProps: { view: { kind: 'closed-eye' } as SpectatorView } },
+      )
+      await waitFor(() => expect(result.current.connectionState).toBe('settled'))
+      const sockets = FakeWebSocket.instances.length
+      for (const view of [
+        { kind: 'god' },
+        { kind: 'player', playerId: 'player-2' },
+        { kind: 'player', playerId: 'player-1' },
+        { kind: 'closed-eye' },
+      ] as SpectatorView[]) {
+        const projection = { ...terminal, phaseLabel: JSON.stringify(view) }
+        apiMocks.getMatch.mockResolvedValueOnce(projection)
+        rerender({ view })
+        expect(result.current.viewPending).toBe(true)
+        await waitFor(() => expect(result.current.match).toEqual(projection))
+        expect(result.current.viewPending).toBe(false)
+        expect(result.current.connectionState).toBe('settled')
+        expect(apiMocks.getMatch).toHaveBeenLastCalledWith(terminal.id, view)
+      }
+      expect(FakeWebSocket.instances).toHaveLength(sockets)
+      expect(FakeWebSocket.instances.every((socket) => socket.readyState === 3)).toBe(true)
+    },
+  )
 })
