@@ -619,6 +619,14 @@
     "profileOption": "{{name}} / {{model}} / {{reasoning}}"
   },
   "match": {
+    "portraitStage": "角色播报",
+    "playbackBanner": "语音播放",
+    "playingSpeaker": "正在播放 {{seat}} 号 · {{player}} 的发言",
+    "playingSpeech": "正在播放发言",
+    "portraitClose": "关闭",
+    "portraitShow": "显示立绘",
+    "portraitSkip": "跳过",
+    "portraitSeat": "{{seat}} 号",
     "playerSpeaking": "发言中",
     "playerNarrating": "播报中",
     "day": "第 {{day}} 天",

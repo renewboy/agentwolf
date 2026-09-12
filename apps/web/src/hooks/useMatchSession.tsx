@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { type PlayerId, type SpectatorView } from '@agentwolf/contracts'
+import { characterPerformance } from '@agentwolf/assets'
 import { useLiveMatch } from './useLiveMatch.js'
 import { useSpeechPlayback, type SpeechPlaybackController } from './useSpeechPlayback.js'
 import { useVoicePreference } from './useVoicePreference.js'
@@ -50,6 +51,13 @@ export function MatchSessionProvider({
   const live = useLiveMatch(matchId, view)
   const projectionKey = view.kind === 'player' ? `${view.kind}:${view.playerId}` : view.kind
   const speechPlayback = useSpeechPlayback({
+    portraitActors: useMemo(
+      () =>
+        live.match?.seats
+          .filter((seat) => characterPerformance(seat.character))
+          .map((seat) => seat.playerId) ?? [],
+      [live.match?.seats],
+    ),
     audioIdentity: { matchId: live.match?.id ?? null, view },
     timeline: live.match?.timeline ?? [],
     activeSpeech: live.match?.activeSpeech ?? null,

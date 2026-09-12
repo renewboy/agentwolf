@@ -1,0 +1,235 @@
+.aw-speech-stage-content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.aw-speech-playback-bar {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  gap: 16px;
+  min-height: 42px;
+  padding: 0 0 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--aw-color-line);
+}
+.aw-speech-playback-bar > .aw-speech-playback-bar__label {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aw-color-text-highlight);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.aw-speech-playback-bar__actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.aw-match-conversation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.aw-speech-stage-content[data-portrait-visible='true']::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  content: '';
+  background: var(--aw-color-night);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+:is(.aw-presence, .aw-postgame-strip):has(> .aw-speech-playback-bar) {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.aw-postgame-strip--countdown > .aw-speech-playback-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.aw-postgame-strip--countdown:has(> .aw-speech-playback-bar) > div {
+  grid-row: 2;
+}
+
+.aw-speech-portrait-host {
+  position: absolute;
+  z-index: 3;
+  inset: 56px 0 0;
+  pointer-events: none;
+}
+
+.aw-speech-portrait-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: none;
+  animation: aw-portrait-appear 160ms ease-out both;
+}
+
+.aw-speaking-portrait {
+  position: absolute;
+  top: 18px;
+  bottom: 58px;
+  left: 20px;
+  width: 54%;
+  min-width: 210px;
+  max-width: 76%;
+  mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+}
+
+.aw-speaking-portrait[data-side='right'] {
+  left: auto;
+  right: 20px;
+}
+.aw-speaking-portrait[data-mirrored='true'] {
+  transform: scaleX(-1);
+}
+.aw-speaking-portrait__still,
+.aw-speaking-portrait__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+}
+.aw-speaking-portrait[data-side='right'][data-mirrored='false']
+  :is(.aw-speaking-portrait__still, .aw-speaking-portrait__canvas) {
+  object-position: right bottom;
+}
+.aw-speaking-portrait__canvas {
+  opacity: 0;
+}
+.aw-speaking-portrait__canvas[data-ready='true'] {
+  opacity: 1;
+}
+.aw-speaking-portrait:has(.aw-speaking-portrait__canvas[data-ready='true'])
+  .aw-speaking-portrait__still {
+  opacity: 0;
+}
+
+.aw-speech-subtitles .aw-audio-notice__dismiss {
+  pointer-events: auto;
+}
+
+.aw-speech-subtitles {
+  position: absolute;
+  z-index: 1;
+  right: 32px;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 32px;
+  color: var(--aw-color-text-highlight);
+  text-shadow:
+    0 1px 2px var(--aw-color-night),
+    0 0 8px var(--aw-color-night);
+}
+.aw-speech-subtitles__speaker {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.aw-speech-subtitles__speaker > span {
+  flex: none;
+  color: var(--aw-color-crimson-bright);
+}
+.aw-speech-subtitles__speaker > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.aw-speech-subtitles__speaker > small {
+  flex: none;
+  color: var(--aw-color-text-muted);
+  font-size: 12px;
+}
+.aw-speech-subtitles__text {
+  text-wrap: wrap;
+  min-height: 3.1em;
+  margin: 0;
+  font-family: var(--aw-font-ui);
+  font-size: clamp(17px, 2.6cqw, 24px);
+  font-weight: 400;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.aw-speech-subtitles .aw-audio-notice {
+  margin-top: 8px;
+}
+.aw-speech-subtitles__previous,
+.aw-speech-subtitles__current {
+  display: block;
+}
+.aw-speech-subtitles__previous {
+  color: var(--aw-color-text-muted);
+}
+
+@media (min-width: 701px) {
+  .aw-speech-portrait-stage[data-side='right'] .aw-speech-subtitles {
+    text-align: right;
+  }
+  .aw-speech-portrait-stage[data-side='right'] .aw-speech-subtitles__speaker {
+    justify-content: flex-end;
+  }
+}
+
+@container match-stage (max-width: 420px) {
+  .aw-speaking-portrait {
+    left: 20px;
+    top: 28px;
+    bottom: 90px;
+    width: 76%;
+    min-width: 0;
+  }
+  .aw-speaking-portrait[data-side='right'] {
+    left: auto;
+    right: 20px;
+  }
+  .aw-speech-playback-bar {
+    gap: 8px;
+  }
+  .aw-speech-playback-bar__label {
+    font-size: 12px;
+  }
+  .aw-speech-subtitles {
+    right: 16px;
+    left: 16px;
+    bottom: max(18px, env(safe-area-inset-bottom));
+  }
+  .aw-speech-subtitles__speaker {
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+}
+
+@keyframes aw-portrait-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aw-speech-portrait-stage {
+    animation: none;
+  }
+}

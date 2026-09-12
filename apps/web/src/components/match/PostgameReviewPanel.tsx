@@ -1,5 +1,5 @@
 import { GameIcon } from '../GameIcon.js'
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type {
   MatchView,
@@ -23,6 +23,7 @@ export function PostgameReviewPanel({
   onResume,
   open,
   onOpenChange,
+  playbackBar,
 }: {
   readonly match: MatchView
   readonly busy: boolean
@@ -32,6 +33,7 @@ export function PostgameReviewPanel({
   readonly onResume: () => void
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+  readonly playbackBar?: ReactNode
 }) {
   const review = match.postgameReview
   const [mode, setMode] = useState<'result' | 'sheets'>('result')
@@ -82,6 +84,7 @@ export function PostgameReviewPanel({
         className="aw-panel aw-postgame-strip aw-postgame-strip--countdown"
         aria-live="polite"
       >
+        {playbackBar}
         <div>
           <InkActivity state="ended" className="aw-postgame-outcome-seal" />
           <strong>{matchWinnerLabel(match)}</strong>
@@ -123,6 +126,7 @@ export function PostgameReviewPanel({
   if (review.state === 'skipped') {
     return (
       <div className="aw-panel aw-postgame-strip aw-postgame-strip--compact">
+        {playbackBar}
         <InkActivity state="ended" className="aw-postgame-outcome-seal" />
         <strong>{matchWinnerLabel(match)}</strong>
         <span>{getCopy('postgame.skipped')}</span>
@@ -135,6 +139,7 @@ export function PostgameReviewPanel({
   return (
     <>
       <PostgameSummaryStrip
+        playbackBar={playbackBar}
         busy={busy}
         error={error}
         match={match}
@@ -216,6 +221,7 @@ function PostgameSummaryStrip({
   openButtonRef,
   onOpenChange,
   onResume,
+  playbackBar,
 }: {
   readonly match: MatchView
   readonly review: PostgameReviewView
@@ -225,6 +231,7 @@ function PostgameSummaryStrip({
   readonly openButtonRef: RefObject<HTMLButtonElement | null>
   readonly onOpenChange: (open: boolean) => void
   readonly onResume: () => void
+  readonly playbackBar?: ReactNode
 }) {
   const current = seatFor(match, review.currentSpeakerId)
   const mvp = seatFor(match, review.result?.mvp.playerId ?? null)
@@ -262,6 +269,7 @@ function PostgameSummaryStrip({
             })
   return (
     <section className="aw-panel aw-postgame-strip" data-state={review.state}>
+      {playbackBar}
       <InkActivity state="ended" className="aw-postgame-outcome-seal" />
       <div className="aw-postgame-strip__summary">
         <GameIcon name="award" size={22} />

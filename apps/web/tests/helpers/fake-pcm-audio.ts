@@ -46,6 +46,14 @@ export class FakePcmContext {
   public constructor() {
     FakePcmContext.instances.push(this)
   }
+  public createAnalyser() {
+    return {
+      fftSize: 1024,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      getFloatTimeDomainData: (wave: Float32Array) => wave.fill(0.2),
+    }
+  }
   public createBuffer(_channels: number, samples: number, rate: number): FakePcmBuffer {
     return new FakePcmBuffer(samples, rate)
   }

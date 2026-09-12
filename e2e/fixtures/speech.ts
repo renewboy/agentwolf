@@ -61,6 +61,7 @@ export async function installSpeechSynthesisStub(
         state.active = this
         state.spoken.push(text)
         state.rates.push(1)
+        this.dispatchEvent(new Event('playing'))
       }
       pause() {
         if (state.active === this) {

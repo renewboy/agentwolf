@@ -19,6 +19,7 @@ import { PlayerRail } from '../components/match/PlayerRail.js'
 import { PostgameReviewPanel } from '../components/match/PostgameReviewPanel.js'
 import { PresenceStage } from '../components/match/MatchPresence.js'
 import { MatchRecoveryPanel } from '../components/match/MatchRecoveryPanel.js'
+import { SpeechPortraitStage } from '../components/match/SpeechPortraitStage.js'
 import { gameArt } from '../game-art.js'
 import { RoleEffectController } from '../components/match/RoleEffectController.js'
 import { useMatchSession } from '../hooks/useMatchSession.js'
@@ -250,44 +251,62 @@ export function MatchPage() {
               seats={match.seats.slice(0, Math.ceil(match.seats.length / 2))}
             />
             <section className="aw-panel aw-match-stage" data-review-open={reviewOpen}>
-              {match.status !== 'paused' && !match.postgameReview ? (
-                <PresenceStage
-                  activePlayer={activityPlayer}
-                  connectionState={connectionState}
-                  match={match}
-                  state={presenceState}
-                  thinkingCount={thinkingCount}
-                />
-              ) : null}
-              {match.status === 'paused' ? (
-                <MatchRecoveryPanel
-                  busy={actionBusy}
-                  error={actionError}
-                  reason={match.pausedReason}
-                  onDelete={() => setDeleteOpen(true)}
-                  onResume={() => void resumeMatch()}
-                />
-              ) : null}
-              <div className="aw-match-records" data-review-open={reviewOpen}>
-                <PostgameReviewPanel
-                  busy={actionBusy}
-                  error={actionError}
-                  match={match}
-                  open={reviewOpen}
-                  onOpenChange={setReviewOpen}
-                  onResume={() => void runPostgameAction((id) => api.resumePostgameReview(id))}
-                  onSkip={() => void runPostgameAction((id) => api.skipPostgameReview(id))}
-                  onStart={() => void runPostgameAction((id) => api.startPostgameReview(id))}
-                />
-                <MatchFeed
-                  activeSpeech={match.activeSpeech}
-                  jumpToDay={activeFeedJump}
-                  audio={feedAudio}
-                  postgameReview={match.postgameReview}
-                  seats={match.seats}
-                  timeline={match.timeline}
-                />
-              </div>
+              <SpeechPortraitStage
+                key={`${match.id}:${projectionKey}`}
+                playback={speechPlayback}
+                seats={match.seats}
+                blocked={viewPending}
+                motion={motionMode === 'full' && !motion.hidden}
+                jumpRequest={activeFeedJump?.requestId}
+              >
+                {(playbackBar) => (
+                  <div className="aw-match-conversation">
+                    {match.status !== 'paused' && !match.postgameReview ? (
+                      <PresenceStage
+                        playbackBar={playbackBar}
+                        activePlayer={activityPlayer}
+                        connectionState={connectionState}
+                        match={match}
+                        state={presenceState}
+                        thinkingCount={thinkingCount}
+                      />
+                    ) : null}
+                    {match.status === 'paused' ? (
+                      <MatchRecoveryPanel
+                        playbackBar={match.postgameReview ? null : playbackBar}
+                        busy={actionBusy}
+                        error={actionError}
+                        reason={match.pausedReason}
+                        onDelete={() => setDeleteOpen(true)}
+                        onResume={() => void resumeMatch()}
+                      />
+                    ) : null}
+                    <div className="aw-match-records" data-review-open={reviewOpen}>
+                      <PostgameReviewPanel
+                        playbackBar={playbackBar}
+                        busy={actionBusy}
+                        error={actionError}
+                        match={match}
+                        open={reviewOpen}
+                        onOpenChange={setReviewOpen}
+                        onResume={() =>
+                          void runPostgameAction((id) => api.resumePostgameReview(id))
+                        }
+                        onSkip={() => void runPostgameAction((id) => api.skipPostgameReview(id))}
+                        onStart={() => void runPostgameAction((id) => api.startPostgameReview(id))}
+                      />
+                      <MatchFeed
+                        activeSpeech={match.activeSpeech}
+                        jumpToDay={activeFeedJump}
+                        audio={feedAudio}
+                        postgameReview={match.postgameReview}
+                        seats={match.seats}
+                        timeline={match.timeline}
+                      />
+                    </div>
+                  </div>
+                )}
+              </SpeechPortraitStage>
             </section>
             <PlayerRail
               side="right"

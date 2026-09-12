@@ -36,7 +36,13 @@ vi.mock('../src/api.js', () => ({ api: apiMocks }))
 vi.mock('../src/hooks/useMatchSession.js', () => ({
   useMatchSession: () => ({
     ...live.current,
-    speechPlayback: speech.current,
+    speechPlayback: {
+      playbackId: 'test-playback',
+      output: null,
+      readLevel: () => 0,
+      setCaptionCapacity: () => {},
+      ...speech.current,
+    },
     voiceEnabled: session.voiceEnabled,
     viewKind: session.viewKind,
     playerId: session.playerId,

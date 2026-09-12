@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { usePresentationPlayback } from '@agent-arena/react'
 import {
   PresentationPlaybackController,
   type PlaybackNotice,
+  type PresentationOutput,
   type PresentationPlaybackMode,
 } from '@agent-arena/web-runtime'
 import { getCopy } from '@agentwolf/assets'
@@ -22,6 +23,10 @@ import {
 } from './browser-model-speech.js'
 
 export interface SpeechPlaybackController {
+  readonly playbackId: string
+  readonly output: PresentationOutput<PlayerId, SpeechId> | null
+  readonly readLevel: () => number
+  readonly setCaptionCapacity: (capacity: number) => void
   readonly supported: boolean
   readonly mode: PresentationPlaybackMode
   readonly activeSpeechId: SpeechId | null
@@ -48,6 +53,7 @@ export function useSpeechPlayback({
   viewPending,
   resolveAutomatic,
   audioIdentity,
+  portraitActors,
 }: {
   readonly timeline: readonly TimelineItem[]
   readonly activeSpeech: MatchView['activeSpeech']
@@ -55,12 +61,17 @@ export function useSpeechPlayback({
   readonly projectionKey: string
   readonly viewPending: boolean
   readonly resolveAutomatic: (sequence: number, outcome: 'completed' | 'skipped') => boolean
+  readonly portraitActors?: readonly PlayerId[]
   readonly audioIdentity?: SpeechAudioIdentity
 }): SpeechPlaybackController {
   const port = useMemo(() => new BrowserModelSpeech(), [])
+  const [manualRequest, setManualRequest] = useState(0)
   useEffect(() => {
     port.setIdentity(audioIdentity ?? { matchId: null, view: { kind: 'god' } })
   }, [audioIdentity, port])
+  useEffect(() => {
+    port.setPortraitActors(portraitActors ?? [])
+  }, [port, portraitActors])
   const modelNotice = useSyncExternalStore(port.subscribe, port.snapshot, port.snapshot)
   const lifecycle = useRef(0)
   useEffect(() => {
@@ -115,6 +126,7 @@ export function useSpeechPlayback({
   const state = usePresentationPlayback(controller, update)
   const playManual = useCallback(
     (item: TimelineItem) => {
+      setManualRequest((request) => request + 1)
       port.prepare()
       controller.playManual(item)
     },
@@ -127,6 +139,10 @@ export function useSpeechPlayback({
   )
   const cancelAll = useCallback(() => controller.cancelAll(), [controller])
   return {
+    playbackId: `${state.mode}:${state.activeKey ?? ''}:${manualRequest}`,
+    output: state.output,
+    readLevel: port.readLevel,
+    setCaptionCapacity: port.setCaptionCapacity,
     supported: state.supported,
     mode: state.mode,
     activeSpeechId: state.activeKey,

@@ -16,6 +16,9 @@ vi.mock('../src/hooks/browser-model-speech.js', async () => {
         return this.port.supported
       }
       setIdentity() {}
+      setPortraitActors() {}
+      setCaptionCapacity() {}
+      readLevel = () => 0
       prepare() {}
       snapshot = () => modelNotice.value
       subscribe = () => () => {}
@@ -383,6 +386,20 @@ describe('useSpeechPlayback streaming speech', () => {
 })
 
 describe('useSpeechPlayback controls and projection changes', () => {
+  it('assigns a new presentation identity when the same message is replayed', () => {
+    const { result } = renderPlayback({ playbackState: state({ controlledByThisClient: false }) })
+    const speech = item(30, '重播这一条。')
+    act(() => result.current.playManual(speech))
+    const first = result.current.playbackId
+    const utterance = speechSynthesis.speak.mock.calls[0]![0] as unknown as FakeUtterance
+    act(() => {
+      utterance.dispatchEvent(new Event('start'))
+    })
+    expect(result.current.playbackId).toBe(first)
+    act(() => result.current.playManual(speech))
+    expect(result.current.playbackId).not.toBe(first)
+    expect(result.current.activeSpeechId).toBe(30)
+  })
   it('lets one message preempt live speech and protects it from newer speech', async () => {
     const { result, rerender, resolveAutomatic } = renderPlayback({
       activeSpeech: {
@@ -395,7 +412,11 @@ describe('useSpeechPlayback controls and projection changes', () => {
     await waitFor(() => expect(speechSynthesis.speak).toHaveBeenCalledOnce())
     const staleLive = speechSynthesis.speak.mock.calls[0]![0] as unknown as FakeUtterance
     act(() => result.current.playManual(item(30, '单条消息。', 'player-2')))
-    expect(result.current).toMatchObject({ mode: 'manual', activeSpeechId: 30, manualSequence: 30 })
+    expect(result.current).toMatchObject({
+      mode: 'manual',
+      activeSpeechId: 30,
+      manualSequence: 30,
+    })
     expect(speechSynthesis.speak).toHaveBeenCalledTimes(2)
     void act(() => staleLive.dispatchEvent(new Event('end')))
 

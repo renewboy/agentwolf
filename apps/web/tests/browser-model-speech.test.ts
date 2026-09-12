@@ -56,6 +56,104 @@ afterEach(() => {
 })
 
 describe('BrowserModelSpeech PCM output', () => {
+  it('pairs subtitle pages with actual output, preloads only the next page, and completes once', async () => {
+    const { port, callbacks: base } = createPort()
+    const callbacks = { ...base, update: vi.fn() }
+    port.setPortraitActors([actor])
+    port.setCaptionCapacity(10)
+    fetchMock.mockImplementation(async () =>
+      pcmResponse(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(pcmSamples(2400))
+            controller.close()
+          },
+        }),
+      ),
+    )
+    port.prepare()
+    port.speak('一二三四五六七八九十。再核对这张票的理由。最后看判断是否一致。', callbacks, {
+      key,
+      actor,
+    })
+    const audio = FakePcmContext.instances[0]!
+    await waitFor(() => expect(audio.sources).toHaveLength(1))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(callbacks.end).not.toHaveBeenCalled()
+    audio.currentTime = 0.03
+    await waitFor(() =>
+      expect(callbacks.update).toHaveBeenCalledWith({
+        status: 'playing',
+        text: '一二三四五六七八九十。',
+      }),
+    )
+    expect(port.readLevel()).toBeCloseTo(0.2)
+    for (let index = 0; index < 3; index++) {
+      await waitFor(() => expect(audio.sources).toHaveLength(index + 1))
+      audio.sources[index]!.finish()
+    }
+    await waitFor(() => expect(callbacks.end).toHaveBeenCalledOnce())
+    const texts = fetchMock.mock.calls.map(
+      ([, request]) => JSON.parse(request!.body as string).text,
+    )
+    expect(texts).toEqual([
+      '一二三四五六七八九十。',
+      '再核对这张票的理由。',
+      '最后看判断是否一致。',
+    ])
+    expect(callbacks.error).not.toHaveBeenCalled()
+    expect(port.readLevel()).toBe(0)
+  })
+
+  it('keeps a failed preload handled until the current audio finishes', async () => {
+    const { port, callbacks } = createPort()
+    port.setPortraitActors([actor])
+    port.setCaptionCapacity(8)
+    port.prepare()
+    fetchMock
+      .mockResolvedValueOnce(
+        pcmResponse(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(pcmSamples())
+              controller.close()
+            },
+          }),
+        ),
+      )
+      .mockRejectedValueOnce(new Error('next page failed'))
+    port.speak('第一段需要核对。第二段需要解释。', callbacks, { key, actor })
+    const audio = FakePcmContext.instances[0]!
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(callbacks.error).not.toHaveBeenCalled()
+    audio.sources[0]!.finish()
+    await waitFor(() => expect(callbacks.error).toHaveBeenCalledOnce())
+    expect(callbacks.end).not.toHaveBeenCalled()
+  })
+
+  it('uses the same page identity on the media fallback and suppresses callbacks after cancellation', () => {
+    vi.stubGlobal('AudioContext', undefined)
+    const { port, fallback, callbacks: base } = createPort()
+    const callbacks = { ...base, update: vi.fn() }
+    port.setPortraitActors([actor])
+    port.setCaptionCapacity(8)
+    port.speak('第一段需要核对。第二段需要解释。', callbacks, { key, actor })
+    const first = fallback.speak.mock.calls[0]![1]
+    first.update?.({ status: 'playing' })
+    expect(callbacks.update).toHaveBeenCalledWith({ status: 'playing', text: '第一段需要核对。' })
+    first.end()
+    expect(fallback.speak).toHaveBeenCalledTimes(2)
+    const last = fallback.speak.mock.calls[1]![1]
+    last.end()
+    expect(callbacks.end).toHaveBeenCalledOnce()
+    port.speak('第三段需要解释。', callbacks, { key, actor })
+    const stale = fallback.speak.mock.calls[2]![1]
+    port.cancel()
+    stale.end()
+    stale.update?.({ status: 'playing' })
+    expect(callbacks.end).toHaveBeenCalledOnce()
+    expect(fallback.speak).toHaveBeenCalledTimes(3)
+  })
   it('uses exact presentation identity, decodes big-endian samples across odd network chunks, and waits for the final sound', async () => {
     const { port, callbacks, fallback } = createPort()
     const { response, writer } = controlledResponse()

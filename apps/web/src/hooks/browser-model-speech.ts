@@ -3,6 +3,7 @@ import type { MatchId, PlayerId, SpectatorView, SpeechId } from '@agentwolf/cont
 import { api, SpeechAudioUnavailableError } from '../api.js'
 import { BrowserEdgeMediaSpeech } from './browser-edge-media-speech.js'
 import { AudioActivationError, BrowserPcmSpeech } from './browser-pcm-speech.js'
+import { subtitlePages } from './speech-subtitles.js'
 
 export type ModelSpeechNotice =
   | 'unavailable'
@@ -30,6 +31,18 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
   #speechId: SpeechId | null = null
   #request: AbortController | null = null
   #generation = 0
+  #portraitActors = new Set<PlayerId>()
+  #captionCapacity = 24
+
+  public setPortraitActors(actors: readonly PlayerId[]): void {
+    this.#portraitActors = new Set(actors)
+  }
+
+  public setCaptionCapacity = (capacity: number): void => {
+    this.#captionCapacity = Math.max(8, Math.min(24, capacity))
+  }
+
+  public readLevel = (): number => this.#pcm.readLevel()
 
   public constructor(
     fallback?: PlaybackPort,
@@ -87,6 +100,10 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     const generation = this.#generation
     const identity = this.#identity
     const current = () => this.#generation === generation
+    const pages =
+      context?.actor && this.#portraitActors.has(context.actor)
+        ? subtitlePages(text, this.#captionCapacity)
+        : [text]
     const guarded: PlaybackCallbacks = {
       end: () => {
         if (current()) callbacks.end()
@@ -94,20 +111,33 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
       error: (error) => {
         if (current()) callbacks.error(error)
       },
+      update: (output) => {
+        if (current()) callbacks.update?.(output)
+      },
     }
     if (!this.#pcm.supported) {
       this.#setNotice('default-browser')
-      this.#fallback.speak(
-        text,
-        {
-          ...guarded,
-          error: (error) => {
-            if (current()) this.#setNotice('default-unavailable')
-            guarded.error(error)
+      const playPage = (index: number): void => {
+        if (!current()) return
+        const page = pages[index]
+        if (page === undefined) {
+          guarded.end()
+          return
+        }
+        this.#fallback.speak(
+          page,
+          {
+            end: () => playPage(index + 1),
+            update: (output) => guarded.update?.({ ...output, text: page }),
+            error: (error) => {
+              if (current()) this.#setNotice('default-unavailable')
+              guarded.error(error)
+            },
           },
-        },
-        context,
-      )
+          context,
+        )
+      }
+      playPage(0)
       return
     }
     if (!identity.matchId || !context) {
@@ -117,25 +147,42 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     }
     const request = new AbortController()
     this.#request = request
-    void api
-      .speechAudio(
-        identity.matchId,
-        {
-          speechId: context.key,
-          view: identity.view,
-          text,
-        },
-        request.signal,
-      )
-      .then(async ({ stream, format, source }) => {
+    const load = async (page: string) => {
+      try {
+        const response = await api.speechAudio(
+          identity.matchId!,
+          {
+            speechId: context.key,
+            view: identity.view,
+            text: page,
+          },
+          request.signal,
+        )
         if (!current()) {
-          await stream.cancel()
-          return undefined
+          await response.stream.cancel()
+          throw new DOMException('Playback cancelled', 'AbortError')
         }
+        return { response } as const
+      } catch (error) {
+        return { error } as const
+      }
+    }
+    const play = async (): Promise<void> => {
+      let pending = load(pages[0] ?? text)
+      for (let index = 0; index < pages.length; index += 1) {
+        const loaded = await pending
+        if (!current()) return
+        if ('error' in loaded) throw loaded.error
+        const { stream, format, source } = loaded.response
+        const page = pages[index]!
+        if (pages[index + 1] !== undefined) pending = load(pages[index + 1]!)
         this.#setNotice(source.provider === 'edge-tts' ? `default-${source.reason}` : null)
-        await this.#pcm.play(stream, format)
-        return guarded.end()
-      })
+        await this.#pcm.play(stream, format, (status) => guarded.update?.({ status, text: page }))
+        if (!current()) return
+      }
+      guarded.end()
+    }
+    void play()
       .catch((error: unknown) => {
         if (!current()) return
         if (error instanceof SpeechAudioUnavailableError) {
@@ -152,6 +199,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
         guarded.error(error)
       })
       .finally(() => {
+        request.abort()
         if (this.#request === request) this.#request = null
       })
   }

@@ -9,6 +9,7 @@
 - 玩家 Skill 源码树及其构建输入。
 - 本地化 UI 文案、旁白、Role 与 Ability 标签,以及昵称词库。
 - 内置 Character 卡与托管的头像元数据。
+- Character 半身原画、五官坐标与独立的局部动态定义。
 - Character 参考音频、音色映射与中文来源记录。
 - Role 效果呈现目录、图标、时序元数据、CSS 与 design tokens。
 
@@ -20,6 +21,11 @@ Prompt 架构定义在 [Prompt 与玩家上下文](../../docs/architecture/promp
 
 Assets 依赖 AgentWolf contracts 与 Core prompt runtime,但不依赖 game engine 或 server。server 将已安装
 的 Ruleset 语义适配为纯 asset 侧的 Prompt 清单与可见事实。
+
+## Character 立绘
+
+`characterPerformance(snapshot)` 根据 Character 与肖像资产标识解析浏览器安全的立绘定义，未注册
+的人设返回 null。[立绘素材契约](characters/performances/README.md)持有原画、透明通道与坐标约定。
 
 ## Character 参考音色
 

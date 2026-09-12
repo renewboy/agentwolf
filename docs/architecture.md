@@ -113,7 +113,7 @@ flowchart TB
 当前直接消费边界是：game-engine 提供 Core GameModule adapter 并使用 Ruleset/game runtime；assets 将
 现有 Prompt manifests/facts 接入 Core prompt runtime；acp package 使用 Core ACP runtime；server 将普通
 action boundary、Session binding、trajectory、simulation workflow、live subscription 与 presentation
-barrier 接入 Core；Web 使用 Core projection/playback/local-state controllers、React primitives 与
+barrier 接入 Core；Web 使用 Core projection/playback/local-state controllers、browser audio ports、React primitives 与
 devtools state。MatchRuntime、SQLite repositories、ContextRenderer、speech visibility、postgame、Web
 projector、舞台 renderer 与主题继续拥有 AgentWolf 产品语义。
 

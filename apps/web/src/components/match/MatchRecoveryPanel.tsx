@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { GameIcon } from '../GameIcon.js'
 import { getCopy } from '@agentwolf/assets'
 
@@ -7,15 +8,18 @@ export function MatchRecoveryPanel({
   reason,
   onResume,
   onDelete,
+  playbackBar,
 }: {
   readonly busy: boolean
   readonly error: string | null
   readonly reason: string | null
   readonly onResume: () => void
   readonly onDelete: () => void
+  readonly playbackBar?: ReactNode
 }) {
   return (
     <section className="aw-panel aw-match-recovery" aria-label={getCopy('match.paused')}>
+      {playbackBar}
       <div className="aw-match-recovery__heading">
         <GameIcon name="pause" size={20} />
         <div>

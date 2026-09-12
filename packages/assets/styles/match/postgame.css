@@ -34,7 +34,7 @@
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) auto;
 }
-.aw-postgame-strip--countdown > div:first-child {
+.aw-postgame-strip--countdown > div:first-of-type {
   grid-column: 2;
   grid-row: 1;
 }
@@ -473,5 +473,11 @@
   }
   .aw-postgame-award {
     padding: 11px;
+  }
+}
+
+@media (max-width: 700px) {
+  .aw-postgame-strip--countdown:has(> .aw-speech-playback-bar) > .aw-postgame-actions {
+    grid-row: 3;
   }
 }

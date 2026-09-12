@@ -30,7 +30,7 @@ vi.mock('../src/hooks/useLiveMatch.js', () => ({
   useLiveMatch: (matchId: string, view: unknown) => {
     live.observe(matchId, view)
     return {
-      match: live.match,
+      match: live.match ? { ...live.match, seats: [] } : null,
       error: null,
       controlError: null,
       retry: vi.fn(),
@@ -46,6 +46,7 @@ vi.mock('../src/hooks/useSpeechPlayback.js', () => ({
   useSpeechPlayback: (options: unknown) => {
     speech.options(options)
     return {
+      playbackId: `test-${speech.mode}`,
       supported: true,
       mode: speech.mode,
       activeSpeechId: speech.mode === 'automatic' ? 7 : null,

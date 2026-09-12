@@ -1,3 +1,4 @@
+import { BrowserMediaAudioPlayer } from '@agent-arena/react'
 import type { PlaybackCallbacks, PlaybackContext, PlaybackPort } from '@agent-arena/web-runtime'
 import type { PlayerId, SpeechId } from '@agentwolf/contracts'
 import { api } from '../api.js'
@@ -7,8 +8,7 @@ export class BrowserEdgeMediaSpeech implements PlaybackPort<PlayerId, SpeechId> 
   readonly #identity: () => SpeechAudioIdentity
   readonly #onDefault: () => void
   #request: AbortController | null = null
-  #audio: HTMLAudioElement | null = null
-  #url: string | null = null
+  readonly #player = new BrowserMediaAudioPlayer()
   #generation = 0
 
   public constructor(identity: () => SpeechAudioIdentity, onDefault: () => void) {
@@ -16,7 +16,7 @@ export class BrowserEdgeMediaSpeech implements PlaybackPort<PlayerId, SpeechId> 
     this.#onDefault = onDefault
   }
   public get supported(): boolean {
-    return typeof Audio !== 'undefined'
+    return this.#player.supported
   }
 
   public speak(
@@ -48,31 +48,8 @@ export class BrowserEdgeMediaSpeech implements PlaybackPort<PlayerId, SpeechId> 
         const bytes = await new Response(stream).arrayBuffer()
         if (!current()) return undefined
         this.#onDefault()
-        const audio = new Audio()
-        this.#audio = audio
-        this.#url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))
-        audio.src = this.#url
-        audio.addEventListener(
-          'ended',
-          () => {
-            if (current()) {
-              this.cancel()
-              callbacks.end()
-            }
-          },
-          { once: true, signal: request.signal },
-        )
-        audio.addEventListener(
-          'error',
-          () => {
-            if (current()) {
-              this.cancel()
-              callbacks.error(new Error('Default speech playback failed'))
-            }
-          },
-          { once: true, signal: request.signal },
-        )
-        return audio.play()
+        if (!current()) return undefined
+        return this.#player.play(new Blob([bytes], { type: 'audio/mpeg' }), callbacks)
       })
       .catch((error: unknown) => {
         if (current()) {
@@ -86,13 +63,6 @@ export class BrowserEdgeMediaSpeech implements PlaybackPort<PlayerId, SpeechId> 
     this.#generation += 1
     this.#request?.abort()
     this.#request = null
-    if (this.#audio) {
-      this.#audio.pause()
-      this.#audio.removeAttribute('src')
-      this.#audio.load()
-      this.#audio = null
-    }
-    if (this.#url) URL.revokeObjectURL(this.#url)
-    this.#url = null
+    this.#player.cancel()
   }
 }

@@ -1,5 +1,6 @@
 export * from './catalog.js'
 export * from './characters.js'
+export * from './character-performances.js'
 export * from './classic-event-presentations.js'
 export * from './narration.js'
 export * from './nicknames.js'

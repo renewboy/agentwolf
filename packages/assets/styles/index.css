@@ -21,6 +21,7 @@
 @import './pages/collection.css';
 @import './pages/settings.css';
 @import './match/stage.css';
+@import './match/portrait.css';
 @import './match/header.css';
 @import './match/recovery.css';
 @import './match/roster.css';

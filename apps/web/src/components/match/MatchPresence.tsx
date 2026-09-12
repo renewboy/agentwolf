@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { formatCopy, getCopy } from '@agentwolf/assets'
 import type { MatchView, SeatView } from '@agentwolf/contracts'
 import type { LiveConnectionState } from '../../hooks/useLiveMatch.js'
@@ -10,12 +11,14 @@ export function PresenceStage({
   activePlayer,
   connectionState,
   thinkingCount,
+  playbackBar,
 }: {
   readonly state: MatchPresenceState
   readonly match: MatchView
   readonly activePlayer: SeatView | null
   readonly connectionState: LiveConnectionState
   readonly thinkingCount: number
+  readonly playbackBar?: ReactNode
 }) {
   const label = presenceLabel(state, match, activePlayer, thinkingCount)
   const activity: InkActivityState =
@@ -36,6 +39,7 @@ export function PresenceStage({
               : 'waiting'
   return (
     <section className="aw-panel aw-presence" data-state={state} aria-live="polite">
+      {playbackBar}
       <InkActivity className="aw-presence__signal" state={activity} />
       <div className="aw-presence__copy">
         {state !== 'ended' ? (

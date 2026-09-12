@@ -26,7 +26,7 @@ function create(match: typeof matchId | null = matchId) {
   const notice = vi.fn()
   const port = new BrowserEdgeMediaSpeech(() => ({ matchId: match, view: { kind: 'god' } }), notice)
   ports.push(port)
-  return { port, notice, callbacks: { end: vi.fn(), error: vi.fn() } }
+  return { port, notice, callbacks: { end: vi.fn(), error: vi.fn(), update: vi.fn() } }
 }
 function response() {
   return new Response(new Uint8Array([1, 2, 3]), {
@@ -59,6 +59,34 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 describe('default voice without Web Audio', () => {
+  it('does not create media when the fallback notification cancels the request', async () => {
+    let port!: BrowserEdgeMediaSpeech
+    const notice = vi.fn(() => port.cancel())
+    port = new BrowserEdgeMediaSpeech(() => ({ matchId, view: { kind: 'god' } }), notice)
+    ports.push(port)
+    const callbacks = { end: vi.fn(), error: vi.fn() }
+    port.speak('取消回退播放。', callbacks, context)
+    await waitFor(() => expect(notice).toHaveBeenCalledOnce())
+    expect(Media.all).toHaveLength(0)
+    expect(callbacks.error).not.toHaveBeenCalled()
+  })
+  it('ignores transport rejection after cancellation', async () => {
+    let reject!: (error: Error) => void
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail
+        }),
+    )
+    const { port, callbacks } = create()
+    port.speak('取消等待。', callbacks, context)
+    port.cancel()
+    reject(new Error('aborted request'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(callbacks.error).not.toHaveBeenCalled()
+    expect(Media.all).toHaveLength(0)
+  })
   it('requests only visible speech and completes after the audio element ended', async () => {
     const { port, notice, callbacks } = create()
     expect(port.supported).toBe(true)
@@ -71,6 +99,10 @@ describe('default voice without Web Audio', () => {
     })
     expect(notice).toHaveBeenCalledOnce()
     expect(callbacks.end).not.toHaveBeenCalled()
+    Media.all[0]!.dispatchEvent(new Event('playing'))
+    expect(callbacks.update).toHaveBeenLastCalledWith({ status: 'playing' })
+    Media.all[0]!.dispatchEvent(new Event('waiting'))
+    expect(callbacks.update).toHaveBeenLastCalledWith({ status: 'buffering' })
     Media.all[0]!.dispatchEvent(new Event('ended'))
     expect(callbacks.end).toHaveBeenCalledOnce()
     expect(revoke).toHaveBeenCalledWith('blob:edge')

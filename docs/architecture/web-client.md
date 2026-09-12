@@ -46,7 +46,7 @@ flowchart TB
     end
 
     Server["Fastify REST / WebSocket"]
-    Browser["DOM、SpeechSynthesis、localStorage"]
+    Browser["DOM、Web Audio、localStorage"]
 
     Contracts --> API
     Assets --> Pages
@@ -178,6 +178,7 @@ MatchPage 只组合已投影信息：
 - PlayerRail：公开 Character、Role、alive、Sheriff、候选、投影授权的玩家标识和有限 Session status；
 - PresenceStage：从 Match status、postgame、连接、Session 和 speech 纯派生活动文案；
 - MatchFeed：timeline、live speech、vote detail、postgame award/reflection；
+- SpeechPortraitStage：实际播放片段、Character 立绘、字幕与查看记录交互；
 - PostgameReviewPanel：countdown、评分进度、结果、感想与 start/skip/resume action；
 - paused/ended controls：调用 server API 后重新加载，不直接修改 MatchView。
 
@@ -206,7 +207,7 @@ MatchFeed 与 trajectory ledger 共享 Core follow-latest controller，并分别
 
 `useSpeechPlayback` 将 AgentWolf TimelineItem、稳定 `SpeechId`、发言者、中文断句和 copy 映射到
 Core presentation controller。产品播放 port 根据 Match 与当前视图请求角色语音，持有 HTTP
-请求、PCM 播放和系统语音选择；浏览器副作用由各自的音频适配器管理。模型准备、音色路由、
+请求、字幕分页与提示；Core browser adapters 持有 PCM/编码音频排程、媒体元素和音量采样。模型准备、音色路由、
 错误边界和跨层取消见[角色语音](speech-audio.md)。controller 接收 server playback state、timeline、
 activeSpeech、projection key 和 viewPending，并维护：
 
@@ -214,6 +215,11 @@ activeSpeech、projection key 和 viewPending，并维护：
 - 当前 speech job、已消费字符和完整句 units；
 - sequence outcome 与已回执 barrier 集；
 - 自动与单条消息播放焦点。
+
+Core 的当前输出快照绑定实际播放片段、稳定 key 与 actor，准备和缓冲状态由播放 port 报告。
+具有立绘素材的人设由业务 renderer 呈现在中央消息区；角色素材、左右构图、字幕行数和动作参数
+归属于 AgentWolf。渲染器读取音量驱动局部口型，连续采样不进入 React 全页状态。视角切换清除旧
+画面，视觉资源失败不取消声音或持有阶段门控。素材契约见 [assets](../../packages/assets/README.md)。
 
 流式 speech 只在完整句子形成时入队,commit 后补齐剩余尾部,并通过同一 `SpeechId` 绑定整个 job。
 skip 清除该 job 的当前句、待播句和后续增量；按钮提交原 `SpeechId`,因此重复点击不会跳过已经切换的
