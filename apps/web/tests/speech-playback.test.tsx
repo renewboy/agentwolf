@@ -513,7 +513,6 @@ describe('speech notice presentation', () => {
     ['default-error', '角色音色暂不可用', 'fallback'],
     ['default-disabled', '角色音色已关闭', 'fallback'],
     ['default-no-voice', '该角色暂无专属音色', 'fallback'],
-    ['default-browser', '当前浏览器使用默认语音', 'fallback'],
     ['default-unavailable', '默认语音连接失败', 'error'],
     ['unavailable', '角色语音模型暂不可用', 'error'],
     ['no-voice', '该角色尚未配置参考音色', 'error'],

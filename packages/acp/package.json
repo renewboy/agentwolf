@@ -16,7 +16,7 @@
   "dependencies": {
     "@agent-arena/acp-runtime": "workspace:*",
     "@agentclientprotocol/claude-agent-acp": "0.70.0",
-    "@agentclientprotocol/codex-acp": "1.8.0",
+    "@agentclientprotocol/codex-acp": "1.10.0",
     "@agentclientprotocol/sdk": "1.4.0",
     "@agentwolf/contracts": "workspace:*"
   }

@@ -1,8 +1,8 @@
 import { waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PlaybackCallbacks, PlaybackPort } from '@agent-arena/web-runtime'
 import { MatchIdSchema, PlayerIdSchema, SpeechIdSchema } from '@agentwolf/contracts'
 import { api } from '../src/api.js'
+import { FakeMp3Audio, FakeMediaSource, installMp3Audio } from './helpers/fake-mp3-audio.js'
 import { BrowserModelSpeech, type SpeechAudioIdentity } from '../src/hooks/browser-model-speech.js'
 import {
   FakePcmContext,
@@ -23,15 +23,10 @@ function createPort(
     view: { kind: 'player', playerId: actor },
   },
 ) {
-  const fallback = {
-    supported: true,
-    speak: vi.fn<PlaybackPort['speak']>(),
-    cancel: vi.fn(),
-  } satisfies PlaybackPort
-  const port = new BrowserModelSpeech(fallback, identity)
+  const port = new BrowserModelSpeech(identity)
   const callbacks = { end: vi.fn(), error: vi.fn() }
   ports.push(port)
-  return { port, fallback, callbacks }
+  return { port, callbacks }
 }
 
 function controlledResponse() {
@@ -48,6 +43,7 @@ function controlledResponse() {
 
 beforeEach(() => {
   installPcmAudio()
+  installMp3Audio()
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -132,35 +128,90 @@ describe('BrowserModelSpeech PCM output', () => {
     expect(callbacks.end).not.toHaveBeenCalled()
   })
 
-  it('uses the same page identity on the media fallback and suppresses callbacks after cancellation', () => {
-    vi.stubGlobal('AudioContext', undefined)
-    const { port, fallback, callbacks: base } = createPort()
-    const callbacks = { ...base, update: vi.fn() }
+  it.each([true, false])(
+    'preserves streaming MP3 subtitles and cancellation with Web Audio %s',
+    async (webAudio) => {
+      if (!webAudio) vi.stubGlobal('AudioContext', undefined)
+      const { port, callbacks: base } = createPort()
+      expect(port.supported).toBe(true)
+      const callbacks = { ...base, update: vi.fn() }
+      port.setPortraitActors([actor])
+      port.setCaptionCapacity(8)
+      fetchMock.mockImplementation(
+        async () =>
+          new Response(new Uint8Array([1, 2, 3]), {
+            headers: {
+              'Content-Type': 'audio/mpeg',
+              'X-AgentWolf-Speech-Source': JSON.stringify({
+                provider: 'edge-tts',
+                voice: 'zh-CN-YunxiNeural',
+                reason: 'preparing',
+              }),
+            },
+          }),
+      )
+      port.prepare()
+      port.speak('第一段需要核对。第二段需要解释。', callbacks, { key, actor })
+      await waitFor(() => expect(FakeMediaSource.all[0]?.endOfStream).toHaveBeenCalledOnce())
+      FakeMp3Audio.all[0]!.dispatchEvent(new Event('playing'))
+      expect(callbacks.update).toHaveBeenLastCalledWith({
+        status: 'playing',
+        text: '第一段需要核对。',
+        nextText: '第二段需要解释。',
+      })
+      expect(port.readLevel()).toBeCloseTo(webAudio ? 0.2 : 0)
+      FakeMp3Audio.all[0]!.dispatchEvent(new Event('waiting'))
+      expect(port.readLevel()).toBe(0)
+      FakeMp3Audio.all[0]!.dispatchEvent(new Event('ended'))
+      await waitFor(() => expect(FakeMediaSource.all[1]?.endOfStream).toHaveBeenCalledOnce())
+      FakeMp3Audio.all[1]!.dispatchEvent(new Event('ended'))
+      await waitFor(() => expect(callbacks.end).toHaveBeenCalledOnce())
+      port.speak('第三段需要解释。', callbacks, { key, actor })
+      await waitFor(() => expect(FakeMediaSource.all[2]?.endOfStream).toHaveBeenCalledOnce())
+      port.cancel()
+      const updates = callbacks.update.mock.calls.length
+      FakeMp3Audio.all[2]!.dispatchEvent(new Event('playing'))
+      FakeMp3Audio.all[2]!.dispatchEvent(new Event('ended'))
+      expect(callbacks.end).toHaveBeenCalledOnce()
+      expect(callbacks.update).toHaveBeenCalledTimes(updates)
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    },
+  )
+
+  it('uses prefetched subtitle pages once for an automatic presentation unit', async () => {
+    const { port, callbacks } = createPort()
     port.setPortraitActors([actor])
     port.setCaptionCapacity(8)
-    port.speak('第一段需要核对。第二段需要解释。', callbacks, { key, actor })
-    const first = fallback.speak.mock.calls[0]![1]
-    first.update?.({ status: 'playing' })
-    expect(callbacks.update).toHaveBeenCalledWith({
-      status: 'playing',
-      text: '第一段需要核对。',
-      nextText: '第二段需要解释。',
-    })
-    first.end()
-    expect(fallback.speak).toHaveBeenCalledTimes(2)
-    const last = fallback.speak.mock.calls[1]![1]
-    last.end()
-    expect(callbacks.end).toHaveBeenCalledOnce()
-    port.speak('第三段需要解释。', callbacks, { key, actor })
-    const stale = fallback.speak.mock.calls[2]![1]
-    port.cancel()
-    stale.end()
-    stale.update?.({ status: 'playing' })
-    expect(callbacks.end).toHaveBeenCalledOnce()
-    expect(fallback.speak).toHaveBeenCalledTimes(3)
+    fetchMock.mockImplementation(async () =>
+      pcmResponse(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(pcmSamples())
+            controller.close()
+          },
+        }),
+      ),
+    )
+    const unit = { text: '第一段需要核对。第二段需要解释。', context: { key, actor, unitId: 17 } }
+    port.prepare()
+    port.prefetch([unit])
+    port.speak(unit.text, callbacks, unit.context)
+    const audio = FakePcmContext.instances[0]!
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    port.prefetch([unit])
+    for (let index = 0; index < 2; index++) {
+      await waitFor(() => expect(audio.sources).toHaveLength(index + 1))
+      audio.sources[index]!.finish()
+    }
+    await waitFor(() => expect(callbacks.end).toHaveBeenCalledOnce())
+    expect(
+      fetchMock.mock.calls.map(([, request]) => JSON.parse(request!.body as string).text),
+    ).toEqual(['第一段需要核对。', '第二段需要解释。'])
+    port.prefetch([])
+    expect(callbacks.error).not.toHaveBeenCalled()
   })
   it('uses exact presentation identity, decodes big-endian samples across odd network chunks, and waits for the final sound', async () => {
-    const { port, callbacks, fallback } = createPort()
+    const { port, callbacks } = createPort()
     const { response, writer } = controlledResponse()
     fetchMock.mockResolvedValue(response)
     port.prepare()
@@ -189,7 +240,6 @@ describe('BrowserModelSpeech PCM output', () => {
     audio.sources[1]!.finish()
     await waitFor(() => expect(callbacks.end).toHaveBeenCalledOnce())
     expect(callbacks.error).not.toHaveBeenCalled()
-    expect(fallback.speak).not.toHaveBeenCalled()
   })
 
   it('does not finish when the last scheduled sound ends before the network EOF', async () => {
@@ -208,7 +258,7 @@ describe('BrowserModelSpeech PCM output', () => {
   })
 
   it('aborts a pending request and rejects a late response after cancellation', async () => {
-    const { port, callbacks, fallback } = createPort()
+    const { port, callbacks } = createPort()
     let respond!: (value: Response) => void
     fetchMock.mockImplementation(
       () =>
@@ -227,7 +277,6 @@ describe('BrowserModelSpeech PCM output', () => {
     expect(FakePcmContext.instances[0]?.sources).toHaveLength(0)
     expect(callbacks.end).not.toHaveBeenCalled()
     expect(callbacks.error).not.toHaveBeenCalled()
-    expect(fallback.speak).not.toHaveBeenCalled()
   })
 
   it('stops playing and queued buffers, cancels the reader, and ignores late ended events', async () => {
@@ -250,7 +299,7 @@ describe('BrowserModelSpeech PCM output', () => {
   })
 
   it('fails a broken stream after audio starts without replaying the sentence in another voice', async () => {
-    const { port, callbacks, fallback } = createPort()
+    const { port, callbacks } = createPort()
     const { response, writer } = controlledResponse()
     fetchMock.mockResolvedValue(response)
     port.prepare()
@@ -262,14 +311,13 @@ describe('BrowserModelSpeech PCM output', () => {
     writer.error(new Error('worker disconnected'))
     await waitFor(() => expect(callbacks.error).toHaveBeenCalledOnce())
     expect(audio.sources[0]?.stop).toHaveBeenCalledOnce()
-    expect(fallback.speak).not.toHaveBeenCalled()
     expect(callbacks.end).not.toHaveBeenCalled()
   })
 
   it.each([new Uint8Array(0), new Uint8Array([0, 1, 2])])(
     'rejects empty or truncated PCM without fallback',
     async (bytes) => {
-      const { port, callbacks, fallback } = createPort()
+      const { port, callbacks } = createPort()
       fetchMock.mockResolvedValue(
         pcmResponse(
           new ReadableStream({
@@ -283,27 +331,41 @@ describe('BrowserModelSpeech PCM output', () => {
       port.prepare()
       port.speak('失败。', callbacks, { key, actor })
       await waitFor(() => expect(callbacks.error).toHaveBeenCalledOnce())
-      expect(fallback.speak).not.toHaveBeenCalled()
     },
   )
 })
 
 describe('BrowserModelSpeech fallback boundaries', () => {
-  it.each(['tts-no-voice', 'tts-unavailable'] as const)(
+  it.each(['Audio', 'MediaSource'])(
+    'reports unavailable playback without Web Audio or %s',
+    (capability) => {
+      vi.stubGlobal('AudioContext', undefined)
+      vi.stubGlobal(capability, undefined)
+      const { port } = createPort()
+      expect(port.supported).toBe(false)
+    },
+  )
+
+  it.each(['tts-no-voice', 'tts-unavailable', 'tts-default-unavailable'] as const)(
     'reports %s without changing to system speech',
     async (code) => {
-      const { port, callbacks, fallback } = createPort()
+      const { port, callbacks } = createPort()
       fetchMock.mockResolvedValue(Response.json({ code, message: '稍后再试' }, { status: 503 }))
       port.prepare()
       port.speak('保持角色音色。', callbacks, { key, actor })
       await waitFor(() => expect(callbacks.error).toHaveBeenCalledOnce())
-      expect(fallback.speak).not.toHaveBeenCalled()
-      expect(port.snapshot()).toBe(code === 'tts-no-voice' ? 'no-voice' : 'unavailable')
+      expect(port.snapshot()).toBe(
+        code === 'tts-no-voice'
+          ? 'no-voice'
+          : code === 'tts-default-unavailable'
+            ? 'default-unavailable'
+            : 'unavailable',
+      )
     },
   )
 
   it('plays Yunxi immediately when the server chooses the default voice', async () => {
-    const { port, callbacks, fallback } = createPort()
+    const { port, callbacks } = createPort()
     fetchMock.mockResolvedValue(
       new Response(new Uint8Array([1, 2, 3]), {
         headers: {
@@ -319,62 +381,43 @@ describe('BrowserModelSpeech fallback boundaries', () => {
     port.prepare()
     port.speak('历史发言。', callbacks, { key, actor })
     await waitFor(() => expect(port.snapshot()).toBe('default-preparing'))
-    await waitFor(() => expect(FakePcmContext.instances[0]!.sources).toHaveLength(1))
-    expect(FakePcmContext.instances[0]!.decodeAudioData).toHaveBeenCalledOnce()
+    await waitFor(() => expect(FakeMediaSource.all[0]!.endOfStream).toHaveBeenCalledOnce())
     expect(fetchMock).toHaveBeenCalledOnce()
-    FakePcmContext.instances[0]!.sources[0]!.finish()
+    FakeMp3Audio.all[0]!.dispatchEvent(new Event('ended'))
     await waitFor(() => expect(callbacks.end).toHaveBeenCalledOnce())
-    expect(fallback.speak).not.toHaveBeenCalled()
   })
 
   it('does not substitute a system voice when presentation identity is incomplete', () => {
     const missingMatch = createPort({ matchId: null, view: { kind: 'god' } })
     missingMatch.port.speak('历史发言。', missingMatch.callbacks, { key, actor })
     expect(missingMatch.callbacks.error).toHaveBeenCalledOnce()
-    expect(missingMatch.fallback.speak).not.toHaveBeenCalled()
     const missingSpeech = createPort()
     missingSpeech.port.speak('历史发言。', missingSpeech.callbacks)
     expect(missingSpeech.callbacks.error).toHaveBeenCalledOnce()
-    expect(missingSpeech.fallback.speak).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it.each([400, 403, 404, 503])(
     'does not bypass speech authorization or text errors with HTTP %s',
     async (status) => {
-      const { port, callbacks, fallback } = createPort()
+      const { port, callbacks } = createPort()
       fetchMock.mockResolvedValue(
         Response.json({ code: 'speech-audio-not-visible', message: '不可见' }, { status }),
       )
       port.prepare()
       port.speak('不可播报。', callbacks, { key, actor })
       await waitFor(() => expect(callbacks.error).toHaveBeenCalledOnce())
-      expect(fallback.speak).not.toHaveBeenCalled()
     },
   )
 
   it('requires user audio activation and releases the unread response', async () => {
-    const { port, callbacks, fallback } = createPort()
+    const { port, callbacks } = createPort()
     const { response, cancel } = controlledResponse()
     fetchMock.mockResolvedValue(response)
     port.speak('需要点击。', callbacks, { key, actor })
     await waitFor(() => expect(callbacks.error).toHaveBeenCalledOnce())
     expect(port.snapshot()).toBe('activation-required')
     expect(cancel).toHaveBeenCalledOnce()
-    expect(fallback.speak).not.toHaveBeenCalled()
-  })
-
-  it('uses the browser when Web Audio is absent and suppresses cancelled fallback callbacks', () => {
-    vi.stubGlobal('AudioContext', undefined)
-    const { port, callbacks, fallback } = createPort()
-    expect(port.supported).toBe(true)
-    port.prepare()
-    port.speak('系统声音。', callbacks, { key, actor })
-    const browserCallbacks = vi.mocked(fallback.speak).mock.calls[0]![1] as PlaybackCallbacks
-    port.cancel()
-    browserCallbacks.end()
-    expect(callbacks.end).not.toHaveBeenCalled()
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('validates the stream media type and parses model status at the API boundary', async () => {

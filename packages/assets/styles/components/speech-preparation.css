@@ -1,0 +1,115 @@
+.aw-speech-preparation {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: var(--aw-layer-sticky);
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px 18px;
+  color: var(--aw-color-text);
+  background: var(--aw-color-surface) var(--aw-texture-wood);
+  border: 1px solid var(--aw-color-line-bright);
+  border-left: 3px solid var(--aw-color-amber);
+  border-radius: var(--aw-radius-panel);
+  box-shadow: var(--aw-shadow-panel);
+  font-size: 13px;
+}
+
+.aw-speech-preparation__heading,
+.aw-speech-preparation__bytes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aw-speech-preparation__drag {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.aw-speech-preparation__drag > strong {
+  font-family: var(--aw-font-display);
+  font-size: 16px;
+}
+
+.aw-speech-preparation__drag > .aw-game-icon {
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+.aw-speech-preparation__drag:focus-visible {
+  outline: 1px solid var(--aw-color-amber);
+  outline-offset: 4px;
+}
+
+.aw-speech-preparation[data-dragging='true'] .aw-speech-preparation__drag {
+  cursor: grabbing;
+}
+
+.aw-speech-preparation[data-minimized='true'] {
+  width: min(284px, calc(100vw - 32px));
+  padding: 8px 12px;
+}
+
+.aw-speech-preparation[data-minimized='true'] .aw-speech-preparation__heading {
+  gap: 8px;
+}
+
+.aw-speech-preparation[data-minimized='true'] .aw-speech-preparation__drag > strong {
+  font-size: 14px;
+}
+
+.aw-speech-preparation[data-minimized='true'] progress {
+  height: 3px;
+  margin: 7px 0 0;
+}
+
+.aw-speech-preparation p {
+  margin: 10px 0 0;
+  color: var(--aw-color-text-muted);
+  line-height: 1.6;
+}
+
+.aw-speech-preparation progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin: 14px 0 8px;
+  appearance: none;
+  border: none;
+  background: var(--aw-color-line);
+}
+
+.aw-speech-preparation progress::-webkit-progress-bar {
+  background: var(--aw-color-line);
+}
+
+.aw-speech-preparation progress::-webkit-progress-value {
+  background: var(--aw-color-amber);
+}
+
+.aw-speech-preparation__bytes {
+  font-variant-numeric: tabular-nums;
+}
+
+.aw-speech-preparation[data-state='ready'] {
+  border-left-color: var(--aw-color-success);
+}
+
+.aw-speech-preparation[data-state='error'],
+.aw-speech-preparation[data-state='disconnected'] {
+  border-left-color: var(--aw-color-danger);
+}
+
+@media (width <= 640px) {
+  .aw-speech-preparation {
+    right: 16px;
+    bottom: 16px;
+  }
+}

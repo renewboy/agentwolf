@@ -17,7 +17,7 @@ const live = vi.hoisted(() => ({
   setSpeechPlaybackEnabled: vi.fn(() => true),
   resolveSpeechPlayback: vi.fn(() => true),
   observe: vi.fn(),
-  match: null as { readonly id: string } | null,
+  match: null as { readonly id: string; readonly status?: string } | null,
 }))
 const speech = vi.hoisted(() => ({
   mode: 'idle' as 'idle' | 'automatic' | 'manual',
@@ -106,11 +106,21 @@ beforeEach(() => {
   speech.skipAutomatic.mockReset()
   speech.prepareAudio.mockReset()
   speech.options.mockReset()
-  live.match = null
+  live.match = { id: 'match-test-abcdef', status: 'running' }
   live.observe.mockClear()
 })
 
 describe('MatchSessionProvider', () => {
+  it('waits for a resumed match before enabling saved automatic speech', async () => {
+    window.localStorage.setItem(voicePreferenceStorageKey, 'true')
+    live.match = { id: 'match-test-abcdef', status: 'paused' }
+    const { rerender } = render(<Probe />, { wrapper: Wrapper })
+    expect(live.setSpeechPlaybackEnabled).not.toHaveBeenCalled()
+    live.match = { id: 'match-test-abcdef', status: 'running' }
+    rerender(<Probe />)
+    await waitFor(() => expect(live.setSpeechPlaybackEnabled).toHaveBeenCalledExactlyOnceWith(true))
+  })
+
   it('starts closed-eye and requests a player projection only after explicit selection', async () => {
     render(<Probe />, { wrapper: Wrapper })
     expect(screen.getByText('closed-eye:null')).toBeVisible()

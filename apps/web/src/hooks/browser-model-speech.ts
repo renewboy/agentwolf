@@ -1,9 +1,14 @@
-import type { PlaybackCallbacks, PlaybackContext, PlaybackPort } from '@agent-arena/web-runtime'
+import type {
+  PlaybackCallbacks,
+  PlaybackContext,
+  PlaybackPort,
+  PlaybackPreparation,
+} from '@agent-arena/web-runtime'
 import type { MatchId, PlayerId, SpectatorView, SpeechId } from '@agentwolf/contracts'
 import { api, SpeechAudioUnavailableError } from '../api.js'
-import { BrowserEdgeMediaSpeech } from './browser-edge-media-speech.js'
 import { AudioActivationError, BrowserPcmSpeech } from './browser-pcm-speech.js'
 import { subtitlePages } from './speech-subtitles.js'
+import { SpeechAudioPrefetch } from './speech-audio-prefetch.js'
 
 export type ModelSpeechNotice =
   | 'unavailable'
@@ -15,7 +20,6 @@ export type ModelSpeechNotice =
   | 'default-disabled'
   | 'default-no-voice'
   | 'default-unavailable'
-  | 'default-browser'
 
 export interface SpeechAudioIdentity {
   readonly matchId: MatchId | null
@@ -23,9 +27,9 @@ export interface SpeechAudioIdentity {
 }
 
 export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
-  readonly #fallback: PlaybackPort
   #identity: SpeechAudioIdentity
   readonly #pcm = new BrowserPcmSpeech()
+  readonly #prefetch = new SpeechAudioPrefetch()
   readonly #listeners = new Set<() => void>()
   #notice: ModelSpeechNotice | null = null
   #speechId: SpeechId | null = null
@@ -33,6 +37,8 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
   #generation = 0
   #portraitActors = new Set<PlayerId>()
   #captionCapacity = 24
+  #nextPageId = 1
+  readonly #preparedPages = new Map<number, readonly PlaybackPreparation<PlayerId, SpeechId>[]>()
 
   public setPortraitActors(actors: readonly PlayerId[]): void {
     this.#portraitActors = new Set(actors)
@@ -44,16 +50,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
 
   public readLevel = (): number => this.#pcm.readLevel()
 
-  public constructor(
-    fallback?: PlaybackPort,
-    identity: SpeechAudioIdentity = { matchId: null, view: { kind: 'god' } },
-  ) {
-    this.#fallback =
-      fallback ??
-      new BrowserEdgeMediaSpeech(
-        () => this.#identity,
-        () => this.#setNotice('default-browser'),
-      )
+  public constructor(identity: SpeechAudioIdentity = { matchId: null, view: { kind: 'god' } }) {
     this.#identity = identity
   }
 
@@ -65,6 +62,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
         this.#identity.view.kind === 'player' &&
         identity.view.playerId !== this.#identity.view.playerId)
     ) {
+      this.cancel()
       this.#speechId = null
       this.#setNotice(null)
     }
@@ -76,7 +74,7 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
   }
 
   public get supported(): boolean {
-    return this.#pcm.supported || this.#fallback.supported
+    return this.#pcm.supported
   }
 
   public snapshot = (): ModelSpeechNotice | null => this.#notice
@@ -89,21 +87,45 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     void this.#pcm.prepare().catch(() => this.#setNotice('activation-required'))
   }
 
+  public prefetch(units: readonly PlaybackPreparation<PlayerId, SpeechId>[]): void {
+    const wanted = new Set(units.map((unit) => unit.context.unitId))
+    for (const id of this.#preparedPages.keys()) {
+      if (!wanted.has(id)) this.#preparedPages.delete(id)
+    }
+    const pages = units.flatMap((unit) => {
+      let prepared = this.#preparedPages.get(unit.context.unitId)
+      if (!prepared) {
+        prepared = this.#pages(unit.text, unit.context.actor).map((text) => ({
+          text,
+          context: { ...unit.context, unitId: this.#nextPageId++ },
+        }))
+        this.#preparedPages.set(unit.context.unitId, prepared)
+      }
+      return prepared
+    })
+    this.#prefetch.synchronize(pages, this.#identity)
+  }
+
   public speak(
     text: string,
     callbacks: PlaybackCallbacks,
     context?: PlaybackContext<PlayerId, SpeechId>,
   ): void {
-    this.cancel()
+    if (context?.unitId === undefined) this.cancel()
+    else {
+      this.#generation += 1
+      this.#request?.abort()
+      this.#request = null
+      this.#pcm.cancel()
+    }
     this.#speechId = context?.key ?? null
     this.#setNotice(null)
     const generation = this.#generation
     const identity = this.#identity
     const current = () => this.#generation === generation
-    const pages =
-      context?.actor && this.#portraitActors.has(context.actor)
-        ? subtitlePages(text, this.#captionCapacity)
-        : [text]
+    const prepared =
+      context?.unitId === undefined ? undefined : this.#preparedPages.get(context.unitId)
+    const pages = prepared?.map((page) => page.text) ?? this.#pages(text, context?.actor)
     const guarded: PlaybackCallbacks = {
       end: () => {
         if (current()) callbacks.end()
@@ -115,32 +137,6 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
         if (current()) callbacks.update?.(output)
       },
     }
-    if (!this.#pcm.supported) {
-      this.#setNotice('default-browser')
-      const playPage = (index: number): void => {
-        if (!current()) return
-        const page = pages[index]
-        if (page === undefined) {
-          guarded.end()
-          return
-        }
-        this.#fallback.speak(
-          page,
-          {
-            end: () => playPage(index + 1),
-            update: (output) =>
-              guarded.update?.({ ...output, text: page, nextText: pages[index + 1] ?? null }),
-            error: (error) => {
-              if (current()) this.#setNotice('default-unavailable')
-              guarded.error(error)
-            },
-          },
-          context,
-        )
-      }
-      playPage(0)
-      return
-    }
     if (!identity.matchId || !context) {
       this.#setNotice('unavailable')
       guarded.error(new Error('Character speech identity is missing'))
@@ -148,17 +144,15 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     }
     const request = new AbortController()
     this.#request = request
-    const load = async (page: string) => {
+    const load = async (page: string, index: number) => {
       try {
-        const response = await api.speechAudio(
-          identity.matchId!,
-          {
-            speechId: context.key,
-            view: identity.view,
-            text: page,
-          },
-          request.signal,
-        )
+        const response = await (prepared
+          ? this.#prefetch.open(prepared[index]!.context.unitId)
+          : api.speechAudio(
+              identity.matchId!,
+              { speechId: context.key, view: identity.view, text: page },
+              request.signal,
+            ))
         if (!current()) {
           await response.stream.cancel()
           throw new DOMException('Playback cancelled', 'AbortError')
@@ -169,14 +163,14 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
       }
     }
     const play = async (): Promise<void> => {
-      let pending = load(pages[0] ?? text)
+      let pending = load(pages[0] ?? text, 0)
       for (let index = 0; index < pages.length; index += 1) {
         const loaded = await pending
         if (!current()) return
         if ('error' in loaded) throw loaded.error
         const { stream, format, source } = loaded.response
         const page = pages[index]!
-        if (pages[index + 1] !== undefined) pending = load(pages[index + 1]!)
+        if (pages[index + 1] !== undefined) pending = load(pages[index + 1]!, index + 1)
         this.#setNotice(source.provider === 'edge-tts' ? `default-${source.reason}` : null)
         await this.#pcm.play(stream, format, (status) =>
           guarded.update?.({ status, text: page, nextText: pages[index + 1] ?? null }),
@@ -211,14 +205,21 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
     this.#generation += 1
     this.#request?.abort()
     this.#request = null
+    this.#prefetch.cancel()
+    this.#preparedPages.clear()
     this.#pcm.cancel()
-    this.#fallback.cancel()
   }
 
   public dispose(): void {
     this.cancel()
     this.#pcm.dispose()
     this.#listeners.clear()
+  }
+
+  #pages(text: string, actor: PlayerId | null | undefined): readonly string[] {
+    return actor && this.#portraitActors.has(actor)
+      ? subtitlePages(text, this.#captionCapacity)
+      : [text]
   }
 
   #setNotice(notice: ModelSpeechNotice | null): void {

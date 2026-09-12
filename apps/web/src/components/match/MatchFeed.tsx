@@ -436,7 +436,7 @@ function SpeechBubble({
           <span className="aw-speech-bubble__pointer" aria-hidden />
           <span className="aw-speech-bubble__landscape" aria-hidden />
           <p>
-            {text || getCopy('match.noSpeech')}
+            {text}
             {live ? <span className="aw-stream-cursor" aria-hidden /> : null}
           </p>
         </div>

@@ -16,106 +16,156 @@ export async function installSpeechSynthesisStub(
           'X-AgentWolf-Speech-Source': JSON.stringify({
             provider: 'edge-tts',
             voice: 'zh-CN-YunxiNeural',
-            reason: 'browser',
+            reason: 'preparing',
           }),
         },
       })
     })
   }
-  if (!nativePcm) {
-    await page.addInitScript(() => {
-      Object.defineProperty(window, 'AudioContext', { configurable: true, value: undefined })
-      Object.defineProperty(window, 'webkitAudioContext', { configurable: true, value: undefined })
-    })
-  }
-  await page.addInitScript(() => {
-    class StubUtterance extends EventTarget {
-      public readonly text: string
-      public lang = ''
-      public rate = 1
+  await page.addInitScript(
+    ({ nativePcm: useNativeAudio }) => {
+      class StubUtterance extends EventTarget {
+        public readonly text: string
+        public lang = ''
+        public rate = 1
 
-      public constructor(text: string) {
-        super()
-        this.text = text
-      }
-    }
-    const state: {
-      active: StubUtterance | StubMedia | null
-      cancelCount: number
-      rates: number[]
-      spoken: string[]
-    } = {
-      active: null,
-      cancelCount: 0,
-      rates: [],
-      spoken: [],
-    }
-    class StubMedia extends EventTarget {
-      src = ''
-      onended: ((event: Event) => void) | null = null
-      onerror: ((event: Event) => void) | null = null
-      async play() {
-        const url = this.src
-        const text = await fetch(url).then((response) => response.text())
-        if (this.src !== url) return
-        state.active = this
-        state.spoken.push(text)
-        state.rates.push(1)
-        this.dispatchEvent(new Event('playing'))
-      }
-      pause() {
-        if (state.active === this) {
-          state.cancelCount += 1
-          state.active = null
+        public constructor(text: string) {
+          super()
+          this.text = text
         }
       }
-      removeAttribute() {
-        this.src = ''
+      const state: {
+        active: StubUtterance | StubMedia | null
+        cancelCount: number
+        rates: number[]
+        spoken: string[]
+      } = {
+        active: null,
+        cancelCount: 0,
+        rates: [],
+        spoken: [],
       }
-      load() {}
-    }
-    Object.defineProperty(window, 'Audio', { configurable: true, value: StubMedia })
-    Object.defineProperty(window, 'SpeechSynthesisUtterance', {
-      configurable: true,
-      value: StubUtterance,
-    })
-    Object.defineProperty(window, 'speechSynthesis', {
-      configurable: true,
-      value: {
-        cancel: () => {
-          if (state.active) state.cancelCount += 1
-          state.active = null
+      class StubMedia extends EventTarget {
+        src = ''
+        onended: ((event: Event) => void) | null = null
+        onerror: ((event: Event) => void) | null = null
+        textIndex = -1
+        playbackRate = 1
+        ended = false
+        async play() {
+          state.active = this
+          this.dispatchEvent(new Event('playing'))
+        }
+        pause() {
+          if (state.active === this) {
+            state.cancelCount += 1
+            state.active = null
+          }
+        }
+        removeAttribute() {
+          this.src = ''
+        }
+        load() {}
+      }
+      if (!useNativeAudio) {
+        class StubBuffer extends EventTarget {
+          buffered = { length: 0 }
+          appendBuffer(bytes: ArrayBuffer) {
+            const active = state.active
+            if (active instanceof StubMedia) {
+              const text = new TextDecoder().decode(bytes)
+              if (active.textIndex < 0) {
+                active.textIndex = state.spoken.length
+                state.spoken.push(text)
+                state.rates.push(1)
+              } else state.spoken[active.textIndex] += text
+            }
+            this.buffered.length = 1
+            queueMicrotask(() => this.dispatchEvent(new Event('updateend')))
+          }
+        }
+        class StubMediaSource extends EventTarget {
+          addSourceBuffer() {
+            return new StubBuffer()
+          }
+          endOfStream() {}
+        }
+        Object.defineProperty(window, 'MediaSource', { configurable: true, value: StubMediaSource })
+        const createUrl = URL.createObjectURL.bind(URL)
+        URL.createObjectURL = (object) => {
+          if (object instanceof StubMediaSource) {
+            queueMicrotask(() => object.dispatchEvent(new Event('sourceopen')))
+            return 'blob:speech-stub'
+          }
+          return createUrl(object)
+        }
+        Object.defineProperty(window, 'AudioContext', {
+          configurable: true,
+          value: class {
+            state = 'running'
+            destination = {}
+            createAnalyser() {
+              return {
+                fftSize: 1024,
+                connect() {},
+                disconnect() {},
+                getFloatTimeDomainData(wave: Float32Array) {
+                  wave.fill(0)
+                },
+              }
+            }
+            createMediaElementSource() {
+              return { connect() {}, disconnect() {} }
+            }
+            async resume() {}
+            async close() {}
+          },
+        })
+        Object.defineProperty(window, 'Audio', { configurable: true, value: StubMedia })
+      }
+      Object.defineProperty(window, 'SpeechSynthesisUtterance', {
+        configurable: true,
+        value: StubUtterance,
+      })
+      Object.defineProperty(window, 'speechSynthesis', {
+        configurable: true,
+        value: {
+          cancel: () => {
+            if (state.active) state.cancelCount += 1
+            state.active = null
+          },
+          speak: (utterance: StubUtterance) => {
+            state.active = utterance
+            state.spoken.push(utterance.text)
+            state.rates.push(utterance.rate)
+          },
         },
-        speak: (utterance: StubUtterance) => {
-          state.active = utterance
-          state.spoken.push(utterance.text)
-          state.rates.push(utterance.rate)
+      })
+      Object.defineProperty(window, 'speechTest', {
+        configurable: true,
+        value: {
+          spoken: state.spoken,
+          rates: state.rates,
+          get cancelCount() {
+            return state.cancelCount
+          },
+          finish: () => {
+            const active = state.active
+            state.active = null
+            if (active instanceof StubMedia) active.dispatchEvent(new Event('ended'))
+            else active?.dispatchEvent(new Event('end'))
+          },
+          fail: () => {
+            const active = state.active
+            state.active = null
+            if (active instanceof StubMedia) active.dispatchEvent(new Event('error'))
+            else active?.dispatchEvent(new Event('error'))
+          },
         },
-      },
-    })
-    Object.defineProperty(window, 'speechTest', {
-      configurable: true,
-      value: {
-        spoken: state.spoken,
-        rates: state.rates,
-        get cancelCount() {
-          return state.cancelCount
-        },
-        finish: () => {
-          const active = state.active
-          state.active = null
-          if (active instanceof StubMedia) active.dispatchEvent(new Event('ended'))
-          else active?.dispatchEvent(new Event('end'))
-        },
-        fail: () => {
-          const active = state.active
-          state.active = null
-          if (active instanceof StubMedia) active.dispatchEvent(new Event('error'))
-          else active?.dispatchEvent(new Event('error'))
-        },
-      },
-    })
-  })
+      })
+    },
+    { nativePcm },
+  )
 }
 
 export interface PcmPlaybackObservation {
@@ -196,21 +246,28 @@ export async function observeNativePcmPlayback(page: Page): Promise<void> {
         })
       const response = await nativeFetch(...args)
       if (isSpeech && response.ok && response.body) {
-        const nativeGetReader = response.body.getReader.bind(response.body)
-        Object.defineProperty(response.body, 'getReader', {
-          configurable: true,
-          value: () => {
-            const reader = nativeGetReader()
-            const nativeRead = reader.read.bind(reader)
-            reader.read = async () => {
-              const result = await nativeRead()
-              if (result.done) state.eofAt = performance.now()
-              else state.receivedBytes += result.value.byteLength
-              return result
-            }
-            return reader
+        const reader = response.body.getReader()
+        const observed = new ReadableStream<Uint8Array>(
+          {
+            pull: async (controller) => {
+              try {
+                const result = await reader.read()
+                if (result.done) {
+                  state.eofAt = performance.now()
+                  controller.close()
+                } else {
+                  state.receivedBytes += result.value.byteLength
+                  controller.enqueue(result.value)
+                }
+              } catch (error) {
+                controller.error(error)
+              }
+            },
+            cancel: (reason) => reader.cancel(reason),
           },
-        })
+          { highWaterMark: 0 },
+        )
+        return new Response(observed, { status: response.status, headers: response.headers })
       }
       return response
     }

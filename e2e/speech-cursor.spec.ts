@@ -42,7 +42,9 @@ for (const side of ['left', 'right'] as const) {
       ]) {
         current = { ...current, activeSpeech: { ...current.activeSpeech!, text } }
         sendLive({ type: 'snapshot', view: { kind: 'god' }, data: current })
-        await expect(paragraph).toHaveText(text || '等待下一位玩家发言')
+        await expect(paragraph).toHaveText(text)
+        await expect(paragraph).toHaveCSS('font-family', /Songti SC/)
+        await expect(paragraph).toHaveCSS('font-size', width === 390 ? '16px' : '17px')
         await expect(cursor).toBeVisible()
         await expect(bubble).toHaveAttribute('data-side', side)
         const geometry = await cursor.evaluate((element) => {
@@ -53,12 +55,14 @@ for (const side of ['left', 'right'] as const) {
           const style = getComputedStyle(textBlock)
           const textNode = [...textBlock.childNodes].findLast(
             (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
-          )!
+          )
           const range = document.createRange()
-          const length = textNode.textContent!.length
-          range.setStart(textNode, length - 1)
-          range.setEnd(textNode, length)
-          const lastCharacter = range.getBoundingClientRect()
+          if (textNode) {
+            const length = textNode.textContent!.length
+            range.setStart(textNode, length - 1)
+            range.setEnd(textNode, length)
+          }
+          const lastCharacter = textNode ? range.getBoundingClientRect() : rect
           return {
             contained:
               rect.left >= bounds.left + parseFloat(style.paddingLeft) - 1 &&

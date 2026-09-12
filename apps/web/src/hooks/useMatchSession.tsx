@@ -69,7 +69,7 @@ export function MatchSessionProvider({
   const requestedState = useRef<boolean | null>(null)
 
   useEffect(() => {
-    if (live.connectionState !== 'live') {
+    if (live.connectionState !== 'live' || !live.match || live.match.status === 'paused') {
       requestedState.current = null
       return
     }

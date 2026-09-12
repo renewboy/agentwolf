@@ -320,7 +320,7 @@ test('shows completed player ratings immediately and streams reflections through
   expect((mobileAwardsBounds?.x ?? 0) + (mobileAwardsBounds?.width ?? 0)).toBeLessThanOrEqual(760)
 })
 
-test('offers recovery controls and deletes a paused match', async ({
+test('offers recovery controls without a delete action in the match view', async ({
   page,
   request,
   resources,
@@ -409,12 +409,6 @@ test('offers recovery controls and deletes a paused match', async ({
   await expect(page.getByRole('button', { name: '继续对局' })).toBeVisible()
   await expect(page.locator('.aw-feed-shell')).toBeVisible()
   await expect(page.locator('.aw-pause-overlay')).toHaveCount(0)
-  await page.getByText('暂停详情与管理').click()
-  await page.getByRole('button', { name: '删除对局' }).click()
-  const dialog = page.getByRole('alertdialog', { name: '确认删除对局' })
-  await expect(dialog).toBeVisible()
-  await dialog.getByRole('button', { name: '删除对局' }).click()
-  await expect(page).toHaveURL('/')
-  const matches = (await (await request.get('/api/matches')).json()) as Array<{ id: string }>
-  expect(matches.some((match) => match.id === created.id)).toBe(false)
+  await page.getByText('暂停详情').click()
+  await expect(page.getByRole('button', { name: '删除对局' })).toHaveCount(0)
 })

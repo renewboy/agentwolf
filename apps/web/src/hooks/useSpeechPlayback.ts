@@ -189,8 +189,6 @@ function localizeModelNotice(notice: ModelSpeechNotice | null): string | null {
       return getCopy('match.audioDefaultDisabled')
     case 'default-no-voice':
       return getCopy('match.audioDefaultNoVoice')
-    case 'default-browser':
-      return getCopy('match.audioDefaultBrowser')
     case 'default-unavailable':
       return getCopy('match.audioDefaultUnavailable')
     case 'activation-required':

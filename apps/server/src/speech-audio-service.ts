@@ -3,15 +3,18 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { createInterface } from 'node:readline'
 import { Readable, Transform, type TransformCallback } from 'node:stream'
 import { builtInCharacterVoices } from '@agentwolf/assets/voices'
 import { getCopy } from '@agentwolf/assets'
-import type {
-  CharacterId,
-  MatchId,
-  SpeechAudioBackend,
-  SpeechAudioStatus,
-  SpeechId,
+import {
+  SpeechAudioProgressSchema,
+  type CharacterId,
+  type MatchId,
+  type SpeechAudioBackend,
+  type SpeechAudioProgress,
+  type SpeechAudioStatus,
+  type SpeechId,
 } from '@agentwolf/contracts'
 import type { ServerConfig } from './config.js'
 import { SpeechAudioProcess } from './speech-audio-process.js'
@@ -56,6 +59,7 @@ export class SpeechAudioService implements SpeechAudioProvider {
   #worker: SpeechAudioProcess | null = null
   #closed = false
   #backend: SpeechAudioBackend | undefined
+  #progress: SpeechAudioProgress | undefined
   #retryAfter = 0
   #retryTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -75,6 +79,7 @@ export class SpeechAudioService implements SpeechAudioProvider {
       message: this.#message,
       voices: this.#voices.size,
       ...(this.#backend ? { backend: this.#backend } : {}),
+      ...(this.#progress ? { progress: this.#progress } : {}),
     }
   }
 
@@ -198,6 +203,7 @@ export class SpeechAudioService implements SpeechAudioProvider {
     this.#state = 'preparing'
     this.#message = getCopy('speechAudio.preparingFallback')
     this.#backend = undefined
+    this.#progress = { stage: 'dependencies', downloadedBytes: 0, totalBytes: 0 }
     const previous = this.#worker
     this.#worker = null
     if (previous) await previous.close()
@@ -244,14 +250,20 @@ export class SpeechAudioService implements SpeechAudioProvider {
     }
     if (this.#closed) return
     await this.#materializeVoices()
-    await this.#run(python, [
-      '-u',
-      resolve(this.#config.projectRoot, 'scripts/tts/prepare.py'),
-      '--data-dir',
-      this.#config.dataDirectory,
-    ])
+    await this.#run(
+      python,
+      [
+        '-u',
+        resolve(this.#config.projectRoot, 'scripts/tts/prepare.py'),
+        '--data-dir',
+        this.#config.dataDirectory,
+        '--watch-parent',
+      ],
+      true,
+    )
     if (this.#closed) return
     this.#state = 'loading'
+    this.#progress = { ...this.#progress, stage: 'loading' }
     this.#message = getCopy('speechAudio.loading')
     const worker = new SpeechAudioProcess({
       python,
@@ -273,6 +285,7 @@ export class SpeechAudioService implements SpeechAudioProvider {
     await worker.start()
     if (this.#closed) return
     this.#state = 'ready'
+    this.#progress = undefined
     this.#message = null
   }
 
@@ -301,12 +314,12 @@ export class SpeechAudioService implements SpeechAudioProvider {
     }
   }
 
-  async #run(command: string, args: readonly string[]): Promise<void> {
+  async #run(command: string, args: readonly string[], reportProgress = false): Promise<void> {
     if (this.#closed) throw new Error('Speech audio service is closed')
     await new Promise<void>((resolveRun, reject) => {
       const child = spawn(command, [...args], {
         cwd: this.#config.projectRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: [reportProgress ? 'pipe' : 'ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32',
         env: {
           ...process.env,
@@ -318,8 +331,22 @@ export class SpeechAudioService implements SpeechAudioProvider {
         },
       })
       this.#children.add(child)
-      child.stdout.on('data', (data: Buffer) => this.#log(data.toString('utf8')))
-      child.stderr.on('data', (data: Buffer) => this.#log(data.toString('utf8')))
+      createInterface({ input: child.stdout! }).on('line', (line) => {
+        if (reportProgress && !this.#closed) {
+          try {
+            const message = JSON.parse(line) as { type?: unknown; progress?: unknown }
+            const progress = SpeechAudioProgressSchema.safeParse(message.progress)
+            if (message.type === 'progress' && progress.success) {
+              this.#progress = progress.data
+              return
+            }
+          } catch {
+            /* Preparation diagnostics remain available in the service log. */
+          }
+        }
+        this.#log(line)
+      })
+      child.stderr!.on('data', (data: Buffer) => this.#log(data.toString('utf8')))
       child.once('error', (error) => {
         this.#children.delete(child)
         reject(error)

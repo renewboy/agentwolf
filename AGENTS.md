@@ -131,6 +131,7 @@ pnpm dev
 
 ## 决策与完成
 
+- Commit message 一律使用英文。
 - 重大、难以逆转的工作以 proposed Agent Note 起步,放在 `.agents/notes` 下;局部修复和
   普通功能不需要持久决策记录。
 - 交付时将 proposed Note 改写为现在时态的已实现事实。持久化文档中不保留执行清单或带日期

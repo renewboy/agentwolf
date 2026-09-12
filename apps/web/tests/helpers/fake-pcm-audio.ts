@@ -35,7 +35,6 @@ export class FakePcmContext {
   public currentTime = 0
   public readonly destination = {}
   public readonly sources: FakePcmSource[] = []
-  readonly decodeAudioData = vi.fn(async (_data: ArrayBuffer) => new FakePcmBuffer(4800, 48000))
   readonly resume = vi.fn(async () => {
     this.state = 'running'
   })
@@ -53,6 +52,9 @@ export class FakePcmContext {
       disconnect: vi.fn(),
       getFloatTimeDomainData: (wave: Float32Array) => wave.fill(0.2),
     }
+  }
+  public createMediaElementSource() {
+    return { connect: vi.fn(), disconnect: vi.fn() }
   }
   public createBuffer(_channels: number, samples: number, rate: number): FakePcmBuffer {
     return new FakePcmBuffer(samples, rate)

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { getCopy } from '@agentwolf/assets'
 import { AppShell } from './components/AppShell.js'
+import { SpeechPreparationNotice } from './components/SpeechPreparationNotice.js'
 import { GameIconInk } from './components/GameIcon.js'
 import { AgentsPage } from './pages/AgentsPage.js'
 import { BoardsPage } from './pages/BoardsPage.js'
@@ -33,6 +34,7 @@ export function App() {
     <RuntimeConfigProvider>
       <GameIconInk />
       <AppRoutes />
+      <SpeechPreparationNotice />
     </RuntimeConfigProvider>
   )
 }

@@ -500,16 +500,4 @@ describe('default Yunxi speech routing', () => {
     expect(response.statusCode).toBe(503)
     expect(response.json().code).toBe('tts-default-unavailable')
   })
-  it('uses default MP3 for clients that request the media-element path', async () => {
-    const { audio, defaultSpeech, request } = setup(projectedMatch(), true)
-    const response = await request({
-      speechId: 17,
-      view: { kind: 'god' },
-      text: '第二句是结论。',
-      preferDefault: true,
-    })
-    expect(JSON.parse(String(response.headers['x-agentwolf-speech-source'])).reason).toBe('browser')
-    expect(audio.openAudio).not.toHaveBeenCalled()
-    expect(defaultSpeech.openAudio).toHaveBeenCalledOnce()
-  })
 })

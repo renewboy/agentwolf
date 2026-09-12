@@ -236,7 +236,7 @@ test('plays default MP3 through the media element and keeps the portrait control
         'X-AgentWolf-Speech-Source': JSON.stringify({
           provider: 'edge-tts',
           voice: 'zh-CN-YunxiNeural',
-          reason: 'browser',
+          reason: 'disabled',
         }),
       },
     }),
@@ -244,7 +244,7 @@ test('plays default MP3 through the media element and keeps the portrait control
   match.publish()
   const stage = page.getByRole('region', { name: '角色播报' })
   await expect(stage).toBeVisible()
-  await expect(stage.getByText('当前浏览器使用默认语音。')).toBeVisible()
+  await expect(stage.getByText('角色音色已关闭，本段使用默认语音。')).toBeVisible()
   await expect(playbackBar(page).getByRole('button', { name: '跳过', exact: true })).toBeVisible()
   await expect(stage).not.toBeVisible()
   expect(

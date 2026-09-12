@@ -7,14 +7,12 @@ export function MatchRecoveryPanel({
   error,
   reason,
   onResume,
-  onDelete,
   playbackBar,
 }: {
   readonly busy: boolean
   readonly error: string | null
   readonly reason: string | null
   readonly onResume: () => void
-  readonly onDelete: () => void
   readonly playbackBar?: ReactNode
 }) {
   return (
@@ -45,15 +43,6 @@ export function MatchRecoveryPanel({
         <summary>{getCopy('tableDesign.pauseDetails')}</summary>
         {reason ? <pre>{reason}</pre> : null}
         {error ? <pre>{error}</pre> : null}
-        <button
-          className="aw-button aw-button--danger aw-button--compact"
-          disabled={busy}
-          type="button"
-          onClick={onDelete}
-        >
-          <GameIcon name="trash" size={16} />
-          {getCopy('match.delete')}
-        </button>
       </details>
     </section>
   )
