@@ -24,6 +24,8 @@ function context() {
     setTransform: vi.fn(),
     clearRect: vi.fn(),
     drawImage: vi.fn(),
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    fillRect: vi.fn(),
     translate: vi.fn(),
     rotate: vi.fn(),
     scale: vi.fn(),
@@ -51,6 +53,28 @@ beforeEach(() => {
 })
 
 describe('procedural portrait face', () => {
+  it('clips a brief lens reflection and supports one eye closing without changing canvas opacity', () => {
+    const contexts: ReturnType<typeof context>[] = []
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
+      const ctx = context()
+      contexts.push(ctx)
+      return ctx as unknown as CanvasRenderingContext2D
+    })
+    const conan = characterPerformance(
+      builtInCharacterCards.find((card) => card.id === 'character-edogawa-conan'),
+    )!
+    const face = new PortraitFace(conan, new Image()),
+      output = contexts[0]!
+    face.draw([0.5, 0], 0, 0.4)
+    expect(output.scale).toHaveBeenCalledOnce()
+    expect(output.createLinearGradient).toHaveBeenCalledOnce()
+    expect(output.fillRect).toHaveBeenCalledOnce()
+    expect(output.clips).toBe(0)
+    expect(output.globalAlpha).toBe(1)
+    face.draw([0, 0], 0, 1)
+    face.draw([0, 0], 0, -1)
+    expect(output.fillRect).toHaveBeenCalledOnce()
+  })
   it('derives all repairs from the same source and restores an exact neutral frame after expressions', () => {
     const contexts: ReturnType<typeof context>[] = []
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {

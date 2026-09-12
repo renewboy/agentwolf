@@ -173,6 +173,7 @@ export function SpeechPortraitStage({
             data-side={index < Math.ceil(seats.length / 2) ? 'left' : 'right'}
           >
             <CharacterPortrait
+              key={playback.playbackId}
               rig={rig}
               images={images}
               side={index < Math.ceil(seats.length / 2) ? 'left' : 'right'}

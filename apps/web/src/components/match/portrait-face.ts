@@ -1,4 +1,5 @@
 import type { CharacterPerformance } from '@agentwolf/assets'
+import { samplePortraitTrack } from './portrait-acting.js'
 
 type Polygon = readonly (readonly [number, number])[]
 
@@ -55,7 +56,7 @@ export class PortraitFace {
     this.draw(0, 0)
   }
 
-  public draw(blink: number, mouth: number): void {
+  public draw(blink: number | readonly [number, number], mouth: number, cue = -1): void {
     const ctx = this.#ctx,
       face = this.rig.face,
       [x, y, width, height] = face.bounds
@@ -63,8 +64,10 @@ export class PortraitFace {
     ctx.clearRect(0, 0, width, height)
     ctx.drawImage(this.image, -x, -y)
     ctx.translate(-x, -y)
-    if (blink > 0.015) {
+    if (typeof blink !== 'number' || blink > 0.015) {
       face.eyes.forEach((eye, index) => {
+        const closure = typeof blink === 'number' ? blink : blink[index]!
+        if (closure <= 0.015) return
         ctx.drawImage(this.#skin[index]!, x, y)
         ctx.save()
         // Keep foreground hair and eyebrows outside the eye deformation.
@@ -72,14 +75,14 @@ export class PortraitFace {
         ctx.save()
         ctx.translate(...eye.center)
         ctx.rotate(eye.angle)
-        ctx.scale(1, Math.max(0.025, 1 - blink))
+        ctx.scale(1, Math.max(0.025, 1 - closure))
         ctx.rotate(-eye.angle)
         ctx.translate(-eye.center[0], -eye.center[1])
         clipPolygons(ctx, eye.polygons)
-        ctx.globalAlpha = Math.min(1, Math.max(0, (1 - blink) / 0.15))
+        ctx.globalAlpha = Math.min(1, Math.max(0, (1 - closure) / 0.15))
         ctx.drawImage(this.image, 0, 0)
         ctx.restore()
-        ctx.globalAlpha = Math.min(1, Math.max(0, (blink - 0.42) / 0.5))
+        ctx.globalAlpha = Math.min(1, Math.max(0, (closure - 0.42) / 0.5))
         ctx.beginPath()
         ctx.moveTo(...eye.lid[0])
         ctx.quadraticCurveTo(...eye.lid[1], ...eye.lid[2])
@@ -90,6 +93,7 @@ export class PortraitFace {
         ctx.restore()
       })
     }
+    this.drawReflection(cue)
     if (mouth <= 0.012) return
     ctx.save()
     ctx.globalAlpha = Math.min(1, mouth * 18)
@@ -126,6 +130,36 @@ export class PortraitFace {
     ctx.strokeStyle = face.colors.lip
     ctx.lineWidth = 1.3
     ctx.stroke(mouthPath)
+    ctx.restore()
+  }
+
+  private drawReflection(cue: number): void {
+    const reflection = this.rig.acting?.reflection
+    if (!reflection || cue < 0) return
+    const strength = samplePortraitTrack(reflection, cue)
+    if (strength <= 0) return
+    const ctx = this.#ctx,
+      points = reflection.polygons.flat()
+    const left = Math.min(...points.map(([x]) => x)),
+      right = Math.max(...points.map(([x]) => x))
+    const top = Math.min(...points.map(([, y]) => y)),
+      bottom = Math.max(...points.map(([, y]) => y))
+    const center = left - reflection.width + cue * (right - left + reflection.width * 2)
+    const gradient = ctx.createLinearGradient(
+      center - reflection.width,
+      top,
+      center + reflection.width,
+      top + reflection.slant,
+    )
+    gradient.addColorStop(0, 'transparent')
+    gradient.addColorStop(0.42, reflection.color)
+    gradient.addColorStop(0.58, reflection.color)
+    gradient.addColorStop(1, 'transparent')
+    ctx.save()
+    clipPolygons(ctx, reflection.polygons)
+    ctx.globalAlpha = strength * reflection.opacity
+    ctx.fillStyle = gradient
+    ctx.fillRect(left, top, right - left, bottom - top)
     ctx.restore()
   }
 }

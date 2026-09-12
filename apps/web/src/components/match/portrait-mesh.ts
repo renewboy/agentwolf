@@ -113,7 +113,11 @@ export class PortraitMesh {
     const gl = this.#gl
     if (gl.isContextLost()) return
     this.#deformation.step(time, delta, level)
-    this.#facial.draw(this.#deformation.blink, this.#deformation.mouth)
+    this.#facial.draw(
+      this.#deformation.acting.eyes,
+      this.#deformation.mouth,
+      this.#deformation.acting.cue,
+    )
     gl.activeTexture(gl.TEXTURE0 + 1)
     gl.bindTexture(gl.TEXTURE_2D, this.#textures[1]!)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.#facial.canvas)

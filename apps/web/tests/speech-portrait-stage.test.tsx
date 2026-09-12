@@ -57,6 +57,28 @@ function create(overrides: Partial<SpeechPlaybackController> = {}) {
 }
 beforeEach(() => load.mockReset().mockResolvedValue([{ src: 'base' }]))
 describe('speech portrait stage', () => {
+  it('continues acting across speech chunks and starts a fresh performance on replay', async () => {
+    const props = create({ mode: 'manual', playbackId: 'manual:42:1' })
+    const view = render(<SpeechPortraitStage {...props} />)
+    const original = await screen.findByTestId('portrait')
+    view.rerender(
+      <SpeechPortraitStage
+        {...props}
+        playback={{
+          ...props.playback,
+          output: { ...props.playback.output!, text: '下一句继续。' },
+        }}
+      />,
+    )
+    expect(screen.getByTestId('portrait')).toBe(original)
+    view.rerender(
+      <SpeechPortraitStage
+        {...props}
+        playback={{ ...props.playback, playbackId: 'manual:42:2' }}
+      />,
+    )
+    expect(screen.getByTestId('portrait')).not.toBe(original)
+  })
   it('leaves keyboard focus on records when narration appears', async () => {
     const props = create()
     render(

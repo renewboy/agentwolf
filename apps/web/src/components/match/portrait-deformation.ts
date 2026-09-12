@@ -1,4 +1,5 @@
 import type { CharacterPerformance } from '@agentwolf/assets'
+import { PortraitActingState } from './portrait-acting.js'
 
 type Polygon = readonly (readonly [number, number])[]
 
@@ -30,10 +31,11 @@ export class PortraitDeformation {
   readonly #breathing: Float32Array
   readonly #motion: Float32Array
   readonly #velocity: Float32Array
+  readonly #gestureWeights: Float32Array
+  readonly acting: PortraitActingState
   #mouth = 0
   #energy = 0
   #startedAt: number | undefined
-  #blink = 0
 
   public constructor(private readonly rig: CharacterPerformance) {
     const columns = 64,
@@ -45,6 +47,9 @@ export class PortraitDeformation {
     this.#breathing = new Float32Array(count)
     this.#motion = new Float32Array(rig.regions.length)
     this.#velocity = new Float32Array(rig.regions.length)
+    this.acting = new PortraitActingState(rig.acting)
+    const gestures = rig.acting?.gestures ?? []
+    this.#gestureWeights = new Float32Array(count * gestures.length)
     for (let row = 0; row <= rows; row++)
       for (let column = 0; column <= columns; column++) {
         const index = row * (columns + 1) + column,
@@ -64,6 +69,12 @@ export class PortraitDeformation {
           const anchor = smooth((y - region.fixedY) / (region.freeY - region.fixedY))
           this.#weights[index * rig.regions.length + part] = unpinned * edge * anchor
         })
+        gestures.forEach((gesture, part) => {
+          // The complete hand and its prop share a rigid core; only surrounding cloth blends.
+          this.#gestureWeights[index * gestures.length + part] = smooth(
+            1 + distance(x, y, gesture.polygon) / gesture.feather,
+          )
+        })
         if (row < rows && column < columns) {
           const at = (row * columns + column) * 6,
             down = index + columns + 1
@@ -76,7 +87,7 @@ export class PortraitDeformation {
     return this.#mouth
   }
   public get blink(): number {
-    return this.#blink
+    return Math.max(...this.acting.eyes)
   }
 
   public step(time: number, delta: number, level: number): void {
@@ -87,6 +98,17 @@ export class PortraitDeformation {
     this.#mouth += (voice - this.#mouth) * (1 - Math.exp(-dt * (voice > this.#mouth ? 22 : 15)))
     this.#energy += (voice - this.#energy) * (1 - Math.exp(-dt * 3.8))
     const rig = this.rig
+    this.acting.step(elapsed, level)
+    const gestures = rig.acting?.gestures ?? []
+    const transforms = gestures.map((gesture, index) => {
+      const amount = this.acting.gestures[index]!
+      return [
+        Math.cos(gesture.rotation * amount),
+        Math.sin(gesture.rotation * amount),
+        gesture.translation[0] * amount,
+        gesture.translation[1] * amount,
+      ] as const
+    })
     rig.regions.forEach((region, index) => {
       const phase = elapsed * region.frequency + region.phase
       const target =
@@ -115,10 +137,18 @@ export class PortraitDeformation {
         x += amount * region.amplitude[0]
         y += amount * region.amplitude[1]
       })
+      gestures.forEach((gesture, part) => {
+        const weight = this.#gestureWeights[index * gestures.length + part]!
+        if (!weight || !this.acting.gestures[part]) return
+        const [cos, sin, dx, dy] = transforms[part]!,
+          [px, py] = gesture.pivot
+        const transformedX = px + (x - px) * cos - (y - py) * sin + dx
+        const transformedY = py + (x - px) * sin + (y - py) * cos + dy
+        x += (transformedX - x) * weight
+        y += (transformedY - y) * weight
+      })
       this.vertices[index * 4] = x
       this.vertices[index * 4 + 1] = y
     }
-    const cycle = (elapsed + 2.6) % 5.7
-    this.#blink = cycle < 0.17 ? Math.sin((cycle / 0.17) * Math.PI) ** 0.7 : 0
   }
 }

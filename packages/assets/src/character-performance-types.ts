@@ -1,6 +1,40 @@
 type Point = readonly [number, number]
 type Polygon = readonly Point[]
 
+export interface PortraitTrack {
+  readonly keys: readonly Point[]
+}
+
+export interface PortraitGesture extends PortraitTrack {
+  readonly name: string
+  readonly polygon: Polygon
+  readonly feather: number
+  readonly pivot: Point
+  readonly translation: Point
+  readonly rotation: number
+}
+
+export interface PortraitActing {
+  readonly firstCue: number
+  readonly cueInterval: number
+  readonly cueDuration: number
+  readonly blink: {
+    readonly first: number
+    readonly intervals: readonly number[]
+    readonly duration: number
+    readonly hold: number
+  }
+  readonly gestures: readonly PortraitGesture[]
+  readonly squint?: PortraitTrack & { readonly amount: Point }
+  readonly reflection?: PortraitTrack & {
+    readonly polygons: readonly Polygon[]
+    readonly color: string
+    readonly opacity: number
+    readonly width: number
+    readonly slant: number
+  }
+}
+
 export interface PortraitMotionRegion {
   readonly name: string
   readonly kind: 'hair' | 'cloth'
@@ -56,4 +90,5 @@ export interface CharacterPerformance {
   }
   readonly pins: readonly Polygon[]
   readonly regions: readonly PortraitMotionRegion[]
+  readonly acting?: PortraitActing
 }

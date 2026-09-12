@@ -1,5 +1,8 @@
 import type { CharacterCardSnapshot } from '@agentwolf/contracts'
 import type { CharacterPerformance } from './character-performance-types.js'
+import { acting as detectives } from './character-acting/detectives.js'
+import { acting as companions } from './character-acting/companions.js'
+import { acting as operatives } from './character-acting/operatives.js'
 import { portraitPerformance as gin } from './character-performances/gin.js'
 import { portraitPerformance as edogawaConan } from './character-performances/edogawa-conan.js'
 import { portraitPerformance as kudoShinichi } from './character-performances/kudo-shinichi.js'
@@ -16,8 +19,12 @@ export type {
   CharacterPerformance,
   PortraitEye,
   PortraitMotionRegion,
+  PortraitActing,
+  PortraitGesture,
+  PortraitTrack,
 } from './character-performance-types.js'
 
+const acting = { ...detectives, ...companions, ...operatives }
 const performances: ReadonlyMap<string, CharacterPerformance> = new Map(
   [
     gin,
@@ -32,7 +39,10 @@ const performances: ReadonlyMap<string, CharacterPerformance> = new Map(
     kaitoKid,
     akaiShuichi,
     amuroToru,
-  ].map((rig) => [`character-${rig.id}`, rig]),
+  ].map((rig) => {
+    const definition = acting[rig.id]
+    return [`character-${rig.id}`, definition ? { ...rig, acting: definition } : rig]
+  }),
 )
 
 export function characterPerformance(
