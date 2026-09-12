@@ -150,7 +150,7 @@ for (const side of ['left', 'right'] as const) {
     })
     expect(Math.abs(alignment[side])).toBeLessThan(1)
     await page.screenshot({ path: info.outputPath(`portrait-${side}.png`) })
-    await playbackBar(page).getByRole('button', { name: '关闭' }).click()
+    await playbackBar(page).getByRole('button', { name: '关闭立绘' }).click()
     await expect(stage).not.toBeVisible()
     expect(
       match.messages.filter((message) => message['type'] === 'speech-playback.resolve'),
@@ -356,7 +356,7 @@ for (const viewport of [
     const stage = page.getByRole('region', { name: '角色播报' })
     await expect(stage).toBeVisible()
     await expect(stage.locator('canvas')).toHaveCount(0)
-    await expect(stage.locator('.aw-speech-subtitles__previous')).toBeVisible()
+    await expect(stage.locator('.aw-speech-subtitles__next')).toBeVisible()
     const overflow = await page.locator('.aw-speech-subtitles__text').evaluate((element) => {
       const box = element.getBoundingClientRect(),
         css = getComputedStyle(element)

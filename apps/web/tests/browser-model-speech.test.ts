@@ -85,6 +85,7 @@ describe('BrowserModelSpeech PCM output', () => {
       expect(callbacks.update).toHaveBeenCalledWith({
         status: 'playing',
         text: '一二三四五六七八九十。',
+        nextText: '再核对这张票的理由。',
       }),
     )
     expect(port.readLevel()).toBeCloseTo(0.2)
@@ -140,7 +141,11 @@ describe('BrowserModelSpeech PCM output', () => {
     port.speak('第一段需要核对。第二段需要解释。', callbacks, { key, actor })
     const first = fallback.speak.mock.calls[0]![1]
     first.update?.({ status: 'playing' })
-    expect(callbacks.update).toHaveBeenCalledWith({ status: 'playing', text: '第一段需要核对。' })
+    expect(callbacks.update).toHaveBeenCalledWith({
+      status: 'playing',
+      text: '第一段需要核对。',
+      nextText: '第二段需要解释。',
+    })
     first.end()
     expect(fallback.speak).toHaveBeenCalledTimes(2)
     const last = fallback.speak.mock.calls[1]![1]

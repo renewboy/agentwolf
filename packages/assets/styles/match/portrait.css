@@ -173,11 +173,11 @@
 .aw-speech-subtitles .aw-audio-notice {
   margin-top: 8px;
 }
-.aw-speech-subtitles__previous,
+.aw-speech-subtitles__next,
 .aw-speech-subtitles__current {
   display: block;
 }
-.aw-speech-subtitles__previous {
+.aw-speech-subtitles__next {
   color: var(--aw-color-text-muted);
 }
 

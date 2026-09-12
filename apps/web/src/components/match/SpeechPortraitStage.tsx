@@ -3,7 +3,8 @@ import { characterPerformance, formatCopy, getCopy } from '@agentwolf/assets'
 import type { PresentationOutput } from '@agent-arena/web-runtime'
 import type { PlayerId, SeatView, SpeechId } from '@agentwolf/contracts'
 import type { SpeechPlaybackController } from '../../hooks/useSpeechPlayback.js'
-import { subtitleWidth } from '../../hooks/speech-subtitles.js'
+import { subtitlePages, subtitleWidth } from '../../hooks/speech-subtitles.js'
+import { usePortraitPreference } from '../../hooks/usePortraitPreference.js'
 import { CharacterPortrait, loadPortraitImages } from './CharacterPortrait.js'
 import { SpeechAudioNotice } from './SpeechAudioNotice.js'
 
@@ -25,13 +26,13 @@ export function SpeechPortraitStage({
   const [captionFrame, setCaptionFrame] = useState<{
     playbackId: string | null
     current: PresentationOutput<PlayerId, SpeechId> | null
-    previous: string | null
-  }>({ playbackId: null, current: null, previous: null })
+  }>({ playbackId: null, current: null })
   const [columns, setColumns] = useState(18)
   const [loaded, setImages] = useState<{ id: string; images: readonly HTMLImageElement[] } | null>(
     null,
   )
   const [dismissedPlayback, setDismissedPlayback] = useState<string | null>(null)
+  const [portraitEnabled, setPortraitEnabled] = usePortraitPreference()
   const root = useRef<HTMLDivElement>(null)
   const lastJump = useRef(jumpRequest)
   const activeOutput = !blocked && playback.mode !== 'idle' ? playback.output : null
@@ -72,25 +73,16 @@ export function SpeechPortraitStage({
     if (blocked || playback.mode === 'idle') setDismissedPlayback(null)
     setCaptionFrame((frame) => {
       if (blocked || playback.mode === 'idle')
-        return frame.current ? { playbackId: null, current: null, previous: null } : frame
+        return frame.current ? { playbackId: null, current: null } : frame
       const output = playback.output
       if (
         output?.status !== 'playing' ||
         (frame.current === output && frame.playbackId === playback.playbackId)
       )
         return frame
-      const sameSpeaker =
-        frame.playbackId === playback.playbackId &&
-        frame.current?.key === output.key &&
-        frame.current.actor === output.actor
       return {
         playbackId: playback.playbackId,
         current: output,
-        previous: sameSpeaker
-          ? frame.current!.text === output.text
-            ? frame.previous
-            : frame.current!.text
-          : null,
       }
     })
   }, [blocked, playback.mode, playback.output, playback.playbackId])
@@ -100,17 +92,11 @@ export function SpeechPortraitStage({
     if (jumpRequest !== undefined) setDismissedPlayback(playback.playbackId)
   }, [jumpRequest, playback.playbackId])
   const hasArtwork = Boolean(rig && images && seat)
-  const dismissed = dismissedPlayback === playback.playbackId
+  const dismissed = !portraitEnabled || dismissedPlayback === playback.playbackId
   const visible = Boolean(current && hasArtwork && !dismissed)
-  const previousCaption =
-    current &&
-    captionFrame.playbackId === playback.playbackId &&
-    captionFrame.current?.key === current.key &&
-    captionFrame.current.actor === current.actor &&
-    captionFrame.previous &&
-    subtitleWidth(captionFrame.previous) <= columns &&
-    subtitleWidth(current.text) <= columns
-      ? captionFrame.previous
+  const nextCaption =
+    current?.nextText && subtitleWidth(current.text) <= columns
+      ? (subtitlePages(current.nextText, Math.min(24, columns - 1))[0] ?? null)
       : null
   const setCapacity = playback.setCaptionCapacity
   useEffect(() => {
@@ -122,7 +108,7 @@ export function SpeechPortraitStage({
       const font = Math.max(17, Math.min(24, width * 0.026))
       const lineColumns = (width - (width < 420 ? 32 : 64)) / font
       setColumns(Math.floor(lineColumns))
-      setCapacity(Math.min(24, Math.floor(lineColumns * 1.8)))
+      setCapacity(Math.min(24, Math.floor(lineColumns) - 1))
     }
     const observer = new ResizeObserver(measure)
     observer.observe(element)
@@ -142,7 +128,10 @@ export function SpeechPortraitStage({
           <button
             type="button"
             className="aw-button aw-button--compact"
-            onClick={() => setDismissedPlayback(dismissed ? null : playback.playbackId)}
+            onClick={() => {
+              setPortraitEnabled(dismissed)
+              setDismissedPlayback(null)
+            }}
           >
             {getCopy(dismissed ? 'match.portraitShow' : 'match.portraitClose')}
           </button>
@@ -187,10 +176,10 @@ export function SpeechPortraitStage({
                 {seat.character?.name !== seat.name ? <small>{seat.character?.name}</small> : null}
               </div>
               <p className="aw-speech-subtitles__text" aria-live="off">
-                {previousCaption ? (
-                  <span className="aw-speech-subtitles__previous">{previousCaption}</span>
-                ) : null}
                 <span className="aw-speech-subtitles__current">{current.text}</span>
+                {nextCaption ? (
+                  <span className="aw-speech-subtitles__next">{nextCaption}</span>
+                ) : null}
               </p>
               {playback.noticeSpeechId === current.key ? (
                 <SpeechAudioNotice

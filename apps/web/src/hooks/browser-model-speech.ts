@@ -128,7 +128,8 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
           page,
           {
             end: () => playPage(index + 1),
-            update: (output) => guarded.update?.({ ...output, text: page }),
+            update: (output) =>
+              guarded.update?.({ ...output, text: page, nextText: pages[index + 1] ?? null }),
             error: (error) => {
               if (current()) this.#setNotice('default-unavailable')
               guarded.error(error)
@@ -177,7 +178,9 @@ export class BrowserModelSpeech implements PlaybackPort<PlayerId, SpeechId> {
         const page = pages[index]!
         if (pages[index + 1] !== undefined) pending = load(pages[index + 1]!)
         this.#setNotice(source.provider === 'edge-tts' ? `default-${source.reason}` : null)
-        await this.#pcm.play(stream, format, (status) => guarded.update?.({ status, text: page }))
+        await this.#pcm.play(stream, format, (status) =>
+          guarded.update?.({ status, text: page, nextText: pages[index + 1] ?? null }),
+        )
         if (!current()) return
       }
       guarded.end()
