@@ -2,18 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import type { CharacterPerformance } from '@agentwolf/assets'
 import { PortraitMesh } from './portrait-mesh.js'
 
-const portraitArt: Readonly<Record<string, readonly string[]>> = {
-  gin: [
-    new URL(
-      '../../../../../packages/assets/characters/performances/gin/neutral.webp',
-      import.meta.url,
-    ).href,
-  ],
-}
+const portraitArt = new Map(
+  Object.entries(
+    import.meta.glob<string>(
+      '../../../../../packages/assets/characters/performances/*/neutral.webp',
+      { eager: true, import: 'default', query: '?url' },
+    ),
+  ).map(([path, url]) => [path.split('/').at(-2)!, [url]] as const),
+)
 
 const cache = new Map<string, Promise<readonly HTMLImageElement[]>>()
 export function loadPortraitImages(id: string): Promise<readonly HTMLImageElement[]> {
-  const urls = portraitArt[id]
+  const urls = portraitArt.get(id)
   if (!urls) return Promise.reject(new Error('Portrait artwork unavailable'))
   const existing = cache.get(id)
   if (existing) return existing

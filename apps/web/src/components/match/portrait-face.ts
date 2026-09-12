@@ -76,6 +76,7 @@ export class PortraitFace {
         ctx.rotate(-eye.angle)
         ctx.translate(-eye.center[0], -eye.center[1])
         clipPolygons(ctx, eye.polygons)
+        ctx.globalAlpha = Math.min(1, Math.max(0, (1 - blink) / 0.15))
         ctx.drawImage(this.image, 0, 0)
         ctx.restore()
         ctx.globalAlpha = Math.min(1, Math.max(0, (blink - 0.42) / 0.5))

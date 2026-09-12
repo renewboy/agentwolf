@@ -56,6 +56,10 @@ describe('character portrait resource lifecycle', () => {
     const first = loadPortraitImages('gin')
     expect(loadPortraitImages('gin')).toBe(first)
     await expect(first).resolves.toHaveLength(1)
+    for (const card of builtInCharacterCards) {
+      const performance = characterPerformance(card)!
+      await expect(loadPortraitImages(performance.id)).resolves.toHaveLength(1)
+    }
   })
   it('draws only while enabled and cancels animation and GPU resources when disabled', () => {
     const props = { rig, images, side: 'right' as const, motion: true, readLevel: () => 0.1 }
