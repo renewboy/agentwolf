@@ -14,7 +14,8 @@ description: 编写、重构或审查 AgentWolf 当前态架构设计文档，�
    [当前态交付物纯净性规则](../../../artifacts_rules.md)。
 2. 检查工作树和最近相关 diff，区分当前实现、历史材料与未来设想。
 3. 从公共入口开始，沿配置、Schema、数据、控制、事件、状态和恢复路径阅读源码与测试。跨包行为
-   至少核对 producer、owner 和 consumer，不能只根据现有文档改写。
+   至少核对 producer、owner 和 consumer，不能只根据现有文档改写。局部修订只核对涉及的设计
+   陈述及相关上下游。
 4. 把事实归纳为职责、契约、依赖方向、生命周期和不变量。文件名与类名只保留到足以定位稳定
    所有者的粒度。
 
@@ -31,8 +32,8 @@ description: 编写、重构或审查 AgentWolf 当前态架构设计文档，�
 - Package README 拥有包内 API、失败模式和限制；Schema、生成目录、测试与开发 Skill 拥有精确
   字段、清单、验证和操作步骤。架构文档通过链接引用这些所有者。
 
-开始写作前阅读[架构文档模板](references/architecture-document-template.md)。模板规定必须回答的
-设计问题和图表选择，不要求机械复制标题。
+新建文档或调整结构时阅读[架构文档模板](references/architecture-document-template.md)。模板规定
+必须回答的设计问题和图表选择，不要求机械复制标题。
 
 ## 写作与制图
 
@@ -54,5 +55,5 @@ description: 编写、重构或审查 AgentWolf 当前态架构设计文档，�
 - 隐私、持久 Session、事件重放、barrier 等不变量在其唯一权威文档中明确出现，其他文档只链接。
 - 不包含迁移叙事、废弃方案、讨论过程、调试记录、交付日志、未来路线图或未落地能力。
 - 主文档与专项文档分工明确，图表互补，术语和依赖方向一致。
-- 相对链接按精确大小写有效，Skill 通过 `quick_validate.py`，文档通过 `pnpm check:docs` 与
-  `git diff --check`。纯文档工作不需要运行游戏、启动 Agent 或执行浏览器验收。
+- 相对链接按精确大小写有效，文档通过 `pnpm check:docs` 与 `git diff --check`。仅修改 Skill 时
+  运行 `quick_validate.py`。纯文档工作不需要运行游戏、启动 Agent 或执行浏览器验收。

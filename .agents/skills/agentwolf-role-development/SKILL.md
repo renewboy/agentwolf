@@ -5,9 +5,9 @@ description: 在版本化 Ruleset plugin、Prompt、projection、效果、board�
 
 # AgentWolf Role 开发
 
-将一个可玩游戏 Role 作为完整的语义 plugin 交付,包含完整的玩家侧与观战侧集成。游戏 Role
-控制规则、Ability、知识与胜负;Character 卡控制公开人设与表达;仅涉及 Character 的工作请
-另行路由。
+新增可玩游戏 Role 时,作为完整的语义 plugin 交付,包含玩家侧与观战侧集成。修改既有 Role 时,
+仅处理本次变更涉及的行为与集成边界。游戏 Role 控制规则、Ability、知识与胜负;Character 卡
+控制公开人设与表达;仅涉及 Character 的工作请另行路由。
 
 ## 建立规则契约
 
@@ -44,8 +44,8 @@ Ruleset 兼容性提供路由。
 Prompt bundle、可见性安全的叙述与效果、本地化 UI 资产、徽章颜色、玩家策略页面与内置
 board。
 
-在编写测试或关闭请求之前阅读[验证与交付](references/verification-and-delivery.md)。按 Role 的
-实际行为选择检查项,并为已交付的 Role 运行完整的跨层门禁。
+在编写测试或关闭请求之前阅读[验证与交付](references/verification-and-delivery.md)。按改动范围
+选择检查项及门禁。
 
 ## 架构不变量
 
@@ -68,6 +68,8 @@ board。
   被动 Role 声明之一。
 
 ## 完成标准
+
+以下为新增 Role 的完成标准;修改既有 Role 时,验收本次涉及的行为与边界。
 
 只有当该 Role 可以通过预期的 board 路径被选中、通过真实 action gateway 完成其合法与非法动作、
 能从事件日志恢复、不向未授权视图暴露私有事实、不会让狼人必胜证明跨控制组使用身份知识、渲染

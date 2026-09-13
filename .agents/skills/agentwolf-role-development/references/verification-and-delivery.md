@@ -49,15 +49,17 @@ pnpm check:docs
 
 ## 跨层门禁
 
-为已交付的 Role 交接之前,运行:
+新增可玩 Role 或进行跨层语义变更时,交接前运行:
 
 ```sh
 pnpm check
-pnpm test:simulation
 pnpm simulation:check
 pnpm test:e2e
 git diff --check
 ```
+
+局部修复按受影响面选择聚焦检查;浏览器行为变化时运行 `pnpm test:e2e`。
+`pnpm check` 已包含 `pnpm test:simulation`,通过后无需单独重复运行。
 
 如果该 Role 变更了已批准的行为,创建一个隔离的、唯一命名的 Match,并使用仓库记录的共享仿真
 评审/批准工作流。不要手工编写 fixture、把 `replayGame` 当作事件生成 oracle、覆盖已批准的
@@ -83,7 +85,7 @@ fixture,或改动用户的来源 Match。在批准之前同时评审全新引擎
 
 完成时:
 
-1. 重新生成游戏 catalog,并验证最近的 `AGENTS.md` 文件仍然准确;
+1. 游戏 catalog 的源数据变化时重新生成;持久仓库指引变化时更新最近的 `AGENTS.md`;
 2. 当需要 proposed Agent Note 时,以已交付的决策、备选方案、后果与稳定验证契约将其改写并
    移入 `implemented/<class>`;
 3. 在请求交接中报告聚焦与完整命令、仿真/浏览器证据以及任何显式未运行的检查,而不是单独的

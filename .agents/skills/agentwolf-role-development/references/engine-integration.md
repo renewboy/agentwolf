@@ -144,11 +144,14 @@ facts 与 finalizer。lane 内排序使用声明的依赖与稳定注册顺序;�
 
 当安装新 Role plugin 或变更 plugin 版本/配置时:
 
-1. 确认先前 revision 的终局 Match 已生成 archive,非终局 Match 已由操作者结束或删除;
-2. 递增当前 revision,更新 manifest 与 release table 中唯一可执行的 factory;
-3. 保持唯一 Match snapshot schema,由 lock revision 与 fingerprint 拒绝过期执行;
-4. 为新 revision 生成当前仿真语料,活动 corpus 不保留历史 Ruleset;
-5. 证明 archived Match 的查看与 audit 不调用 GameEngine 或 RulesetCatalog。
+1. 递增当前 revision,更新 manifest 与 release table 中唯一可执行的 factory;
+2. 保持唯一 Match snapshot schema,由 lock revision 与 fingerprint 拒绝过期执行;
+3. 为新 revision 生成当前仿真语料,活动 corpus 不保留历史 Ruleset;
+4. 证明 archived Match 的查看与 audit 不调用 GameEngine 或 RulesetCatalog。
+
+在已有数据的环境启用新 revision 前,确认先前 revision 的终局 Match 已生成 archive,非终局
+Match 已由操作者结束或删除。该条件未满足时,可以在隔离环境完成实现与验证,仅暂停新 revision
+在已有数据环境的启用;用户拥有的 Match 与运行时数据仍需显式授权才能变更。
 
 仿真、轨迹审计、Match 恢复与 Prompt 组合对未归档 Match 使用同一条当前 `RulesetCatalog` 路径。
 历史 Match 只消费冻结 archive,不安装兼容 runtime。

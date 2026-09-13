@@ -19,8 +19,8 @@ projection/重连/播放语义阅读[信息同步](../../docs/architecture/infor
 
 ## 验证
 
-- Web 源码变更运行 `pnpm test:web`,并在 `apps/web/tests` 下、所属 page、component、hook 或
-  helper 旁添加 jsdom 覆盖。
+- 使用 `pnpm test:web <测试文件>` 运行相关 Web 测试。行为变化且现有覆盖不足时,在
+  `apps/web/tests` 下、所属 page、component、hook 或 helper 旁新增或调整 jsdom 覆盖。
 - Web fixture、mock 或浏览器契约变更时运行 `pnpm typecheck:tests`。
 - 打包或资产集成变更时运行 `pnpm --filter @agentwolf/web typecheck` 并构建。
 - 真实布局、滚动、WebSocket 代理、发言播放集成与 motion 清理留在 Playwright;用户可见变更在
