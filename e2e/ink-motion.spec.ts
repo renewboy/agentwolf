@@ -18,6 +18,7 @@ test('reviews complete ink states, role variants and protected view changes', as
   page,
 }, testInfo) => {
   test.setTimeout(120_000)
+  await page.clock.install()
   const fixture = thinkingMatchFixture()
   const roles = [
     'role-werewolf',
@@ -188,6 +189,8 @@ test('reviews complete ink states, role variants and protected view changes', as
   ).toBeGreaterThan(before)
   await page.screenshot({ path: testInfo.outputPath('streaming-card.png') })
 
+  // Screenshot encoding and runner load must not consume a transient effect's lifetime.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now()))
   for (const definition of Object.values(roleEffectCatalog)) {
     const source =
       current.seats.find((seat) => seat.roleId === definition.roleId) ?? current.seats[1]!
@@ -233,17 +236,24 @@ test('reviews complete ink states, role variants and protected view changes', as
       await expect(page.locator('.aw-role-effect-caption__outcome')).toHaveText('预言家')
     if (definition.id === 'cupid-linked-death')
       await expect(overlay).toHaveAttribute('data-variant', 'break')
-    await page.waitForTimeout(800)
+    const beforeUpdateMs = Math.floor(definition.durationMs / 3)
+    await page.clock.runFor(beforeUpdateMs)
     await page.screenshot({ path: testInfo.outputPath(`${definition.id}.png`) })
     current = {
       ...current,
       activeSpeech: { ...current.activeSpeech!, text: current.activeSpeech!.text + ' ' },
     }
     publish()
-    await page.waitForTimeout(1250)
+    await expect
+      .poll(() => page.locator('.aw-speech-bubble[data-live="true"] p').textContent())
+      .toBe(current.activeSpeech!.text)
+    await page.clock.runFor(definition.durationMs - beforeUpdateMs - 200)
     await expect(overlay).toHaveAttribute('data-effect', definition.id)
-    await expect(overlay).toHaveCount(0, { timeout: 2500 })
+    // Include the 500 ms cleanup fallback, but not a fresh lifetime after the snapshot.
+    await page.clock.runFor(800)
+    await expect(overlay).toHaveCount(0)
   }
+  await page.clock.resume()
   current = {
     ...current,
     activeSpeech: {

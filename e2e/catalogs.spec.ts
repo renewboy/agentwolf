@@ -77,7 +77,7 @@ test('creates, edits, selects, and deletes a custom six-player board', async ({
 test('shows the concise Mirror Hidden preset without clipping its composition', async ({
   page,
   resources: _resources,
-}) => {
+}, testInfo) => {
   await page.goto('/matches/new')
   const count = page.getByRole('button', { name: '10 人', exact: true })
   await expect(count).toHaveCSS('border-image-source', /engraved-frame/u)
@@ -99,7 +99,7 @@ test('shows the concise Mirror Hidden preset without clipping its composition', 
   expect(countSize!.height).toBe(64)
   await page
     .locator('.aw-setup-counts')
-    .screenshot({ path: '/private/tmp/agentwolf-count-choices.png' })
+    .screenshot({ path: testInfo.outputPath('agentwolf-count-choices.png') })
   const board = page.getByRole('button', { name: /10 人镜隐迷踪局/ })
   await expect(board).toBeVisible()
   await expect(

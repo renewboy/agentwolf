@@ -18,6 +18,10 @@ for (const format of ['pcm', 'mp3'] as const) {
     const sentences = ['第一句话。', '第二句话。']
     const requested: string[] = []
     const resolutions: unknown[] = []
+    let releaseNextSentence!: () => void
+    const nextSentenceResponse = new Promise<void>((resolve) => {
+      releaseNextSentence = resolve
+    })
     let publish!: () => void
     await page.route(`**/api/matches/${match.id}?*`, (route) => route.fulfill({ json: match }))
     await page.routeWebSocket(`**/api/matches/${match.id}/live?*`, (socket) => {
@@ -65,9 +69,12 @@ for (const format of ['pcm', 'mp3'] as const) {
         : readFileSync(new URL('./fixtures/speech-tone.mp3', import.meta.url))
     if (format === 'pcm')
       for (let index = 0; index < bytes.length; index += 2) bytes.writeInt16BE(512, index)
-    await page.route(`**/api/matches/${match.id}/speech-audio`, (route) => {
-      requested.push(route.request().postDataJSON().text)
-      return route.fulfill({
+    await page.route(`**/api/matches/${match.id}/speech-audio`, async (route) => {
+      const text = route.request().postDataJSON().text
+      requested.push(text)
+      // Keep every observed audio node attributable to the first sentence.
+      if (text === sentences[1]) await nextSentenceResponse
+      await route.fulfill({
         body: bytes,
         contentType: format === 'pcm' ? 'audio/L16;rate=24000;channels=1' : 'audio/mpeg',
         headers: {
@@ -83,13 +90,19 @@ for (const format of ['pcm', 'mp3'] as const) {
     await page.getByRole('button', { name: '语音播报已关闭' }).click()
     await expect(page.getByRole('button', { name: '语音播报已开启' })).toBeVisible()
     publish()
-    await expect.poll(() => requested).toEqual(sentences)
-    expect(resolutions).toEqual([])
-    await expect(page.getByRole('button', { name: /跳过自动播报/ })).toBeVisible()
-    if (format === 'pcm') {
-      const audio = await pcmPlaybackObservation(page)
-      expect(audio.nodes.length).toBeGreaterThan(0)
-      expect(audio.nodes.every((node) => node.endedAt === null)).toBe(true)
+    try {
+      await expect.poll(() => requested).toEqual(sentences)
+      expect(resolutions).toEqual([])
+      await expect(page.getByRole('button', { name: /跳过自动播报/ })).toBeVisible()
+      // Earlier PCM blocks may have ended; the first sentence must not have drained.
+      await expect
+        .poll(async () => {
+          const audio = await pcmPlaybackObservation(page)
+          return audio.nodes.some((node) => node.endedAt === null && !node.stopped)
+        })
+        .toBe(true)
+    } finally {
+      releaseNextSentence()
     }
     await expect.poll(() => resolutions).toHaveLength(1)
     expect(resolutions[0]).toMatchObject({ sequence: 31, outcome: 'completed' })
