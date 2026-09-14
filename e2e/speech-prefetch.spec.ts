@@ -72,8 +72,8 @@ for (const format of ['pcm', 'mp3'] as const) {
     await page.route(`**/api/matches/${match.id}/speech-audio`, async (route) => {
       const text = route.request().postDataJSON().text
       requested.push(text)
-      // Keep every observed audio node attributable to the first sentence.
-      if (text === sentences[1]) await nextSentenceResponse
+      // Keep every observed PCM node attributable to the first sentence.
+      if (format === 'pcm' && text === sentences[1]) await nextSentenceResponse
       await route.fulfill({
         body: bytes,
         contentType: format === 'pcm' ? 'audio/L16;rate=24000;channels=1' : 'audio/mpeg',
@@ -94,13 +94,15 @@ for (const format of ['pcm', 'mp3'] as const) {
       await expect.poll(() => requested).toEqual(sentences)
       expect(resolutions).toEqual([])
       await expect(page.getByRole('button', { name: /跳过自动播报/ })).toBeVisible()
-      // Earlier PCM blocks may have ended; the first sentence must not have drained.
-      await expect
-        .poll(async () => {
-          const audio = await pcmPlaybackObservation(page)
-          return audio.nodes.some((node) => node.endedAt === null && !node.stopped)
-        })
-        .toBe(true)
+      if (format === 'pcm') {
+        // Earlier PCM blocks may have ended; the first sentence must not have drained.
+        await expect
+          .poll(async () => {
+            const audio = await pcmPlaybackObservation(page)
+            return audio.nodes.some((node) => node.endedAt === null && !node.stopped)
+          })
+          .toBe(true)
+      }
     } finally {
       releaseNextSentence()
     }
