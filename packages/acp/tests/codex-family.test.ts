@@ -68,7 +68,7 @@ describe('Codex-family ambient Skill isolation', () => {
       bundled: { enabled: false },
       config: expect.any(Array),
     })
-    expect(entries.every((entry) => entry.enabled === false)).toBe(true)
+    expect(entries.every((entry) => !entry.enabled)).toBe(true)
     expect(isolatedSkillConfigToml()).toBe(asToml(entries))
   })
 })
