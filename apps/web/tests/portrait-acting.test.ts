@@ -90,8 +90,9 @@ describe('character-specific portrait acting', () => {
     })
   }
 
-  it('preserves texture coordinates and unfolded local triangles for every character', () => {
-    for (const rig of performances) {
+  it.each(performances)(
+    'preserves texture coordinates and unfolded local triangles for $id',
+    (rig) => {
       const mesh = new PortraitDeformation(rig),
         original = mesh.vertices.slice()
       for (let frame = 0; frame < 180; frame++) {
@@ -112,6 +113,6 @@ describe('character-specific portrait acting', () => {
             throw new Error(`${rig.id}: distorted triangle (${area})`)
         }
       }
-    }
-  })
+    },
+  )
 })

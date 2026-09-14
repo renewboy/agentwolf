@@ -3,7 +3,7 @@ import { expect, test } from './fixtures/test.js'
 test('keeps confirmation controls in the shared thin engraved material', async ({
   page,
   resources,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/agents')
   await page
@@ -29,6 +29,6 @@ test('keeps confirmation controls in the shared thin engraved material', async (
   await expect(remove).toHaveCSS('filter', 'brightness(1.18)')
   await expect(remove).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   expect(await remove.boundingBox()).toEqual(before)
-  await page.screenshot({ path: '/private/tmp/agentwolf-confirm-restored.png' })
+  await page.screenshot({ path: testInfo.outputPath('agentwolf-confirm-restored.png') })
   await dialog.getByRole('button', { name: '取消' }).click()
 })

@@ -76,6 +76,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Coverage and full-match scenarios otherwise contend for the same CI CPUs.
+    ...(process.env.CI ? { maxWorkers: 1 } : {}),
     projects: [
       {
         extends: true,
