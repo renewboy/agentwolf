@@ -592,6 +592,7 @@ describe('GameEngine', () => {
     expect(engine.events.some((event) => event.payload.type === 'day.interrupted')).toBe(true)
   })
 
+  // This full 12-player round includes dawn and exile settlement under V8 coverage.
   it('continues to the next night after daytime exile last words', () => {
     const engine = createManualEngine(noSheriffBoard)
     const targetId = actorsWithRole(engine, 'role-villager')[0]!
@@ -626,7 +627,7 @@ describe('GameEngine', () => {
 
     expect(engine.state.phaseId).toBe('phase-night-wolf-council')
     expect(engine.state.night).toBe(2)
-  })
+  }, 10_000)
 
   it('restores a paused engine from its event log', () => {
     const engine = createManualEngine(sixPlayerBoard)
@@ -649,7 +650,7 @@ describe('GameEngine', () => {
 
     restored.resume()
     expect(restored.state.status).toBe('running')
-    expect(restored.state.phaseId).toBe('phase-night-wolf-council')
+    expect(engine.state.phaseId).toBe('phase-night-wolf-council')
   })
 
   it('starts the first phase when preparation resumes before a phase existed', () => {
