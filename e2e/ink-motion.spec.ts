@@ -190,7 +190,8 @@ test('reviews complete ink states, role variants and protected view changes', as
   await page.screenshot({ path: testInfo.outputPath('streaming-card.png') })
 
   // Screenshot encoding and runner load must not consume a transient effect's lifetime.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now()))
+  // Pause before publishing cues, with room for the two browser round trips.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60_000))
   for (const definition of Object.values(roleEffectCatalog)) {
     const source =
       current.seats.find((seat) => seat.roleId === definition.roleId) ?? current.seats[1]!
