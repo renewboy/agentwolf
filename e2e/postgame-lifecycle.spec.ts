@@ -30,9 +30,11 @@ test('settles ended matches and stops polling a missing match', async ({
       sessionStatus: 'closed',
     })),
   } as MatchView
+  let current = runningMatch
   let socketCount = 0
+  let finishMatch!: () => Promise<void>
   await page.route(`**/api/matches/${endedMatch.id}?*`, async (route) =>
-    route.fulfill({ json: runningMatch }),
+    route.fulfill({ json: current }),
   )
   await page.routeWebSocket('**/live?*', async (socket) => {
     if (!socket.url().includes(endedMatch.id)) {
@@ -40,14 +42,16 @@ test('settles ended matches and stops polling a missing match', async ({
       return
     }
     socketCount += 1
-    socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: runningMatch }))
-    setTimeout(() => {
-      socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: endedMatch }))
-      void socket.close()
-    }, 1_200)
+    socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: current }))
+    finishMatch = async () => {
+      current = endedMatch
+      socket.send(JSON.stringify({ type: 'snapshot', view: { kind: 'god' }, data: current }))
+      await socket.close()
+    }
   })
   await page.goto(`/matches/${endedMatch.id}`)
   await page.getByRole('button', { name: '上帝视角', exact: true }).click()
+  await expect.poll(() => socketCount).toBeGreaterThan(0)
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'thinking')
   const previouslyThinkingRing = page.locator(
     '.aw-player-rail .aw-player-card[data-player-id="player-6"] .aw-avatar-orbit__rotor',
@@ -59,6 +63,8 @@ test('settles ended matches and stops polling a missing match', async ({
   expect(
     await previouslyThinkingRing.evaluate((element) => getComputedStyle(element).transform),
   ).not.toBe(movingTransform)
+  // Publish the terminal state only after the running animation has been observed.
+  await finishMatch()
   await expect(page.locator('.aw-match-shell')).toHaveAttribute('data-presence-state', 'ended')
   await expect(page.locator('.aw-connection-indicator')).toHaveCount(0)
   await expect(page.locator('.aw-player-rail .aw-player-card__role')).toHaveText(
