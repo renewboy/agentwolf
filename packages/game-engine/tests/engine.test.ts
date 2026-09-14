@@ -16,7 +16,8 @@ const noSheriffBoard: BoardManifest = {
   sheriff: false,
 }
 
-describe('GameEngine', () => {
+// Full-round scenarios exercise real settlement and victory search under V8 coverage.
+describe('GameEngine', { timeout: 20_000 }, () => {
   it('keeps a deferred speech at its action boundary until continuation is explicit', () => {
     const engine = createManualEngine(noSheriffBoard)
     engine.start()
@@ -592,46 +593,41 @@ describe('GameEngine', () => {
     expect(engine.events.some((event) => event.payload.type === 'day.interrupted')).toBe(true)
   })
 
-  // This full 12-player round includes dawn and exile settlement under V8 coverage.
-  it(
-    'continues to the next night after daytime exile last words',
-    () => {
-      const engine = createManualEngine(noSheriffBoard)
-      const targetId = actorsWithRole(engine, 'role-villager')[0]!
-      engine.start()
-      playNight(engine, { wolfTargetId: null })
-      while (engine.state.phaseId === 'phase-day-speech') {
-        const actorId = engine.activeActor()
-        if (!actorId) throw new Error('Expected day speaker')
-        engine.submit({
-          type: 'speech',
-          matchId: engine.state.matchId,
-          actorId,
-          kind: 'day',
-          text: '白天发言结束。',
-        })
-      }
-      submitExpected(engine, (actorId) => ({
-        type: 'vote',
-        matchId: engine.state.matchId,
-        actorId,
-        targetId,
-        kind: 'exile',
-      }))
-      expect(engine.state.phaseId).toBe('phase-last-words')
+  it('continues to the next night after daytime exile last words', () => {
+    const engine = createManualEngine(noSheriffBoard)
+    const targetId = actorsWithRole(engine, 'role-villager')[0]!
+    engine.start()
+    playNight(engine, { wolfTargetId: null })
+    while (engine.state.phaseId === 'phase-day-speech') {
+      const actorId = engine.activeActor()
+      if (!actorId) throw new Error('Expected day speaker')
       engine.submit({
         type: 'speech',
         matchId: engine.state.matchId,
-        actorId: targetId,
-        kind: 'last-words',
-        text: '遗言结束。',
+        actorId,
+        kind: 'day',
+        text: '白天发言结束。',
       })
+    }
+    submitExpected(engine, (actorId) => ({
+      type: 'vote',
+      matchId: engine.state.matchId,
+      actorId,
+      targetId,
+      kind: 'exile',
+    }))
+    expect(engine.state.phaseId).toBe('phase-last-words')
+    engine.submit({
+      type: 'speech',
+      matchId: engine.state.matchId,
+      actorId: targetId,
+      kind: 'last-words',
+      text: '遗言结束。',
+    })
 
-      expect(engine.state.phaseId).toBe('phase-night-wolf-council')
-      expect(engine.state.night).toBe(2)
-    },
-    10_000,
-  )
+    expect(engine.state.phaseId).toBe('phase-night-wolf-council')
+    expect(engine.state.night).toBe(2)
+  })
 
   it('restores a paused engine from its event log', () => {
     const engine = createManualEngine(sixPlayerBoard)
